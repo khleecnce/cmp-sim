@@ -42,7 +42,7 @@ python3 -m venv .venv
 # interactive web UI (standard library only, no web framework)
 .venv/bin/python -m cmp_sim.api          # -> http://127.0.0.1:8765
 
-# 442 tests
+# 450 tests
 .venv/bin/python -m pytest -q
 ```
 

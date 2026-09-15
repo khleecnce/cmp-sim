@@ -25,9 +25,22 @@ wafer rotation angle:
 ### Origin
 
 F. Preston, "The theory and design of plate glass finishing machines",
-*J. Soc. Glass Technol.* **11**, 214 (1927). Preston polished glass, not
-wafers: the law is empirical and `Kp` lumps together everything chemical and
-material-specific.
+*J. Soc. Glass Technol.* **11**, 214 (1927). Predates the DOI system; no DOI
+exists and none is invented here. Preston polished glass, not wafers: the law is
+empirical and `Kp` lumps together everything chemical and material-specific.
+
+The datasets this is validated against, all verified against the original
+documents rather than a secondary transcription:
+
+| dataset | source | verification |
+|---|---|---|
+| TEOS / silica, 4 points | US9499721B2 | patent table |
+| Pt / alumina, 4 points | US8142675B2 | original PDF: 220/470/750/1020 A/min at 2/4/6/7 psi |
+| oxide Taguchi L25, 5 points | US6564116B2 | patent's own S/N response table reproduced to 5 decimals |
+| PETEOS / ceria, 9 points | Mariscal 2020, *ECS J. Solid State Sci. Technol.* **9**, 044008, doi:10.1149/2162-8777/ab89bc | published table |
+| Cu / IC1000, 6 points | US6918821B2 | Table 1, kept as a counter-example |
+
+Patent PDFs are at `patentimages.storage.googleapis.com/pdfs/US<number>.pdf`.
 
 ### Kinematics
 
@@ -138,7 +151,7 @@ same tolerance. The numeric inverse solution also agrees with the closed-form
 ### Origin
 
 J. A. Greenwood, J. B. P. Williamson, "Contact of nominally flat surfaces",
-*Proc. R. Soc. Lond. A* **295**, 300 (1966). doi:10.1098/rspa.1966.0242.
+*Proc. R. Soc. Lond. A* **295**, 300 (1966), doi:10.1098/rspa.1966.0242
 The inverse problem (nominal pressure -> separation) is solved by Brent's
 method in the inherited `legacy/sim/tier2_physics/gw_pressure_solve.py`; the
 Hertz/GW integrals are in `legacy/sim/tier2_physics/gw_contact.py`.
@@ -244,6 +257,19 @@ it. `|zeta| < 20 mV` raises an agglomeration warning.
 
 ## P3 — Luo-Dornfeld abrasive mechanics
 
+### Origin
+
+J. Luo, D. A. Dornfeld, "Material removal mechanism in chemical mechanical
+polishing: theory and modeling", *IEEE Trans. Semicond. Manuf.* **14**(2), 112
+(2001), doi:10.1109/66.920723
+
+The derivation below is re-done from the indentation geometry rather than
+quoted, so the exponents are traceable to an assumption that can be checked
+(plastic indentation, Hertzian shallow indent) instead of taken on faith. Note
+one consequence of Luo-Dornfeld's own formulation: the particle contact stress
+is *set equal* to the film hardness, which is why the packs cannot source the
+two independently — see the note under `contact_branch` below.
+
 ### Single-particle law, derived
 
 A rigid sphere of radius `R` pressed into a surface of hardness `H` by load `F`.
@@ -307,6 +333,22 @@ result says it cannot saturate.
 
 ## P4 — Chemical term
 
+### Origins
+
+* **Glass / oxide hydrolysis** — T. A. Cook, "Chemical processes in glass
+  polishing", *J. Non-Cryst. Solids* **120**(1-3), 152 (1990),
+  doi:10.1016/0022-3093(90)90200-6 — the water-diffusion-then-dissolution
+  picture behind the pH dependence.
+* **Tungsten passivation** — F. B. Kaufman *et al.*, "Chemical-mechanical
+  polishing for fabricating patterned W metal features as chip interconnects",
+  *J. Electrochem. Soc.* **138**(11), 3460 (1991), doi:10.1149/1.2085434 — the
+  abrade-the-passive-film mechanism, and the source of the oxidizer peak whose
+  parameters are degenerate below the peak (see "Fitting factors" below).
+* **Copper hardening under oxidizer** — Ihnfeldt & Talbot 2008,
+  eScholarship qt0qc211z8, measured Cu bulk at 1.2 GPa but the H2O2-modified
+  layer at **3.24 GPa**, i.e. harder, not softer. This refuted the assumption
+  originally coded here and it was removed; see the caveat below the table.
+
 Chemistry enters only through the softened surface hardness:
 
     chemical conditions -> H_eff/H_0 -> MRR multiplier = (H_0/H_eff)^(3/2)
@@ -366,7 +408,10 @@ profile applied only when a pack supplies a calibrated starvation length.
 
 ## P6 — Pattern effects
 
-MIT framework (Boning MRS 1999; Stine IEEE TSM 1998; Ouma thesis 1999).
+MIT framework: B. E. Stine *et al.*, "Rapid characterization and modeling of
+pattern-dependent variation in chemical-mechanical polishing", *IEEE Trans.
+Semicond. Manuf.* **11**(1), 129 (1998), doi:10.1109/66.661292; with Boning
+MRS 1999 and Ouma's MIT thesis (1999) for the density-filter formulation.
 
     rho_eff(x) = (w * rho_local)(x)        pad averages over a planarization length
     RR_up(x)   = K / rho_eff(x)            dense regions polish SLOWER
