@@ -37,11 +37,17 @@ def pack_path(name: str) -> Path:
     )
 
 
+#: YAML files in the params directory that are databases, not parameter packs
+_NON_PACK_FILES = {"additives", "abrasives"}
+
+
 def available_packs() -> List[str]:
+    """Parameter packs only — the additive/abrasive databases are not packs."""
     names = set()
     for d in SEARCH_PATH:
         if d.exists():
-            names.update(p.stem for p in d.glob("*.yaml"))
+            names.update(p.stem for p in d.glob("*.yaml")
+                         if p.stem not in _NON_PACK_FILES and not p.stem.startswith("_"))
     return sorted(names)
 
 
