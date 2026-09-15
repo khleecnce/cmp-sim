@@ -1,0 +1,178 @@
+# PVD tungsten CMP — colloidal-silica ABRASIVE-SIZE sweep at ONE fixed formulation.
+# Four slurries, mean particle size 12 / 25 / 45 / 75 nm, everything else identical:
+# 16.3 wt% silica, pH 3, KIO3 oxidizer, no surfactant, 7 psi, 55 rpm platen / 45 rpm head,
+# 100 ml/min flow, IC-1400 pad, Presi Mecapol E460 polisher.
+#
+# ⚠ This is a SIZE sweep, not a pressure sweep. The Preston harness in
+#   cmp_sim/core/validation.py groups by chemistry overrides and requires >=3
+#   DISTINCT (pressure, rpm) triples, so it will skip this file: pressure and speed are
+#   constant and the abrasive size (an override) differs per point, putting every point in
+#   its own group. That is intentional — this file exists to constrain
+#   `abrasive_size_exponent`, which is fitted by cmp_sim/core/factor_fit.py off the
+#   `abrasive_d50_nm` driver, not by the Preston P*V fit.
+
+source: >
+  D. Bouvet, P. Beaud, P. Fazan, R. Sanjines and E. Jacquinot, "Impact of the colloidal
+  silica particle size on physical vapor deposition tungsten removal rate and surface
+  roughness", J. Vac. Sci. Technol. B 20(4), 1556-1560 (2002). DOI 10.1116/1.1490393.
+  Brief Report; not open access, local PDF at
+  ~/fab-sim/papers/bouvet2002-jvst-colloidal-silica-w-cmp-size.pdf
+
+  SIZES: TABLE I, page 1556 (p2 of the PDF) prints the mean particle size of each of the
+  four slurries as determined by titration (Sears), laser light scattering and TEM:
+      slurry 1 -> 75 nm    slurry 2 -> 45 nm    slurry 3 -> 25 nm    slurry 4 -> 12 nm
+  The "Mean particle size (nm)" column is the printed value used here. The paper also
+  prints the per-technique numbers, which agree (e.g. slurry 2: LLS 36, TEM 48 -> mean 45).
+
+  RATES: ⚠ DIGITIZED from FIGURE 3, page 1558 (p4 of the PDF), "Removal rate vs particle
+  size for tungsten (filled squares), titanium (filled diamonds), and oxide (open
+  squares)". The paper prints NO table of removal rates; the figure is the only source.
+  Digitization method (not read by eye): Fig. 3 is stored in the PDF as a 950x719
+  1-bit-per-pixel CCITT image (xref 103). It was extracted losslessly with PyMuPDF and the
+  marker centroids were located by pixel analysis. Axis calibration came from the plot
+  frame (x: col 172 = 0 nm, col 926 = 100 nm) and the printed y gridlines
+  (rows 97/184/270/355/442/529 = 300/250/200/150/100/50 nm/min), which reproduce to
+  within 0.4 nm/min — so the axis mapping itself is exact, and the residual error is
+  marker-centroid only, about +/-3 nm/min (~1-2% of the W rate).
+  Marker types were separated by pixel signature: W = 18x19 px SOLID square,
+  oxide = HOLLOW square (only its top and bottom edges carry ink, 17 px apart),
+  Ti = smaller diamond.
+
+  ⭐ CROSS-CHECK against the paper's own prose, which describes all three trends
+  qualitatively (p1558 and the Conclusion, p1560):
+    - "Although the particle sizes range from 12 to 75 nm (factor of 6.25), we observe that
+      the tungsten removal rate is quite constant."   -> digitized W: 310, 298, 274, 289
+      nm/min; spread only 12% over a 6.25x size range. AGREES.
+    - "The oxide removal rate reaches its maximum at the 25 nm particle size" -> digitized
+      oxide: 135, 188, 156, 140 -> maximum AT 25 nm. AGREES.
+    - "titanium removal rate increases monotonously with a decrease in particle size" ->
+      digitized Ti: 206, 184, 114, 95 for 12, 25, 45, 75 nm -> strictly monotonic
+      decreasing with size. AGREES.
+    - "the titanium removal rate becomes higher than the oxide removal rate for particle
+      sizes lower than, or equal to, 25 nm" -> digitized: at 12 nm Ti 206 > oxide 135; at
+      25 nm Ti 184 ~= oxide 188 (crossover); at 45 nm Ti 114 < oxide 156. AGREES, and the
+      near-tie at exactly 25 nm is an independent confirmation of the calibration.
+  All three series therefore reproduce the four statements the authors make in text. This
+  is why confidence is set to `med` rather than `low` despite being digitized.
+
+  FIXED ACROSS ALL FOUR POINTS (page 1558, section II, verbatim): "The platen and head
+  speeds were 55 and 45 rpm, respectively, with a work pressure of 7 psi. The slurry flow
+  rate was fixed at 100 ml/min. We also fixed the silica content in the slurries at 16.3
+  wt%, the pH value at 3, and we used KIO3 as an oxidizer. No surfactant was added to the
+  slurries." TABLE I caption adds "All other parameters were identical (solid content,
+  type, and quantity of oxidizer)." Pad: Rodel IC-1400. Tool: Presi Mecapol E460.
+  So abrasive SIZE is the only variable — this sweep is NOT confounded with loading.
+
+film: w                  # PVD tungsten, 600 nm on a 140 nm PVD Ti adhesion layer
+pack: oxide_silica       # PLACEHOLDER: silica-slurry pack. Absolute MRR is not meaningful
+                         # here; use this file for the SHAPE of the size response only.
+in_scope: true           # W-plug CMP on a Si wafer — a real semiconductor CMP film
+used_for_calibration: false
+
+wafer_radius_m: 0.100    # ⚠ NOT STATED. The paper says "blanket Si wafers" processed at
+                         # EPFL CMI on a semiautomatic Presi Mecapol E460 but never gives a
+                         # diameter. 100 mm radius is an assumption, not a printed value.
+center_offset_m: 0.200   # r_cc not stated; repository base value.
+
+confidence: med          # digitized, but every trend is confirmed by the paper's own prose
+                         # and the axis calibration is verified against printed gridlines.
+
+# ── Units ──────────────────────────────────────────────────────────────────
+#  Figure 3's y axis is labelled in nm/min directly (0-350, ticks every 50), so no
+#  Angstrom conversion is involved.
+# ── The finding ────────────────────────────────────────────────────────────
+#  Fitting ln(MRR) = n*ln(d) + c over the four W points gives n = -0.05.
+#  Tungsten removal is essentially INDEPENDENT of colloidal-silica size from 12 to 75 nm.
+#  The authors read this as evidence that W removal here is limited by passivation-layer
+#  growth kinetics, not by indentation or contact area: they also report that the rate is
+#  independent of silica CONTENT (Fig. 7) and collapses below 200 A/min with the oxidizer
+#  removed. Note they explicitly contrast this with Bielmann et al. (ESL 2, 401 (1999)),
+#  who saw a strong size dependence for ALUMINA at 0.25-10 um — a different abrasive and a
+#  size range 3 orders of magnitude larger.
+
+conditions:
+  - label: "12 nm colloidal silica, 16.3 wt%, pH 3, KIO3, 7 psi, 55/45 rpm"
+    pressure_psi: 7.0
+    rpm_platen: 55.0
+    rpm_wafer: 45.0
+    mrr_nm_per_min: 309.7
+    read_method: digitized
+    digitization_uncertainty_nm_per_min: 3.0
+    source_detail: "Fig. 3, p.1558, filled square at 12 nm (solid 18x19 px marker, row 80.5)"
+    overrides:
+      abrasive_size_nm: 12.0
+      abrasive_d50_nm: 12.0
+      abrasive_wt_pct: 16.3
+      slurry_ph: 3.0
+      sfr_ml_min: 100
+  - label: "25 nm colloidal silica, 16.3 wt%, pH 3, KIO3, 7 psi, 55/45 rpm"
+    pressure_psi: 7.0
+    rpm_platen: 55.0
+    rpm_wafer: 45.0
+    mrr_nm_per_min: 297.5
+    read_method: digitized
+    digitization_uncertainty_nm_per_min: 3.0
+    source_detail: "Fig. 3, p.1558, filled square at 25 nm (row 101.5)"
+    overrides:
+      abrasive_size_nm: 25.0
+      abrasive_d50_nm: 25.0
+      abrasive_wt_pct: 16.3
+      slurry_ph: 3.0
+      sfr_ml_min: 100
+  - label: "45 nm colloidal silica, 16.3 wt%, pH 3, KIO3, 7 psi, 55/45 rpm"
+    pressure_psi: 7.0
+    rpm_platen: 55.0
+    rpm_wafer: 45.0
+    mrr_nm_per_min: 274.3
+    read_method: digitized
+    digitization_uncertainty_nm_per_min: 3.0
+    source_detail: "Fig. 3, p.1558, filled square at 45 nm (row 141.5)"
+    overrides:
+      abrasive_size_nm: 45.0
+      abrasive_d50_nm: 45.0
+      abrasive_wt_pct: 16.3
+      slurry_ph: 3.0
+      sfr_ml_min: 100
+  - label: "75 nm colloidal silica, 16.3 wt%, pH 3, KIO3, 7 psi, 55/45 rpm"
+    pressure_psi: 7.0
+    rpm_platen: 55.0
+    rpm_wafer: 45.0
+    mrr_nm_per_min: 289.3
+    read_method: digitized
+    digitization_uncertainty_nm_per_min: 3.0
+    source_detail: "Fig. 3, p.1558, filled square at 75 nm (row 115.5)"
+    overrides:
+      abrasive_size_nm: 75.0
+      abrasive_d50_nm: 75.0
+      abrasive_wt_pct: 16.3
+      slurry_ph: 3.0
+      sfr_ml_min: 100
+
+notes: >
+  Swept axis: abrasive mean particle size only — 12 / 25 / 45 / 75 nm. Loading (16.3 wt%),
+  pH (3), oxidizer (KIO3), pressure (7 psi), platen/head speed (55/45 rpm), flow
+  (100 ml/min), pad (IC-1400) and tool are identical in all four rows, stated explicitly
+  in section II. This is a CLEAN, unconfounded size sweep — size is not varied together
+  with loading.
+
+  ⚠ Every rate here is DIGITIZED from Figure 3. The paper prints no removal-rate table.
+  Do not present these as transcribed values. The axis mapping is exact (verified against
+  printed gridlines to <0.4 nm/min) and all four qualitative statements the authors make
+  in prose are reproduced, but the marker centroids still carry ~+/-3 nm/min.
+
+  FINDING for `abrasive_size_exponent` on TUNGSTEN with SILICA: n ~ -0.05, i.e. ZERO
+  within the reading uncertainty. W removal does not care about silica size over 12-75 nm.
+  Companion files from the same figure cover the other two films measured in the SAME
+  experiment with the SAME slurries:
+    bouvet2002_ti_silica_size_sweep.yaml     -> Ti,    n ~ -0.45 (FALLS with size)
+    bouvet2002_oxide_silica_size_sweep.yaml  -> oxide, non-monotonic, peak at 25 nm
+  That one experiment produces three DIFFERENT size dependences on three films is the
+  single strongest piece of evidence in this batch that `abrasive_size_exponent` must be
+  per-film and cannot be a global constant.
+
+  ⚠ Not stated by the paper: wafer diameter, polish time, number of replicates, error bars
+  on the removal rates, pad break-in/conditioning. No uncertainty field is available from
+  the source; `digitization_uncertainty_nm_per_min` reflects only my reading error.
+
+  ⚠ `pack` is a placeholder. There is no W-with-silica pack; use this file for the shape
+  of the size response, or add a W pack before reading anything into absolute MRR.

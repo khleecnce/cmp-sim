@@ -37,6 +37,36 @@ base: sic_ceria_h2o2
 description: "4H-SiC: ceria/H2O2 alkaline slurry, Kp refitted to SiC's own DOE"
 
 params:
+  # ── blocking an inherited value that does not belong to SiC ──────────
+  # This pack's lineage runs SiC -> sti_ceria -> oxide_silica, so anything the
+  # silica packs declare arrives here unless it is overridden. That has already
+  # bitten once: the oxide Kp of 2.2e-13 was inherited silently and
+  # over-predicted SiC by ~128x (see kp_m_per_pa below).
+  #
+  # The same thing just happened with the elastic modulus. Adding SiO2's
+  # E = 92 GPa to the silica packs propagated it to SiC, whose real modulus is
+  # ~4-5x larger, and the pad-limited plasticity criterion goes as E^2 - so the
+  # inherited value made SiC look 'elastic' on a number that was never about
+  # SiC. Declared null rather than filled with a handbook figure: no source in
+  # this corpus measures 4H-SiC modulus alongside the wet-pad hardness the
+  # criterion pairs it with, and mixing studies is how the 128x error happened.
+  film_youngs_modulus_pa:
+    value: null
+    unit: Pa
+    note: >
+      TODO(owner) - deliberately blocked, not missing by oversight.
+      4H-SiC modulus is ~450 GPa in the literature (vs SiO2's 92), but this
+      pack must not inherit the silica value, and a handbook number paired with
+      a pad hardness measured in a different study is the kind of mixing that
+      produced this pack's historical 128x Kp error. With it null the engine
+      reports contact_branch as undetermined for SiC, which is honest: SiC is
+      chemically rate-limited anyway, so the particle-contact branch is not the
+      term that decides its rate.
+      To fill it: a measured 4H-SiC elastic modulus for YOUR wafer orientation
+      and doping, and ideally a wet-pad nanohardness from the same tool.
+    source: "TODO(owner) - no non-mixing source in this corpus"
+    confidence: unverified
+
   kp_m_per_pa:
     value: 1.714e-15
     unit: m/Pa

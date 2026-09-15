@@ -1,0 +1,218 @@
+# HDP oxide CMP — ceria-coated-silica ABRASIVE-SIZE (D50) series, PRINTED TABLES.
+# Four composite abrasives, D50 = 88.7 / 117.2 / 156.1 / 210.7 nm, at ONE fixed slurry:
+# 0.185 wt% abrasive, 0.14 wt% ammonium polyacrylate, pH 5.45, 3.7 psi, 87/93 rpm,
+# 200 ml/min, Applied Materials Mirra, in-situ conditioning at 6 lb.
+#
+# ⚠ SIZE series, not a pressure sweep — the Preston P*V harness will skip this file.
+#   It exists to constrain `abrasive_size_exponent` via the `abrasive_d50_nm` driver.
+#
+# ⚠⚠ PARTIAL CONFOUND, READ THIS BEFORE USING: the four abrasives differ in D50 AND in
+#     size-distribution WIDTH and peak count. Loading, pH, chemistry, pressure and speed
+#     are genuinely fixed, so this is NOT a loading confound — but D50 is not the only
+#     thing that moves. See notes; the patent itself makes a point of the width effect.
+
+source: >
+  Versum Materials US LLC, "Chemical mechanical polishing composition and method for
+  polishing a substrate comprising composite ceria-coated silica abrasive",
+  US Patent Application US 2019/0127607 A1, published 2019-05-02 (May 2, 2019).
+  Local PDF: ~/fab-sim/papers/us20190127607a1-versum-ceria-coated-silica-d99.pdf
+  Abrasives: four ceria-coated silica composite particles from JGC C&C Corporation, Japan.
+
+  SIZES: PRINTED TABLE 1 "Particle size distribution summary", paragraph [0114], page 10
+  of the PDF. Column order as printed is D99 (nm), D50 (nm), D99-D50 (nm),
+  D50/(D99-D50), Number of Peaks. The four data rows are Particles A, B, C, D in order:
+
+      Particle   D99     D50     D99-D50   D50/(D99-D50)   Peaks
+         A      302.6   156.1     146.5        1.07          4
+         B      182.7   117.2      65.5        1.79          2
+         C      316.7   210.7      106         1.99          2
+         D      158.5    88.7      69.8        1.27          2
+
+  RATES: PRINTED TABLE 2, paragraph [0119], page 10. Columns as printed are
+  TEOS films (Angstroms/min), High Density Plasma (HDP) oxide films (Angstroms/min),
+  and TEOS/HDP removal rate ratio, four rows in the same A, B, C, D order:
+
+      Particle   TEOS (A/min)   HDP (A/min)   TEOS/HDP
+         A           1311           2041        0.64
+         B           1828           1807        1.01
+         C           2223           2299        0.97
+         D            875           1158        0.76
+
+  ⭐ CROSS-CHECK 1 (row pairing between the two tables). The patent's PDF text layer does
+  not carry the A/B/C/D label column cleanly, so the row order was PROVEN arithmetically
+  rather than assumed, using two printed self-consistent columns:
+    (a) Table 1's own D50/(D99-D50) column: 156.1/146.5 = 1.066 ~ 1.07 ✓;
+        117.2/65.5 = 1.789 ~ 1.79 ✓; 210.7/106 = 1.988 ~ 1.99 ✓; 88.7/69.8 = 1.271 ~ 1.27 ✓.
+        So the D99, D50 and D99-D50 columns are correctly aligned row-by-row.
+    (b) Table 2's own TEOS/HDP ratio column: 1311/2041 = 0.642 ~ 0.64 ✓;
+        1828/1807 = 1.012 ~ 1.01 ✓; 2223/2299 = 0.967 ~ 0.97 ✓; 875/1158 = 0.756 ~ 0.76 ✓.
+        So the TEOS and HDP columns are correctly aligned row-by-row.
+    Both tables' rows therefore correspond one-to-one in the printed order, and the
+    Particle A/B/C/D identification follows from paragraph [0116]/[0130] (below).
+
+  ⭐ CROSS-CHECK 2 (which row is which particle). Paragraph [0116]: "Particles B, C and D
+  were manufactured using a process to tightly control the particle size distribution to
+  two particle size peaks... Particle A ... had a very broad size distribution with 4
+  peaks." Only ONE row has 4 peaks and it is row 1, which also has the largest D99-D50
+  (146.5 nm) -> row 1 = Particle A. Paragraph [0130]: "smaller particles (such as particle
+  D with size distribution of D50/(D90-D50) = 1.27)" -> the row with ratio 1.27 and the
+  smallest D50 (88.7 nm) is row 4 = Particle D. Both endpoints are pinned independently.
+
+  ⭐ CROSS-CHECK 3 (the trend). Paragraph [0121]: "Particle A with larger particle size
+  distribution appeared to provide much higher removal rates for HDP silicon dioxide films
+  compared to a similar sized particle with narrower particle size distribution." And
+  [0122]: "Particle D with smaller particle size similarly appeared to provide higher
+  removal rates for HDP silicon dioxide films compared to TEOS films" — check: for D,
+  HDP 1158 > TEOS 875 ✓ (ratio 0.76 < 1). Consistent with the transcription.
+
+  FIXED ACROSS ALL FOUR POINTS — paragraphs [0117] and [0118], verbatim:
+  "Polishing was performed on Mirra polisher manufactured by Applied Materials. Polishing
+  was performed at 3.7 psi with 87 RPM table speed 93 RPM head speed, 200 ml/min slurry
+  flow rate with in-situ pad conditioning at 6 lb downforce." / "These particles as
+  described in Example 1 were individually formulated as abrasives into CMP polishing
+  slurries comprising 0.185 wt.% abrasive particles, 0.14 wt.% ammonium polyacrylate
+  (MW ~16000-18000), pH adjusted to 5.45 using ammonium hydroxide."
+  So loading (0.185 wt%), dispersant (0.14 wt%), pH (5.45), pressure (3.7 psi), speeds
+  (87 table / 93 head), flow (200 ml/min) and tool are IDENTICAL. Only the abrasive
+  particle (its D50 and its PSD shape) changes. NOT a loading or chemistry confound.
+
+film: oxide              # High Density Plasma (HDP) deposited SiO2 blanket films
+pack: oxide_silica       # ⚠ the abrasive is ceria-COATED silica, i.e. a ceria surface on a
+                         # silica core. Closer to a ceria slurry chemically. Treat absolute
+                         # MRR with suspicion; use for the SHAPE of the size response.
+in_scope: true           # STI/oxide CMP for nanoscale devices
+used_for_calibration: false
+
+wafer_radius_m: 0.150    # ⚠ NOT STATED. AMAT Mirra is a 200/300 mm class tool; 150 mm
+                         # radius is the repository default assumption, not a printed value.
+center_offset_m: 0.200   # r_cc not stated; repository base value.
+
+confidence: high         # both numbers and all fixed conditions come from printed patent
+                         # tables/paragraphs, and the row pairing is arithmetically proven
+                         # against two independent self-consistent printed ratio columns.
+                         # Downgrade to med if you care about D50 being partly confounded
+                         # with PSD width (see notes).
+
+# ── Units ──────────────────────────────────────────────────────────────────
+#  Patent prints Angstrom/min. nm/min = (A/min)/10. Originals kept in
+#  measured_mrr_angstrom_per_min.
+# ── The finding ────────────────────────────────────────────────────────────
+#  Sorted by D50, HDP oxide rate is STRICTLY MONOTONIC RISING:
+#      88.7 nm -> 1158 A/min   117.2 nm -> 1807   156.1 nm -> 2041   210.7 nm -> 2299
+#  Fitting ln(MRR) = n*ln(D50) + c gives n = +0.75 — a strong POSITIVE exponent, the
+#  largest well-behaved positive value in this batch apart from son2021 (n ~ +1.0).
+#  Note the monotonicity survives despite Particle A (D50 156.1 nm) having an anomalously
+#  broad distribution: widths in D50 order are 69.8, 65.5, 146.5, 106.0 nm, i.e. width
+#  does NOT track D50, yet the rate still rises monotonically with D50.
+
+conditions:
+  - label: "Particle D, D50 88.7 nm (D99 158.5), 0.185 wt%, pH 5.45, 3.7 psi, 87/93 rpm"
+    pressure_psi: 3.7
+    rpm_platen: 87.0
+    rpm_wafer: 93.0
+    mrr_nm_per_min: 115.8
+    measured_mrr_angstrom_per_min: 1158
+    read_method: table
+    source_detail: "TABLE 2 row D (HDP column), p.10; D50 from TABLE 1 row D, p.10"
+    overrides:
+      abrasive_size_nm: 88.7
+      abrasive_d50_nm: 88.7
+      abrasive_d99_nm: 158.5
+      abrasive_wt_pct: 0.185
+      slurry_ph: 5.45
+      sfr_ml_min: 200
+  - label: "Particle B, D50 117.2 nm (D99 182.7), 0.185 wt%, pH 5.45, 3.7 psi, 87/93 rpm"
+    pressure_psi: 3.7
+    rpm_platen: 87.0
+    rpm_wafer: 93.0
+    mrr_nm_per_min: 180.7
+    measured_mrr_angstrom_per_min: 1807
+    read_method: table
+    source_detail: "TABLE 2 row B (HDP column), p.10; D50 from TABLE 1 row B, p.10"
+    overrides:
+      abrasive_size_nm: 117.2
+      abrasive_d50_nm: 117.2
+      abrasive_d99_nm: 182.7
+      abrasive_wt_pct: 0.185
+      slurry_ph: 5.45
+      sfr_ml_min: 200
+  - label: "Particle A, D50 156.1 nm (D99 302.6, 4 peaks), 0.185 wt%, pH 5.45, 3.7 psi, 87/93 rpm"
+    pressure_psi: 3.7
+    rpm_platen: 87.0
+    rpm_wafer: 93.0
+    mrr_nm_per_min: 204.1
+    measured_mrr_angstrom_per_min: 2041
+    read_method: table
+    source_detail: >
+      TABLE 2 row A (HDP column), p.10; D50 from TABLE 1 row A, p.10. ⚠ This is the
+      BROAD-DISTRIBUTION particle (4 peaks, D99-D50 = 146.5 nm, the widest of the four).
+      Paragraph [0121] singles it out as giving "much higher removal rates for HDP" than a
+      similarly sized narrow particle — so part of this point's rate is attributable to
+      distribution width, not D50 alone.
+    overrides:
+      abrasive_size_nm: 156.1
+      abrasive_d50_nm: 156.1
+      abrasive_d99_nm: 302.6
+      abrasive_wt_pct: 0.185
+      slurry_ph: 5.45
+      sfr_ml_min: 200
+  - label: "Particle C, D50 210.7 nm (D99 316.7), 0.185 wt%, pH 5.45, 3.7 psi, 87/93 rpm"
+    pressure_psi: 3.7
+    rpm_platen: 87.0
+    rpm_wafer: 93.0
+    mrr_nm_per_min: 229.9
+    measured_mrr_angstrom_per_min: 2299
+    read_method: table
+    source_detail: "TABLE 2 row C (HDP column), p.10; D50 from TABLE 1 row C, p.10"
+    overrides:
+      abrasive_size_nm: 210.7
+      abrasive_d50_nm: 210.7
+      abrasive_d99_nm: 316.7
+      abrasive_wt_pct: 0.185
+      slurry_ph: 5.45
+      sfr_ml_min: 200
+
+notes: >
+  Swept axis: abrasive particle identity, indexed by D50 — 88.7 / 117.2 / 156.1 / 210.7 nm.
+  Loading (0.185 wt%), dispersant (0.14 wt% ammonium polyacrylate), pH (5.45), pressure
+  (3.7 psi), speeds (87/93 rpm), flow (200 ml/min), pad conditioning and tool are all
+  printed and identical. NOT confounded with loading or chemistry.
+
+  ⚠ PARTIAL CONFOUND — D50 is not the ONLY abrasive property that varies. The four
+  particles also differ in distribution width (D99-D50 = 69.8, 65.5, 146.5, 106.0 nm in
+  D50 order) and in peak count (Particle A has 4 peaks, B/C/D have 2). The patent's whole
+  point is that width matters independently: [0121] credits Particle A's broad
+  distribution for its high HDP rate, and [0130]/FIG. 3 show narrow Particle D gives the
+  lowest over-polish/dishing sensitivity. So the fitted n = +0.75 is a D50 exponent with
+  width effects folded in, NOT a pure single-size-parameter exponent. Do not treat it as
+  cleanly as the Bouvet or Lai numbers. Recorded here as a D50 series because that is how
+  the simulator's `abrasive_d50_nm` driver is defined; `abrasive_d99_nm` is also supplied
+  so a width-aware model can use it.
+
+  FINDING for `abrasive_size_exponent` on HDP OXIDE with CERIA-COATED SILICA:
+  n ~ +0.75, monotonic RISING over 89-211 nm.
+
+  ⚠ CONTRADICTION with the other oxide size data in this batch — this is the point of
+  collecting them:
+    - THIS FILE (HDP oxide, ceria-coated silica, 89-211 nm): n ~ +0.75, rising.
+    - son2021 (SiO2, wet ceria/cerium-hydroxide, 3-100 nm): n ~ +1.0, rising.
+    - bouvet2002 (thermal oxide, colloidal silica, 12-75 nm): NON-MONOTONIC, peak at
+      25 nm, single-exponent fit ~ 0.
+    - basim2000 (PECVD oxide, 140 nm fumed silica spiked with 0.5-1.5 um coarse particles):
+      rate FALLS as coarse particles are added (19993 -> 10308 A/min).
+  So "oxide" does not have one answer: the sign and shape depend on abrasive material
+  (silica vs ceria vs ceria-coated) and on the size range. Do NOT average these; the
+  disagreement is the finding.
+
+  ⚠ Companion file from the SAME two tables: us20190127607a1_teos_ceriasilica_size_sweep.yaml
+  covers the TEOS oxide column of TABLE 2. TEOS is NON-MONOTONIC in D50 (875, 1828, 1311,
+  2223 A/min) even though HDP is monotonic — from the same four slurries in the same runs.
+  Paragraph [0120]: "It's evident that the particle size and particle size distribution
+  affected HDP silicon dioxide films and TEOS films differently even though both films
+  essentially comprise silicon oxide films." Two oxide films, one experiment, different
+  size responses.
+
+  ⚠ Not stated by the patent: wafer diameter, pad type/model, polish time, replicate count,
+  error bars, slurry temperature. No uncertainty is available.
+  ⚠ `pack` is oxide_silica but the abrasive is ceria-coated silica; absolute MRR will not
+  match. Shape/rank use only.

@@ -1,0 +1,207 @@
+# 6H-SiC (0001) Si-face CMP — alumina ABRASIVE-SIZE sweep at ONE fixed slurry.
+# Four grades W1 / W1.5 / W2.5 / W3.5 (~1 / 1.5 / 2.5 / 3.5 um) at fixed 10 g abrasive per
+# 500 ml, 2 ml dispersant, 5 ml oxidant, pH 9, 2 psi, 60 r/min platen, 65 r/min workpiece.
+#
+# ⚠ SIZE sweep, not a pressure sweep — the Preston P*V harness will skip this file.
+#
+# ⚠⚠ THIS SERIES HAS AN INTERIOR MAXIMUM at W2.5 (~2.5 um). It rises then TURNS OVER.
+#     A single power law does not describe it; the naive fit n ~ +0.24 hides the reversal.
+#
+# ⚠ MRR is nm per HOUR — extremely slow (0.8-1.05 nm/min). SiC on a lapping-class machine.
+
+source: >
+  SU Jianxiu et al., "Study on the Polishing Slurry of the Chemical Mechanical Polishing
+  for SiC Crystal Substrate", Procedia Engineering 24 (2011) 441-446 (ICAE2011).
+  DOI 10.1016/j.proeng.2011.11.2673. Open access (Elsevier, Procedia).
+  Local PDF: ~/fab-sim/papers/proeng-2011-11-2673-alumina-6h-sic.pdf
+
+  SIZES: PRINTED in the running text of section 3.2, page 443: "Taking the four abrasive
+  sizes W1, W1.5, W2.5, W3.5 for the study." W-grades are the Chinese abrasive micro-grit
+  designation in which the number is the nominal particle size in MICROMETRES, and the
+  paper's own Fig. 2 x-axis is labelled "Abrasive Size(um)" with the four points plotted
+  at x = 1.0, 1.5, 2.5 and 3.5. So W1 = ~1 um = 1000 nm, W1.5 = ~1500 nm, W2.5 = ~2500 nm,
+  W3.5 = ~3500 nm.
+  ⚠ These are MICRON-scale abrasives — 1000-3500 nm — roughly 25x larger than the
+  nanometre-scale slurries in most of the other files in this batch. Keep that in mind
+  before comparing exponents.
+
+  RATES: ⚠ DIGITIZED from FIGURE 2, page 443, "The influence of abrasive size on the MRR".
+  The paper prints NO table of MRR values.
+  Digitization method (not read by eye, and effectively exact here): Fig. 2 is a VECTOR
+  drawing, not a raster image. The four data markers are filled rectangles in the PDF
+  content stream, read directly with PyMuPDF's get_drawings() as:
+      (284.5, 209.0)-(286.4, 210.9)   (304.3, 193.8)-(306.2, 195.7)
+      (344.0, 133.1)-(345.9, 135.0)   (383.7, 138.2)-(385.6, 140.1)
+  Axis calibration from the PDF text layer and tick geometry: x tick label centres '1.0'
+  at x=285.5 and '4.0' at x=404.5; y major ticks (the long ones, starting at x=273.7) at
+  rows 199.8, 174.6, 149.3, 124.0 carrying the printed labels 50, 55, 60, 65. The linear
+  y map reproduces ALL eight tick rows to within 0.01 nm/h (the four minor ticks land on
+  47.49, 52.50, 57.50, 62.51 — i.e. exact half-steps), and the marker x-positions recover
+  1.00, 1.50, 2.50 and 3.50 um to two decimals. Because the source is vector rather than
+  raster, the residual reading error is ~+/-0.15 nm/h, not a pixel-level guess.
+
+  ⭐ CROSS-CHECK against the paper's own printed numbers, section 3.2, page 443 verbatim:
+  "The MRR increases from the 51nm/h to 63.3nm/h when the abrasive size increases from the
+  W1.5 to W2.5." My digitized W1.5 = 51.01 nm/h (printed 51 ✓) and W2.5 = 63.02 nm/h
+  (printed 63.3, 0.4% off ✓). Both named values reproduce. The text continues: "But the
+  MRR do not increase when the abrasive size is W3.5" — digitized W3.5 = 62.01 nm/h, i.e.
+  slightly BELOW W2.5 ✓. The turnover is the authors' own stated finding.
+
+  FIXED ACROSS ALL FOUR POINTS — section 3.2, page 443, verbatim: "The slurry ingredients
+  in 500ml are the dosage of abrasive 10g, the dispersant 2ml, the oxidant 5ml, and the
+  rest of DI water. The pH value adjusted with alkali is 9. The experiment parameters is
+  P=2psi, nw=65r/min, np=60r/min." The same P/np/nw triple is also printed inside Fig. 2
+  as the annotation "P=2psi,np=60r/min,nw=65r/min".
+  So abrasive loading (10 g / 500 ml), dispersant, oxidant, pH (9), pressure (2 psi) and
+  both speeds are IDENTICAL across the four sizes. Abrasive SIZE is the only variable.
+  NOT confounded with loading — the paper's loading study (4/6/8/10 g) is section 3.3 and
+  is deliberately NOT pooled here.
+
+film: sic                # 6H-SiC crystal substrate, (0001) Si face
+pack: oxide_silica       # ⚠ PLACEHOLDER: the abrasive is ALUMINA and the workpiece is SiC.
+                         # Absolute MRR from a silica/oxide pack is meaningless.
+                         # Use for the SHAPE of the size response only.
+in_scope: true           # SiC substrate CMP — a real wide-bandgap semiconductor process
+used_for_calibration: false
+
+wafer_radius_m: 0.050    # ⚠ NOT STATED. The paper never gives a substrate diameter; it
+                         # describes a lapping/polishing machine with a 500 ml slurry batch.
+                         # 50 mm radius is an assumption, NOT a printed value.
+center_offset_m: 0.200   # r_cc not stated; repository base value.
+
+confidence: low          # ⚠ DIGITIZED (no printed rate table). Mitigating factors: the
+                         # source is VECTOR geometry rather than a bitmap, the axis map
+                         # reproduces all 8 ticks to 0.01 nm/h, and two of the four values
+                         # are named in the text and match to <0.5%. Still `low` because no
+                         # table exists and the wafer size is assumed.
+
+# ── Units ──────────────────────────────────────────────────────────────────
+#  Fig. 2 y axis is nm/HOUR (labelled "MRR(nm/h)"). mrr_nm_per_min = (nm/h)/60.
+#  Originals kept in measured_mrr_nm_per_hour. These are ~0.8-1.05 nm/min — the slowest
+#  rates in this batch by far.
+# ── The finding ────────────────────────────────────────────────────────────
+#  MRR rises then FALLS:
+#      1000 nm -> 48.0    1500 nm -> 51.0    2500 nm -> 63.0    3500 nm -> 62.0 nm/h
+#  Segment exponents, which is the honest summary:
+#      1000 -> 2500 nm:  n = +0.30   (RISING; the 1500->2500 leg alone is +0.41)
+#      2500 -> 3500 nm:  n = -0.05   (FLAT / slightly falling — the turnover)
+#  A single four-point fit gives n ~ +0.24, which is a blend of a rise and a plateau.
+#  The authors' explanation for the turnover (p.443): "the abrasive number decrease with
+#  the abrasive size increase when the abrasive content do not change in slurry and it
+#  will result in the decrease of MRR" — i.e. at FIXED mass loading, particle count falls
+#  as d^-3, and past ~2.5 um the loss of contact points beats the gain per contact. That
+#  is exactly the competition between contact-area and indentation mechanisms that makes
+#  the sign of this exponent range-dependent rather than universal.
+
+conditions:
+  - label: "W1 alumina (~1000 nm), 10 g/500 ml, pH 9, 2 psi, 60 r/min platen, 65 r/min workpiece"
+    pressure_psi: 2.0
+    rpm_platen: 60.0
+    rpm_wafer: 65.0
+    mrr_nm_per_min: 0.800
+    measured_mrr_nm_per_hour: 48.0
+    read_method: digitized
+    digitization_uncertainty_nm_per_hour: 0.15
+    source_detail: >
+      Fig. 2 (right panel), p.443, marker at x = 1.00 um. Vector rectangle centre
+      (285.45, 209.95) mapped through the verified axis calibration.
+    overrides:
+      abrasive_size_nm: 1000.0
+      abrasive_d50_nm: 1000.0
+      slurry_ph: 9.0
+  - label: "W1.5 alumina (~1500 nm), 10 g/500 ml, pH 9, 2 psi, 60 r/min platen, 65 r/min workpiece"
+    pressure_psi: 2.0
+    rpm_platen: 60.0
+    rpm_wafer: 65.0
+    mrr_nm_per_min: 0.850
+    measured_mrr_nm_per_hour: 51.0
+    read_method: digitized
+    digitization_uncertainty_nm_per_hour: 0.15
+    source_detail: >
+      Fig. 2, p.443, marker at x = 1.50 um. ⭐ Cross-checked: the text names this point
+      explicitly — "increases from the 51nm/h ... from the W1.5" — and my reading is
+      51.01 nm/h.
+    overrides:
+      abrasive_size_nm: 1500.0
+      abrasive_d50_nm: 1500.0
+      slurry_ph: 9.0
+  - label: "W2.5 alumina (~2500 nm), 10 g/500 ml, pH 9, 2 psi, 60 r/min platen, 65 r/min workpiece"
+    pressure_psi: 2.0
+    rpm_platen: 60.0
+    rpm_wafer: 65.0
+    mrr_nm_per_min: 1.050
+    measured_mrr_nm_per_hour: 63.0
+    read_method: digitized
+    digitization_uncertainty_nm_per_hour: 0.40
+    source_detail: >
+      Fig. 2, p.443, marker at x = 2.50 um. ⭐ Cross-checked: the text names this point —
+      "to 63.3nm/h ... to the W2.5". My reading is 63.02 nm/h, 0.4% below the printed
+      63.3; uncertainty widened here to span the printed value. THIS IS THE MAXIMUM of
+      the series.
+    overrides:
+      abrasive_size_nm: 2500.0
+      abrasive_d50_nm: 2500.0
+      slurry_ph: 9.0
+  - label: "W3.5 alumina (~3500 nm), 10 g/500 ml, pH 9, 2 psi, 60 r/min platen, 65 r/min workpiece"
+    pressure_psi: 2.0
+    rpm_platen: 60.0
+    rpm_wafer: 65.0
+    mrr_nm_per_min: 1.033
+    measured_mrr_nm_per_hour: 62.0
+    read_method: digitized
+    digitization_uncertainty_nm_per_hour: 0.15
+    source_detail: >
+      Fig. 2, p.443, marker at x = 3.50 um. ⚠ THIS IS THE TURNOVER POINT: 62.0 nm/h is
+      slightly BELOW the W2.5 value of 63.0, consistent with the paper's statement "the
+      MRR do not increase when the abrasive size is W3.5". The 1 nm/h drop is larger than
+      the +/-0.15 nm/h reading error but the paper gives no error bars, so treat the
+      turnover as real in direction but not quantitatively resolved in magnitude.
+    overrides:
+      abrasive_size_nm: 3500.0
+      abrasive_d50_nm: 3500.0
+      slurry_ph: 9.0
+
+notes: >
+  Swept axis: alumina abrasive grade only — W1 / W1.5 / W2.5 / W3.5 (~1 / 1.5 / 2.5 /
+  3.5 um). Abrasive mass (10 g per 500 ml), dispersant (2 ml), oxidant (5 ml), pH (9),
+  pressure (2 psi) and both rotation speeds (60 / 65 r/min) are identical across the four,
+  printed both in the text and inside the figure. CLEAN, unconfounded size sweep; the
+  paper's separate loading sweep (section 3.3) is NOT pooled here.
+
+  ⚠ All four rates are DIGITIZED — no rate table exists in the paper. Unusually for a
+  digitized file the source is VECTOR geometry (marker rectangles read from the PDF
+  content stream) rather than a bitmap, and two of the four values are named in the text
+  and reproduce to within 0.5%.
+
+  ⚠⚠ DO NOT FIT A SINGLE POWER LAW AND QUOTE IT ALONE. The series turns over at ~2.5 um.
+  Honest summary: n ~ +0.30 over 1.0-2.5 um, then flat-to-negative (n ~ -0.05) from
+  2.5-3.5 um. The four-point blend (+0.24) is not a description of the physics.
+
+  ⚠ `abrasive_wt_pct` is deliberately ABSENT. The paper gives loading as "abrasive 10g" in
+  "500ml" of slurry, which is a mass-per-volume, not a weight percent. Converting would
+  require the slurry density, which is not stated. ~10 g / ~500 g water would be about
+  2 wt%, but that is my arithmetic on an assumed density, so it is NOT recorded as data.
+  Do not invent a wt% here.
+
+  FINDING for `abrasive_size_exponent` on 6H-SiC with MICRON ALUMINA: POSITIVE in the
+  rising region (n ~ +0.30 over 1-2.5 um) with an interior MAXIMUM at ~2.5 um.
+
+  ⚠ CONTRADICTION / COMPARISON with the other SiC size dataset in this batch:
+    - THIS FILE: 6H-SiC Si-face, ALUMINA, 1000-3500 nm, pH 9: rises to a peak at 2500 nm
+      then declines. n ~ +0.30 below the peak.
+    - wei2026 (4H-SiC C-face, colloidal SILICA, 30-130 nm, pH 9 Fenton): n ~ +0.10,
+      monotonic rising and saturating, no decline observed within its range.
+  Same material class, same pH, both POSITIVE where rising — but different magnitude,
+  different shape (peak vs saturation), and size ranges that do not overlap at all
+  (1-3.5 um vs 30-130 nm), plus different abrasives (hard alumina vs soft silica) and
+  different crystal faces (Si-face vs C-face). Do NOT merge them into one fit; and note
+  that a peak at 2.5 um is a completely different optimum from the ~60 nm glass optimum
+  and ~80 nm Si transition already recorded in the repository's abrasives database.
+  Optima exist in many systems but their LOCATION is not transferable.
+
+  ⚠ Not stated by the paper: substrate diameter, abrasive size DISTRIBUTION (only the
+  W-grade nominal is given, so `abrasive_d50_nm` is set to the grade nominal and no d99 is
+  available), pad type, slurry flow rate, polish time, replicate count, error bars,
+  identities of the dispersant and oxidant.
+  ⚠ `pack` is a placeholder; there is no SiC pack and the abrasive is alumina, not silica.
+  Shape/rank use only.

@@ -439,6 +439,26 @@ params:
     source: "doi:10.1149/1.2718474 (Gopal & Talbot, JES 154(6) H507, 2007), abstract and Figs. 1-2"
     confidence: literature
 
+  film_youngs_modulus_pa:
+    value: 128.0e9
+    unit: Pa
+    note: >
+      Young's modulus of the copper film, needed by the pad-limited plasticity
+      criterion Lambda = 48*Hp*E^2/(pi^2*H^3) that decides whether particle
+      contact is elastic or plastic. Measured in the same table as the pad
+      hardness the criterion pairs it with, which is why this source is
+      preferred over a handbook value: the two numbers are then mutually
+      consistent rather than stitched together from different studies.
+      Same table gives Cu hardness 1.22 GPa, matching this pack's bulk value.
+    source: >
+      Eusner, Saka, Chun et al., J. Electrochem. Soc. 156(7) H528-H534 (2009),
+      Table I "Dielectric constant and mechanical properties of CMP materials"
+      -- read directly from the PDF, which lists: Al2O3 (abrasive) E=350 H=20;
+      SiO2 (dielectric, abrasive) E=92 H=15; Cu (interconnect) E=128 H=1.22;
+      low-k A E=11 H=2.09; low-k B E=8 H=1.37; Pad (wet) E=0.53 H=0.05 (avg).
+      All in GPa.
+    confidence: literature
+
   # ── 7. oxidiser peak SHAPE — makes the declared peak actually do something ──
   oxidizer_peak_shape_K:
     value: 8.0

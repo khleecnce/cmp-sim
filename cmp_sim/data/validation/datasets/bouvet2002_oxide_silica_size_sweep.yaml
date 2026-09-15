@@ -1,0 +1,175 @@
+# Thermal oxide CMP — colloidal-silica ABRASIVE-SIZE sweep at ONE fixed formulation.
+# Four slurries, mean particle size 12 / 25 / 45 / 75 nm, everything else identical:
+# 16.3 wt% silica, pH 3, KIO3 oxidizer, no surfactant, 7 psi, 55 rpm platen / 45 rpm head,
+# 100 ml/min flow, IC-1400 pad, Presi Mecapol E460 polisher.
+#
+# ⚠ SIZE sweep, not a pressure sweep — the Preston P*V harness will skip this file.
+#   It exists to constrain `abrasive_size_exponent` via the `abrasive_d50_nm` driver.
+#
+# ⚠⚠ THIS SERIES IS NON-MONOTONIC. A single power law MRR ~ d^n does not describe it.
+#     The rate PEAKS at 25 nm. Fitting one exponent to these four points returns
+#     n ~ +0.001, which is an artefact of averaging a rise and a fall — it does NOT mean
+#     oxide is size-insensitive. See notes.
+#
+# Same experiment and same four slurries as bouvet2002_w_silica_size_sweep.yaml and
+# bouvet2002_ti_silica_size_sweep.yaml; only the measured film differs.
+
+source: >
+  D. Bouvet, P. Beaud, P. Fazan, R. Sanjines and E. Jacquinot, "Impact of the colloidal
+  silica particle size on physical vapor deposition tungsten removal rate and surface
+  roughness", J. Vac. Sci. Technol. B 20(4), 1556-1560 (2002). DOI 10.1116/1.1490393.
+  Local PDF: ~/fab-sim/papers/bouvet2002-jvst-colloidal-silica-w-cmp-size.pdf
+
+  SIZES: TABLE I, page 1556, "Mean particle size (nm)" column:
+      slurry 1 -> 75 nm    slurry 2 -> 45 nm    slurry 3 -> 25 nm    slurry 4 -> 12 nm
+
+  RATES: ⚠ DIGITIZED from FIGURE 3, page 1558, "Removal rate vs particle size for
+  tungsten (filled squares), titanium (filled diamonds), and OXIDE (open squares)".
+  The paper prints NO removal-rate table; the figure is the only source.
+  Method: Fig. 3 is embedded as a 950x719 1-bpp CCITT image (xref 103), extracted
+  losslessly with PyMuPDF; marker centroids located by pixel analysis. Axis calibration
+  from the plot frame (col 172 = 0 nm, col 926 = 100 nm) and the printed y gridlines
+  (rows 97/184/270/355/442/529 = 300/250/200/150/100/50 nm/min), reproducing to within
+  0.4 nm/min. The oxide markers are HOLLOW squares: in the bitmap only their top and
+  bottom edges carry ink, 16-17 px apart, so the centroid is taken as the midpoint of
+  those two edges. That hollow signature is what distinguishes them from the W solid
+  squares and the Ti diamonds.
+
+  ⭐ CROSS-CHECK against the paper's prose:
+    - p1558: "The oxide removal rate reaches its maximum at the 25 nm particle size"
+      -> digitized oxide: 135.5, 187.5, 156.4, 140.2 nm/min at 12, 25, 45, 75 nm.
+      Maximum lands AT 25 nm. AGREES, and this is the paper's own headline claim about
+      the oxide series, so the non-monotonicity is the authors' finding, not my artefact.
+    - p1558: "the titanium removal rate becomes higher than the oxide removal rate for
+      particle sizes lower than, or equal to, 25 nm" -> at 12 nm oxide 135.5 < Ti 205.5;
+      at 25 nm oxide 187.5 ~= Ti 184.0 (crossover); at 45 nm oxide 156.4 > Ti 114.1.
+      AGREES — the crossover falls on exactly the point the authors name.
+    - Conclusion p1560: "the oxide removal rate is at its maximum for 25 nm particles".
+      AGREES.
+
+  FIXED ACROSS ALL FOUR POINTS (page 1558, section II, verbatim): "The platen and head
+  speeds were 55 and 45 rpm, respectively, with a work pressure of 7 psi. The slurry flow
+  rate was fixed at 100 ml/min. We also fixed the silica content in the slurries at 16.3
+  wt%, the pH value at 3, and we used KIO3 as an oxidizer. No surfactant was added to the
+  slurries." TABLE I caption: "All other parameters were identical (solid content, type,
+  and quantity of oxidizer)." Pad Rodel IC-1400; tool Presi Mecapol E460.
+  Abrasive SIZE is the only variable — NOT confounded with loading.
+
+film: oxide              # 1000 nm thermal SiO2, wet oxidation at 1050 C
+pack: oxide_silica       # genuine match: silica slurry on thermal oxide
+in_scope: true
+used_for_calibration: false
+
+wafer_radius_m: 0.100    # ⚠ NOT STATED by the paper. Assumption, not a printed value.
+center_offset_m: 0.200   # r_cc not stated; repository base value.
+
+confidence: med          # digitized, but the 25 nm maximum and the Ti/oxide crossover are
+                         # both stated in the authors' own text.
+
+# ── The finding ────────────────────────────────────────────────────────────
+#  Oxide removal rate vs silica size is NON-MONOTONIC with a maximum at 25 nm:
+#      12 nm -> 135.5    25 nm -> 187.5    45 nm -> 156.4    75 nm -> 140.2 nm/min
+#  Segment exponents, which are the honest way to summarise this:
+#      12 -> 25 nm:  n = +0.44   (RISING)
+#      25 -> 75 nm:  n = -0.26   (FALLING)
+#  A single fitted n over all four points is +0.001 — numerically near zero but
+#  MEANINGLESS, because it averages a rise against a fall. Do not quote it.
+#  Note the peak here (25 nm) is a different optimum from the ~60 nm glass optimum already
+#  recorded in the repository's abrasives database: optima exist but are not universal.
+
+conditions:
+  - label: "12 nm colloidal silica, 16.3 wt%, pH 3, KIO3, 7 psi, 55/45 rpm"
+    pressure_psi: 7.0
+    rpm_platen: 55.0
+    rpm_wafer: 45.0
+    mrr_nm_per_min: 135.5
+    read_method: digitized
+    digitization_uncertainty_nm_per_min: 5.0
+    source_detail: "Fig. 3, p.1558, hollow square at 12 nm (edges rows 372 & 389, midpoint 380.5)"
+    overrides:
+      abrasive_size_nm: 12.0
+      abrasive_d50_nm: 12.0
+      abrasive_wt_pct: 16.3
+      slurry_ph: 3.0
+      sfr_ml_min: 100
+  - label: "25 nm colloidal silica, 16.3 wt%, pH 3, KIO3, 7 psi, 55/45 rpm"
+    pressure_psi: 7.0
+    rpm_platen: 55.0
+    rpm_wafer: 45.0
+    mrr_nm_per_min: 187.5
+    read_method: digitized
+    digitization_uncertainty_nm_per_min: 6.0
+    source_detail: >
+      Fig. 3, p.1558, hollow square at 25 nm. ⚠ Highest reading uncertainty of the four:
+      at this point the oxide marker sits within a few pixels of the Ti diamond (the
+      Ti/oxide crossover the authors describe), so the two markers partly overlap in the
+      bitmap and the hollow-square edges are harder to isolate cleanly.
+    overrides:
+      abrasive_size_nm: 25.0
+      abrasive_d50_nm: 25.0
+      abrasive_wt_pct: 16.3
+      slurry_ph: 3.0
+      sfr_ml_min: 100
+  - label: "45 nm colloidal silica, 16.3 wt%, pH 3, KIO3, 7 psi, 55/45 rpm"
+    pressure_psi: 7.0
+    rpm_platen: 55.0
+    rpm_wafer: 45.0
+    mrr_nm_per_min: 156.4
+    read_method: digitized
+    digitization_uncertainty_nm_per_min: 5.0
+    source_detail: "Fig. 3, p.1558, hollow square at 45 nm (edges rows 336 & 353, midpoint 344.5)"
+    overrides:
+      abrasive_size_nm: 45.0
+      abrasive_d50_nm: 45.0
+      abrasive_wt_pct: 16.3
+      slurry_ph: 3.0
+      sfr_ml_min: 100
+  - label: "75 nm colloidal silica, 16.3 wt%, pH 3, KIO3, 7 psi, 55/45 rpm"
+    pressure_psi: 7.0
+    rpm_platen: 55.0
+    rpm_wafer: 45.0
+    mrr_nm_per_min: 140.2
+    read_method: digitized
+    digitization_uncertainty_nm_per_min: 5.0
+    source_detail: "Fig. 3, p.1558, hollow square at 75 nm (edges rows 365 & 381, midpoint 372.5)"
+    overrides:
+      abrasive_size_nm: 75.0
+      abrasive_d50_nm: 75.0
+      abrasive_wt_pct: 16.3
+      slurry_ph: 3.0
+      sfr_ml_min: 100
+
+notes: >
+  Swept axis: abrasive mean particle size only — 12 / 25 / 45 / 75 nm. Loading, pH,
+  oxidizer, pressure, speeds, flow, pad and tool identical in all four rows (section II).
+  CLEAN, unconfounded size sweep.
+
+  ⚠ Every rate is DIGITIZED from Figure 3; the paper prints no rate table.
+
+  ⚠⚠ DO NOT FIT A SINGLE POWER LAW TO THIS FILE. The series has an interior maximum at
+  25 nm. The single-exponent fit (n ~ +0.001) is a cancellation artefact, not a finding.
+  If the simulator needs one number for oxide+silica, it must either restrict to a
+  monotonic sub-range (+0.44 below 25 nm, -0.26 above) or use a peaked functional form.
+  This file is the strongest evidence in the batch that a pure power law is the wrong
+  model shape for oxide.
+
+  ⚠ CONTRADICTION WITHIN A SINGLE EXPERIMENT. Same four slurries, same run, three films:
+      W     -> n ~ -0.05  (flat)
+      Ti    -> n ~ -0.45  (falls with size)
+      oxide -> this file: non-monotonic, peak at 25 nm
+  Not reconcilable into one exponent; all three are stated in the authors' own prose.
+  `abrasive_size_exponent` must be per-film. Do NOT average across these three files.
+
+  ⚠ Also note this contradicts the other OXIDE size datasets in this batch:
+    - us20190127607a1 (ceria-coated silica, HDP/TEOS oxide): n ~ +0.75 to +0.85, strongly
+      RISING with D50 over 89-211 nm.
+    - son2021 (wet ceria on SiO2): n ~ +1.0, strongly RISING over 3-100 nm.
+    - basim2000 (fumed silica + coarse spikes on PECVD oxide): rate FALLS when coarse
+      particles are added.
+  So even "oxide" is not one answer: it depends on abrasive material (silica vs ceria) and
+  size range. Report this as the disagreement it is rather than resolving it.
+
+  ⚠ Not stated by the paper: wafer diameter, polish time, replicate count, error bars.
+  The authors do report (Figs. 5-6) that oxide surface roughness after CMP is INDEPENDENT
+  of particle size across this whole range, which is why they argue the mechanism is not
+  indentation/scratching.

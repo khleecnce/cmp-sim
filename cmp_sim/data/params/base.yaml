@@ -1,0 +1,70 @@
+# Tool- and pad-side parameters that belong to no single film.
+#
+# Inherits the legacy base pack and adds to it, rather than editing the
+# inherited file: legacy modules are wrapped, never re-derived.
+base: base
+
+params:
+  pad_wet_nanohardness_pa:
+    value: 0.05e9
+    unit: Pa
+    note: >
+      Nanohardness of a WET polishing pad. This is the quantity that caps the
+      load a pad asperity can press onto an abrasive particle, and it is what
+      lets the simulator decide whether particle contact is elastic or plastic
+      WITHOUT a particle contact stress.
+
+      Why that matters: in the Luo-Dornfeld formulation the particle contact
+      stress is *set equal* to the film hardness by assumption, so sourcing it
+      independently is circular. The pad hardness is not - it is measured
+      directly by nanoindentation. Combining it with the Hertz/Tresca yield
+      load gives
+
+        P_max = pi R^2 Hp          load the pad can apply
+        P_Y   = (pi^3/48) Hc^3/Ec^2 R^2    load at which the film yields
+        Lambda = 48 Hp Ec^2 / (pi^2 Hc^3) > 1  =>  plastic
+
+      R cancels exactly, so the branch is independent of particle size. That
+      agrees with Eusner's own measurement that scratch width and depth are
+      independent of polishing pressure and pad topography.
+
+      ⚠ DO NOT compare this number directly against a film hardness. 0.05 GPa
+      is a load divided by the particle's CROSS-SECTION (pi R^2), not by the
+      much smaller particle/film contact area. A naive "Hp < Hc so elastic"
+      test calls copper elastic, which is wrong. Only the load comparison
+      above is valid.
+
+      ⚠ The scatter is as large as the value: 36 measurements of one pad gave
+      mean 0.05 GPa with a standard deviation of 0.06 GPa, and the maximum used
+      in the same paper's worst-case analysis is 0.31 GPa - a 6x span. Films
+      whose Lambda lands within ~3x of 1.0 therefore sit where the branch
+      genuinely depends on which asperity a particle meets, and the engine
+      reports those as 'transition' rather than picking a side.
+
+      Measured on a Rohm and Haas (now DuPont) IC1000 in the wet state. A
+      different pad, or a glazed one, will differ.
+    source: >
+      Eusner, Saka, Chun et al., "Controlling Scratching in Cu CMP",
+      J. Electrochem. Soc. 156(7) H528-H534 (2009), Fig. 15 ("Variation in pad
+      hardness based on 36 measurements", Avg 0.05, Std.Dev 0.06) and Table IV
+      (worst case Hp,max = 0.31 GPa). Same value stated as an IC1000 property
+      in Saka, Eusner & Chun, CIRP Annals 57, 341-344 (2008), section on pad
+      yield: "Ra = 5 um, la = 100 um, Ep = 0.5 GPa and Hp = 0.05 GPa".
+      Local PDFs: eusner2009-jes-controlling-scratching-cu-cmp.pdf,
+      saka2008-cirp-nanoscale-scratching.pdf. Both read directly.
+    confidence: literature
+
+  pad_wet_nanohardness_max_pa:
+    value: 0.31e9
+    unit: Pa
+    note: >
+      The upper tail of the same 36-measurement distribution, used in the
+      source paper's own worst-case scratch analysis. Not a different pad - the
+      hard spots of the same one. Recorded because the mean alone hides a 6x
+      spread, and scratching is a tail phenomenon: the defect proxy cares about
+      the hardest asperity a large particle can meet, not the average one.
+    source: >
+      Eusner 2009 JES 156(7) H528, Table IV column "Max Hp = 0.31 GPa" and
+      Fig. 13 (scratch semiwidth distributions computed at Hp = 0.05, 0.10,
+      0.20 and 0.31 GPa).
+    confidence: literature

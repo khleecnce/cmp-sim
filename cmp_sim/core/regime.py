@@ -42,6 +42,7 @@ Axes
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
@@ -70,6 +71,69 @@ METAL_FILMS = {"cu", "w", "co", "ru", "ta", "tan", "ti", "tin", "al", "snag", "n
 DIELECTRIC_FILMS = {"oxide", "sti", "oxide_ceria", "teos", "peteos", "bpsg",
                     "sin", "sion", "low_k", "quartz", "glass"}
 SEMICONDUCTOR_FILMS = {"poly_si", "si", "sic", "ge", "sige", "gan", "sapphire"}
+
+
+def _pad_limited_branch(resolved, h_surf, h_bulk, s) -> Optional[float]:
+    """Decide elastic vs plastic from the pad-limited load, without a particle
+    contact stress. Sets ``s.contact_branch`` and returns Lambda, or None if
+    the inputs are absent.
+
+    Lambda = 48 * Hp * Ec^2 / (pi^2 * Hc^3)   > 1 means plastic
+
+    from P_max = pi R^2 Hp against P_Y = (pi^3/48) Hc^3/Ec^2 R^2 (Hertz +
+    Tresca, Saka 2008 CIRP Eq. 3 and Eusner 2009 JES Eq. 3). R cancels, so the
+    branch is particle-size independent.
+
+    Non-circular because Hp is the PAD hardness, measured directly by
+    nanoindentation of a wet pad, whereas the particle contact stress is
+    *defined* as the film hardness in the Luo-Dornfeld formulation.
+    """
+    h_pad = resolved.p_or("pad_wet_nanohardness_pa", None)
+    modulus = resolved.p_or("film_youngs_modulus_pa", None)
+    hardness = h_surf or h_bulk
+    if not (h_pad and modulus and hardness):
+        return None
+
+    h_pad = float(h_pad)
+    modulus = float(modulus)
+    hardness = float(hardness)
+    lam = 48.0 * h_pad * modulus ** 2 / (math.pi ** 2 * hardness ** 3)
+
+    # Near 1.0 the criterion is a coin toss and the measured pad hardness has a
+    # standard deviation comparable to its mean (0.05 +/- 0.06 GPa), so a band
+    # rather than a hard threshold.
+    if lam > 3.0:
+        s.contact_branch = "plastic"
+    elif lam < 0.33:
+        s.contact_branch = "elastic"
+    else:
+        s.contact_branch = "transition"
+
+    s.metrics["pad_limited_plasticity_lambda"] = round(lam, 4)
+    which = "surface" if h_surf else "bulk"
+    s.notes.append(
+        f"contact branch from the pad-limited load criterion: Lambda = "
+        f"{lam:.3g} (pad hardness {h_pad/1e9:.3g} GPa, film modulus "
+        f"{modulus/1e9:.3g} GPa, {which} hardness {hardness/1e9:.3g} GPa) "
+        f"-> {s.contact_branch}. Particle size cancels out of this criterion")
+    if not h_surf:
+        s.undetermined.append(
+            "contact_branch was decided from BULK rather than surface hardness "
+            f"(Lambda = {lam:.3g}). Chemistry moves the surface hardness of one "
+            "metal across two orders of magnitude, and Lambda goes as 1/Hc^3, "
+            "so a 2x error in hardness is an 8x error in Lambda. The branch is "
+            "reported but a surface measurement would be worth having")
+    if 0.33 <= lam <= 3.0:
+        # Independent of the hardness caveat above: a marginal Lambda needs
+        # saying even when the hardness is well sourced, and especially when it
+        # is not, since the two uncertainties compound.
+        s.undetermined.append(
+            f"contact_branch is marginal (Lambda = {lam:.3g}, within 3x of the "
+            "elastic/plastic boundary). The pad hardness this rests on has a "
+            "standard deviation as large as its mean across 36 measurements of "
+            "one pad, so this film sits where the branch genuinely depends on "
+            "which asperity a particle happens to meet")
+    return lam
 
 
 @dataclass
@@ -217,8 +281,30 @@ def detect(resolved, contact_state=None, supply_state=None) -> Situation:
             "pack declares neither material_family nor film_bulk_hardness_pa")
 
     # ── single-particle contact branch ───────────────────────────────
+    # Preferred route: the pad-limited load criterion, which needs NO particle
+    # contact stress and is therefore not circular. Derived from Saka/Eusner:
+    #
+    #   yield load on the film (Hertz + Tresca)   P_Y   = (pi^3/48) Hc^3/Ec^2 R^2
+    #   maximum load a pad asperity can apply     P_max = pi R^2 Hp
+    #   plastic when P_max > P_Y, i.e.   Lambda = 48 Hp Ec^2 / (pi^2 Hc^3) > 1
+    #
+    # R cancels exactly, so the branch does not depend on particle size - which
+    # matches Eusner's own finding that scratch width and depth are independent
+    # of polishing pressure and pad topography. Crucially this uses the PAD
+    # hardness, an independently measured quantity (Eusner 2009 Fig. 15: 36
+    # nanoindentation measurements of a wet IC1000, mean 0.05 GPa, max 0.31),
+    # instead of the particle contact stress that Luo-Dornfeld defines as equal
+    # to the film hardness.
+    #
+    # The trap this avoids: Hp (~0.05 GPa) is a load over the particle's
+    # CROSS-SECTION, not over the much smaller particle/film contact area.
+    # Comparing Hp directly against Hc would call copper elastic, which is
+    # wrong. Only the load comparison above is valid.
+    lam = _pad_limited_branch(resolved, h_surf, h_bulk, s)
     stress = resolved.p_or("particle_contact_stress_pa", None)
-    if stress and h_surf:
+    if lam is not None:
+        pass                      # branch already set by _pad_limited_branch
+    elif stress and h_surf:
         s.contact_branch = classify_contact_branch(stress, h_surf)
         s.metrics["contact_stress_over_hardness"] = float(stress) / float(h_surf)
     elif stress and h_bulk:

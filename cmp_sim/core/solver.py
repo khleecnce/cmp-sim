@@ -402,7 +402,15 @@ def _abrasive_hook(rr: ResolvedRecipe) -> Dict[str, Any]:
     except Exception:                                    # pragma: no cover
         area_pressure_exponent = None
 
+    # The situation was already detected before physics was chosen, so its
+    # non-circular contact branch is available here and supersedes the
+    # particle-contact-stress route that is null in every pack.
+    detected_branch = None
+    situation = getattr(rr, "situation", None)
+    if situation is not None:
+        detected_branch = getattr(situation, "contact_branch", None)
     regime = ld.resolve_regime(
+        contact_branch=detected_branch,
         area_pressure_exponent=area_pressure_exponent,
         contact_stress_pa=rr.p_or("particle_contact_stress_pa", None),
         surface_hardness_pa=rr.p_or("film_surface_hardness_pa", None),

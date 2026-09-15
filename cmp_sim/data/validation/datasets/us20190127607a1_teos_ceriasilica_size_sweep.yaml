@@ -1,0 +1,206 @@
+# TEOS oxide CMP — ceria-coated-silica ABRASIVE-SIZE (D50) series, PRINTED TABLES.
+# Four composite abrasives, D50 = 88.7 / 117.2 / 156.1 / 210.7 nm, at ONE fixed slurry:
+# 0.185 wt% abrasive, 0.14 wt% ammonium polyacrylate, pH 5.45, 3.7 psi, 87/93 rpm,
+# 200 ml/min, Applied Materials Mirra, in-situ conditioning at 6 lb.
+#
+# ⚠ SIZE series, not a pressure sweep — the Preston P*V harness will skip this file.
+#
+# ⚠⚠ THIS SERIES IS NON-MONOTONIC IN D50. A single power law does not describe it.
+#     Sorted by D50 the TEOS rate goes 875 -> 1828 -> 1311 -> 2223 A/min: up, DOWN, up.
+#     A one-exponent fit returns n ~ +0.85 with poor fit quality; quoting it alone hides
+#     a genuine reversal at 156 nm. See notes.
+#
+# Same patent, same two tables, same four slurries and same polishing runs as
+# us20190127607a1_hdpoxide_ceriasilica_size_sweep.yaml — only the measured oxide film
+# differs (TEOS here, HDP there). HDP is monotonic; TEOS is not. That divergence between
+# two silicon-oxide films in ONE experiment is the reason this file exists separately.
+
+source: >
+  Versum Materials US LLC, "Chemical mechanical polishing composition and method for
+  polishing a substrate comprising composite ceria-coated silica abrasive",
+  US Patent Application US 2019/0127607 A1, published 2019-05-02.
+  Local PDF: ~/fab-sim/papers/us20190127607a1-versum-ceria-coated-silica-d99.pdf
+  Abrasives: four ceria-coated silica composite particles from JGC C&C Corporation, Japan.
+
+  SIZES: PRINTED TABLE 1 "Particle size distribution summary", paragraph [0114], page 10.
+  Printed column order: D99 (nm), D50 (nm), D99-D50 (nm), D50/(D99-D50), Number of Peaks.
+
+      Particle   D99     D50     D99-D50   D50/(D99-D50)   Peaks
+         A      302.6   156.1     146.5        1.07          4
+         B      182.7   117.2      65.5        1.79          2
+         C      316.7   210.7      106         1.99          2
+         D      158.5    88.7      69.8        1.27          2
+
+  RATES: PRINTED TABLE 2, paragraph [0119], page 10. Printed columns: TEOS films
+  (Angstroms/min), High Density Plasma (HDP) oxide films (Angstroms/min), TEOS/HDP ratio.
+
+      Particle   TEOS (A/min)   HDP (A/min)   TEOS/HDP
+         A           1311           2041        0.64
+         B           1828           1807        1.01
+         C           2223           2299        0.97
+         D            875           1158        0.76
+
+  This file uses the TEOS column.
+
+  ⭐ CROSS-CHECK 1 (row pairing). The PDF text layer does not carry the A/B/C/D label
+  column cleanly, so row order was PROVEN arithmetically from two printed self-consistent
+  ratio columns rather than assumed:
+    (a) Table 1's D50/(D99-D50): 156.1/146.5 = 1.066 ~ 1.07 ✓; 117.2/65.5 = 1.789 ~ 1.79 ✓;
+        210.7/106 = 1.988 ~ 1.99 ✓; 88.7/69.8 = 1.271 ~ 1.27 ✓.
+    (b) Table 2's TEOS/HDP: 1311/2041 = 0.642 ~ 0.64 ✓; 1828/1807 = 1.012 ~ 1.01 ✓;
+        2223/2299 = 0.967 ~ 0.97 ✓; 875/1158 = 0.756 ~ 0.76 ✓.
+    Both tables' rows are therefore internally aligned and correspond one-to-one.
+  ⭐ CROSS-CHECK 2 (row identity). [0116]: only Particle A has "4 peaks" and a "very broad
+  size distribution" -> row 1 (widest, D99-D50 = 146.5) = A. [0130]: "particle D with size
+  distribution of D50/(D90-D50) = 1.27" -> row 4 (ratio 1.27, smallest D50) = D.
+  ⭐ CROSS-CHECK 3 (the film difference is the patent's own claim). [0120]: "It's evident
+  that the particle size and particle size distribution affected HDP silicon dioxide films
+  and TEOS films differently even though both films essentially comprise silicon oxide
+  films." And [0122]: "Particle D with smaller particle size similarly appeared to provide
+  higher removal rates for HDP silicon dioxide films compared to TEOS films" — check: for
+  D, HDP 1158 > TEOS 875 ✓. The TEOS/HDP divergence is stated, not inferred by me.
+
+  FIXED ACROSS ALL FOUR POINTS — paragraphs [0117] and [0118], verbatim:
+  "Polishing was performed on Mirra polisher manufactured by Applied Materials. Polishing
+  was performed at 3.7 psi with 87 RPM table speed 93 RPM head speed, 200 ml/min slurry
+  flow rate with in-situ pad conditioning at 6 lb downforce." / "...slurries comprising
+  0.185 wt.% abrasive particles, 0.14 wt.% ammonium polyacrylate (MW ~16000-18000), pH
+  adjusted to 5.45 using ammonium hydroxide."
+  Loading, dispersant, pH, pressure, speeds, flow and tool are IDENTICAL across the four.
+  NOT a loading or chemistry confound.
+
+film: oxide              # TEOS-deposited SiO2 blanket films
+pack: oxide_silica       # ⚠ abrasive is ceria-COATED silica (ceria surface, silica core),
+                         # chemically closer to a ceria slurry. Shape/rank use only.
+in_scope: true
+used_for_calibration: false
+
+wafer_radius_m: 0.150    # ⚠ NOT STATED. Mirra is a 200/300 mm class tool; 150 mm radius is
+                         # the repository default assumption, not a printed value.
+center_offset_m: 0.200   # r_cc not stated; repository base value.
+
+confidence: high         # numbers and fixed conditions all from printed patent tables, row
+                         # pairing arithmetically proven. The `high` refers to the
+                         # TRANSCRIPTION; the size-exponent INTERPRETATION is weak because
+                         # the series is non-monotonic (see notes).
+
+# ── Units ──────────────────────────────────────────────────────────────────
+#  Patent prints Angstrom/min. nm/min = (A/min)/10. Originals kept in
+#  measured_mrr_angstrom_per_min.
+# ── The finding ────────────────────────────────────────────────────────────
+#  Sorted by D50, TEOS rate is NON-MONOTONIC:
+#      88.7 nm -> 875 A/min    117.2 nm -> 1828    156.1 nm -> 1311    210.7 nm -> 2223
+#  The 156.1 nm point (Particle A) is a clear DIP relative to the 117.2 nm point.
+#  Particle A is also the broad, 4-peak abrasive (D99-D50 = 146.5 nm), so on TEOS its
+#  broad distribution appears to HURT the rate, whereas on HDP oxide the patent credits
+#  that same breadth with HELPING ([0121]). Opposite sign of the width effect on two
+#  oxide films in one experiment.
+#  Single-exponent fit: n ~ +0.85, but with the 156 nm reversal it is not a good model.
+#  Excluding broad-PSD Particle A leaves 3 narrow-PSD points (88.7, 117.2, 210.7 nm ->
+#  875, 1828, 2223 A/min) which ARE monotonic rising, with n ~ +1.03.
+
+conditions:
+  - label: "Particle D, D50 88.7 nm (D99 158.5), 0.185 wt%, pH 5.45, 3.7 psi, 87/93 rpm"
+    pressure_psi: 3.7
+    rpm_platen: 87.0
+    rpm_wafer: 93.0
+    mrr_nm_per_min: 87.5
+    measured_mrr_angstrom_per_min: 875
+    read_method: table
+    source_detail: "TABLE 2 row D (TEOS column), p.10; D50 from TABLE 1 row D, p.10"
+    overrides:
+      abrasive_size_nm: 88.7
+      abrasive_d50_nm: 88.7
+      abrasive_d99_nm: 158.5
+      abrasive_wt_pct: 0.185
+      slurry_ph: 5.45
+      sfr_ml_min: 200
+  - label: "Particle B, D50 117.2 nm (D99 182.7), 0.185 wt%, pH 5.45, 3.7 psi, 87/93 rpm"
+    pressure_psi: 3.7
+    rpm_platen: 87.0
+    rpm_wafer: 93.0
+    mrr_nm_per_min: 182.8
+    measured_mrr_angstrom_per_min: 1828
+    read_method: table
+    source_detail: "TABLE 2 row B (TEOS column), p.10; D50 from TABLE 1 row B, p.10"
+    overrides:
+      abrasive_size_nm: 117.2
+      abrasive_d50_nm: 117.2
+      abrasive_d99_nm: 182.7
+      abrasive_wt_pct: 0.185
+      slurry_ph: 5.45
+      sfr_ml_min: 200
+  - label: "Particle A, D50 156.1 nm (D99 302.6, 4 peaks), 0.185 wt%, pH 5.45, 3.7 psi, 87/93 rpm"
+    pressure_psi: 3.7
+    rpm_platen: 87.0
+    rpm_wafer: 93.0
+    mrr_nm_per_min: 131.1
+    measured_mrr_angstrom_per_min: 1311
+    read_method: table
+    source_detail: >
+      TABLE 2 row A (TEOS column), p.10; D50 from TABLE 1 row A, p.10.
+      ⚠ THIS IS THE NON-MONOTONIC POINT. Particle A is the BROAD abrasive (4 peaks,
+      D99-D50 = 146.5 nm, widest of the four). Despite a LARGER D50 than Particle B
+      (156.1 vs 117.2 nm) its TEOS rate is LOWER (1311 vs 1828 A/min). On the HDP film in
+      the same runs the ordering is the opposite way round (A 2041 > B 1807), which the
+      patent notes in [0121]. If you fit a D50-only power law, this point is what breaks it.
+    overrides:
+      abrasive_size_nm: 156.1
+      abrasive_d50_nm: 156.1
+      abrasive_d99_nm: 302.6
+      abrasive_wt_pct: 0.185
+      slurry_ph: 5.45
+      sfr_ml_min: 200
+  - label: "Particle C, D50 210.7 nm (D99 316.7), 0.185 wt%, pH 5.45, 3.7 psi, 87/93 rpm"
+    pressure_psi: 3.7
+    rpm_platen: 87.0
+    rpm_wafer: 93.0
+    mrr_nm_per_min: 222.3
+    measured_mrr_angstrom_per_min: 2223
+    read_method: table
+    source_detail: "TABLE 2 row C (TEOS column), p.10; D50 from TABLE 1 row C, p.10"
+    overrides:
+      abrasive_size_nm: 210.7
+      abrasive_d50_nm: 210.7
+      abrasive_d99_nm: 316.7
+      abrasive_wt_pct: 0.185
+      slurry_ph: 5.45
+      sfr_ml_min: 200
+
+notes: >
+  Swept axis: abrasive particle identity, indexed by D50 — 88.7 / 117.2 / 156.1 / 210.7 nm.
+  Loading (0.185 wt%), dispersant, pH (5.45), pressure (3.7 psi), speeds (87/93 rpm), flow
+  (200 ml/min) and tool are printed and identical. NOT confounded with loading/chemistry.
+
+  ⚠⚠ DO NOT FIT A SINGLE POWER LAW AND QUOTE IT WITHOUT THIS CAVEAT. The TEOS series
+  reverses at 156.1 nm. The naive four-point fit n ~ +0.85 papers over that reversal.
+  Honest options: (a) use the 3 narrow-PSD points only -> n ~ +1.03 monotonic rising, and
+  treat broad-PSD Particle A as a separate regime; or (b) use a width-aware model, for
+  which `abrasive_d99_nm` is supplied on every row.
+
+  ⚠ PARTIAL CONFOUND: D50 is not the only abrasive property varying. Widths (D99-D50) in
+  D50 order are 69.8, 65.5, 146.5, 106.0 nm, and Particle A has 4 PSD peaks vs 2 for the
+  others. The patent treats width as a first-class variable in its own right ([0121],
+  [0130], FIG. 3 plots dishing sensitivity against D50/(D90-D50)). So any exponent from
+  this file is a D50 exponent with width effects entangled.
+
+  ⚠ TWO OXIDE FILMS, ONE EXPERIMENT, DIFFERENT SIZE RESPONSES — the patent says so
+  explicitly in [0120]: "particle size and particle size distribution affected HDP silicon
+  dioxide films and TEOS films differently even though both films essentially comprise
+  silicon oxide films."
+      HDP  (us20190127607a1_hdpoxide_ceriasilica_size_sweep.yaml): monotonic, n ~ +0.75
+      TEOS (this file):                                            non-monotonic, dip at 156 nm
+  This is a warning against assuming one `abrasive_size_exponent` even for a single
+  nominal film class like "oxide" — deposition method alone changes the answer.
+
+  ⚠ CONTRADICTION with the other oxide size datasets in this batch:
+    - this file (TEOS, ceria-coated silica, 89-211 nm): non-monotonic, broadly rising
+    - HDP companion (same runs): n ~ +0.75 rising
+    - son2021 (SiO2, wet ceria, 3-100 nm): n ~ +1.0 rising
+    - bouvet2002 (thermal oxide, colloidal silica, 12-75 nm): peak at 25 nm, fit ~ 0
+    - basim2000 (PECVD oxide, fumed silica + coarse spikes): rate FALLS with coarse adds
+  Do NOT average. The spread across abrasive material, size range and deposition method
+  is itself the result.
+
+  ⚠ Not stated by the patent: wafer diameter, pad model, polish time, replicate count,
+  error bars, temperature.

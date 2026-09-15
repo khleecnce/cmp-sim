@@ -19,26 +19,42 @@
   zero-dependency web UI + API, `CMP-Sim.command` launcher
 - Films: Cu, W, oxide, STI-ceria, poly-Si, Si substrate, SiC, SnAg
 - Data: 55 additives × 9 films, 11 abrasives × 9 films
-- **456 tests**; verified from a clean clone including `pip install -e .`
+- **507 tests**; verified from a clean clone including `pip install -e .`
 
 ## NEXT
 Owner review of the physics. No implementation is queued — every P1–P8 gate,
 all example films, the validation table and the data-fitting path are green.
 
 ## BLOCKED
-- `contact_branch` is `unknown` for every film: no pack has BOTH
-  `film_surface_hardness_pa` and `particle_contact_stress_pa`. Not a bug — in
-  Luo-Dornfeld the contact stress is *set equal* to the hardness by assumption,
-  so sourcing it independently is circular. Nanoindentation of a polished
-  surface would settle the sign of the particle-size exponent in P3.
+- **Partly resolved.** `contact_branch` is now decided without any circular
+  input, via the pad-limited load criterion
+  `Lambda = 48*Hp*E^2/(pi^2*H^3) > 1` (Saka CIRP 2008 Eq. 3, Eusner JES 2009
+  Fig. 15 pad hardness). Particle size cancels out. Cu = plastic (117),
+  oxide/STI = transition (2.8), SiC = blocked (see below).
+  **What it did NOT unblock:** the sign of the P3 particle-size exponent. The
+  exponent relations assume `0 <= 1-alpha*chi <= 1`, but the plastic branch
+  (alpha=3/2) with copper's measured load sharing (chi=1.0) gives
+  `n_C = -0.5` — "more abrasive removes less". alpha and chi are not
+  independently adjustable (chi comes from the measured area-pressure
+  exponent), so the engine reports the branch and leaves the exponents
+  `unverified` rather than publishing a negative concentration exponent.
+  **To settle it:** a measured abrasive-CONCENTRATION sweep per film.
 - **SnAg has no published Preston coefficient** (68 sourced numbers, no rate;
   searched 320 local CMP papers, ScienceDirect and Crossref again this session).
   It runs as a ranking on the Archard estimate and says so; four measured rates
   take it to +/-1.4% cross-validated. Also means there is no envelope to
   sanity-check its absolute rate against, which the run now states outright.
-- Cu oxidizer term is monotonic where the real system peaks (~1–3 wt%). The
-  Langmuir branch is used because the Kaufman peak's parameters are degenerate
-  below the peak; both facts are warned about at runtime.
+- **RESOLVED.** The Cu oxidizer term now peaks instead of falling monotonically.
+  Pinning the peak to a MEASURED position makes the decay scale a consequence
+  of it, leaving one free parameter, which Du 2004 (doi:10.1149/1.1648029,
+  6 points across the peak) supplies: 5.6% MAPE, beats plain Langmuir by >2x.
+  Curvature is borrowed across a vol%/wt% axis difference and a glycine
+  difference, recorded at `confidence: low`.
+- **New, found while fixing the above:** SiC was inheriting SiO2's elastic
+  modulus (92 GPa vs SiC's ~450) through its SiC -> sti_ceria -> oxide_silica
+  lineage, and Lambda goes as E^2. Blocked with `value: null` + TODO(owner)
+  rather than a handbook number: the same inheritance route once carried the
+  oxide Kp into this pack and over-predicted SiC by 128x.
 
 ## VALIDATION
 | dataset | n | MAPE | verdict |

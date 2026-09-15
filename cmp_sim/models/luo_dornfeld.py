@@ -206,18 +206,49 @@ def resolve_regime(*, area_pressure_exponent: Optional[float] = None,
                    contact_stress_pa: Optional[float] = None,
                    surface_hardness_pa: Optional[float] = None,
                    gap_m: Optional[float] = None,
-                   particle_diameter_m: Optional[float] = None
+                   particle_diameter_m: Optional[float] = None,
+                   contact_branch: Optional[str] = None
                    ) -> AbrasiveRegime:
-    """Answer the three questions -> exponents. Inherited implementation."""
-    alpha_probe, alpha_conf = am.decide_alpha(contact_stress_pa,
-                                              surface_hardness_pa, [])
-    if alpha_probe >= ALPHA_PLASTIC - 1e-9:
-        alpha_source = "plastic plowing branch"
-    elif alpha_probe <= ALPHA_ELASTIC + 1e-9:
-        alpha_source = "elastic Hertz branch"
+    """Answer the three questions -> exponents. Inherited implementation.
+
+    ``contact_branch`` is the non-circular route to alpha. The inherited
+    ``decide_alpha`` needs a per-particle contact stress, which Luo-Dornfeld
+    *defines* as the film hardness — so sourcing it independently is circular
+    and it is null in every pack. The pad-limited load criterion in
+    ``core.regime`` decides the same branch from the measured pad hardness, the
+    film modulus and the film hardness, with particle size cancelling out. When
+    it has reached a verdict, that verdict sets alpha directly.
+    """
+    branch_alpha = {"plastic": ALPHA_PLASTIC, "elastic": ALPHA_ELASTIC}
+    from_branch = branch_alpha.get(str(contact_branch or "").lower())
+    if from_branch is not None:
+        alpha_probe, alpha_conf = from_branch, "literature"
+        alpha_source = (
+            f"{'plastic plowing' if from_branch == ALPHA_PLASTIC else 'elastic Hertz'}"
+            " branch, from the pad-limited load criterion (measured pad "
+            "hardness vs the film's modulus and hardness; particle size "
+            "cancels) rather than from a particle contact stress, which "
+            "Luo-Dornfeld defines as the hardness and so cannot be sourced "
+            "independently")
+    elif str(contact_branch or "").lower() == "transition":
+        alpha_probe = 0.5 * (ALPHA_ELASTIC + ALPHA_PLASTIC)
+        alpha_conf = "estimated"
+        alpha_source = (
+            "elastic-plastic transition band from the pad-limited load "
+            "criterion: this film sits within 3x of the boundary, where the "
+            "measured spread in pad hardness (s.d. as large as the mean) means "
+            "different asperities put particles on different sides. Alpha is "
+            "the midpoint and no single contact law strictly applies")
     else:
-        alpha_source = ("elastic-plastic transition band — interpolated, and no "
-                        "single contact law strictly applies here")
+        alpha_probe, alpha_conf = am.decide_alpha(contact_stress_pa,
+                                                  surface_hardness_pa, [])
+        if alpha_probe >= ALPHA_PLASTIC - 1e-9:
+            alpha_source = "plastic plowing branch"
+        elif alpha_probe <= ALPHA_ELASTIC + 1e-9:
+            alpha_source = "elastic Hertz branch"
+        else:
+            alpha_source = ("elastic-plastic transition band — interpolated, and no "
+                            "single contact law strictly applies here")
 
     reg = am.resolve_regime(
         area_pressure_exponent=area_pressure_exponent,
@@ -227,6 +258,62 @@ def resolve_regime(*, area_pressure_exponent: Optional[float] = None,
         beta=beta_for_alpha(alpha_probe),
     )
     notes = _english_summary(reg, alpha_source)
+
+    # The inherited resolve_regime recomputes alpha internally from the contact
+    # stress (legacy/sim/abrasive_mechanics.py, decide_alpha), so it discards
+    # the branch decided above and keeps only the beta derived from it. Rather
+    # than editing the legacy module or duplicating its algebra, a LoadRegime is
+    # rebuilt with the corrected alpha and ITS OWN n_conc/n_size properties are
+    # read back — so the exponent relations stay defined in exactly one place.
+    if from_branch is not None or str(contact_branch or "").lower() == "transition":
+        import dataclasses
+
+        corrected = dataclasses.replace(
+            reg, alpha=alpha_probe, beta=beta_for_alpha(alpha_probe))
+        notes.append(
+            f"alpha was set to {corrected.alpha:.4f} by the pad-limited load "
+            f"criterion, replacing the {reg.alpha:.4f} the inherited layer "
+            "computes from a particle contact stress that no pack can source "
+            f"non-circularly. {corrected.explain()}")
+        # STRUCTURAL CONSISTENCY. The exponent relations assume
+        # 0 <= 1 - alpha*chi <= 1. The plastic branch (alpha = 3/2) violates
+        # that whenever chi > 2/3: full single-layer load sharing plus plastic
+        # indentation gives a NEGATIVE concentration exponent, i.e. "more
+        # abrasive removes less", which the model's own bound forbids.
+        #
+        # This is a real incompatibility between two axes, not a rounding
+        # detail, and the honest response is to refuse the combination rather
+        # than publish n_C < 0. chi comes from the measured area-pressure
+        # exponent, so the two cannot simply be overridden independently.
+        product = corrected.alpha * corrected.chi
+        if product > 1.0 + 1e-9:
+            notes.append(
+                f"the pad-limited criterion says {contact_branch} "
+                f"(alpha = {corrected.alpha:.3f}) but the measured load sharing "
+                f"gives chi = {corrected.chi:.3f}, and alpha*chi = "
+                f"{product:.3f} > 1 breaks the structural bound "
+                "0 <= 1-alpha*chi <= 1 that the exponent relations rest on. "
+                "Taken literally it would mean more abrasive removes less. "
+                "The branch is reported but the EXPONENTS are left on the "
+                "inherited elastic values, because alpha and chi are not "
+                "independently adjustable: chi is derived from the measured "
+                "area-pressure exponent, and a plastic branch with near-total "
+                "load sharing is outside the model's validity. Resolving it "
+                "needs a measured concentration sweep for this film")
+            corrected = dataclasses.replace(
+                corrected, alpha=reg.alpha, beta=reg.beta,
+                confidence="unverified")
+        # The legacy confidence was floored by its own undetermined alpha; that
+        # axis is now decided, so the floor comes from chi and supply instead.
+        elif corrected.confidence == "unverified" and alpha_conf != "unverified":
+            order = ["unverified", "estimated", "literature", "measured", "verified"]
+            others = [c for c in (getattr(corrected, "chi_confidence", None),
+                                  getattr(corrected, "supply_confidence", None))
+                      if c in order]
+            corrected = dataclasses.replace(
+                corrected, confidence=(min(others, key=order.index) if others
+                                       else alpha_conf))
+        reg = corrected
     if alpha_conf == "unverified":
         notes.append(
             "alpha undetermined: the per-particle contact stress or the softened "

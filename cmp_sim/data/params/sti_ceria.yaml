@@ -23,6 +23,30 @@ base: sti_ceria
 description: "STI / ceria: chemical-tooth evidence, selectivity, pattern and thermal terms"
 
 params:
+  film_youngs_modulus_pa:
+    value: 92.0e9
+    unit: Pa
+    note: >
+      Young's modulus of the silica film, needed by the pad-limited plasticity
+      criterion Lambda = 48*Hp*E^2/(pi^2*H^3) that decides elastic vs plastic
+      particle contact. Taken from the same table as the wet-pad hardness the
+      criterion pairs it with, so the two are mutually consistent.
+
+      ⚠ Oxide sits ON the elastic/plastic boundary and which side depends on
+      which hardness is used: with this table's own H = 15 GPa, Lambda = 0.6
+      (elastic); with the 8 GPa reported elsewhere for CVD oxide, Lambda = 2.3
+      (plastic). That is not a defect in the criterion - oxide CMP really does
+      run near the scratching threshold, which is why oxide alone shows no
+      measurable scratches in the source paper's Table IV while Cu and both
+      low-k films do. The engine reports 'transition' in that band rather than
+      picking a side.
+    source: >
+      Eusner, Saka, Chun et al., J. Electrochem. Soc. 156(7) H528-H534 (2009),
+      Table I "Dielectric constant and mechanical properties of CMP materials"
+      -- read directly from the PDF: SiO2 (dielectric, abrasive) E = 92 GPa,
+      H = 15 GPa; Cu E = 128, H = 1.22; Pad (wet) E = 0.53, H = 0.05 (avg).
+    confidence: literature
+
 
   # ══════════════════════════════════════════════════════════════════
   # 1. Single-particle contact

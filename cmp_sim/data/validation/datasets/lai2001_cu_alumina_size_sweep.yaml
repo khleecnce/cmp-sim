@@ -1,0 +1,151 @@
+# Blanket copper CMP — alpha-alumina ABRASIVE-SIZE sweep, PRINTED TABLE (no digitization).
+# Three sizes 50 / 300 / 1000 nm at one fixed neutral (pH 7) slurry, 48 kPa, 0.70 m/s.
+#
+# ⚠ SIZE sweep, not a pressure sweep — the Preston P*V harness will skip this file.
+#   It exists to constrain `abrasive_size_exponent` via the `abrasive_d50_nm` driver.
+#
+# This is the only Cu size sweep in this batch whose rates come from a PRINTED TABLE
+# rather than a figure, so it is the highest-confidence Cu point available here.
+
+source: >
+  Jiun-Yu Lai, "Mechanics, Mechanisms, and Modeling of the Chemical Mechanical Polishing
+  Process", PhD thesis, Massachusetts Institute of Technology, Dept. of Mechanical
+  Engineering, 2001. Chapter 3, "Mechanisms of Material Removal in the CMP Process".
+  Local PDF: ~/fab-sim/papers/lai2001-ch3.pdf (chapter extract, thesis pages 75-135)
+
+  RATES AND SIZES: transcribed from the PRINTED TABLE 3.6, "Abrasive size effects in
+  copper polishing", on thesis page 102 (page 28 of the chapter PDF). The table prints:
+
+      Particle Size (nm)   MRR (nm/min)   Ra (nm)   Rq (nm)   Rz (nm)
+             50                 51          3.8       4.8      41.6
+            300                112          4.0       5.7      98.2
+          1,000                133          6.1       7.9      85.4
+
+  Values were read from the PDF text layer and independently confirmed by rendering
+  page 28 at 400 dpi and reading the rendered table. No digitization of any plot.
+
+  ⭐ CROSS-CHECK: the running text on thesis page 98 restates the same numbers as ratios:
+  "The material removal rate on Cu wafers increases about 2.2 times when the particle size
+  increases from 50 nm to 300 nm, and 1.2 times more when the size is further increased to
+  1000 nm." Check: 112/51 = 2.20 ✓ and 133/112 = 1.19 ~ 1.2 ✓. Both ratios reproduce, so
+  the table values are confirmed twice in the document.
+
+  FIXED ACROSS ALL THREE POINTS — from the PRINTED TABLE 3.2 "Experimental conditions"
+  (thesis page 80) plus the text on pages 79 and 81:
+      Wafer diameter          100 mm
+      Normal load             391 N
+      Normal pressure         48 kPa      (6.96 psi)
+      Rotational speed        75 rpm  (BOTH carrier and pad — "The wafer carrier and the
+                                        pad were rotated at 75 rpm to maintain a constant
+                                        relative velocity of 0.7 m/s across the wafer")
+      Linear velocity         0.70 m/s
+      Slurry flow rate        150 ml/min
+      Abrasive                alpha-Al2O3
+      Abrasive size           50, 300, 1000 nm   <-- the swept axis
+      pH                      7   ("A neutral slurry was used to focus only on the
+                                    mechanical aspects of the polishing process")
+  Table 3.6 is the Rodel IC-1400 pad series (the AFM roughness values in Table 3.6 match
+  those quoted for Fig. 3.13, which is the Rodel-pad Cu surface set).
+  So abrasive SIZE is the only variable. NOT confounded with loading or chemistry.
+
+film: cu                 # 1 um sputtered Cu on a 20 nm TiN adhesion layer, on Si(111)
+pack: oxide_silica       # ⚠ PLACEHOLDER. This is alpha-ALUMINA in a NEUTRAL, additive-free
+                         # slurry — no oxidizer, no complexing agent, nothing like a
+                         # production Cu slurry. Absolute MRR from any silica/Cu pack is
+                         # meaningless here. Use for the SHAPE of the size response only.
+in_scope: true           # blanket Cu on a Si wafer
+used_for_calibration: false
+
+wafer_radius_m: 0.050    # PRINTED: Table 3.2 gives a 100 mm wafer diameter -> 50 mm radius.
+                         # (Not the repo default — this is a real stated value.)
+center_offset_m: 0.200   # r_cc not stated in the thesis; repository base value.
+
+confidence: high         # printed table, cross-checked against prose ratios, all fixed
+                         # conditions printed in a second table. No figure reading.
+
+# ── The finding ────────────────────────────────────────────────────────────
+#  Fitting ln(MRR) = n*ln(d) + c over the three points gives n = +0.33.
+#  Cu removal RISES with alumina size across 50 -> 1000 nm, but SUB-LINEARLY and with
+#  clear saturation: the rate rises 2.2x over the first 6x of size (50->300 nm) and only
+#  1.19x over the next 3.3x (300->1000 nm). Segment exponents:
+#      50 -> 300 nm:    n = +0.44
+#      300 -> 1000 nm:  n = +0.14
+#  So a single power law understates the low-size slope and overstates the high-size one.
+#  Lai attributes removal in this regime to plastic plowing (Section 3.4), noting that the
+#  particle sizes used are one to two orders of magnitude below the critical size r* for
+#  brittle fracture (Table 3.8), so fracture is ruled out as the mechanism.
+
+conditions:
+  - label: "50 nm alpha-Al2O3, pH 7, 48 kPa, 75/75 rpm, 0.70 m/s, Rodel IC-1400"
+    pressure_psi: 6.96
+    rpm_platen: 75.0
+    rpm_wafer: 75.0
+    mrr_nm_per_min: 51.0
+    read_method: table
+    source_detail: "TABLE 3.6, thesis p.102, row 'Particle Size 50 nm -> MRR 51 nm/min'"
+    overrides:
+      abrasive_size_nm: 50.0
+      abrasive_d50_nm: 50.0
+      slurry_ph: 7.0
+      sfr_ml_min: 150
+  - label: "300 nm alpha-Al2O3, pH 7, 48 kPa, 75/75 rpm, 0.70 m/s, Rodel IC-1400"
+    pressure_psi: 6.96
+    rpm_platen: 75.0
+    rpm_wafer: 75.0
+    mrr_nm_per_min: 112.0
+    read_method: table
+    source_detail: "TABLE 3.6, thesis p.102, row 'Particle Size 300 nm -> MRR 112 nm/min'"
+    overrides:
+      abrasive_size_nm: 300.0
+      abrasive_d50_nm: 300.0
+      slurry_ph: 7.0
+      sfr_ml_min: 150
+  - label: "1000 nm alpha-Al2O3, pH 7, 48 kPa, 75/75 rpm, 0.70 m/s, Rodel IC-1400"
+    pressure_psi: 6.96
+    rpm_platen: 75.0
+    rpm_wafer: 75.0
+    mrr_nm_per_min: 133.0
+    read_method: table
+    source_detail: "TABLE 3.6, thesis p.102, row 'Particle Size 1,000 nm -> MRR 133 nm/min'"
+    overrides:
+      abrasive_size_nm: 1000.0
+      abrasive_d50_nm: 1000.0
+      slurry_ph: 7.0
+      sfr_ml_min: 150
+
+notes: >
+  Swept axis: abrasive size only — 50 / 300 / 1000 nm alpha-alumina. Pressure (48 kPa),
+  both rotation speeds (75 rpm), relative velocity (0.70 m/s), flow (150 ml/min), pH (7),
+  pad and tool are identical across the three rows, all printed in Table 3.2.
+  CLEAN, unconfounded size sweep, and the rates come from a printed table.
+
+  ⚠ Abrasive LOADING (wt%) is NOT STATED anywhere in the chapter. I searched the text for
+  wt%/solids/concentration and the thesis never gives it. The sweep is still unconfounded
+  in the sense that nothing suggests loading was changed between the three sizes — but
+  `abrasive_wt_pct` is deliberately ABSENT from the overrides rather than guessed. Do not
+  invent one; if the fit needs a loading it must come from elsewhere or be left free.
+
+  FINDING for `abrasive_size_exponent` on COPPER with ALUMINA in a neutral slurry:
+  n ~ +0.33, POSITIVE and saturating. This is the clearest positive-exponent metal point
+  in the batch.
+
+  ⚠ CONTRADICTION with the other metal size data collected here:
+    - Bouvet 2002, W with 12-75 nm SILICA: n ~ -0.05 (flat).
+    - Bouvet 2002, Ti with 12-75 nm SILICA: n ~ -0.45 (falls with size).
+    - Egan & Kim 2019 (JSS 8, P3206), W contact CMP: state explicitly that "while tungsten
+      removal rate is not affected by abrasive size" the defectivity is — rate flat.
+    - This file, Cu with 50-1000 nm ALUMINA: n ~ +0.33 (rises with size).
+  Note the two axes along which these differ: abrasive MATERIAL (hard alumina vs soft
+  colloidal silica) and size RANGE (50-1000 nm here vs 12-75 nm for Bouvet). A neutral
+  additive-free alumina slurry is a mechanical-abrasion experiment by design, whereas the
+  silica/KIO3 W slurry is passivation-limited. These are plausibly different mechanisms
+  rather than contradictory measurements of one — but they are NOT to be averaged into a
+  single exponent, and the sign genuinely differs.
+
+  ⚠ Same thesis, same pad, DIFFERENT films: Table 3.7 gives roughness for Al, SiO2 (PECVD),
+  SiO2 (TEOS) and Si3N4 but only at 300 nm abrasive, so no size sweep exists for those
+  films — Cu is the only film Lai swept size on.
+
+  ⚠ Not stated: abrasive loading (above), polish time per run, replicate count, error bars.
+  ⚠ `pack` is a placeholder; the slurry is neutral alumina with no oxidizer or complexing
+  agent. Rank/shape use only.

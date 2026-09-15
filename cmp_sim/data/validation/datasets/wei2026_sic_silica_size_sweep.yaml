@@ -1,0 +1,204 @@
+# 4H-SiC (C-face) CMP — colloidal-silica ABRASIVE-SIZE sweep at ONE fixed Fenton slurry.
+# Four sizes 30 / 80 / 110 / 130 nm at fixed 4 wt% silica, 5 wt% H2O2, 0.03 wt% Fe3O4,
+# pH 9, 34.5 kPa, 50/50 r/min, 30 ml/min, Suba 800 pad, SK-610A polisher.
+#
+# ⚠ SIZE sweep, not a pressure sweep — the Preston P*V harness will skip this file.
+#   It exists to constrain `abrasive_size_exponent` via the `abrasive_d50_nm` driver.
+#
+# ⚠ MRR here is nm per HOUR in the source. SiC is orders of magnitude harder to polish
+#   than oxide or Cu; converted rates are ~9-11 nm/min. Do not confuse with nm/min data.
+
+source: >
+  J. Wei et al., "Effect of Polishing Slurry Components on the Chemical Mechanical
+  Polishing of the C-face of 4H-SiC Substrates Based on the Fenton Reaction",
+  Crystals 2026, 16(3), 179. DOI 10.3390/cryst16030179. Open access (MDPI, CC BY).
+  Local PDF: ~/fab-sim/papers/wei2026-cryst16030179-4hsic-fenton-cmp.pdf
+
+  SIZES: PRINTED in the running text of section 3.1, page 6, verbatim: "The polishing
+  slurry contained 4 wt% colloidal silica with different average particle sizes (30 nm,
+  80 nm, 110 nm, 130 nm), 5 wt% H2O2, and 0.03 wt% Fe3O4 particles." The same four sizes
+  are repeated in the caption of Figure 3, page 7: "average particle sizes of (a) 30,
+  (b) 80, (c) 110, and (d) 130 nm and 4 wt% abrasives, 5 wt% H2O2, and 0.03 wt% Fe3O4".
+
+  RATES: ⚠ DIGITIZED from FIGURE 2(a), page 6, "Effect of colloidal silica abrasive size
+  on (a) MRR and (b) Sa of 4H-SiC C faces". The paper prints NO table of MRR values; the
+  bar chart is the only source.
+  Digitization method (not read by eye): the figure is embedded as a stack of RGB image
+  strips on PDF page 6. The region was rasterized at 600 dpi with PyMuPDF and the blue
+  bars were isolated by colour (B-R > 40, B > 100). Bar tops were taken as the first row
+  where >90% of the bar's interior width is blue (the value was identical at the 30%, 50%
+  and 90% width thresholds for every bar, so the top edge is unambiguous).
+  Axis calibration: the black axis frame gives the plot box (row 49.5 = top, row 1245.5 =
+  bottom), and the left axis carries exactly 16 tick marks detected at rows 49.5, 130.5,
+  209.0, 288.5, 368.0, 448.5, 527.5, 608.0, 688.0, 767.0, 846.0, 926.5, 1005.5, 1085.5,
+  1166.0, 1245.5 — i.e. an evenly spaced 0-750 nm/h axis with ticks every 50 nm/h,
+  matching the printed tick labels. The 16-tick match confirms the linear mapping.
+  Reading uncertainty is therefore the bar-edge pixel only, about +/-4 nm/h (<1%).
+
+  ⭐ CROSS-CHECK against the paper's own printed numbers:
+    - Section 3.1, p.6: "as the average particle size of the colloidal silica abrasive
+      increased from 30 nm to 130 nm, the MRR of the 4H-SiC C-face significantly increased
+      from a relatively low level to 648 nm/h." My digitized 130 nm bar reads 637 nm/h,
+      1.7% below the stated 648 nm/h. ⚠ Small discrepancy — see the note on the 130 nm row.
+    - Section 3.1, p.7: selecting 110 nm "provides a relatively high MRR (close to the
+      level at 130 nm)". Digitized: 631 vs 637 nm/h, a 1% gap. AGREES.
+    - Section 3.1, p.7: the MRR at 30 nm "is too low". Digitized 552 nm/h is indeed the
+      minimum of the four. AGREES (though "too low" is relative — the spread is only 15%).
+    - The abstract's headline maximum of 701 nm/h is for the OPTIMIZED slurry (110 nm at
+      8 wt%), NOT for this 4 wt% size series, so it is correctly not used here.
+
+  FIXED ACROSS ALL FOUR POINTS:
+    - Slurry, from section 3.1 p.6: 4 wt% colloidal silica, 5 wt% H2O2, 0.03 wt% Fe3O4.
+    - pH, from section 2 p.4: "the slurry pH was adjusted to 9 by adding 1 M HCl or KOH".
+    - Tool conditions, from PRINTED TABLE 3 "Polishing parameters", page 5:
+          Pad rotational speed      50 r/min
+          4H-SiC rotational speed   50 r/min
+          Polishing pressure        34.5 kPa   (5.00 psi)
+          Slurry flow rate          30 ml/min
+          Polishing time            60 min
+    - Pad: Suba 800. Tool: SK-610A. Substrate: 4-inch 4H-SiC.
+    - "each polishing group was repeated at least three times" (section 2, p.5).
+  So abrasive SIZE is the only variable. Loading is held at 4 wt% — the separate loading
+  study is section 3.2 and is NOT pooled here. NOT confounded.
+
+film: sic                # 4H-SiC substrate, C-face (carbon face)
+pack: oxide_silica       # ⚠ PLACEHOLDER: silica-abrasive pack, but the workpiece is SiC and
+                         # the chemistry is a heterogeneous Fenton system (H2O2 + Fe3O4 ->
+                         # .OH radicals). Absolute MRR is meaningless from an oxide pack.
+                         # Use for the SHAPE of the size response only.
+in_scope: true           # SiC substrate CMP — a real (wide-bandgap) semiconductor process
+used_for_calibration: false
+
+wafer_radius_m: 0.050    # PRINTED: "4H-SiC Substrate / 4-inch" (TABLE 1, p.4) -> ~100 mm
+                         # diameter -> 50 mm radius. A stated value, not the repo default.
+center_offset_m: 0.200   # r_cc not stated; repository base value.
+
+confidence: low          # ⚠ DIGITIZED from a bar chart with no printed rate table, AND the
+                         # one number the paper does print (648 nm/h at 130 nm) sits 1.7%
+                         # above my reading. Axis calibration is verified against 16 ticks,
+                         # so the mapping is sound, but without a printed table this cannot
+                         # be called better than low.
+
+# ── Units ──────────────────────────────────────────────────────────────────
+#  Figure 2(a) y axis is nm/HOUR. mrr_nm_per_min = (nm/h)/60. Originals kept in
+#  measured_mrr_nm_per_hour. SiC rates are ~9-11 nm/min, i.e. 20-50x slower than oxide.
+# ── The finding ────────────────────────────────────────────────────────────
+#  MRR rises monotonically but WEAKLY and with strong saturation:
+#      30 nm -> 551.5    80 nm -> 611.1    110 nm -> 631.2    130 nm -> 637.4 nm/h
+#  Fitting ln(MRR) = n*ln(d) + c gives n = +0.10 — POSITIVE but very small. Total spread
+#  is only 16% across a 4.3x size range. Segment exponents show the saturation:
+#      30 -> 80 nm:   n = +0.10
+#      80 -> 130 nm:  n = +0.09   (and 110 -> 130 nm is essentially flat, +0.06)
+#  The authors read the rise as larger particles disrupting the Fenton-oxidized layer more
+#  effectively, and note the cost: Sa rises monotonically from 0.46 nm (30 nm abrasive) to
+#  1.55 nm (130 nm), which is why they choose 110 nm as the compromise rather than 130 nm.
+
+conditions:
+  - label: "30 nm colloidal silica, 4 wt%, 5 wt% H2O2, 0.03 wt% Fe3O4, pH 9, 34.5 kPa, 50/50 rpm"
+    pressure_psi: 5.0
+    rpm_platen: 50.0
+    rpm_wafer: 50.0
+    mrr_nm_per_min: 9.192
+    measured_mrr_nm_per_hour: 551.5
+    read_method: digitized
+    digitization_uncertainty_nm_per_hour: 4.0
+    source_detail: "Fig. 2(a), p.6, bar 1 of 4; bar-top row 366 on a verified 0-750 nm/h axis"
+    overrides:
+      abrasive_size_nm: 30.0
+      abrasive_d50_nm: 30.0
+      abrasive_wt_pct: 4.0
+      slurry_ph: 9.0
+      sfr_ml_min: 30
+      oxidizer_wt_pct: 5.0
+  - label: "80 nm colloidal silica, 4 wt%, 5 wt% H2O2, 0.03 wt% Fe3O4, pH 9, 34.5 kPa, 50/50 rpm"
+    pressure_psi: 5.0
+    rpm_platen: 50.0
+    rpm_wafer: 50.0
+    mrr_nm_per_min: 10.185
+    measured_mrr_nm_per_hour: 611.1
+    read_method: digitized
+    digitization_uncertainty_nm_per_hour: 4.0
+    source_detail: "Fig. 2(a), p.6, bar 2 of 4; bar-top row 271"
+    overrides:
+      abrasive_size_nm: 80.0
+      abrasive_d50_nm: 80.0
+      abrasive_wt_pct: 4.0
+      slurry_ph: 9.0
+      sfr_ml_min: 30
+      oxidizer_wt_pct: 5.0
+  - label: "110 nm colloidal silica, 4 wt%, 5 wt% H2O2, 0.03 wt% Fe3O4, pH 9, 34.5 kPa, 50/50 rpm"
+    pressure_psi: 5.0
+    rpm_platen: 50.0
+    rpm_wafer: 50.0
+    mrr_nm_per_min: 10.520
+    measured_mrr_nm_per_hour: 631.2
+    read_method: digitized
+    digitization_uncertainty_nm_per_hour: 4.0
+    source_detail: "Fig. 2(a), p.6, bar 3 of 4; bar-top row 239"
+    overrides:
+      abrasive_size_nm: 110.0
+      abrasive_d50_nm: 110.0
+      abrasive_wt_pct: 4.0
+      slurry_ph: 9.0
+      sfr_ml_min: 30
+      oxidizer_wt_pct: 5.0
+  - label: "130 nm colloidal silica, 4 wt%, 5 wt% H2O2, 0.03 wt% Fe3O4, pH 9, 34.5 kPa, 50/50 rpm"
+    pressure_psi: 5.0
+    rpm_platen: 50.0
+    rpm_wafer: 50.0
+    mrr_nm_per_min: 10.623
+    measured_mrr_nm_per_hour: 637.4
+    read_method: digitized
+    digitization_uncertainty_nm_per_hour: 11.0
+    source_detail: >
+      Fig. 2(a), p.6, bar 4 of 4; bar-top row 229. ⚠ DISCREPANCY: the text on p.6 states
+      the MRR "increased ... to 648 nm/h" at 130 nm, but the bar top digitizes to 637.4
+      nm/h — 1.7% lower. I have kept the DIGITIZED value for consistency with the other
+      three points (all from the same bar tops on the same calibration) and widened this
+      row's uncertainty to +/-11 nm/h so it spans the printed 648. If you prefer the
+      paper's own printed number, use 648 nm/h = 10.80 nm/min here; it does not change the
+      sign or materially change the exponent (n goes from +0.10 to +0.11).
+    overrides:
+      abrasive_size_nm: 130.0
+      abrasive_d50_nm: 130.0
+      abrasive_wt_pct: 4.0
+      slurry_ph: 9.0
+      sfr_ml_min: 30
+      oxidizer_wt_pct: 5.0
+
+notes: >
+  Swept axis: colloidal-silica average particle size only — 30 / 80 / 110 / 130 nm.
+  Abrasive loading (4 wt%), H2O2 (5 wt%), Fe3O4 (0.03 wt%), pH (9), pressure (34.5 kPa),
+  both speeds (50 r/min), flow (30 ml/min), time (60 min), pad and tool are all fixed and
+  printed. CLEAN, unconfounded size sweep — the paper's loading, H2O2 and Fe3O4 studies
+  are separate sections (3.2, 3.3, 3.4) and are deliberately NOT pooled with this file.
+
+  ⚠ All four rates are DIGITIZED from a bar chart. The paper prints no MRR table. One
+  printed cross-check value exists (648 nm/h at 130 nm) and my reading is 1.7% below it.
+  Confidence is `low` for that reason despite a 16-tick-verified axis calibration.
+
+  FINDING for `abrasive_size_exponent` on 4H-SiC (C-face) with SILICA in a Fenton slurry:
+  n ~ +0.10, positive but weak and saturating above ~110 nm.
+
+  ⚠ CONTRADICTION / COMPARISON with the other SiC size dataset in this batch:
+    - THIS FILE: 4H-SiC C-face, colloidal SILICA, 30-130 nm, pH 9 Fenton: n ~ +0.10,
+      monotonic rising, saturating.
+    - su2011 (proeng-2011-11-2673, 6H-SiC Si-face, ALUMINA, W1-W3.5 i.e. ~1-3.5 um,
+      pH 9): n ~ +0.24, RISING then TURNING OVER — the W3.5 (3.5 um) point is LOWER than
+      W2.5. The authors attribute the turnover to particle NUMBER falling as size grows at
+      fixed 10 g loading.
+  Both are positive in the rising region, but the size ranges differ by ~25x (nm vs um)
+  and the abrasives differ (soft silica vs hard alumina). The alumina series has an
+  interior maximum; the silica series merely saturates. Consistent in sign for SiC, not in
+  magnitude or shape. Do NOT merge the two into one fit.
+
+  ⚠ Rate/quality trade-off, from the same figure set: Sa rises monotonically with size
+  (0.46 nm at 30 nm abrasive -> 1.55 nm at 130 nm, Fig. 2(b) and Fig. 3), with visible
+  scratches and plastic grooves at 130 nm. A size-exponent model that only predicts MRR
+  will miss the reason 130 nm is not actually the operating point the authors choose.
+
+  ⚠ Not stated by the paper: particle-size DISTRIBUTION (only "average particle size" is
+  given — no d50/d99 breakdown, so `abrasive_d50_nm` is set equal to the stated average),
+  error-bar magnitudes as numbers, slurry temperature. Replication is stated as ">= 3
+  times" but no standard deviations are printed.
+  ⚠ `pack` is a placeholder; there is no SiC pack. Shape/rank use only.

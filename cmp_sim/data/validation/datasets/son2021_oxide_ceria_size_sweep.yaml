@@ -1,0 +1,241 @@
+# SiO2 film CMP — WET ceria (CeO2) ABRASIVE-SIZE series, 5 sizes 3-100 nm.
+# 12-inch blanket SiO2 wafers, POLI-762 polisher, IC1000/Suba IV pad, 3 psi,
+# 93 rpm carrier / 87 rpm table, 200 ml/min, 60 s.
+#
+# ⚠ SIZE series, not a pressure sweep — the Preston P*V harness will skip this file.
+#   It exists to constrain `abrasive_size_exponent` via the `abrasive_d50_nm` driver.
+#
+# ⚠⚠ THE 82 nm DRY-CERIA POINT FROM THE SAME FIGURE IS DELIBERATELY EXCLUDED.
+#     Figure 1 plots six abrasives, but abrasive (a) is DRY ceria (milled cerium
+#     carbonate, irregular surface) while (b)-(f) are WET ceria (precipitated, f.c.c.
+#     crystalline facets). Those are different materials made by different processes, and
+#     the dry 82 nm point (~600 nm/min) sits ABOVE the wet 100 nm point (~399 nm/min) —
+#     i.e. including it would confound abrasive TYPE with abrasive SIZE and would invert
+#     the apparent trend at the top end. Only the five WET points are used here.
+#     See notes for the excluded value.
+
+source: >
+  Young-Hye Son, Gi-Ppeum Jeong, Pil-Su Kim, Man-Hyup Han, Seong-Wan Hong, Jae-Young Bae,
+  Sung-In Kim, Jin-Hyung Park and Jea-Gun Park, "Super fine cerium hydroxide abrasives for
+  SiO2 film chemical mechanical planarization performing scratch free",
+  Scientific Reports 11, 17736 (2021). DOI 10.1038/s41598-021-97122-9. Open access (CC BY).
+  Local PDF: ~/fab-sim/papers/son2021-scirep-cerium-hydroxide-abrasive.pdf
+  (Note: ~/fab-sim/papers/son2021-srep-superfine-ceria-hydroxide-scratch-free.pdf is a
+  BYTE-IDENTICAL DUPLICATE of the same paper — same MD5 on the extracted text. Cite once.)
+
+  SIZES: PRINTED in the caption of FIGURE 1, page 2, verbatim: "Dependencies of the SiO2
+  film polishing rate and allowable scratch number on the size of dry or wet CeO2
+  abrasives. (a) 82 nm dry CeO2 abrasives, (b) 100 nm, (c) 70 nm, (d) 40 nm, (e) 20 nm,
+  and (f) 3 nm wet CeO2 abrasives. Dry CeO2 abrasives with an irregular surface are
+  produced via a milling process of cerium carbonate, whereas wet ceria abrasives
+  containing f.c.c.-crystalline facets are synthesized by a conventional wet precipitation
+  process at 60-80 C."
+  So the six x-axis categories a-f are identified by size AND by dry/wet type in the
+  caption itself. This file uses b-f (the five WET sizes: 100, 70, 40, 20, 3 nm).
+
+  RATES: ⚠ DIGITIZED from FIGURE 1, page 2 (the blue "SiO2-film polishing rate" series on
+  the left-hand blue axis). The paper prints NO table of polishing rates for this figure.
+  Digitization method (not read by eye): the figure is embedded as a 969x590 DeviceRGB
+  image on PDF page 2. The region was rasterized at 700 dpi with PyMuPDF; the blue series
+  was isolated by colour (B > 150, B-R > 60, B-G > 40) and the circular markers were found
+  by connected-component labelling, keeping components with ~1:1 aspect ratio and >0.6
+  fill (the round data markers) and rejecting the low-fill components (error bars and
+  connecting lines). Marker centroids were then mapped to data coordinates.
+  Axis calibration: 8 blue tick marks were detected on the blue axis at rows 132.5, 278.0,
+  422.0, 566.5, 710.5, 856.0, 998.5 and 1144.0 — evenly spaced, matching the printed blue
+  tick labels 700, 600, 500, 400, 300, 200, 100, 0 nm/min (verified by rendering the axis
+  strip at 800 dpi and reading "SiO2-film polishing rate [nm/min]" with ticks every 100
+  from 0 to 700). The 8-tick even spacing confirms the linear mapping.
+  The 6 x-axis category tick positions were detected at columns 353, 596, 841, 1086, 1328,
+  1571, matching the printed 'a'..'f' labels left to right.
+
+  ⭐ CROSS-CHECK against the paper's own printed statements:
+    - Page 2/3, on the conventional wet-ceria trade-off: "a smaller wet cerium oxide
+      abrasive size leads to fewer remaining CMP-induced scratches and a LOWER film
+      polishing rate, as shown in Fig. 1." My digitized wet series is strictly monotonic
+      RISING with size: 3 nm -> ~10, 20 nm -> 99, 40 nm -> 149, 70 nm -> 199,
+      100 nm -> 399 nm/min. AGREES with the stated direction.
+    - Page 3, naming the smallest point: "To achieve minimal stick-and-slip type scratches
+      ... the wet abrasive size must be less than 3 nm. However, its SiO2-film polishing
+      rate performed LESS THAN 10 nm/min for a 300-mm-diameter SiO2-film CMP". My
+      digitized 3 nm marker reads ~8-12 nm/min depending on how the partially clipped
+      bottom marker is centred, and I have recorded 10.0 nm/min — consistent with the
+      printed "less than 10 nm/min". ⚠ This is the least reliable point (see its row).
+    - Page 8: the super-fine Ce(OH)4 rate "(~524 nm/min) ... was ~50 times higher than
+      that (~10 nm/min) of the facet surface (~3 nm in size) wet ceria abrasive (CeO2
+      abrasive)-based CMP slurry." Again confirms ~10 nm/min at 3 nm wet CeO2. ✓
+
+  FIXED ACROSS ALL POINTS — from the Methods, "CMP conditions", page 8, verbatim:
+  "The 450-nm SiO2-film were prepared on a 12-inch-diameter Si wafer with CVD. The sample
+  was polished using a polisher (POLI-762, G&P Tech. Inc., Republic of Korea) with an
+  industry standard CMP pad of polyurethane-like (IC1000/Suba IV, Rohm & Haas Electronic
+  Materials, USA). ... The applied polishing pressure was 3 PSI and the rotation speed of
+  the wafer carrier and the table were set to 93 and 87 rpm/min, respectively. The flow
+  rate of the slurry was kept at 200 mL/min, and the polishing time was set at 60 s."
+  Pad conditioning is also standardised between slurries (diamond disk 30 min initially,
+  15 min between conditions, plus 3 dummy SiO2 wafers).
+  ⚠ Abrasive LOADING for the Fig. 1 series is NOT explicitly stated — see notes.
+
+film: oxide              # 450 nm CVD SiO2 on a 12-inch Si wafer
+pack: oxide_silica       # ⚠ PLACEHOLDER: the abrasive is CERIA, not silica. Ceria removes
+                         # oxide by a chemical-tooth mechanism and runs far faster than
+                         # silica at the same size. Absolute MRR from a silica pack is
+                         # meaningless. Use for the SHAPE of the size response only.
+in_scope: true           # STI / oxide CMP for nanoscale DRAM and 3D NAND
+used_for_calibration: false
+
+wafer_radius_m: 0.150    # PRINTED: "12-inch-diameter Si wafer" -> 300 mm -> 150 mm radius.
+                         # A stated value that happens to equal the repo default.
+center_offset_m: 0.200   # r_cc not stated; repository base value.
+
+confidence: low          # ⚠ DIGITIZED from a figure with no rate table, and the abrasive
+                         # loading for this series is not stated. Mitigating: the axis
+                         # calibration is verified against 8 evenly spaced ticks, the trend
+                         # direction is stated in prose, and the 3 nm endpoint is confirmed
+                         # numerically ("less than 10 nm/min") in two separate places.
+
+# ── The finding ────────────────────────────────────────────────────────────
+#  Strictly monotonic RISING across the whole wet-ceria range:
+#      3 nm -> ~10    20 nm -> 99.2    40 nm -> 149.1    70 nm -> 199.0    100 nm -> 399.0
+#  Fitting ln(MRR) = n*ln(d) + c over all five points gives n = +1.00 — the LARGEST
+#  positive exponent in this batch, essentially linear in diameter.
+#  Excluding the weakest (3 nm) point still leaves n = +0.79 over 20-100 nm, so the strong
+#  positive sign is not an artefact of the one uncertain endpoint.
+#  Segment exponents are NOT constant, so even here a single power law is an approximation:
+#      3 -> 20 nm:    n = +1.21
+#      20 -> 40 nm:   n = +0.59
+#      40 -> 70 nm:   n = +0.52
+#      70 -> 100 nm:  n = +1.95   <- steepest leg; the rise accelerates at the top end
+#  The authors' mechanism: a larger SECONDARY abrasive size means fewer particles and less
+#  total abrasive/film contact area, which they say lowers rate — but note that argument
+#  is made about AGGLOMERATION at fixed primary size (Fig. 4c), whereas Fig. 1 varies the
+#  primary wet-ceria size itself, where bigger is faster.
+
+conditions:
+  - label: "3 nm wet CeO2, pH 6 class slurry, 3 psi, 87 rpm table / 93 rpm carrier, 200 ml/min"
+    pressure_psi: 3.0
+    rpm_platen: 87.0
+    rpm_wafer: 93.0
+    mrr_nm_per_min: 10.0
+    read_method: digitized
+    digitization_uncertainty_nm_per_min: 4.0
+    source_detail: >
+      Fig. 1, p.2, blue marker at x-category (f) = 3 nm wet CeO2. ⚠ WEAKEST POINT IN THIS
+      FILE. The marker sits almost on the axis baseline and is partially clipped by the
+      x-axis, so its centroid cannot be located as cleanly as the others (raw readings
+      span ~8-12 nm/min). I have recorded 10.0 nm/min because the paper twice prints this
+      value in prose — "polishing rate performed less than 10 nm/min" (p.3) and "(~10
+      nm/min) of the facet surface (~3 nm in size) wet ceria abrasive" (p.8) — so this row
+      is effectively anchored to a PRINTED number rather than to my pixel reading.
+      Uncertainty set to +/-4 nm/min to span both.
+    overrides:
+      abrasive_size_nm: 3.0
+      abrasive_d50_nm: 3.0
+      slurry_ph: 6.0
+      sfr_ml_min: 200
+  - label: "20 nm wet CeO2, pH 6 class slurry, 3 psi, 87 rpm table / 93 rpm carrier, 200 ml/min"
+    pressure_psi: 3.0
+    rpm_platen: 87.0
+    rpm_wafer: 93.0
+    mrr_nm_per_min: 99.2
+    read_method: digitized
+    digitization_uncertainty_nm_per_min: 6.0
+    source_detail: "Fig. 1, p.2, blue circular marker at x-category (e) = 20 nm wet CeO2 (centroid col 1345, row 1000.6)"
+    overrides:
+      abrasive_size_nm: 20.0
+      abrasive_d50_nm: 20.0
+      slurry_ph: 6.0
+      sfr_ml_min: 200
+  - label: "40 nm wet CeO2, pH 6 class slurry, 3 psi, 87 rpm table / 93 rpm carrier, 200 ml/min"
+    pressure_psi: 3.0
+    rpm_platen: 87.0
+    rpm_wafer: 93.0
+    mrr_nm_per_min: 149.1
+    read_method: digitized
+    digitization_uncertainty_nm_per_min: 6.0
+    source_detail: "Fig. 1, p.2, blue circular marker at x-category (d) = 40 nm wet CeO2 (centroid col 1097, row 928.6)"
+    overrides:
+      abrasive_size_nm: 40.0
+      abrasive_d50_nm: 40.0
+      slurry_ph: 6.0
+      sfr_ml_min: 200
+  - label: "70 nm wet CeO2, pH 6 class slurry, 3 psi, 87 rpm table / 93 rpm carrier, 200 ml/min"
+    pressure_psi: 3.0
+    rpm_platen: 87.0
+    rpm_wafer: 93.0
+    mrr_nm_per_min: 199.0
+    read_method: digitized
+    digitization_uncertainty_nm_per_min: 6.0
+    source_detail: "Fig. 1, p.2, blue circular marker at x-category (c) = 70 nm wet CeO2 (centroid col 849, row 856.4)"
+    overrides:
+      abrasive_size_nm: 70.0
+      abrasive_d50_nm: 70.0
+      slurry_ph: 6.0
+      sfr_ml_min: 200
+  - label: "100 nm wet CeO2, pH 6 class slurry, 3 psi, 87 rpm table / 93 rpm carrier, 200 ml/min"
+    pressure_psi: 3.0
+    rpm_platen: 87.0
+    rpm_wafer: 93.0
+    mrr_nm_per_min: 399.0
+    read_method: digitized
+    digitization_uncertainty_nm_per_min: 6.0
+    source_detail: "Fig. 1, p.2, blue circular marker at x-category (b) = 100 nm wet CeO2 (centroid col 603, row 567.4)"
+    overrides:
+      abrasive_size_nm: 100.0
+      abrasive_d50_nm: 100.0
+      slurry_ph: 6.0
+      sfr_ml_min: 200
+
+notes: >
+  Swept axis: wet-ceria abrasive size — 3 / 20 / 40 / 70 / 100 nm. Pressure (3 psi), both
+  rotation speeds (87 table / 93 carrier), flow (200 ml/min), polish time (60 s), pad
+  (IC1000/Suba IV), pad conditioning, tool (POLI-762) and film (450 nm CVD SiO2 on 300 mm)
+  are all printed and identical.
+
+  ⚠ EXCLUDED POINT — abrasive (a), 82 nm DRY CeO2, which digitizes to ~600 nm/min. It is
+  in the same Figure 1 but it is a DIFFERENT ABRASIVE MATERIAL: milled cerium carbonate
+  with an irregular surface, versus wet-precipitated f.c.c.-faceted particles for (b)-(f),
+  as the caption states. Including it would (i) confound abrasive type with size and
+  (ii) break the monotonic trend, since dry 82 nm (~600) exceeds wet 100 nm (~399). Per
+  the no-pooling rule, it is reported here but NOT used as a data row. If you ever want a
+  dry-vs-wet comparison, that is a separate 2-level material contrast, not a size sweep.
+
+  ⚠ ABRASIVE LOADING IS NOT STATED for the Fig. 1 series, so `abrasive_wt_pct` is
+  deliberately ABSENT from every row. The Methods give 0.3 wt% for the NEW super-fine
+  Ce(OH)4 slurries (the paper's main subject, Fig. 4), but Figure 1 is the conventional
+  dry/wet CeO2 baseline that motivates the work and no loading is given for it. I have not
+  carried the 0.3 wt% across — that would be an assumption, and if loading did vary with
+  size in this baseline set the sweep would be confounded. Treat the exponent below as
+  conditional on loading having been held fixed, which the paper implies but does not say.
+  This, plus the digitization, is why confidence is `low` despite a clean trend.
+
+  ⚠ `slurry_ph` is recorded as 6.0 with caution: the Methods state the super-fine slurry
+  "pH of the slurry was titrated at 6.0", and the paper's abrasive-stability optimum is
+  pH 6.0. The pH of the Fig. 1 baseline dry/wet CeO2 slurries is not separately printed.
+  Flagged so it is never mistaken for a measured value specific to this series.
+
+  FINDING for `abrasive_size_exponent` on SiO2 with WET CERIA: n ~ +1.0 over 3-100 nm
+  (or +0.79 over 20-100 nm excluding the uncertain 3 nm endpoint). Strongly POSITIVE —
+  the largest in this batch.
+
+  ⚠ CONTRADICTION with the other oxide size datasets collected here. All are "oxide", and
+  they do not agree even in sign or shape:
+    - THIS FILE (CVD SiO2, wet CERIA, 3-100 nm):                 n ~ +1.0, monotonic rising
+    - us20190127607a1 HDP oxide (ceria-coated silica, 89-211 nm): n ~ +0.75, rising
+    - us20190127607a1 TEOS oxide (same runs as above):            NON-monotonic, dip at 156 nm
+    - bouvet2002 thermal oxide (colloidal SILICA, 12-75 nm):      NON-monotonic, PEAK at 25 nm
+    - basim2000 PECVD oxide (fumed silica + coarse spikes):       rate FALLS with coarse adds
+  The abrasive MATERIAL is the strongest discriminator here: ceria and ceria-coated silica
+  give large positive exponents, plain colloidal/fumed silica gives ~zero or an interior
+  maximum. Do NOT average these into one oxide exponent; the disagreement, and its
+  correlation with abrasive chemistry, is the finding.
+
+  ⚠ Rate/defect trade-off: the whole point of Figure 1 is that the rate gain from bigger
+  wet ceria is paid for in scratches (the green right-hand axis, "Scratch No. [ea/12 in
+  wf., < 10 nm size]", 0-1250). A size-exponent model fitted to MRR alone will predict
+  that bigger is always better and miss why the industry does not simply use 100 nm.
+
+  ⚠ Not stated for this series: abrasive loading (above), size DISTRIBUTION (only a single
+  nominal size per abrasive, so `abrasive_d50_nm` = that nominal and no d99 is available),
+  error-bar magnitudes as numbers, replicate counts, temperature.
+  ⚠ `pack` is a placeholder; the abrasive is ceria, not silica. Shape/rank use only.
