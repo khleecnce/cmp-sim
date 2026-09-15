@@ -1,0 +1,452 @@
+# SnAg SOLDER CMP — tin-silver microbump planarization for advanced packaging /
+# hybrid bonding (Cu/Sn(-Ag) solid-state diffusion bonding, fine-pitch 3D stacks).
+#
+# NEW pack. `base: base` picks up ONLY the tool/pad/contact-mechanics tier
+# (300 mm rotary tool, IC1000-class PU pad, GW asperity statistics). Nothing is
+# inherited from cu_h2o2_bta or any other film pack — deliberately. SnAg is not
+# "a slightly softer copper": its measured nanohardness is 0.27 GPa against Cu's
+# 1.65 GPa in the SAME indenter run ([DENG04] Table 1), it deforms by creep at
+# room temperature (RT is ~0.6 T_m for Sn-3.5Ag), and it smears and embeds
+# abrasive rather than fracturing. Letting a Cu Kp or a Cu hardness leak in here
+# would silently produce a number that means nothing.
+#
+# ══════════════════════════════════════════════════════════════════════════
+# READ THIS FIRST: THIS PACK IS MOSTLY NULL, AND THAT IS THE FINDING.
+# ══════════════════════════════════════════════════════════════════════════
+# An exhaustive search (local 320-PDF CMP corpus + 8960-doc corpus.sqlite,
+# OpenAlex full-text search, FreePatentsOnline expert search over US patents
+# and applications, IOP/Springer/Elsevier/imec/ECTC/EPTC proceedings) found
+# NO published SnAg or pure-Sn CMP removal rate reported together with its
+# polishing pressure and relative velocity. Therefore NO Preston coefficient
+# can be derived for this material without inventing one, and `preston_kp` /
+# `kp_m_per_pa` are left null. Every other engine key that depends on a CMP
+# experiment on Sn or SnAg is likewise null.
+#
+# What DOES exist, and is recorded below:
+#   - solder nanohardness, measured, multiple independent sources (FILLED)
+#   - electroplated Sn bump pre-planarization topography (FILLED)
+#   - two DOCUMENTED CMP FAILURES on Sn microbumps (imec), which bound the
+#     slurry pH window from both sides without giving a working rate (NOTES)
+# The packaging/hybrid-bonding CMP field solves Sn planarization mostly by
+# FLY-CUTTING (surface planer), not by CMP — which is exactly why the CMP
+# numbers do not exist. See the `slurry_ph` note.
+#
+# SOURCES USED (full text read, not abstracts)
+# --------------------------------------------
+#  [DENG04] Deng, Chawla, Chawla & Koopman, "Deformation behavior of (Cu,Ag)-Sn
+#           intermetallics by nanoindentation", Acta Materialia 52(18) 4291-4303
+#           (2004), doi:10.1016/j.actamat.2004.05.046. Table 1 + §3.2.
+#           Berkovich CSM nanoindentation of a Sn-3.5Ag alloy reflowed on Cu;
+#           modulus/hardness averaged over the 200-500 nm depth plateau,
+#           10 nm/s displacement control, 5 s hold at peak to suppress creep.
+#           THE SnAg HARDNESS SOURCE.
+#  [LOT13]  Lotfian, Molina-Aldareguia, Yazzie, Llorca & Chawla, "Mechanical
+#           Characterization of Lead-Free Sn-Ag-Cu Solder Joints by
+#           High-Temperature Nanoindentation", J. Electron. Mater. 42(6)
+#           1085-1091 (2013), doi:10.1007/s11664-013-2542-y (open copy:
+#           oa.upm.es/29016/1/INVE_MEM_2013_167848.pdf), Tables I-II.
+#           Sn-3.9Ag-0.7Cu joint, hardness vs temperature, RT to 150 C.
+#           INDEPENDENT cross-check and the temperature-sensitivity evidence.
+#  [DEP16]  De Preter, Derakhshandeh, Heylen, Van Acker, Rebibis, Miller, Beyer
+#           & Beyne (imec), "Surface planarization of Cu and CuNiSn Micro-bumps
+#           embedded in polymer for below 20 um pitch 3DIC applications",
+#           IWLPC / ESTC 2016; open copy d-nb.info/1214304923/34 and
+#           monarch.qucosa.de/id/qucosa:20513. 300 mm wafers, CuNiSn
+#           (5/1/3.5 um and 1/1/8 um) bumps in Hitachi CA6001B polymer.
+#           THE ONLY located primary report of actual CMP ON Sn MICROBUMPS —
+#           and it reports two failed slurry attempts, no rate, no pressure.
+#  [ZHA15]  Zhang (NCAP Wuxi), "Fine pitch Cu/Sn solid state diffusion bonding
+#           for advanced three-dimensional chip stacking", Jpn. J. Appl. Phys.
+#           54 030203 (2015), doi:10.7567/JJAP.54.030203, §1 and §3.
+#           Electroplated Cu/Sn microbump roughness and peak-to-valley height.
+#           THE PRE-CMP TOPOGRAPHY SOURCE.
+#  [INO21]  Inoue et al., "Fine-pitch bonding technology with surface-planarized
+#           solder micro-bump/polymer hybrid for 3D integration", Jpn. J. Appl.
+#           Phys. 60 SBBB05 (2021), doi:10.35848/1347-4065/abd69c. Abstract and
+#           introduction read in full; body paywalled. States that polishing
+#           scratches Sn and polymer and that fly-cutting is used instead,
+#           reaching a 50 nm residual step. Used for the failure narrative only;
+#           no number in this pack comes from it.
+
+base: base
+description: "SnAg (tin-silver) solder microbump CMP for advanced packaging: hardness and topography sourced, Preston coefficient NOT PUBLISHED (null)"
+
+params:
+
+  film:
+    value: snag_solder
+    note: >
+      Near-eutectic Sn-Ag solder (Sn-3.5Ag / Sn-3.0Ag class) as an electroplated
+      microbump cap on a Cu(/Ni) pillar, planarized before thermocompression or
+      solid-state-diffusion bonding. NOT bulk cast solder, NOT SAC305 in a BGA
+      joint — though the only available hardness data come from reflowed joints
+      (see film_bulk_hardness_pa).
+    source: "pack scope declaration"
+    confidence: literature
+
+  material_family:
+    value: metal
+    unit: "-"
+    note: >
+      Read by cmp_sim/core/regime.py::material_family / classify_film. Sn-Ag is a
+      ductile FCT/BCT metal alloy (beta-Sn matrix + Ag3Sn intermetallic), so the
+      metal branch is the right route: removal is expected to be mechanically
+      dominated with a chemical passivation modulation, as for Cu, not
+      chemically starved as for SiC.
+      ⚠ CAVEAT the classifier cannot see: at room temperature Sn-3.5Ag sits at
+      T/T_m ~ 0.6 (T_m = 221 C), so it CREEPS under the pad. [LOT13] Table II
+      measures the Sn-rich phase softening from 0.31 GPa at RT to 0.15 GPa at
+      150 C — a factor of 2 over a temperature range a CMP pad interface can
+      genuinely span. No other metal in this repository's packs has that
+      sensitivity. Treat any contact-mechanics classification here as
+      provisional.
+    source: "[DENG04] doi:10.1016/j.actamat.2004.05.046 Table 1; [LOT13] doi:10.1007/s11664-013-2542-y Table II"
+    confidence: literature
+
+  # ══════════════════════════════════════════════════════════════════════
+  # 1. Preston coefficient — NOT PUBLISHED. THIS IS THE HEADLINE RESULT.
+  # ══════════════════════════════════════════════════════════════════════
+  # The engine reads `kp_m_per_pa` (cmp_sim/core/solver.py:109); `preston_kp`
+  # is declared as an alias because the gap list named that key. Both null.
+
+  kp_m_per_pa:
+    value: null
+    unit: m/Pa   # would be m^2/N; MRR [m/s] = Kp * P[Pa] * V[m/s]
+    note: >
+      TODO(film-snag): NOT FILLED — no primary source publishes a SnAg or pure-Sn
+      CMP removal rate together with the pressure and velocity at which it was
+      measured, so there is nothing to divide. Searched and found empty:
+        - ~/fab-sim/papers (320+ vetted CMP PDFs, INDEX.json 176 entries):
+          zero Sn / SnAg / solder CMP entries.
+        - ~/fab-sim/data/corpus/corpus.sqlite (8960 docs): 20 hits on "solder",
+          6 on "microbump", 0 on "SnAg"/"Sn-Ag"; the only CMP-on-Sn document is
+          [DEP16], which reports no rate.
+        - OpenAlex full-text search, several phrasings: the closest results are
+          Cu-Cu hybrid bonding and Cu/polymer CMP papers.
+        - FreePatentsOnline expert search (SPEC/"solder removal rate" -> 0 hits;
+          SPEC/"tin removal rate" -> 52 hits, ALL of them TiN (titanium nitride)
+          or lead-refining, none metallic tin; SPEC/"Sn-Ag" AND
+          SPEC/"polishing rate" -> 13 hits, top hit US11041097 (Samsung) is a
+          phase-change-material slurry whose examples polish GST and SiN, not
+          solder).
+      Google Patents returns 503 from this host, so a patent example table for a
+      solder slurry may exist and remain unseen; that is the single most likely
+      place a real number would surface.
+
+      WHAT IS KNOWN, AND WHY IT STILL CANNOT GIVE Kp:
+      [DEP16] Fig. 8 polished CuNiSn bumps with a 3.5 um Sn cap for 1 minute and
+      found "only Ni3Sn4 IMC's are left", i.e. >= 3.5 um of Sn disappeared in
+      <= 60 s (>= 3.5 um/min, >= 5.8e-8 m/s). That looks like an enormous rate,
+      but the paper's own reading is that "polishing slurry etched Sn" — the
+      alkaline pH 10-11 polymer slurry was chemically dissolving the cap, not
+      Preston-polishing it. No pressure, no platen/carrier speed, and no
+      etch/abrasion split are reported. Dividing that number by an assumed
+      P and V would produce a Kp that is mostly a static etch rate wearing a
+      Preston costume. Refused.
+
+      WHAT WOULD FILL THIS: a blanket electroplated Sn-3.5Ag film (>= 2 um, so
+      the IMC layer is never reached), polished at 2-3 fixed pressures x 2-3
+      relative velocities with a stated slurry, thickness by 4-point probe or
+      profilometry, plus a STATIC ETCH control (same slurry, no pad contact) so
+      the chemical and mechanical terms can be separated. Until that exists this
+      key stays null and the solver correctly refuses to predict SnAg MRR.
+    source: "TODO - no primary source located; searched local corpus, OpenAlex, FPO expert search"
+    confidence: unverified
+
+  preston_kp:
+    value: null
+    unit: m^2/N
+    note: >
+      Alias of `kp_m_per_pa` (the engine reads `kp_m_per_pa`). Null for the same
+      reason — see above. Keep the two in step if either is ever filled.
+    source: "TODO - see kp_m_per_pa"
+    confidence: unverified
+
+  # ══════════════════════════════════════════════════════════════════════
+  # 2. Contact mechanics — hardness
+  # ══════════════════════════════════════════════════════════════════════
+
+  film_bulk_hardness_pa:
+    value: 0.27e9
+    unit: Pa
+    note: >
+      Nanohardness of the SnAg EUTECTIC CONSTITUENT (beta-Sn + Ag3Sn lamellae)
+      in a Sn-3.5Ag solder reflowed on Cu: [DENG04] Table 1, H = 0.27 +/- 0.05
+      GPa, E = 54.5 +/- 2.2 GPa. Berkovich indenter, continuous-stiffness
+      measurement, displacement control at 10 nm/s, 5 s hold at peak load to
+      suppress creep, values averaged over the 200-500 nm depth plateau where
+      the paper demonstrates H and E are depth-independent. Indents within 4 um
+      of any interface were discarded.
+
+      WHY THE EUTECTIC AND NOT PURE Sn: Sn-3.5Ag IS the eutectic composition, so
+      the eutectic mixture is the correct microstructural analogue of a
+      near-eutectic SnAg microbump. The same table gives pure Sn at 0.22 +/- 0.03
+      GPa — 19% softer — which is the number to use if a PURE-Sn cap is being
+      simulated, and it must then be labelled a proxy.
+
+      ** SPREAD ACROSS SOURCES: 0.22 - 0.58 GPa, A FACTOR OF 2.6. ** [LOT13]
+      Table II, independently, on Sn-3.9Ag-0.7Cu (SAC): eutectic phase
+      0.58 +/- 0.01 GPa, Sn-rich phase 0.31 +/- 0.01 GPa at room temperature.
+      Both papers share an author (N. Chawla) and both use Berkovich
+      nanoindentation, yet the eutectic values differ by 2.1x. Plausible causes:
+      different alloy (Cu addition forms extra Cu6Sn5 in the eutectic), different
+      cooling rate and therefore lamellar spacing, and different indentation
+      depth. This material's hardness is a MICROSTRUCTURE property, not an alloy
+      property. Anything computed from this number is order-of-magnitude.
+
+      ** TEMPERATURE: NOT A CONSTANT. ** [LOT13] Table II, same Sn-rich phase:
+      0.31 (RT) -> 0.28 (60 C) -> 0.26 (90 C) -> 0.19 (120 C) -> 0.15 GPa
+      (150 C). Eutectic: 0.58 -> 0.37 -> 0.31 -> 0.22 -> 0.16 GPa. A pad-wafer
+      interface running 10-40 C above ambient therefore sits on a visibly
+      sloping curve. This pack stores the RT value only.
+
+      CONTEXT FOR SELECTIVITY: in the SAME [DENG04] run, Cu = 1.65 +/- 0.17 GPa
+      (6.1x harder), Ag3Sn = 3.25 +/- 0.18, Cu6Sn5 = 6.38 +/- 0.21, Cu3Sn =
+      6.12 +/- 0.17 GPa (23x harder than the solder). A Cu/Sn microbump stack
+      presents a 23x hardness step to the pad within one bump, and once the
+      solder is thinned to the IMC the polish hits that wall — which is exactly
+      what [DEP16] observed (Ni3Sn4 exposed, surface went rough).
+
+      ⚠ SUBSTITUTION DECLARED: this is a REFLOWED BULK JOINT, not an
+      as-electroplated microbump cap. Electroplated Sn is finer-grained and
+      typically harder than reflowed; no nanoindentation of an as-plated SnAg
+      microbump was located. The direction of that bias (plated > reflowed)
+      means this value is probably a LOWER bound.
+    source: "doi:10.1016/j.actamat.2004.05.046 (Deng et al., Acta Mater. 52(18) 4291, 2004) Table 1, eutectic column; cross-check doi:10.1007/s11664-013-2542-y Table II"
+    confidence: literature
+
+  film_surface_hardness_pa:
+    value: null
+    unit: Pa
+    note: >
+      TODO(film-snag): NOT FILLED. This key wants the hardness of the
+      chemically MODIFIED Sn surface that a CMP slurry actually abrades —
+      the SnO / SnO2 / Sn(OH)x passivation film. No nanoindentation of a
+      Sn or SnAg surface after exposure to a CMP slurry was located; the
+      Cu analogue ([IH08], used by cu_h2o2_bta) has no Sn counterpart.
+
+      Known qualitatively and NOT enough to fill this:
+        - Sn passivates readily; the oxide is the reason Cu/Sn bonding needs
+          flux or HF pre-clean, and [ZHA15] §3 notes cleaned Sn "can be quickly
+          re-oxidated once re-exposed to air".
+        - SnO2 is much harder than Sn (cassiterite ~6-7 Mohs vs Sn ~1.5), so
+          the surface film is expected to be HARDER than the bulk here, as it is
+          for Cu under H2O2. Do NOT assume H_surface <= H_bulk for this pack.
+      WHAT WOULD FILL THIS: Berkovich nanoindentation at 50-200 uN on a Sn-3.5Ag
+      film after a fixed immersion in the candidate slurry, with a bare-film
+      control in the same session.
+    source: "TODO - no primary source located"
+    confidence: unverified
+
+  particle_contact_stress_pa:
+    value: null
+    unit: Pa
+    note: >
+      TODO(film-snag): NOT FILLED, and for SnAg it is worse than merely missing.
+      In the Luo-Dornfeld family of models the mean abrasive contact pressure is
+      SET EQUAL to the wafer hardness by construction (fully plastic contact),
+      so reading a "measured" particle stress out of that framework and
+      comparing it back to the hardness returns 1.0 by definition — the same
+      circularity flagged in cu_h2o2_bta.
+      For SnAg there is an additional, physical objection: at 0.27 GPa and
+      T/T_m ~ 0.6 the assumption of TIME-INDEPENDENT plastic indentation fails.
+      The contact creeps, the particle sinks in, and the material is documented
+      to smear over and embed the abrasive rather than be cut away. A single
+      quasi-static contact stress may not be a meaningful quantity for this
+      material at all. regime.detect() will report contact_branch = unknown,
+      which is the honest answer.
+    source: "TODO - no non-circular primary source; quantity itself is questionable for a creeping solid"
+    confidence: unverified
+
+  # ══════════════════════════════════════════════════════════════════════
+  # 3. Pattern / topography terms
+  # ══════════════════════════════════════════════════════════════════════
+
+  initial_step_height_m:
+    value: 2.0e-6
+    unit: m
+    note: >
+      Peak-to-valley height of an AS-ELECTROPLATED Sn solder bump, i.e. the
+      topography the pad first sees on the bump array before any planarization.
+      [ZHA15] §1: "the average roughness of Sn and Cu solder bump is 500 and
+      200 nm, respectively. The peak-to-valley height difference of the Cu bump
+      is 900 nm, and it is up to 2000 nm for the Sn bump." NCAP Wuxi, 40 um and
+      100 um pitch Cu/Sn microbumps on Cu TSVs.
+      ⚠ SECONDARY CITATION: [ZHA15] attributes these figures to its own ref. 9
+      (Zhang et al., EPTC 2010, "Surface planarization of Cu/Sn micro-bump...",
+      doi:10.1109/eptc.2010.5702622), which is not open access and was not read.
+      The 2000 nm is therefore a stated-in-text value, not one read off a scan.
+
+      INDEPENDENT ORDER-OF-MAGNITUDE CHECK, different observable, different lab:
+      [DEP16] reports bump HEIGHT VARIATION (bump-to-bump across a 300 mm wafer,
+      not within-bump roughness) of 0.5 um before planarization, 0.5-0.9 um
+      typical for 20 um pitch, improved to 0.2-0.35 um after fly-cutting. Same
+      order (sub-micron to ~2 um); the two quantities are not the same thing and
+      are not averaged here.
+
+      THIS IS A PLATING+LAYOUT PROPERTY, NOT A SLURRY PROPERTY. Override it per
+      test vehicle. If the bump is reflowed before planarization the profile is
+      a spherical cap and this number is meaningless.
+    source: "doi:10.7567/JJAP.54.030203 (Zhang, JJAP 54 030203, 2015) §1, citing EPTC 2010 doi:10.1109/eptc.2010.5702622"
+    confidence: literature
+
+  planarization_length_m:
+    value: null
+    unit: m
+    note: >
+      TODO(film-snag): NOT FILLED. No pattern-density / step-height model has
+      been fitted to a SnAg or Sn microbump CMP data set, so no planarization
+      length exists to cite. It also may not transfer from the damascene case:
+      the length scales here are a 20 um bump pitch with 7.5-12.5 um bumps
+      ([DEP16]) embedded in a compliant POLYMER (Hitachi CA6001B), not metal in
+      a rigid oxide trench, and the polymer's own compliance enters the contact
+      problem. Borrowing cu_h2o2_bta's 2456 um would be borrowing a fit to a
+      different geometry in a different matrix.
+      WHAT WOULD FILL THIS: post-CMP profilometry of bump arrays at 3+ pattern
+      densities, fitted with the same density-step-height kernel the engine uses.
+    source: "TODO - no primary source located"
+    confidence: unverified
+
+  dishing_max_m:
+    value: null
+    unit: m
+    note: >
+      TODO(film-snag): NOT FILLED. No published dishing-vs-overpolish curve for
+      solder bumps was located, so there is no measured saturation depth to read
+      d_max off. Dishing is nevertheless expected to DOMINATE this process:
+      0.27 GPa solder recessing against a 6.1x harder Cu pillar and a 23x harder
+      Cu-Sn/Ni-Sn IMC (see film_bulk_hardness_pa) is the textbook soft-metal
+      dishing configuration, and [DEP16] documents the endpoint failure mode
+      (polish through the Sn cap, IMC exposed, surface roughens).
+      A guessed d_max here would directly set the predicted post-CMP bump
+      recess, which is the single number a bonding engineer would act on.
+      Refused.
+      WHAT WOULD FILL THIS: AFM or HRP of a bump array at 5/10/20/30% overpolish
+      on a fixed slurry, reporting recess depth vs bump diameter and density.
+    source: "TODO - no primary source located"
+    confidence: unverified
+
+  oxide_dishing_sensitivity_b:
+    value: null
+    unit: "-"
+    note: >
+      TODO(film-snag): NOT FILLED. Read by cmp_sim/core/solver.py:327. It is
+      not even clear the parameter is well posed for this integration: the
+      recessing material here is solder against a POLYMER (or against Cu/IMC),
+      not metal against silicon oxide, so an "oxide dishing sensitivity" has no
+      measured counterpart in the packaging literature. Left null rather than
+      repurposed.
+    source: "TODO - quantity has no published counterpart for solder-in-polymer CMP"
+    confidence: unverified
+
+  stop_layer_rate_m_per_s:
+    value: null
+    unit: m/s
+    note: >
+      TODO(film-snag): NOT FILLED. Two different materials act as the stop layer
+      depending on the integration, and NEITHER has a published removal rate in
+      a solder-compatible slurry:
+        (a) the Ni3Sn4 / Cu6Sn5 IMC under the solder cap ([DEP16] Fig. 7c, 8),
+        (b) the polymer matrix the bumps are embedded in (Hitachi CA6001B,
+            [DEP16]) — and for a polymer the very idea of a blanket "rate" in
+            m/s depends on the pad and slurry far more than for a metal.
+      No number could honestly be attached to either. Note the consequence: with
+      this null and dishing_max_m null, the engine cannot predict endpoint for a
+      SnAg bump polish, which is a true statement about the state of the art.
+    source: "TODO - no primary source located"
+    confidence: unverified
+
+  # ══════════════════════════════════════════════════════════════════════
+  # 4. Chemistry
+  # ══════════════════════════════════════════════════════════════════════
+
+  chem_activation_energy_kj_per_mol:
+    value: null
+    unit: kJ/mol
+    note: >
+      TODO(film-snag): NOT FILLED. No Arrhenius fit of a SnAg or Sn CMP removal
+      rate versus process temperature was located (the Cu analogue, [SJ25] in
+      cu_h2o2_bta with Ea(Cu) = 151.7 kJ/mol, has no Sn counterpart). Activation
+      energies for Sn dissolution DO exist in the corrosion literature, but a
+      static dissolution Ea is not the Ea of a mechanically-refreshed CMP
+      surface, and substituting one for the other is precisely the kind of
+      silent category error this repository's null policy exists to prevent.
+      EXTRA HAZARD SPECIFIC TO THIS MATERIAL: because SnAg creeps at room
+      temperature ([LOT13], hardness halves from RT to 150 C), a measured
+      temperature dependence of SnAg MRR would mix a chemical Arrhenius term
+      with a MECHANICAL softening term. Fitting a single Ea to it would be
+      physically wrong unless the hardness change is divided out first. Whoever
+      fills this must say which of the two they measured.
+    source: "TODO - no primary source located"
+    confidence: unverified
+
+  slurry_ph:
+    value: null
+    unit: "-"
+    note: >
+      TODO(film-snag): NOT FILLED — and this is the most informative null in the
+      pack, because the only primary CMP-on-Sn report ELIMINATES both windows it
+      tried without qualifying a third.
+      [DEP16], 300 mm CuNiSn bumps in polymer, 1 min polish each:
+        - ALKALINE pH 10-11 (the polymer slurry): "may attack the Sn surface".
+          On the 3.5 um Sn cap, "polishing slurry etched Sn and only Ni3Sn4
+          IMC's are left"; repeating on a thicker 8 um Sn cap left Sn behind but
+          "slightly attacked, rough".
+        - ACIDIC-NEUTRAL pH 5-7 (a TSV slurry): "resulted in scratched Sn and
+          polymer surface".
+        - The paper closes with "Investigations for other polishing slurries are
+          on-going" — i.e. no working pH was published.
+      Consistent with the tin Pourbaix picture (Sn is amphoteric: it dissolves
+      as Sn2+ at low pH and as stannite/stannate at high pH, with a passivating
+      SnO/SnO2 window only in between), a viable SnAg slurry pH is expected to
+      be near-neutral WITH a deliberate inhibitor — but no source measured that,
+      so no number is entered. NOTE that the standard Cu inhibitor BTA is not a
+      free substitution: no study of BTA on Sn or on a galvanically coupled
+      Cu-Sn CMP couple was located, and the Cu/Sn couple is itself galvanically
+      active in any real bump.
+      Field context for why this is so thin: [INO21] and [DEP16] both conclude
+      that fly-cutting ("surface planer"), not CMP, is what currently planarizes
+      fine-pitch Sn bumps — [INO21] reaching a 50 nm residual Sn/polymer step
+      that way. The industry routed around the CMP problem, so the CMP data were
+      never generated.
+    source: "TODO - no qualified pH published; failure boundaries from imec IWLPC/ESTC 2016 (d-nb.info/1214304923/34)"
+    confidence: unverified
+
+  # ══════════════════════════════════════════════════════════════════════
+  # 5. Abrasive — entirely unknown for this material
+  # ══════════════════════════════════════════════════════════════════════
+  # No qualified SnAg slurry exists in the open literature (see slurry_ph), so
+  # none of its abrasive parameters can be stated. These are left null rather
+  # than copied from the Cu or oxide packs: for a 0.27 GPa material that is
+  # documented to EMBED abrasive, particle size and loading are not transferable
+  # nuisance parameters — they are the defect mechanism.
+
+  abrasive_size_nm:
+    value: null
+    unit: nm
+    note: >
+      TODO(film-snag): NOT FILLED. No published SnAg CMP slurry to read a
+      particle size from. Do not inherit a Cu value: abrasive EMBEDMENT in soft
+      solder is a first-order defect mode (the same mechanism reported for
+      indium, the nearest soft-metal analogue), so the particle size that is
+      optimal for 1.65 GPa Cu has no claim to be sane at 0.27 GPa.
+    source: "TODO - no qualified SnAg slurry published"
+    confidence: unverified
+
+  abrasive_wt_pct:
+    value: null
+    unit: "wt%"
+    note: "TODO(film-snag): NOT FILLED — no published SnAg CMP slurry. See abrasive_size_nm."
+    source: "TODO - no qualified SnAg slurry published"
+    confidence: unverified
+
+  abrasive_density_kg_m3:
+    value: null
+    unit: kg/m^3
+    note: >
+      TODO(film-snag): NOT FILLED. This is a property of whichever abrasive is
+      chosen (colloidal silica ~2200, alumina ~3950 kg/m^3), and since no
+      abrasive has been qualified for SnAg, choosing one here would smuggle in a
+      slurry decision disguised as a material constant.
+    source: "TODO - abrasive not selected; no qualified SnAg slurry published"
+    confidence: unverified

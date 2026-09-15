@@ -1,46 +1,45 @@
 # CMP-Sim — STATUS
 
 ## DONE (phase, module, tests)
-- P0 skeleton + `core/legacy_bridge.py` wrapping inherited FabSim modules — 5
-- P1 Preston `models/preston.py` + `core/solver.py` — 15
-- P2 Greenwood-Williamson `models/contact_gw.py`, `pad/material.py` — 29
-- P3 abrasive mechanics `models/luo_dornfeld.py` — 22
-- P4 chemistry `models/chemical_rate.py`, `slurry/formulation.py` — 22
-- P5 uniformity/supply `models/uniformity.py`, `slurry/rheology.py` — 38
-- P6 pattern `models/pattern_density.py` — 21
-- P7 pad wear `pad/wear.py` + P8 defects `models/defect_proxy.py` — 27
-- Databases: 55 additives x 9 films, 11 abrasives x 9 films — 18
-- Plausibility guard `core/sanity.py` + validation gate — 25
-- CLI, zero-dependency web UI + HTTP API (verified in headless chromium)
-- 6 example recipes: oxide, Cu, W, STI-ceria, SiC, multi-zone
-**217 tests, all passing.**
+- P1 Preston `models/preston.py` — gate: 4 published datasets within ±15%
+- P2 GW contact `models/contact_gw.py` + `pad/material.py`
+- P3 Abrasive `models/luo_dornfeld.py` — occupancy saturation, regime exponents
+- P4 Chemistry `models/chemical_rate.py` + `slurry/formulation.py`
+- P5 Uniformity `models/uniformity.py` — velocity field, zones, slurry supply
+- P6 Pattern `models/pattern_density.py` — step height, dishing, erosion
+- P7 Pad wear `pad/wear.py` — glazing + conditioner ageing (reported, not applied)
+- P8 Defects `models/defect_proxy.py` — d99 scratch risk
+- Model selection by SITUATION: `core/regime.py` (8 axes) + `core/profiles.py`
+  (11 profiles, 7 orthogonal layers, overlays for wear/pattern)
+- Input validation `core/validate_input.py`; plausibility `core/sanity.py`
+- Interfaces: CLI (`run`/`sweep`/`validate`/`packs`/`profiles`), zero-dependency
+  web UI + HTTP API (`/api/simulate`, `/api/sweep`), `CMP-Sim.command` launcher
+- Data: 55 additives × 9 films, 11 abrasives × 9 films, packs for Cu, W, oxide,
+  STI-ceria, SiC, Si substrate
+- **334 tests passing**
 
 ## NEXT
-Owner review of the validation table and the three Kp corrections (SiC, W, and
-the pad-contact baseline) before any further physics is added.
+Wire the poly-Si and SnAg packs in when the two research agents deliver, add
+their examples, then final README pass.
 
 ## BLOCKED
-(none)
+- `contact_branch` is `unknown` for every film: no pack has BOTH
+  `film_surface_hardness_pa` (chemically modified surface) and
+  `particle_contact_stress_pa`. Not a bug — the softened hardness is rarely
+  published, and in the Luo-Dornfeld formulation the contact stress is *set
+  equal* to the hardness by assumption, so sourcing it independently is
+  circular. **Question for owner:** in-house nanoindentation on a polished
+  Cu/W/oxide surface would settle the sign of the particle-size exponent in P3.
+- SnAg is the thinnest area in the literature; expect a mostly-null pack.
 
-## VALIDATION — criterion (a) PASSED: 4 sources within +/-15%
-| dataset | n | read | MAPE | max |
-|---|---:|---|---:|---:|
-| US9499721B2 TEOS/silica | 4 | table | 1.9% | 2.8% |
-| US8142675B2 Pt/alumina | 4 | table | 12.3% | 20.9% |
-| US6564116B2 oxide L25 | 5 | table | 12.6% | 27.2% |
-| Mariscal 2020 PETEOS/ceria | 9 | digitized | 12.9% | 20.5% |
-| Wang SiC DOE | 6 | SI table | 31.9% | 88.8% | chemically limited |
-| US6918821B2 Cu/IC1000 | 6 | table | 44.1% | 161.2% | kept as counter-example |
+## VALIDATION
+| dataset | n | MAPE | verdict |
+|---|---:|---:|---|
+| US9499721B2 TEOS/silica | 4 | 1.9% | pass |
+| US8142675B2 Pt/alumina | 4 | 12.3% | pass |
+| US6564116B2 oxide L25 | 5 | 12.6% | pass |
+| Mariscal 2020 PETEOS/ceria | 9 | 12.9% | pass |
+| Wang SiC DOE50 | 6 | 31.9% | **kept failing** — chemically limited: at fixed P·V the rate spans 5.2×, P·V explains R²=0.09 |
+| US6918821B2 Cu/IC1000 | 6 | 44.1% | **kept failing** — lubrication transition; the model flags the exact collapse point (λ=1.24) without seeing a rate |
 
-All three patent datasets were re-verified by me against the official USPTO
-PDFs, not accepted on the subagents' reports.
-
-## OWNER QUESTIONS
-1. **Absolute rate needs your data.** Every Kp is back-calculated from one
-   literature point. Do you have >=3 measured RR points (any film) we can use to
-   recalibrate? They stay out of git.
-2. **I corrected three inherited numbers** — SiC Kp (was the oxide value, 128x
-   too high), W Kp (from a quoted range; refit to two patent tables), and the
-   pad-contact baseline. Please sanity-check these against your experience.
-3. Which film should get depth next: Cu, W, STI oxide or poly-Si?
-4. Poly-Si, Si-substrate and SnAg have no parameter pack yet — worth adding?
+Gate: 4 in-scope datasets within ±15% (need 3) → **PASS**
