@@ -57,6 +57,8 @@ class ResolvedRecipe:
     recipe: Recipe
     pack: ParamPack
     used_keys: List[str] = field(default_factory=list)
+    formulation_notes: List[str] = field(default_factory=list)
+    formulation_warnings: List[str] = field(default_factory=list)
 
     # ── pack access ────────────────────────────────────────────
     def p(self, key: str) -> Any:
@@ -102,6 +104,12 @@ class ResolvedRecipe:
 
 
 def resolve(recipe: Recipe) -> ResolvedRecipe:
+    """Load the pack for this recipe and overlay the user's formulation.
+
+    The formulation overlay is what makes the simulator respond to composition:
+    without it, changing the oxidizer or the abrasive loading would leave the
+    pack values (and therefore the answer) untouched.
+    """
     name = recipe.slurry.pack or FILM_PACK.get(recipe.wafer.film)
     if not name:
         raise ParamMissing(
@@ -109,23 +117,98 @@ def resolve(recipe: Recipe) -> ResolvedRecipe:
             f"Set slurry.pack explicitly or add the film to FILM_PACK. "
             f"Known films: {sorted(FILM_PACK)}"
         )
-    return ResolvedRecipe(recipe=recipe, pack=load_pack(name))
+    pack = load_pack(name)
+
+    from cmp_sim.slurry.formulation import apply_overrides, to_overrides
+    form = to_overrides(recipe.slurry)
+    notes = list(form.notes)
+    warnings = list(form.warnings)
+    if form.overrides:
+        pack, apply_notes = apply_overrides(pack, form.overrides)
+        warnings.extend(apply_notes)
+    return ResolvedRecipe(recipe=recipe, pack=pack,
+                          formulation_notes=notes, formulation_warnings=warnings)
 
 
 MODELS: Dict[str, str] = {
     "preston": "P1 Preston: MRR = Kp*P*V (nominal pressure, no contact mechanics)",
     "gw_preston": "P1+P2 Preston with a Greenwood-Williamson pad contact factor",
+    "full": "P1-P4: Preston x GW contact x abrasive mechanics x slurry chemistry",
 }
+
+#: models that switch on each physics layer
+_WITH_CONTACT = {"gw_preston", "full"}
+_WITH_ABRASIVE = {"full"}
+_WITH_CHEMISTRY = {"full"}
 
 
 def _kappa_contact_hook(rr: ResolvedRecipe) -> Dict[str, Any]:
-    """P2 hook — only active for the ``gw_preston`` model."""
-    if rr.recipe.model != "gw_preston":
+    """P2 — pad contact mechanics."""
+    if rr.recipe.model not in _WITH_CONTACT:
         return {}
     from cmp_sim.pad.material import contact_factor_for
     out = contact_factor_for(rr.recipe, rr)
     out.pop("state", None)
     return out
+
+
+def _abrasive_hook(rr: ResolvedRecipe) -> Dict[str, Any]:
+    """P3 — abrasive count / size / load mechanics."""
+    if rr.recipe.model not in _WITH_ABRASIVE:
+        return {}
+    from cmp_sim.models import luo_dornfeld as ld
+
+    conc = rr.p_or("abrasive_wt_pct", None)
+    conc_ref = rr.p_or("abrasive_ref_wt_pct", None)
+    d50 = rr.p_or("abrasive_size_nm", None)
+    d50_ref = rr.p_or("abrasive_ref_size_nm", None)
+    if conc is None and d50 is None:
+        return {"name": "chi_abrasive", "value": None,
+                "notes": ["abrasive mechanics inactive: the pack declares neither "
+                          "abrasive_wt_pct nor abrasive_size_nm"]}
+
+    # The GW layer tells us how the real contact area responds to pressure,
+    # which is precisely the input the load-sharing question needs.
+    from cmp_sim.pad.material import pad_state, reference_pad_state
+    try:
+        state, _n, _w = pad_state(rr.recipe.pad, rr)
+        p_lo, p_hi = 0.5 * rr.pressure_pa, 2.0 * rr.pressure_pa
+        a_lo = state.real_area_fraction(p_lo)
+        a_hi = state.real_area_fraction(p_hi)
+        area_pressure_exponent = float(np.log(a_hi / a_lo) / np.log(p_hi / p_lo))
+    except Exception:                                    # pragma: no cover
+        area_pressure_exponent = None
+
+    regime = ld.resolve_regime(
+        area_pressure_exponent=area_pressure_exponent,
+        contact_stress_pa=rr.p_or("particle_contact_stress_pa", None),
+        surface_hardness_pa=rr.p_or("film_surface_hardness_pa", None),
+        gap_m=rr.p_or("pad_wafer_gap_m", None),
+        particle_diameter_m=(float(d50) * 1e-9) if d50 else None,
+    )
+    factor, notes, warnings = ld.mechanical_factor(
+        conc=conc, conc_ref=conc_ref, diameter_nm=d50, diameter_ref_nm=d50_ref,
+        regime=regime, conc_half=rr.p_or("abrasive_conc_half_wt_pct", None))
+    if conc is not None and not conc_ref:
+        warnings.append(
+            "the pack has no abrasive_ref_wt_pct, so the concentration term has no "
+            "reference point and abrasive loading does not affect the result")
+    return {"name": "chi_abrasive", "value": factor, "notes": notes,
+            "warnings": warnings, "regime": regime.as_dict()}
+
+
+def _chemistry_hook(rr: ResolvedRecipe) -> Dict[str, Any]:
+    """P4 — slurry chemistry through the softened-hardness channel."""
+    if rr.recipe.model not in _WITH_CHEMISTRY:
+        return {}
+    from cmp_sim.models.chemical_rate import chemical_factor
+
+    temp_c = (rr.recipe.slurry.temperature_c
+              if rr.recipe.slurry.temperature_c is not None
+              else rr.recipe.tool.platen_temp_c)
+    eff = chemical_factor(rr, temp_c=temp_c)
+    return {"name": "psi_chemistry", "value": eff.factor, "notes": eff.notes,
+            "warnings": eff.warnings, "terms": eff.terms}
 
 
 def simulate(recipe: Recipe) -> Result:
@@ -137,16 +220,25 @@ def simulate(recipe: Recipe) -> Result:
     if recipe.model not in MODELS:
         raise ValueError(f"unknown model '{recipe.model}'. available: {sorted(MODELS)}")
 
-    hooks = list(_FACTOR_HOOKS) + [_kappa_contact_hook]
+    notes.extend(rr.formulation_notes)
+    warnings.extend(rr.formulation_warnings)
+
+    hooks = list(_FACTOR_HOOKS) + [_kappa_contact_hook, _abrasive_hook, _chemistry_hook]
     kp = rr.kp_base
+    extras: Dict[str, Any] = {}
     for hook in hooks:
         out = hook(rr) or {}
+        notes.extend(out.get("notes", []))
+        warnings.extend(out.get("warnings", []))
+        if out.get("regime"):
+            extras["abrasive_regime"] = out["regime"]
+        if out.get("terms"):
+            extras["chemistry_terms"] = {k: round(float(v), 5)
+                                         for k, v in out["terms"].items()}
         if out.get("value") is None:
             continue
         factors[out["name"]] = float(out["value"])
         kp *= float(out["value"])
-        notes.extend(out.get("notes", []))
-        warnings.extend(out.get("warnings", []))
 
     radius_m, mrr, p_label = preston_model.mrr_radial_nm_per_min(
         wafer_radius_m=rr.wafer_radius_m,
@@ -198,5 +290,5 @@ def simulate(recipe: Recipe) -> Result:
         provenance=rr.pack.provenance(rr.used_keys),
         notes=notes,
         warnings=warnings,
-        extras={"uniformity": {k: round(float(v), 4) for k, v in u.items()}},
+        extras={"uniformity": {k: round(float(v), 4) for k, v in u.items()}, **extras},
     )
