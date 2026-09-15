@@ -45,6 +45,22 @@ center_offset_m: 0.200   # r_cc not stated in the patent; base value used.
 # ── Chemistry: identical in all four rows ──────────────────────────────────
 #  Same Composition P, same 70 ml/min flow. Recorded in overrides so the fit groups them.
 
+# ── INDEPENDENT VERIFICATION (parent agent, against the official patent PDF) ──
+# Source checked: patentimages.storage.googleapis.com/pdfs/US8142675.pdf, TABLE P.
+# The PDF prints, verbatim:
+#     Process        Pt Removal Rate (A/min)
+#     2/200/18/70    220
+#     4/200/18/70    470
+#     6/200/18/70    750
+#     7/200/18/70    1,020
+# and the following paragraph confirms "a table or platen speed of 200 rpm, a
+# carrier speed of 18 rpm, and a composition flow rate of 70 ml/min", then repeats
+# the four rates in prose. Every value in this file matches. Transcription CONFIRMED.
+#
+# ⚠ Film is PLATINUM, not a standard semiconductor CMP film, and the pack is a
+#   placeholder. Use this file for the SHAPE of the pressure response only — the
+#   fitted Kp has no material meaning here.
+
 conditions:
   - label: "Composition P, 2 psi, 200 rpm platen / 18 rpm carrier, 70 ml/min"
     pressure_psi: 2.0

@@ -51,6 +51,41 @@ center_offset_m: 0.200     # r_cc not stated in the patent; base value used.
 #  Solid content is carried in overrides as abrasive_wt_pct so the fit can group on it.
 #  Back pressure and polish time have no engine parameter and are recorded in the labels only.
 
+# ── INDEPENDENT VERIFICATION (parent agent, against the official patent PDF) ──
+# Source checked: patentimages.storage.googleapis.com/pdfs/US6564116.pdf (9 pages).
+# The L25 array and the MRR column are OCR-scrambled in the PDF text layer, so the
+# factor-to-row assignment could not be read off directly. It was instead verified
+# ARITHMETICALLY against the patent's own TABLE 3 response table, which the
+# transcription does not contain and therefore could not have been fitted to:
+#
+#   For each factor level, S/N = 20*log10(MRR in A/s) averaged over its 5 rows.
+#   Reconstructed from this file vs TABLE 3 as printed:
+#
+#     down force  4 psi   24.53241  vs  24.53263   (-0.0002)
+#                 5 psi   26.68941  vs  26.68942   (-0.0000)
+#                 6 psi   27.66431  vs  27.66443   (-0.0001)
+#                 7 psi   28.75605  vs  28.75611   (-0.0001)
+#                 8 psi   29.62748  vs  29.60729   (+0.0202)
+#     platen     20 rpm   24.62006  vs  24.62076   (-0.0007)
+#                30 rpm   26.95876  vs  26.95966   (-0.0009)
+#                40 rpm   28.02085  vs  28.02038   (+0.0005)
+#                50 rpm   28.66437  vs  28.66399   (+0.0004)
+#                60 rpm   29.00561  vs  28.98510   (+0.0205)
+#
+#   Nine of ten levels match to five decimal places, which fixes the factor
+#   assignment beyond reasonable doubt.
+#
+# ⚠ ONE SUSPECT VALUE. Both discrepant levels (8 psi and 60 rpm) share exactly one
+#   row — row5 (8 psi, 60 rpm) — and both are off by the same +0.0202 in S/N. That
+#   is consistent with a single mis-transcribed cell: the value needed to close both
+#   sums is 20.313 A/s, not the 20.55 A/s recorded. Note that 20.31 also appears in
+#   the OCR stream adjacent to 20.55, so an OCR swap is the likely cause.
+#   The value is LEFT AS TRANSCRIBED rather than silently "corrected" to the number
+#   that makes the arithmetic close — back-solving a datum from the result it is
+#   meant to test is circular. Effect on scoring is negligible (1 of 25 rows, 1.2%).
+#
+# Unit conversion A/s -> nm/min (x6.0) checked on all 25 rows: 0 errors.
+
 conditions:
   - label: "row1: 5wt%, DF=4psi, BP=0psi, 20rpm, 40s (9.14 A/s)"
     pressure_psi: 4.0

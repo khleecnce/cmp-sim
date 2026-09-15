@@ -40,6 +40,27 @@ center_offset_m: 0.200    # r_cc not stated in the patent; base value used.
 #  "provided for wafer and platen rotation rates from 60-200 rpm", so rpm_wafer == rpm_platen.
 #  Polish time 10 min per wafer; rate obtained by weighing the wafer before/after.
 
+# ── INDEPENDENT VERIFICATION (parent agent, against the official patent PDF) ──
+# Source checked: patentimages.storage.googleapis.com/pdfs/US6918821.pdf, TABLE 1.
+# The six IC1000 rows are printed as:
+#     IC1000 200 rpm 4.0/27.6  1636 A/min      IC1000 200 rpm 1.5/10.3  250 A/min
+#     IC1000 120 rpm 4.0/27.6  1384 A/min      IC1000 120 rpm 1.5/10.3  419 A/min
+#     IC1000  60 rpm 4.0/27.6   594 A/min      IC1000  60 rpm 1.5/10.3  425 A/min
+# All six match this file exactly (A/min / 10 = nm/min). Transcription CONFIRMED.
+#
+# ⚠ THIS DATASET IS A PRESTON COUNTER-EXAMPLE, AND THAT IS WHY IT IS KEPT.
+#   At 1.5 psi the measured rate FALLS as speed rises (425 -> 419 -> 250 A/min from
+#   60 to 200 rpm), the opposite of MRR ~ P*V. At 4 psi it rises steeply and
+#   super-linearly (594 -> 1384 -> 1636). No single Kp can fit both branches, which
+#   is why this file scores ~44% MAPE while the other patent tables score 2-13%.
+#   The behaviour is the patent's own subject: it claims conventional IC1000 works
+#   poorly at reduced down force, which is precisely this low-pressure collapse.
+#   Physically, at 1.5 psi on a stiff pad the interface is entering a
+#   hydrodynamic/starved regime where abrasive contact is lost — outside Preston's
+#   boundary-lubrication validity range.
+#   KEEP IT as a negative control: it marks where the model must not be trusted.
+#   Do not tune Kp to improve this number.
+
 conditions:
   - label: "IC1000 pad, 1.5 psi (10.3 kPa), 60 rpm"
     pressure_psi: 1.5

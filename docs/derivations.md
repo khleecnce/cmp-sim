@@ -239,3 +239,227 @@ Colloidal stability is classified by `|pH - IEP|` using the inherited
 `stability_qualitative`, whose 1.0/2.0 pH thresholds are explicitly unverified;
 the run therefore carries that caveat, and a measured zeta potential overrides
 it. `|zeta| < 20 mV` raises an agglomeration warning.
+
+---
+
+## P3 — Luo-Dornfeld abrasive mechanics
+
+### Single-particle law, derived
+
+A rigid sphere of radius `R` pressed into a surface of hardness `H` by load `F`.
+Hardness is load per plastically supported area, so `A_c = F/H = pi a^2`, giving
+`a = sqrt(F/(pi H))`. For a shallow spherical indent `a^2 = 2 R delta`, hence
+
+    delta = a^2 / (2R) = F / (2 pi R H)
+
+A particle dragged along cuts a groove of cross-section `~ a*delta`, so
+
+    Q_1 / V  ~  F^(3/2) R^(-1) H^(-3/2)
+
+Three consequences:
+
+1. `alpha = 3/2` (load exponent, plastic branch).
+2. `beta = -1` (size exponent): *at fixed load per particle* a smaller particle
+   indents deeper. The folk claim that bigger particles polish faster comes from
+   the count term, not this one — which is why measured size dependence is
+   non-monotonic.
+3. **`MRR ~ H^(-3/2)`** — the one channel through which chemistry reaches
+   mechanics. Chemistry softens the top layer; `H` is that softened hardness,
+   not the bulk value.
+
+### Exponents are computed, not tabulated
+
+Writing `MRR ~ C^n_C d^n_d` with fitted exponents is post-hoc description that
+only applies to the slurry it was regressed on. Instead three measurable
+questions are answered — who carries the load (`chi`), elastic or plastic
+(`alpha`), monolayer or multilayer supply (`p`, `q`) — and the exponents follow:
+
+    n_C = p (1 - alpha chi)
+    n_d = -q (1 - alpha chi) + beta
+
+Two structural results matter. `n_C <= 1` always, because `p <= 1` and
+`0 <= (1-alpha chi) <= 1`, so a literature exponent of 4/3 cannot arise inside
+this decomposition. And `n_C = 1/3` is *not* a "surface-area-limited" law as
+usually named — it is the signature of elastic contact (`alpha = 2/3`) with full
+load sharing (`chi = 1`).
+
+`alpha` and `beta` come from the same contact law and are interpolated together
+across the elastic-plastic transition. (Looking `alpha` up in a discrete table
+silently returns `beta = 0` in that band, which is not a physical law at all —
+a real bug, caught by a test.)
+
+### Size cancellation is a prediction, not an ignored input
+
+In the elastic, fully load-sharing monolayer regime,
+`n_d = -2(1 - 2/3) + 2/3 = 0` exactly: smaller particles are more numerous but
+each carries less load, and the two effects cancel. The simulator says so
+explicitly, because "changing D50 did nothing" otherwise looks like a bug.
+
+### Saturation
+
+A single power law cannot be right at both ends. With finite contact sites,
+`N_active = n_s (1 - exp(-C/C_half))`, so the *apparent* exponent slides from 1
+(dilute) to 0 (saturated) with no change in physics. Where `C_half` is known the
+occupancy ratio is used directly; where it is not, a power law is used and the
+result says it cannot saturate.
+
+---
+
+## P4 — Chemical term
+
+Chemistry enters only through the softened surface hardness:
+
+    chemical conditions -> H_eff/H_0 -> MRR multiplier = (H_0/H_eff)^(3/2)
+
+Nothing in the kinematics or contact model is touched. Softening 4x raises
+removal 4^1.5 = 8x.
+
+* **Oxidizer** — Langmuir coverage `theta = KC/(1+KC)`, one free parameter.
+  Promotion branch `theta/theta_ref` (W with Fe/H2O2) or passivation branch
+  `(1-theta)/(1-theta_ref)` (Cu, where thick passivation slows removal). Both
+  carry an additive *mechanical floor*: at zero oxidizer the abrasive still
+  removes material, so a purely multiplicative term would wrongly predict zero.
+* **Inhibitor** — Langmuir coverage of BTA-class molecules weights removal by
+  the free site fraction.
+* **Ceria chemical tooth** — Si-O-Ce chemisorption (-111 to -258 kJ/mol) versus
+  silica physisorption (-20 to -40). Enabled only for ceria; the coefficient
+  must never be carried across abrasive chemistries.
+* **pH softening** — real but the weakest link, applied only when a pack states
+  the coefficient.
+* **Temperature** — `k(T)/k(T_ref) = exp(-(Ea/R)(1/T - 1/T_ref))`. A chemically
+  limited film accelerates with platen heating; a mechanically limited one does
+  not. Without `Ea` in the pack the run is explicitly reported as isothermal.
+
+---
+
+## P5 — Radial non-uniformity
+
+### Kinematics is not the cause
+
+For `omega_w = omega_p` the relative speed is `omega_p r_cc` everywhere on the
+wafer; off-match, the wafer's own rotation averages the angle out. Measured
+contribution of the velocity field to non-uniformity is <1%, against tens of
+percent for zone pressure. **Uniform pressure plus equal rpm gives exactly zero
+WIWNU** — a structural result, asserted as a test. That is why zone pressure is
+the knob a tool engineer actually reaches for.
+
+### Slurry supply
+
+The land gap is the layer dragged through the contact and consumed there, so it
+is what must be replenished each wafer pass; the grooves are a reservoir an
+order of magnitude larger that recirculates. Counting the groove volume as
+demand would require thousands of ml/min and declare every real process starved
+(a 300 mm tool runs 150-300 ml/min). Using the land gap gives a requirement of
+~9-40 ml/min, comfortably below practice. Interface volumes come from the Mu
+2016 reactor model, `V = V_land + V_groove`.
+
+Lubrication regime from `l_hd = mu U / p` and `lambda = h/sigma`: in CMP
+`l_hd` is tens of nm against micron-scale pad roughness, so `lambda << 1` and
+contact is boundary-lubricated — which is why abrasives touch the wafer at all.
+A full hydrodynamic film (`lambda > 3`) would mean no removal, and is flagged.
+
+**The starvation droop shape is not predicted.** How sharply the centre falls
+off depends on groove pattern and injection geometry; the risk is reported and a
+profile applied only when a pack supplies a calibrated starvation length.
+
+---
+
+## P6 — Pattern effects
+
+MIT framework (Boning MRS 1999; Stine IEEE TSM 1998; Ouma thesis 1999).
+
+    rho_eff(x) = (w * rho_local)(x)        pad averages over a planarization length
+    RR_up(x)   = K / rho_eff(x)            dense regions polish SLOWER
+
+Dense arrays spread the load over more features, so they clear last and end up
+thicker. Step height falls linearly at `K/rho` and closes at `t_c = rho h0 / K`
+(incompressible pad); with a compressible pad the pad reaches the down-areas
+while a residual step `h_c` remains and the step then decays exponentially. The
+two branches are joined continuously at `h_c` via `t_c = rho (h0 - h_c) / K`.
+
+Because `t_c` scales with density, dense and sparse regions clear at different
+times — that spread forces overpolish, and overpolish causes dishing and
+erosion. During overpolish,
+
+    r_metal(d) = RR_m (1 - d/d_max)
+    r_oxide(d) = RR_ox/(1 - rho_m) (1 + b d)
+
+and dishing self-limits at the `d_ss` where they balance. High selectivity
+protects the stop layer but deepens dishing; the trade-off is computed.
+
+---
+
+## P7 — Pad wear and conditioning
+
+Measured, from Jeong et al. 2024 (*Materials* 17, 1817):
+
+    N(t)/N0 = exp(-t/tau(p))                       contact count decays
+    mu_R(t) = (0.28 p + 0.621) t + 5.45 exp(0.18 p)  summits blunt [um]
+
+Note the direction: a naive GW argument says thinning the population at fixed
+pressure should *increase* contact count; the measurement says the opposite, and
+the measurement wins. The contradiction is recorded, not hidden.
+
+Conditioning regenerates asperities, giving the steady state
+
+    n_ss = k_c G / (k_g + k_c G)
+
+with `G` the disk's current cut rate (exponential ageing, anchored to an
+Entegris field observation of 16% remaining after 50 h). A worn disk lowers the
+plateau: the pad settles glazed.
+
+**The MRR proxy is direction-only.** It approximates force-per-contact by summit
+radius alone, and the inherited self-test found its peak at ~7 min against a
+measured ~3 min. Extrapolation beyond the 10 min of measured data, or outside
+2-5 psi, raises warnings — at 120 min the fit predicts 0.01% of contacts and a
+185 um summit radius, larger than the asperities themselves.
+
+---
+
+## P8 — Defect proxy
+
+Scratches come from the *tail*, not the mean: a 50-150 nm D50 is far below the
+~680 nm scratch threshold.
+
+    Delta = (D99 / D99_ref)^n * (1 + aggregate_ratio)
+
+exactly 1.0 at the reference slurry and **never multiplied into MRR**.
+
+* Scratch count is linear in the number of particles above critical size
+  (Remsen 2006); on the D99 axis that becomes a power law with `n` = 1.44
+  (ceria, Hitachi US8439995B2, R^2 = 0.997) or 2.54 (tungsten, Egan & Kim 2019).
+  `n` is not a material constant — it is a secant of a log-normal tail whose
+  local slope falls 8.4 -> 4.6 -> 0.7 across the Hitachi points, so a fixed `n`
+  is least reliable exactly at the threshold, which the code warns about.
+* Agglomeration is independent: Basim & Moudgil 2002 saw mean size unchanged
+  while AFM Rmax doubled — a path D99 cannot see.
+* Scratch *severity* comes from Saka 2008 / Eusner 2009:
+  `2a_max = D99 sqrt(H_pad/H_film)`, `delta_max = (D99/2)(H_pad/H_film)`. The
+  same risk index means different damage on different films (Cu `delta_max`
+  ~65 nm vs W ~3 nm).
+
+Absolute scratch counts are not predicted, and **Delta must not be compared
+across packs**.
+
+---
+
+## Sanity: is the absolute number even possible?
+
+`core/sanity.py` compares every predicted rate against a published envelope for
+that film and labels anything outside it `IMPLAUSIBLE`. This is not decoration —
+it caught three real bugs:
+
+1. **SiC inherited the oxide Kp.** The pack declared `base: sti_ceria` and never
+   overrode `kp_m_per_pa`, so 4H-SiC used the oxide coefficient and
+   over-predicted by ~128x (6,296 A/min where its own source DOE reports 2.7-6.7
+   nm/min). Refitted to 1.714e-15 m/Pa over all 50 runs; now 4.91 nm/min.
+2. **Tungsten Kp came from a quoted range, not data.** Refitted to 7.0e-14 from
+   two printed patent tables that agree within 5%, replacing a 2.8e-13 estimate
+   that over-predicted by ~4x.
+3. **The GW contact factor was correcting against an estimated reference pad**,
+   inflating every rate 2-3x. `kappa = A_r(pad)/A_r(reference)` only means
+   something when the reference is a real pad, so it is now reported as a
+   diagnostic unless the pack sources its reference pad.
+
+The lesson generalises: a pipeline that runs without error is not a pipeline
+that is right. Check the output against what the physical world is known to do.

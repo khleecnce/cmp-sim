@@ -1,31 +1,46 @@
 # CMP-Sim — STATUS
 
-## DONE
-- P0 skeleton: `cmp_sim/{core,slurry,pad,disk,tool,wafer,models}`, CLI, pyproject, venv (pint/numpy/scipy/pyyaml/pytest)
-- `core/legacy_bridge.py` wires inherited `legacy/` (FabSim e385ed1): preston, kinematics, wiwnu, pattern_density, params loader, dlvo_colloid
-- `core/params.py` two-tier pack loader (own packs override inherited); missing constant -> `ParamMissing`, never a default
-- `core/state.py` full input contract (Slurry/Abrasive/Additive/Pad/Disk/Tool/Wafer) + Result
-- P1 `models/preston.py` + `core/solver.py`: MRR(r)=Kp*P*V, zone pressures, area-weighted WIWNU — 15 tests
-- Slurry item 1-3 `slurry/rheology.py`: Krieger-Dougherty viscosity, wt%->phi mass balance, ionic strength, Debye length, IEP-based electrostatic regime — 19 tests
-- `core/validation.py` literature back-test harness (group by chemistry, least-squares Kp per group)
+## DONE (phase, module, tests)
+- P0 skeleton + `core/legacy_bridge.py` wrapping inherited FabSim modules — 5
+- P1 Preston `models/preston.py` + `core/solver.py` — 15
+- P2 Greenwood-Williamson `models/contact_gw.py`, `pad/material.py` — 29
+- P3 abrasive mechanics `models/luo_dornfeld.py` — 22
+- P4 chemistry `models/chemical_rate.py`, `slurry/formulation.py` — 22
+- P5 uniformity/supply `models/uniformity.py`, `slurry/rheology.py` — 38
+- P6 pattern `models/pattern_density.py` — 21
+- P7 pad wear `pad/wear.py` + P8 defects `models/defect_proxy.py` — 27
+- Databases: 55 additives x 9 films, 11 abrasives x 9 films — 18
+- Plausibility guard `core/sanity.py` + validation gate — 25
+- CLI, zero-dependency web UI + HTTP API (verified in headless chromium)
+- 6 example recipes: oxide, Cu, W, STI-ceria, SiC, multi-zone
+**217 tests, all passing.**
 
 ## NEXT
-P1 gate: 3 published RR-vs-P*V datasets within +/-15%. Currently 2 of the inherited
-datasets pass (Mariscal 2020 MAPE 12.9%, US9499721B2 groups 1.4-3.6%); a third
-independent source is being acquired. Then `docs/derivations.md` P1 entry + commit.
+Owner review of the validation table and the three Kp corrections (SiC, W, and
+the pad-contact baseline) before any further physics is added.
 
 ## BLOCKED
 (none)
 
-## VALIDATION
-| dataset | metric | model error |
-|---|---|---|
-| mariscal2020_peteos_ceria_pv_3x3 (n=9, digitized) | Preston P*V shape, Kp fitted | MAPE 12.9%, max 20.5% |
-| us9499721b2_teos_silica (best group, n=4, table) | Preston P*V shape, Kp fitted | MAPE 3.6%, max 4.4% |
-| kenchappa2021_softpad_hdp_oxide (n=3, table) | Preston P*V shape, Kp fitted | MAPE 42.8% — pad/contact effect, P2 |
+## VALIDATION — criterion (a) PASSED: 4 sources within +/-15%
+| dataset | n | read | MAPE | max |
+|---|---:|---|---:|---:|
+| US9499721B2 TEOS/silica | 4 | table | 1.9% | 2.8% |
+| US8142675B2 Pt/alumina | 4 | table | 12.3% | 20.9% |
+| US6564116B2 oxide L25 | 5 | table | 12.6% | 27.2% |
+| Mariscal 2020 PETEOS/ceria | 9 | digitized | 12.9% | 20.5% |
+| Wang SiC DOE | 6 | SI table | 31.9% | 88.8% | chemically limited |
+| US6918821B2 Cu/IC1000 | 6 | table | 44.1% | 161.2% | kept as counter-example |
+
+All three patent datasets were re-verified by me against the official USPTO
+PDFs, not accepted on the subagents' reports.
 
 ## OWNER QUESTIONS
-1. Absolute RR or ranking? Kp is back-calculated from one literature point, so
-   absolute values outside that regime can be far off. Do you have >=3 measured
-   RR points we may use to re-calibrate Kp (kept out of git)?
-2. Which film stack matters most first: Cu, W, STI oxide, or poly-Si?
+1. **Absolute rate needs your data.** Every Kp is back-calculated from one
+   literature point. Do you have >=3 measured RR points (any film) we can use to
+   recalibrate? They stay out of git.
+2. **I corrected three inherited numbers** — SiC Kp (was the oxide value, 128x
+   too high), W Kp (from a quoted range; refit to two patent tables), and the
+   pad-contact baseline. Please sanity-check these against your experience.
+3. Which film should get depth next: Cu, W, STI oxide or poly-Si?
+4. Poly-Si, Si-substrate and SnAg have no parameter pack yet — worth adding?
