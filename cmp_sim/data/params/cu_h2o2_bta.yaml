@@ -43,6 +43,40 @@ base: cu_h2o2_bta
 description: "Cu/H2O2/BTA: softened-surface hardness, damascene pattern terms and Arrhenius Ea, each sourced"
 
 params:
+  abrasive_size_exponent:
+    value: 0.33
+    unit: dimensionless
+    note: >
+      MRR ~ d^n for THIS FILM with THIS ABRASIVE. Not transferable: the same
+      exponent measured on other films in single experiments runs from -0.45
+      to +1.0, and three of nine published sweeps are non-monotonic, so a
+      shared constant would contradict the data. See
+      tests/test_abrasive_size_sweeps.py.
+
+      Value: Lai 2001 (MIT PhD thesis, ch. 3, Table 3.6) polished Cu with
+      alpha-alumina at pH 7, 48 kPa, 75/75 rpm, 150 ml/min, varying only
+      particle size: 50 nm -> 51, 300 nm -> 112, 1000 nm -> 133 nm/min. The
+      thesis states the ratios in prose ("increases about 2.2 times when the
+      particle size increases from 50 nm to 300 nm, and 1.2 times more when the
+      size is further increased to 1000 nm"), which reproduces the tabulated
+      numbers exactly (112/51 = 2.20, 133/112 = 1.19) - that agreement is what
+      verifies the transcription. Log-log slope over the full range = +0.320.
+
+      ⚠ Replaces an inherited 0.0. Zero was not a measurement; it is what the
+      Luo-Dornfeld relations give when the elastic branch meets full load
+      sharing, where the count and depth terms cancel exactly.
+      ⚠ The sweep saturates: most of the gain is between 50 and 300 nm. A
+      single power law over-predicts above ~300 nm.
+      ⚠ Micron-scale alumina at pH 7, not a modern sub-100 nm silica or
+      ceria-coated slurry. Direction should hold; the magnitude may not.
+    source: >
+      Lai, "Mechanics, Mechanisms, and Modeling of the Chemical Mechanical
+      Polishing Process", MIT PhD thesis (2001), ch. 3, Table 3.6 and the
+      surrounding text. Local PDF: ~/fab-sim/papers/lai2001-ch3.pdf, read
+      directly; dataset file
+      cmp_sim/data/validation/datasets/lai2001_cu_alumina_size_sweep.yaml.
+    confidence: literature
+
 
   # ── 1. softened (chemically modified) surface hardness ──────────────
   film_surface_hardness_pa:

@@ -19,7 +19,7 @@
   zero-dependency web UI + API, `CMP-Sim.command` launcher
 - Films: Cu, W, oxide, STI-ceria, poly-Si, Si substrate, SiC, SnAg
 - Data: 55 additives × 9 films, 11 abrasives × 9 films
-- **507 tests**; verified from a clean clone including `pip install -e .`
+- **543 tests**; verified from a clean clone including `pip install -e .`
 
 ## NEXT
 Owner review of the physics. No implementation is queued — every P1–P8 gate,
@@ -39,6 +39,13 @@ all example films, the validation table and the data-fitting path are green.
   exponent), so the engine reports the branch and leaves the exponents
   `unverified` rather than publishing a negative concentration exponent.
   **To settle it:** a measured abrasive-CONCENTRATION sweep per film.
+  **Partly settled by data since:** 9 measured SIZE sweeps across 7 films were
+  extracted and verified (exponents -0.45 to +1.0, three non-monotonic). Where
+  a pack now has a sourced sweep for its own film the measured exponent
+  OVERRIDES the derived one: Cu +0.33 (Lai 2001 printed table), W -0.05
+  (Bouvet 2002, passivation-limited so size barely matters). Oxide stays null
+  because its measured response is non-monotonic and depends on abrasive
+  chemistry AND deposition method - a single number would be a lie.
 - **SnAg has no published Preston coefficient** (68 sourced numbers, no rate;
   searched 320 local CMP papers, ScienceDirect and Crossref again this session).
   It runs as a ranking on the Archard estimate and says so; four measured rates

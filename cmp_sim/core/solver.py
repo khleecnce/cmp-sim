@@ -419,7 +419,8 @@ def _abrasive_hook(rr: ResolvedRecipe) -> Dict[str, Any]:
     )
     factor, notes, warnings = ld.mechanical_factor(
         conc=conc, conc_ref=conc_ref, diameter_nm=d50, diameter_ref_nm=d50_ref,
-        regime=regime, conc_half=rr.p_or("abrasive_conc_half_wt_pct", None))
+        regime=regime, conc_half=rr.p_or("abrasive_conc_half_wt_pct", None),
+        measured_size_exponent=rr.p_or("abrasive_size_exponent", None))
     if conc is not None and not conc_ref:
         warnings.append(
             "the pack has no abrasive_ref_wt_pct, so the concentration term has no "

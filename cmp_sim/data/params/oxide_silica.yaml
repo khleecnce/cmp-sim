@@ -21,6 +21,44 @@ base: oxide_silica
 description: "Oxide / colloidal silica: hydrolysis mechanism, contact stress, pattern and thermal terms"
 
 params:
+  abrasive_size_exponent:
+    value: null
+    unit: dimensionless
+    note: >
+      TODO(owner) - deliberately NULL, because the measured oxide response is
+      NON-MONOTONIC and no single power law describes it. Recording a number
+      here would be worse than recording nothing.
+
+      What the data say for oxide with SILICA abrasive:
+        Bouvet 2002 (JVST B 20(4) 1556, Fig. 3), thermal oxide, 12/25/45/75 nm
+        at fixed 16.3 wt%, pH 3, 7 psi: 135.5 / 187.5 / 156.4 / 140.2 nm/min -
+        an interior MAXIMUM at 25 nm. A power-law slope over that set is ~0 and
+        is meaningless.
+
+      And with CERIA-type abrasive the answer is different again:
+        US 2019/0127607 A1 Tables 1+2, ceria-coated silica, four D50 from 88.7
+        to 210.7 nm at fixed 0.185 wt% and pH 5.45: HDP oxide rises
+        monotonically (n ~ +0.75) while TEOS oxide - the SAME four slurries in
+        the SAME runs - reverses at 156 nm. The patent states this itself at
+        [0120]. Deposition method alone changes the size response.
+        Son 2021 (Sci Rep 11:17736) with wet ceria gives n ~ +1.0.
+
+      So for this film the exponent depends on the abrasive chemistry, the
+      deposition method and the size range, and within one range it is not even
+      monotonic. With this null the engine falls back to the DERIVED exponent
+      and flags the abrasive regime 'unverified', which is the honest state.
+
+      To fill it: a size sweep on YOUR oxide with YOUR abrasive, at fixed
+      loading, pH, pressure and speed - at least four sizes, since three cannot
+      reveal an interior maximum.
+    source: >
+      Contradictory by measurement, not missing by oversight. Datasets:
+      cmp_sim/data/validation/datasets/bouvet2002_oxide_silica_size_sweep.yaml,
+      us20190127607a1_hdpoxide_ceriasilica_size_sweep.yaml,
+      us20190127607a1_teos_ceriasilica_size_sweep.yaml,
+      son2021_oxide_ceria_size_sweep.yaml. See tests/test_abrasive_size_sweeps.py.
+    confidence: unverified
+
   film_youngs_modulus_pa:
     value: 92.0e9
     unit: Pa

@@ -355,7 +355,8 @@ def mechanical_factor(*, conc: Optional[float], conc_ref: Optional[float],
                       regime: AbrasiveRegime,
                       conc_half: Optional[float] = None,
                       hardness_pa: Optional[float] = None,
-                      hardness_ref_pa: Optional[float] = None
+                      hardness_ref_pa: Optional[float] = None,
+                      measured_size_exponent: Optional[float] = None
                       ) -> Tuple[float, List[str], List[str]]:
     """Dimensionless Kp multiplier from abrasive loading, size and film hardness.
 
@@ -394,13 +395,29 @@ def mechanical_factor(*, conc: Optional[float], conc_ref: Optional[float],
 
     # particle size
     if diameter_nm is not None and diameter_ref_nm:
-        ratio = (float(diameter_nm) / float(diameter_ref_nm)) ** regime.n_size
+        # A MEASURED exponent for this film beats the derived one. The derivation
+        # gives a single number from alpha, beta, chi and q, but nine published
+        # sweeps across seven films run from -0.45 to +1.0 and three are
+        # non-monotonic, so the derived value cannot be right for every film.
+        # Where a pack carries a sourced sweep for its own film, that wins.
+        n_size = regime.n_size
+        if measured_size_exponent is not None:
+            n_size = float(measured_size_exponent)
+            notes.append(
+                f"particle-size exponent n_d = {n_size:+.3f} taken from a "
+                f"MEASURED sweep for this film, overriding the derived "
+                f"{regime.n_size:+.3f}. The derivation yields one number from "
+                "the contact branch and load sharing, but measured exponents "
+                "span -0.45 to +1.0 across films - including three different "
+                "answers from single experiments on different films with the "
+                "same slurries - so it cannot hold everywhere")
+        ratio = (float(diameter_nm) / float(diameter_ref_nm)) ** n_size
         factor *= ratio
         notes.append(
             f"particle size {diameter_nm:g} nm vs reference {diameter_ref_nm:g} nm: "
-            f"computed n_d = {regime.n_size:.3f} -> {ratio:.4f} "
+            f"n_d = {n_size:.3f} -> {ratio:.4f} "
             "(sign is regime-dependent: count and depth terms oppose each other)")
-        if abs(regime.n_size) < 1e-6 and abs(float(diameter_nm) - float(diameter_ref_nm)) > 1e-9:
+        if abs(n_size) < 1e-6 and abs(float(diameter_nm) - float(diameter_ref_nm)) > 1e-9:
             notes.append(
                 "size cancellation: in the elastic, fully load-sharing monolayer "
                 "regime n_d = -q(1-alpha*chi)+beta = -2(1-2/3)+2/3 = 0 exactly. "

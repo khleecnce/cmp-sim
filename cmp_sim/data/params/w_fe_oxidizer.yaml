@@ -32,6 +32,37 @@ base: w_fe_oxidizer
 description: "Tungsten / Fe-H2O2, Kp refitted to two printed patent example tables"
 
 params:
+  abrasive_size_exponent:
+    value: -0.05
+    unit: dimensionless
+    note: >
+      MRR ~ d^n for THIS FILM with THIS ABRASIVE - effectively FLAT. Per-film
+      by necessity: Bouvet 2002 polished W, Ti and thermal oxide with the SAME
+      four colloidal-silica slurries in the SAME runs and got three different
+      answers - W flat, Ti falling (-0.45), oxide peaked at 25 nm. One
+      experiment, so this is not inter-laboratory scatter.
+
+      Value: Bouvet et al., J. Vac. Sci. Technol. B 20(4) 1556 (2002), Fig. 3,
+      sizes from Table I. 16.3 wt% silica, pH 3, KIO3, 7 psi, 55/45 rpm,
+      100 ml/min held fixed; 12/25/45/75 nm gave 309.7/297.5/274.3/289.3
+      nm/min. Digitised from the figure, hence the modest confidence.
+
+      Physically consistent with tungsten being passivation-limited: the rate
+      is set by how fast the WOx film regrows, not by how deep a particle
+      indents, so particle size should not matter much - and does not.
+
+      ⚠ Replaces an inherited 0.0. The inherited zero came from the elastic
+      full-load-sharing cancellation in the Luo-Dornfeld relations, not from a
+      measurement. The measured value happens to be near zero too, which is a
+      coincidence of mechanism rather than a confirmation of that derivation.
+    source: >
+      Bouvet, Vos, Gonzalez et al., J. Vac. Sci. Technol. B 20(4) 1556-1561
+      (2002), Fig. 3 (rates) and Table I (sizes). Local PDF:
+      ~/fab-sim/papers/bouvet2002-jvst-colloidal-silica-w-cmp-size.pdf;
+      dataset file
+      cmp_sim/data/validation/datasets/bouvet2002_w_silica_size_sweep.yaml.
+    confidence: literature
+
   kp_m_per_pa:
     value: 7.0e-14
     unit: m/Pa
