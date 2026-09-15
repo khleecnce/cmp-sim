@@ -255,6 +255,7 @@ class FactorFit:
     cv_mape: Optional[float] = None
     baseline_cv_mape: Optional[float] = None
     n_points: int = 0
+    residuals: List[Dict[str, Any]] = field(default_factory=list)
     notes: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
 
@@ -274,6 +275,7 @@ class FactorFit:
             "improvement_percent_points": (
                 None if (self.cv_mape is None or self.baseline_cv_mape is None)
                 else round(self.baseline_cv_mape - self.cv_mape, 2)),
+            "residuals": self.residuals,
             "notes": self.notes,
             "warnings": self.warnings,
         }
@@ -459,8 +461,20 @@ def fit_factors(measurements: Sequence[Measurement],
     if active:
         values = _grid_search(ms, active, ctx)
         fit.values = values
-        fit.kp_m_per_pa = _fit_kp(ms, values, ctx) * 1e-10 / 60.0
+        kp_a_per_min = _fit_kp(ms, values, ctx)
+        fit.kp_m_per_pa = kp_a_per_min * 1e-10 / 60.0
         fit.unlocked = active
+        # Residuals of the model ACTUALLY used. Reporting the scale-only ones
+        # here showed every point with the same prediction and a ~56% error,
+        # contradicting the 0.8% accuracy quoted directly above it.
+        fit.residuals = [{
+            "label": m.label or f"{m.pressure_psi:g} psi / {m.rpm_platen:g} rpm",
+            "measured_A_per_min": round(m.rate_a_per_min, 1),
+            "predicted_A_per_min": round(_predict(kp_a_per_min, m, values, ctx), 1),
+            "error_percent": round(
+                100.0 * (_predict(kp_a_per_min, m, values, ctx) - m.rate_a_per_min)
+                / m.rate_a_per_min, 1),
+        } for m in ms]
         for name, value in values.items():
             f = FACTORS_BY_NAME[name]
             fit.notes.append(f"{name} = {value:.3f} ({f.description})")

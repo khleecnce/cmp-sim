@@ -233,6 +233,22 @@ def test_a_departure_from_prestons_law_is_warned_about():
     assert any("not the 1" in w and "pressure_exponent" in w for w in r.warnings)
 
 
+def test_the_residuals_shown_come_from_the_model_actually_used():
+    """The per-point table once showed scale-only predictions - every point
+    identical, ~56% error - directly beneath a quoted accuracy of 0.8%. A
+    report that contradicts itself on the same screen is worse than no report.
+    """
+    r = _run(_synthetic(pressure_exponent=0.65))
+    cal = r.extras["calibration"]
+    quoted = cal["cross_validated_mape_percent"]
+    worst = max(abs(row["error_percent"]) for row in cal["residuals"])
+    assert worst < max(5.0, quoted * 4), (
+        f"residuals reach {worst:.1f}% while the quoted accuracy is "
+        f"{quoted:.1f}%: the table is not showing the fitted model")
+    predictions = {row["predicted_A_per_min"] for row in cal["residuals"]}
+    assert len(predictions) > 1, "every point has the same prediction"
+
+
 def test_fitting_still_produces_a_usable_prediction():
     r = _run(_synthetic(pressure_exponent=0.65))
     assert r.mean_rr_angstrom_per_min > 0

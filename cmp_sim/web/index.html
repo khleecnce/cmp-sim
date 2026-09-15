@@ -21,6 +21,9 @@
   #form{border-right:1px solid var(--line);padding:18px 20px 60px;overflow-y:auto;
         max-height:calc(100vh - 61px)}
   #out{padding:18px 24px 60px;overflow-y:auto;max-height:calc(100vh - 61px)}
+  textarea{width:100%;box-sizing:border-box;background:#11151c;color:var(--fg);
+    border:1px solid var(--line);border-radius:6px;padding:7px 9px;font:12px ui-monospace,Menlo,monospace;
+    resize:vertical;margin-top:4px}
   fieldset{border:1px solid var(--line);border-radius:8px;margin:0 0 14px;padding:12px 14px;
            background:var(--panel)}
   legend{color:var(--accent);font-size:12px;text-transform:uppercase;letter-spacing:.9px;
@@ -140,6 +143,17 @@
       <input id="zones" placeholder="e.g. 2.5, 3.0, 4.0"/></label>
   </fieldset>
 
+  <fieldset><legend>Your measurements (optional)</legend>
+    <label>Paste a CSV polishing log
+      <textarea id="csv" rows="5" placeholder="label,pressure_psi,rpm_platen,rate_A_per_min,abrasive_wt_pct
+run-1,2.0,60,2380,3.0
+run-2,4.0,60,4690,3.0"></textarea></label>
+    <div class="hint">The model fits its physical factors to these and reports a
+      <b>leave-one-out</b> accuracy &mdash; each point predicted by a fit that never
+      saw it. A factor unlocks only if its input actually varies between rows and
+      it improves the out-of-sample error.</div>
+  </fieldset>
+
   <fieldset><legend>Sweep (optional)</legend>
     <div class="row">
       <label>Vary<select id="swparam"><option value="">(single run)</option></select></label>
@@ -225,6 +239,7 @@ function buildRecipe(){
   if(num("abd50") !== null) abrasive.d50_nm = num("abd50");
   if(num("abd99") !== null) abrasive.d99_nm = num("abd99");
 
+  const csvText = ($("csv").value || "").trim();
   const slurry = {additives: additives};
   if(Object.keys(abrasive).length) slurry.abrasive = abrasive;
   if(num("ph") !== null) slurry.ph = num("ph");
@@ -238,6 +253,38 @@ function buildRecipe(){
                groove_depth_mm: num("gd"), use_hours: num("padhrs") || 0};
   if(num("shore") !== null) pad.shore_d = num("shore");
 
+  // measurements are parsed client-side into the same shape the API expects
+  const measurements = [];
+  if(csvText){
+    const lines = csvText.split(/\r?\n/).filter(l => l.trim() && !l.trim().startsWith("#"));
+    if(lines.length > 1){
+      const norm = s => s.trim().toLowerCase().replace(/[^a-z0-9]/g,"");
+      const head = lines[0].split(",").map(norm);
+      const find = (...names) => head.findIndex(h => names.includes(h));
+      const iRateA = find("rateapermin","rateamin","mrramin","mrr","rate","removalrate","rr");
+      const iRateNm = find("ratenmpermin","ratenmmin","mrrnmmin","mrrnm");
+      const iP = find("pressurepsi","pressure","psi","downforce");
+      const iRpm = find("rpmplaten","platenrpm","platen","rpm","tablerpm");
+      const iAb = find("abrasivewtpct","abrasive","solids","conc");
+      const iOx = find("oxidizerwtpct","oxidizer","h2o2","oxidant");
+      const iT = find("temperaturec","temperature","temp","tempc");
+      const iLab = find("label","name","id","run","wafer");
+      for(const line of lines.slice(1)){
+        const cells = line.split(",");
+        const f = i => (i >= 0 && cells[i] != null && cells[i].trim() !== "")
+                       ? parseFloat(cells[i].replace(/,/g,"")) : null;
+        const rate = iRateA >= 0 ? f(iRateA) : (f(iRateNm) != null ? f(iRateNm) * 10 : null);
+        if(rate == null || f(iP) == null || f(iRpm) == null) continue;
+        const m = {rate_A_per_min: rate, pressure_psi: f(iP), rpm_platen: f(iRpm)};
+        if(f(iAb) != null) m.abrasive_wt_pct = f(iAb);
+        if(f(iOx) != null) m.oxidizer_wt_pct = f(iOx);
+        if(f(iT) != null) m.temperature_c = f(iT);
+        if(iLab >= 0 && cells[iLab]) m.label = cells[iLab].trim();
+        measurements.push(m);
+      }
+    }
+  }
+
   const tool = {pressure_psi: num("psi"), rpm_platen: num("rpmp"),
                 rpm_head: num("rpmh"), flow_ml_min: num("flow"), time_s: num("time")};
   const z = $("zones").value.trim();
@@ -250,8 +297,10 @@ function buildRecipe(){
       tool.zone_edges_norm = edges;
     }
   }
-  return {model: $("model").value, wafer, slurry, pad,
-          disk: {hours_used: num("diskhrs") || 0}, tool};
+  const body = {model: $("model").value, wafer, slurry, pad,
+                disk: {hours_used: num("diskhrs") || 0}, tool};
+  if(measurements.length) body.measurements = measurements;
+  return body;
 }
 
 function card(k, v, u){
@@ -317,6 +366,36 @@ function render(r){
       <tr><th>plausible band</th><td class="num">${band[0].toExponential(2)} &ndash; ${band[1].toExponential(2)}</td></tr>
       <tr><th>uncertainty</th><td class="num">&times;/&divide; ${e.uncertainty_factor}</td></tr></table>
       <div class="hint">${e.basis}</div>`;
+  }
+  if(r.factor_fit){
+    const f = r.factor_fit;
+    const rows = Object.entries(f.fitted_factors || {});
+    h += `<h2>Model fitted to your ${f.n_points} measurement(s)</h2>`;
+    if(f.cross_validated_mape_percent != null){
+      const base = f.baseline_cross_validated_mape_percent;
+      h += `<table><tr><th>accuracy (leave-one-out)</th>
+        <td class="num">&plusmn;${f.cross_validated_mape_percent}%</td></tr>
+        ${base!=null?`<tr><th>scale alone</th><td class="num">&plusmn;${base}%</td></tr>`:""}
+        </table>`;
+    }
+    if(rows.length){
+      h += `<table><tr><th>fitted factor</th><th>value</th></tr>` +
+        rows.map(([k,v])=>`<tr><td>${k.replace(/_/g," ")}</td><td class="num">${v}</td></tr>`).join("") +
+        `</table>`;
+    } else {
+      h += `<div class="hint">Only the overall scale could be fitted &mdash; vary
+            pressure, speed or the slurry between runs to unlock a physical factor.</div>`;
+    }
+    const locked = Object.entries(f.locked || {});
+    if(locked.length){
+      h += `<details><summary>${locked.length} factor(s) this dataset cannot identify</summary>
+        <ul class="msgs">${locked.map(([k,v])=>`<li class="n"><b>${k}</b>: ${v}</li>`).join("")}</ul></details>`;
+    }
+    const rej = Object.entries(f.rejected || {});
+    if(rej.length){
+      h += `<details><summary>${rej.length} factor(s) rejected as overfitting</summary>
+        <ul class="msgs">${rej.map(([k,v])=>`<li class="n"><b>${k}</b>: ${v}</li>`).join("")}</ul></details>`;
+    }
   }
   if(r.calibration){
     const c = r.calibration;

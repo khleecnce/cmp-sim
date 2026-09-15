@@ -206,6 +206,8 @@ def resolve(recipe: Recipe) -> ResolvedRecipe:
             # the factor fit supersedes the scale-only calibration
             calibration.kp_m_per_pa = factor_result.kp_m_per_pa
             calibration.cv_mape = factor_result.cv_mape
+            if factor_result.residuals:
+                calibration.residuals = factor_result.residuals
         notes.extend(factor_result.notes)
         warnings.extend(factor_result.warnings)
 
