@@ -549,3 +549,63 @@ off when pad hours were supplied.
 ### Backward compatibility
 `preston`, `gw_preston` and `full` still work. `full` now means "the profile
 that suits this run", which is what it was always trying to approximate.
+
+---
+
+## The lubrication limit of Preston's law
+
+The clearest validation result in the project is a dataset the model **fails**.
+
+US 6,918,821 B2 Table 1 polished copper on an IC1000 pad at two pressures and
+three platen speeds. The two pressure branches disagree about physics:
+
+| pressure | 60 rpm | 120 rpm | 200 rpm | trend | Preston MAPE on that branch |
+|---|---:|---:|---:|---|---:|
+| 4.0 psi | 594 | 1384 | 1636 | rises 2.75x | 13.4% |
+| 1.5 psi | 425 | 419 | 250 | **falls 0.59x** | 60.3% |
+
+Preston requires a 3.33x rise in both cases. A single Kp fitted across all six
+points necessarily lands between the branches, at 44.1% MAPE.
+
+The dataset is kept in the suite **failing**. It is not excluded, not split
+into the passing branch, and not reweighted, because the failure is the
+finding: it marks where a P*V law stops being the right model.
+
+### The model predicts its own failure
+`core/regime.py` computes lambda = h_film / roughness for each condition from
+pressure, speed, pad and flow — it never sees a measured rate. It flags exactly
+one of the six as leaving the boundary-lubrication regime:
+
+| condition | lambda | regime | measured |
+|---|---:|---|---|
+| 1.5 psi, 60 rpm | 0.37 | boundary | 425 |
+| 1.5 psi, 120 rpm | 0.75 | boundary | 419 |
+| **1.5 psi, 200 rpm** | **1.24** | **mixed** | **250 (collapse)** |
+| 4.0 psi, 60 rpm | 0.14 | boundary | 594 |
+| 4.0 psi, 120 rpm | 0.28 | boundary | 1384 |
+| 4.0 psi, 200 rpm | 0.47 | boundary | 1636 |
+
+The lambda thresholds are Bhushan's standard tribology boundaries, not tuned
+here. Physically: at low load and high speed the slurry film carries part of
+the load, asperity contact drops, and removal falls even though P*V rises.
+
+### Independent corroboration from the patent itself
+The patent's own inventive pads A, B and C do **not** invert at 1.5 psi
+(pad A: 874 / 1293 / 1439 A/min, rising). Only the conventional IC1000
+comparison pad does — which is the entire point of the patent, whose subject is
+polishing at low pressure where conventional pads fail.
+
+Locked by `tests/test_lubrication_limit.py`.
+
+---
+
+## Sweeps and regime boundaries
+
+`POST /api/sweep` varies one parameter across up to 50 points. Each point
+carries its own detected regime, and when a sweep crosses a boundary the
+response says so.
+
+This matters because the usual way to present a sweep — one smooth curve — is
+exactly the way to hide the result above. Points in a different regime are
+marked on the chart rather than dropped, so a trend is never drawn through
+physics that changed underneath it.

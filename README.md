@@ -70,15 +70,59 @@ official USPTO PDFs, not accepted on a subagent's report:
 
 **US6918821B2 (Cu, 44%) is a counter-example on purpose.** At 1.5 psi the
 measured rate *falls* as speed rises (425 → 419 → 250 Å/min from 60 to 200 rpm),
-the opposite of `MRR ~ P·V`; at 4 psi it climbs steeply. No single `Kp` can fit
-both branches. This is the patent's own subject — it claims conventional IC1000
-performs poorly at reduced down force — and physically the low-pressure branch
-is leaving boundary lubrication, outside Preston's validity range. A test
-asserts this dataset keeps failing, so that nobody can quietly tune `Kp` to it.
+the opposite of `MRR ~ P·V`; at 4 psi it climbs steeply. Fitted separately, the
+4 psi branch alone gives **13.4%** and the 1.5 psi branch **60.3%** — no single
+`Kp` can serve both, so the joint fit lands between them at 44.1%.
+
+The reason to keep it is that **the model predicts its own failure.** The regime
+detector computes λ = h_film / roughness from pressure, speed, pad and flow
+alone — it never sees a measured rate — and flags exactly one of the six
+conditions as leaving boundary lubrication:
+
+| condition | λ | regime | measured |
+|---|---:|---|---|
+| 1.5 psi, 60 rpm | 0.37 | boundary | 425 |
+| 1.5 psi, 120 rpm | 0.75 | boundary | 419 |
+| **1.5 psi, 200 rpm** | **1.24** | **mixed** | **250 — the collapse** |
+| 4.0 psi, 60/120/200 rpm | 0.14–0.47 | boundary | 594 / 1384 / 1636 |
+
+The λ thresholds are Bhushan's standard tribology boundaries, not tuned here.
+The patent corroborates it independently: its own inventive pads A, B and C do
+**not** invert at 1.5 psi (pad A: 874 → 1293 → 1439 Å/min); only the
+conventional IC1000 comparison pad does, which is the patent's whole thesis.
+A test asserts this dataset keeps failing, so nobody can quietly tune `Kp` to it.
 
 **SiC (32%) is chemically rate-limited.** In that DOE the factor ranking is pH >
 head rpm > CeO₂ > pressure, and pump flow and polish time outrank composition
 entirely. A mechanical `P·V` law cannot explain it, whatever `Kp` you choose.
+
+## Choosing a model: by situation, not by film
+
+The appropriate physics is set by the **regime**, not by the material name.
+SiC and sapphire are different films in the same regime; copper at 1.5 psi and
+copper at 4 psi are the same film in different regimes.
+
+So the simulator classifies each run on eight axes (contact branch, pad asperity
+regime, summit saturation, lubrication, film class, rate limit, topography, pad
+state) and picks a **profile** — a bundle of orthogonal physics layers — to suit
+it. `auto` decides; naming a profile explicitly is respected, and mismatches are
+warned about rather than silently corrected.
+
+```
+cmp-sim profiles        # list profiles, their layers and what each suits
+```
+
+An axis that cannot be computed is reported as undetermined, never defaulted.
+The common case is `contact_branch`, which needs the chemically modified surface
+hardness — rarely published, and assuming it would silently fix the sign of the
+particle-size exponent in P3.
+
+## Sweeps
+
+`POST /api/sweep` varies one of eleven parameters across up to 50 points, and
+each point carries its own regime. A sweep that crosses a boundary says so
+instead of drawing one confident trend through physics that changed underneath
+it — which is precisely how the copper anomaly above would otherwise be hidden.
 
 ## What the model is, layer by layer
 
