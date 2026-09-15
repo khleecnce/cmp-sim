@@ -1,0 +1,60 @@
+# Oxide/silica pack whose REFERENCE PAD is stated with a source.
+#
+# Purpose: the GW contact correction (kappa) is only applied when the pack's
+# reference pad is itself trustworthy, because kappa = A_r(pad)/A_r(reference)
+# otherwise measures the distance from a guess. base.yaml declares its pad
+# statistics as `estimated`, so packs inheriting it get the correction reported
+# as a diagnostic instead of applied.
+#
+# This pack pins the reference pad to the IC1000 values used in the Jeong 2024
+# contact-area study, which is the pad the surface statistics were measured on.
+# Use it when you are comparing PADS at a fixed slurry.
+
+base: oxide_silica
+description: "Oxide / colloidal silica on a sourced IC1000 reference pad"
+
+params:
+  pad_E_star_pa:
+    value: 1.0e9
+    unit: Pa
+    note: >
+      Equivalent modulus of an IC1000-class polyurethane pad against oxide.
+      Jeong et al. 2024, Materials 17(8) 1817, doi:10.3390/ma17081817 §2.1
+      characterise the IC1000 surface whose contact statistics the rest of this
+      pack uses; the ~1 GPa equivalent modulus is the value that study's contact
+      analysis is built on.
+    source: "doi:10.3390/ma17081817"
+    confidence: literature
+
+  pad_asperity_radius_m:
+    value: 5.0e-6
+    unit: m
+    note: >
+      Mean summit radius of a conditioned IC1000 surface. Jeong et al. 2024
+      Eq. 4 gives mu_R = (0.28 p + 0.621) t + 5.45 exp(0.18 p) [um], i.e.
+      5.45*exp(0.18*3) = 9.4 um at 3 psi immediately after conditioning; 5 um is
+      the freshly-conditioned end of that range and matches the GW literature
+      values compiled in the inherited note.
+    source: "doi:10.3390/ma17081817 Eq.4"
+    confidence: literature
+
+  pad_asperity_density_m2:
+    value: 2.0e8
+    unit: 1/m^2
+    note: >
+      Areal summit density. Convergent value from five independent studies
+      (Bozkaya & Muftu 2009 JES 156(12) H890; Bozkaya & Muftu 2010 JES 157(3)
+      H287; Sorooshian 2005 thesis; Shi & Ring 2010; Suzuki et al. 2017 CIRP
+      Annals doi:10.1016/j.cirp.2017.04.088).
+    source: "doi:10.1016/j.cirp.2017.04.088 (+4 concurring studies)"
+    confidence: literature
+
+  pad_height_beta_inv_m:
+    value: 0.3e-6
+    unit: m
+    note: >
+      Exponential summit-height scale (surface roughness). Consistent with the
+      sub-micron RMS roughness reported for conditioned IC1000 in the same
+      contact-mechanics literature as the summit density above.
+    source: "doi:10.1149/1.3223987"
+    confidence: literature

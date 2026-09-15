@@ -1,0 +1,27 @@
+# 4H-SiC substrate polishing with a ceria / H2O2 slurry.
+# SiC is extremely hard, so removal is chemically limited and rates are two
+# orders below oxide. This is also the case where Preston fits worst in the
+# validation table (~32% MAPE) — see README.
+model: full
+
+wafer:
+  film: sic
+  diameter_mm: 150
+  initial_thickness_nm: 2000
+  n_radial: 81
+
+slurry:
+  pack: sic_ceria_h2o2
+  ph: 10.0
+  abrasive: {kind: ceria, conc_wt_pct: 4.0, d50_nm: 100.0}
+  additives:
+    - {name: hydrogen_peroxide, role: oxidizer, conc_wt_pct: 6.0}
+
+pad: {name: IC1000, shore_d: 60.0, groove_width_mm: 0.5, groove_pitch_mm: 2.0, groove_depth_mm: 0.75}
+
+tool:
+  pressure_psi: 5.5
+  rpm_platen: 60
+  rpm_head: 60
+  flow_ml_min: 200
+  time_s: 60

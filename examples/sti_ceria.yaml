@@ -1,0 +1,27 @@
+# Shallow trench isolation with a ceria slurry.
+# Ceria removes oxide through Si-O-Ce chemisorption ("chemical tooth"), a
+# different mechanism from silica physisorption — the model enables that term
+# only for ceria. The pH 5 window puts positive ceria against negative oxide,
+# which is electrostatic attraction and is why ceria STI slurries work there.
+model: full
+
+wafer:
+  film: sti
+  diameter_mm: 300
+  initial_thickness_nm: 500
+  pattern_density: 0.4
+  n_radial: 81
+
+slurry:
+  pack: sti_ceria
+  ph: 5.0
+  abrasive: {kind: ceria, conc_wt_pct: 1.0, d50_nm: 60.0}
+
+pad: {name: IC1000, shore_d: 57.0, groove_width_mm: 0.5, groove_pitch_mm: 2.0, groove_depth_mm: 0.75}
+
+tool:
+  pressure_psi: 3.0
+  rpm_platen: 66.31
+  rpm_head: 66.31
+  flow_ml_min: 200
+  time_s: 60

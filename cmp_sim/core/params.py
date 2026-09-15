@@ -26,13 +26,27 @@ __all__ = ["Param", "ParamPack", "ParamMissing", "load_pack", "available_packs",
            "pack_path", "SEARCH_PATH"]
 
 
-def pack_path(name: str) -> Path:
-    for d in SEARCH_PATH:
+def pack_path(name: str, after: Optional[Path] = None) -> Path:
+    """Locate ``<name>.yaml``, own packs first.
+
+    ``after`` skips search-path entries up to and including the directory the
+    given file came from. That is what lets an own pack shadow an inherited one
+    of the SAME name and still inherit from it (``base: <its own name>``):
+    without it the loader would find itself and report an inheritance cycle.
+    """
+    dirs = list(SEARCH_PATH)
+    if after is not None:
+        try:
+            dirs = dirs[dirs.index(Path(after)) + 1:]
+        except ValueError:
+            pass
+    for d in dirs:
         p = d / f"{name}.yaml"
         if p.exists():
             return p
+    where = [str(d) for d in dirs]
     raise FileNotFoundError(
-        f"parameter pack '{name}' not found in {[str(d) for d in SEARCH_PATH]}. "
+        f"parameter pack '{name}' not found in {where}. "
         f"available: {available_packs()}"
     )
 
@@ -51,18 +65,28 @@ def available_packs() -> List[str]:
     return sorted(names)
 
 
-def load_pack(name: str, _seen: Optional[List[str]] = None) -> ParamPack:
-    """Load ``<name>.yaml`` with ``base:`` inheritance, own-dir first."""
+def load_pack(name: str, _seen: Optional[List[str]] = None,
+              _after: Optional[Path] = None) -> ParamPack:
+    """Load ``<name>.yaml`` with ``base:`` inheritance, own-dir first.
+
+    A pack may declare ``base:`` with its own name to override an inherited
+    pack of the same name; resolution then continues further down the search
+    path rather than looping.
+    """
     _seen = list(_seen or [])
-    if name in _seen:
-        raise ValueError(f"pack inheritance cycle: {' -> '.join(_seen + [name])}")
-    raw: Dict[str, Any] = yaml.safe_load(pack_path(name).read_text(encoding="utf-8")) or {}
+    path = pack_path(name, after=_after)
+    if (name, path) in [(n, p) for n, p in _seen]:
+        chain = " -> ".join(n for n, _ in _seen + [(name, path)])
+        raise ValueError(f"pack inheritance cycle: {chain}")
+    raw: Dict[str, Any] = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
 
     params: Dict[str, Param] = {}
     lineage: List[str] = []
     parent_name = raw.get("base")
     if parent_name:
-        parent = load_pack(parent_name, _seen + [name])
+        # Same name = shadowing: continue the search below this file's directory.
+        after = path.parent if parent_name == name else None
+        parent = load_pack(parent_name, _seen + [(name, path)], _after=after)
         params.update(parent.params)
         lineage = parent.lineage
     own = _parse_params(raw.get("params"))

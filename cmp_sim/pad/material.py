@@ -70,6 +70,25 @@ def pad_state(pad: Pad, resolved,
     return state, notes, warnings
 
 
+#: confidence levels at which the pack's reference pad may be used as a baseline
+TRUSTED_CONFIDENCE = ("verified", "literature", "measured", "owner-provided")
+
+
+def reference_pad_is_trustworthy(resolved) -> bool:
+    """Is the pack's reference pad a real pad, or just an order-of-magnitude guess?
+
+    ``kappa = A_r(pad) / A_r(reference)`` is only meaningful if the reference
+    really is the pad the pack's Kp was calibrated with. When the reference
+    values are merely ``estimated``, the ratio measures the distance from a
+    guess, not a physical difference.
+    """
+    for key in PACK_KEYS:
+        param = resolved.pack.params.get(key)
+        if param is None or param.confidence not in TRUSTED_CONFIDENCE:
+            return False
+    return True
+
+
 def contact_factor_for(recipe, resolved,
                        film_youngs_modulus_pa: Optional[float] = None
                        ) -> Dict[str, Any]:
@@ -89,6 +108,28 @@ def contact_factor_for(recipe, resolved,
 
     pressure_pa = resolved.pressure_pa
     factor, f_notes, f_warnings = cg.contact_factor(state, ref, pressure_pa)
+
+    # ── is the baseline real? ────────────────────────────────────────
+    if not reference_pad_is_trustworthy(resolved):
+        weak = [k for k in PACK_KEYS
+                if (resolved.pack.params.get(k) is None
+                    or resolved.pack.params[k].confidence not in TRUSTED_CONFIDENCE)]
+        return {
+            "name": "kappa_contact", "value": None,
+            "notes": notes + f_notes + [
+                f"GW contact factor computed as {factor:.3f} but NOT applied to Kp "
+                "— reported as a diagnostic only"],
+            "warnings": warnings + f_warnings + [
+                "pad contact correction NOT applied: the pack's reference pad is "
+                f"itself only estimated ({', '.join(weak)}), so kappa would measure "
+                "the distance from a guess rather than a real pad difference. "
+                "Applying it inflates the rate by that arbitrary ratio. The pack's "
+                "Kp already contains whichever pad it was calibrated with; to use "
+                "this correction, give the reference pad's properties a real source "
+                "in the pack. Pad-to-pad comparisons at a fixed reference are still "
+                "meaningful — the diagnostic value is in the notes."],
+            "state": state, "diagnostic_kappa": factor}
+
     return {"name": "kappa_contact", "value": factor,
             "notes": notes + f_notes, "warnings": warnings + f_warnings,
             "state": state}

@@ -1,0 +1,119 @@
+# Blanket Pt (platinum) CMP — ONE fixed slurry (Composition P), pure DOWN-FORCE sweep
+# at 2 / 4 / 6 / 7 psi with platen speed, carrier speed and flow rate held constant.
+# Printed patent example table (no digitization).
+#
+# This is the cleanest single-axis Preston pressure test in this set: the ONLY thing that
+# changes between the four conditions is the down force.
+
+source: >
+  Entegris/ATMI (Advanced Technology Materials, Inc.), "Compositions for chemical-mechanical
+  planarization of noble-metal-featured substrates, associated methods, and substrates
+  produced thereby", US Patent 8,142,675 B2, granted 2012-03-27.
+  Free full text: https://www.freepatentsonline.com/8142675.html
+  Numbers transcribed from: TABLE P ("Processes and Removal Rates" for Composition P).
+  The table prints a "Process" string in the patent's own notation
+  down force[psi] / platen speed[rpm] / carrier speed[rpm] / flow[ml/min]
+  and a "Pt Removal Rate (A/min)" column:
+      2/200/18/70  ->   220
+      4/200/18/70  ->   470
+      6/200/18/70  ->   750
+      7/200/18/70  -> 1,020
+  Composition P (TABLE XVI): 6 wt % alpha-alumina abrasive (CR-30), 0.1 mol/1 kg periodic
+  acid (H5IO6), 0.1 wt % ammonium chloride (NH4Cl), balance DI water; pH range about 1.5-2.
+  Tool: IPEC 576 polisher with a Thomas West XY pad.
+  ⭐ Cross-check: the running text immediately after TABLE P repeats the same four numbers
+  in prose — "Composition provides Pt removal rates of 220 A/min, 470 A/min, 750 A/min, and
+  1,020 A/min, respectively" — so the table values are confirmed twice in the document.
+
+film: other              # platinum (noble metal). Not oxide/Cu/W.
+pack: oxide_silica       # PLACEHOLDER: there is no Pt pack. Retarget before scoring, or
+                         # treat this file as rank-only (see notes).
+in_scope: true           # noble-metal CMP on a semiconductor substrate (Pt electrode / BPSG)
+used_for_calibration: false
+
+wafer_radius_m: 0.100    # wafer size not stated in the patent; IPEC 576 is a 200 mm class
+                         # tool, so 100 mm radius is the tool-default assumption, not a
+                         # printed value.
+center_offset_m: 0.200   # r_cc not stated in the patent; base value used.
+
+# ── Units ──────────────────────────────────────────────────────────────────
+#  Patent prints Angstrom/min. nm/min = (Å/min) / 10. Original kept in
+#  measured_mrr_angstrom_per_min.
+# ── Kinematics ─────────────────────────────────────────────────────────────
+#  Platen (table) speed 200 rpm and carrier speed 18 rpm are PRINTED and are the same in
+#  all four rows, so rpm_platen=200 and rpm_wafer=18 everywhere.
+# ── Chemistry: identical in all four rows ──────────────────────────────────
+#  Same Composition P, same 70 ml/min flow. Recorded in overrides so the fit groups them.
+
+conditions:
+  - label: "Composition P, 2 psi, 200 rpm platen / 18 rpm carrier, 70 ml/min"
+    pressure_psi: 2.0
+    rpm_platen: 200.0
+    rpm_wafer: 18.0
+    mrr_nm_per_min: 22.0
+    measured_mrr_angstrom_per_min: 220
+    read_method: table
+    overrides:
+      sfr_ml_min: 70
+      abrasive_wt_pct: 6.0
+      slurry_ph: 1.75
+  - label: "Composition P, 4 psi, 200 rpm platen / 18 rpm carrier, 70 ml/min"
+    pressure_psi: 4.0
+    rpm_platen: 200.0
+    rpm_wafer: 18.0
+    mrr_nm_per_min: 47.0
+    measured_mrr_angstrom_per_min: 470
+    read_method: table
+    overrides:
+      sfr_ml_min: 70
+      abrasive_wt_pct: 6.0
+      slurry_ph: 1.75
+  - label: "Composition P, 6 psi, 200 rpm platen / 18 rpm carrier, 70 ml/min"
+    pressure_psi: 6.0
+    rpm_platen: 200.0
+    rpm_wafer: 18.0
+    mrr_nm_per_min: 75.0
+    measured_mrr_angstrom_per_min: 750
+    read_method: table
+    overrides:
+      sfr_ml_min: 70
+      abrasive_wt_pct: 6.0
+      slurry_ph: 1.75
+  - label: "Composition P, 7 psi, 200 rpm platen / 18 rpm carrier, 70 ml/min"
+    pressure_psi: 7.0
+    rpm_platen: 200.0
+    rpm_wafer: 18.0
+    mrr_nm_per_min: 102.0
+    measured_mrr_angstrom_per_min: 1020
+    read_method: table
+    overrides:
+      sfr_ml_min: 70
+      abrasive_wt_pct: 6.0
+      slurry_ph: 1.75
+
+notes: >
+  Swept axis: down force only — 2 / 4 / 6 / 7 psi. Speed, flow, pad, tool and slurry are
+  identical in all four rows. All four (pressure, rpm) pairs are distinct because the
+  pressure differs. This is the purest Preston pressure-linearity probe in this batch.
+
+  Preston check on the raw numbers: rate/pressure = 110, 117.5, 125, 145.7 Å/min per psi.
+  Slightly SUPER-linear in pressure (ratio rises ~32% from 2 to 7 psi) rather than the
+  constant that Preston predicts. Useful as a sensitivity target: a pure P^1 model will
+  underpredict the 7 psi point relative to the 2 psi point.
+
+  ⚠ Film is platinum, not oxide/Cu/W. There is no Pt parameter pack in the repo, so `pack`
+  is set to oxide_silica as a placeholder. Absolute MRR from that pack is meaningless here;
+  use this dataset for RANK/shape agreement along the pressure axis only, or add a Pt pack
+  first. The slurry is 6 wt% alpha-alumina in strongly acidic (pH ~1.75) periodic-acid /
+  ammonium-chloride chemistry — nothing like a silica oxide slurry.
+
+  ⚠ slurry_ph 1.75 is the midpoint of the patent's printed range "about 1.5 to about 2";
+  the patent does not print a single measured pH for Composition P. Flagged here so it is
+  never mistaken for a measured value. (Sister compositions N and O in the same patent do
+  print a single pH of 1.6.)
+
+  ⚠ Not stated by the patent: wafer diameter, pad groove pattern details, polish time,
+  number of replicates, error bars. No uncertainty field is given.
+
+  Related family members exist (US7,524,346 and US7,968,465 share this specification).
+  TABLE P appears in US8,142,675; cite that number to avoid double-counting the family.

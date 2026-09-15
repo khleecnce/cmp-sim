@@ -5,12 +5,28 @@ from cmp_sim.core.solver import simulate
 from cmp_sim.core.state import Pad, Recipe, Slurry, Tool, Wafer
 
 
-def _recipe(model="gw_preston", **pad_kw):
+#: a pack whose reference pad has a real source, so the contact factor applies
+CALIBRATED = "oxide_silica_calibrated_pad"
+
+
+def _recipe(model="gw_preston", pack=CALIBRATED, **pad_kw):
     return Recipe(model=model,
                   wafer=Wafer(film="oxide", n_radial=21),
-                  slurry=Slurry(pack="oxide_silica"),
+                  slurry=Slurry(pack=pack),
                   pad=Pad(**pad_kw),
                   tool=Tool(pressure_psi=3.0, rpm_platen=60, rpm_head=60, time_s=60))
+
+
+def test_contact_factor_is_not_applied_when_the_reference_pad_is_only_estimated():
+    """base.yaml declares its pad statistics as 'estimated'. kappa would then
+    measure the distance from a guess, so it must be reported, not applied —
+    otherwise every run is silently inflated by an arbitrary ratio."""
+    plain = simulate(_recipe(model="preston", pack="oxide_silica"))
+    gw = simulate(_recipe(model="gw_preston", pack="oxide_silica", shore_d=35.0))
+    assert "kappa_contact" not in gw.factors
+    assert gw.mean_rr_nm_per_min == pytest.approx(plain.mean_rr_nm_per_min, rel=1e-9)
+    assert any("NOT applied" in w for w in gw.warnings)
+    assert any("computed as" in n for n in gw.notes)
 
 
 def test_default_pad_reproduces_the_preston_result_exactly():

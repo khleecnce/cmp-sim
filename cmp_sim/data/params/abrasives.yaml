@@ -1,0 +1,1534 @@
+# =====================================================================
+# CMP-Sim abrasive particle knowledge base
+# =====================================================================
+# Purpose: map an abrasive POPULATION (type / size / shape / concentration)
+#          to how it removes each wafer film, so the simulator can predict
+#          rather than interpolate.
+#
+# Contract for every numeric entry:
+#   {value: <number|null>, unit: <str>, source: <DOI or URL|null>,
+#    confidence: literature | derived | vendor | unverified, note: <optional>}
+#   confidence meanings:
+#     literature  - value read from a peer-reviewed / standards source
+#     vendor      - value from a manufacturer datasheet (Corning, Evonik, ...)
+#     derived     - computed from a literature value by an explicit relation
+#     unverified  - NOT sourced. value is null and note starts with TODO(owner)
+#
+# HARD RULE (see global_warnings.cross_abrasive_transfer):
+#   Do NOT reuse a concentration or size exponent fitted for one abrasive
+#   chemistry on a different abrasive chemistry. Silica-on-oxide and
+#   ceria-on-oxide are different removal mechanisms (physisorption vs.
+#   chemical bond formation), so their C and d exponents are not portable.
+#
+# Schema version and provenance date are in `meta` at the bottom.
+# =====================================================================
+
+global_models:
+
+  concentration_dependence:
+    description: >
+      Two competing limits are reported for the dependence of MRR on abrasive
+      volume concentration C0 and particle diameter d. Which one applies
+      depends on whether removal is indentation-limited (volume of material
+      ploughed per particle dominates) or surface-area-limited (number of
+      reactive contacts dominates). Both are written for FIXED total down
+      force, i.e. the load is shared among however many particles are in
+      contact, which is why C0 appears with opposite signs.
+    indentation_limited:
+      relation: "MRR ~ V ~ C0^(-1/3) * d^(4/3)"
+      conc_exponent: {value: -0.333, unit: dimensionless, source: "https://doi.org/10.3390/nano15171366", confidence: literature,
+        note: "Eq. (1) of the review. Negative because at fixed load more particles means less load each."}
+      size_exponent: {value: 1.333, unit: dimensionless, source: "https://doi.org/10.3390/nano15171366", confidence: literature}
+      applies_when: "mechanical/indentation removal dominates; harder abrasive than film; larger particles"
+    surface_area_limited:
+      relation: "MRR ~ A ~ C0^(1/3) * d^(-1/3)"
+      conc_exponent: {value: 0.333, unit: dimensionless, source: "https://doi.org/10.3390/nano15171366", confidence: literature,
+        note: "Eq. (2). This is the C^(1/3) regime named in the CMP literature."}
+      size_exponent: {value: -0.333, unit: dimensionless, source: "https://doi.org/10.3390/nano15171366", confidence: literature}
+      applies_when: "chemically assisted removal; reaction-site-limited; small particles"
+    number_density_form:
+      relation: "N ~ C0/d^3  and  MRR ~ A ~ N*d^2 ~ C0/d"
+      source: "https://doi.org/10.3390/nano15171366"
+      confidence: literature
+      note: >
+        Eq. (3). Key experimental corollary reported in the same review: the
+        polishing rate is INDEPENDENT of particle size when slurries of equal
+        TOTAL abrasive surface area are compared. If the simulator conserves
+        total surface area it should reproduce that invariance.
+    saturation:
+      general_shape: "steep initial rise in rate with abrasive (or chemical) concentration, then asymptotic approach to a maximum"
+      source: "https://doi.org/10.1149/1.1372222"
+      confidence: literature
+      note: >
+        Model of CMP (ECS 2001) predicts asymptotic saturation in BOTH chemical
+        and abrasive concentration. Per-film saturation concentrations are given
+        in the film_effects blocks where a number was actually published;
+        otherwise they are null + TODO. Do not invent a knee point.
+      universal_saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified,
+        note: "TODO(owner): there is no universal saturation concentration. It depends on abrasive, film, pad and pressure. Measure per formulation."}
+
+  indentation_depth:
+    relation: "delta ~= F / (2*pi*R*H)"
+    symbols: "F = load carried by one particle [N]; R = particle radius [m]; H = hardness of the SOFTER contacting body [Pa]; delta = plastic indentation depth [m]"
+    conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified,
+      note: "TODO(owner): relation is geometric, not a concentration law. Couple it to concentration via F = P*A_contact/N_active."}
+    source: null
+    confidence: unverified
+    note: >
+      TODO(owner): this fully plastic spherical-indentation scaling is the form
+      requested for the engine and is standard contact mechanics, but I did not
+      find an open primary source stating exactly this prefactor for CMP, so it
+      is flagged unverified rather than given a false citation. What IS sourced:
+      surface roughness Ra of the polished substrate is primarily set by the
+      indentation depth of abrasives into the surface, which is governed by the
+      abrasive hardness H and Young's modulus E_a
+      (https://doi.org/10.3390/nano15171366). Validate the prefactor against
+      your own nanoindentation data before trusting absolute depths.
+
+  size_dependence_is_non_monotonic:
+    summary: >
+      The sign of dMRR/dd is NOT universal. The literature genuinely disagrees,
+      because the two limits above trade places as d changes. Encode as a
+      regime switch, not as a single exponent.
+    evidence:
+      - system: "glass, colloidal silica 40-120 nm"
+        finding: "MRR rises with d from 40 to 60 nm (indentation-driven), then FALLS from 60 to 120 nm (surface-area-driven). Turnover near 60 nm."
+        source: "https://doi.org/10.3390/nano15171366"
+        confidence: literature
+      - system: "silicon wafer, silica 10-140 nm"
+        finding: "MRR rises with d up to ~80 nm then decreases. Turnover near 80 nm."
+        source: "https://doi.org/10.3390/nano15171366"
+        confidence: literature
+      - system: "NiP-coated Al alloy, silica 15-160 nm"
+        finding: "MRR increases monotonically with d over the whole range - contradicts the two cases above."
+        source: "https://doi.org/10.3390/nano15171366"
+        confidence: literature
+      - system: "tungsten, alumina 0.1 um and up"
+        finding: "Removal rate INCREASES with DECREASING particle size and with increased solids loading; local roughness insensitive to alumina size. Authors conclude removal is contact-area / reaction-rate controlled, not a scratching process."
+        source: "https://doi.org/10.1149/1.1390851"
+        confidence: literature
+      - system: "copper and tantalum, silica 50-300 nm"
+        finding: "MRR increases as abrasive size decreases."
+        source: "https://doi.org/10.3390/nano15171366"
+        confidence: literature
+      - system: "sapphire, silica 4 / 20 / 55 / 105 nm"
+        finding: "MRR increases with size from 20 to 105 nm, BUT 4 nm silica gives an anomalously high MRR comparable to 105 nm - a second (chemical) mechanism switches on at very small size."
+        source: "https://doi.org/10.11159/icmie25.159"
+        confidence: literature
+      - system: "generic, modelling"
+        finding: "A wear model including abrasive size distribution, adhesion and plastic deformation predicts removal rate DECREASES as abrasive size increases."
+        source: "https://doi.org/10.1149/1.1997156"
+        confidence: literature
+    optimum_size_nm: {value: null, unit: nm, source: null, confidence: unverified,
+      note: "TODO(owner): turnover diameter is system-specific (60 nm for glass/silica, 80 nm for Si/silica, absent for NiP). Fit per film+abrasive pair; do not hard-code one number."}
+    dynamic_size_drift:
+      finding: "Particle size can grow during closed-loop polishing: 2-3% increase for 20 and 55 nm silica after 30 min of Si polishing, with a corresponding MRR rise for the 20 nm slurry."
+      source: "https://doi.org/10.3390/nano15171366"
+      confidence: literature
+
+  shape_effects:
+    spherical:
+      contact: "point contact (single point for an ideal sphere)"
+      motion: "tends to ROLL at the pad-wafer interface, which wastes relative motion"
+      consequence: "lower COF, lower MRR, lowest scratch risk"
+      source: "https://doi.org/10.3390/nano15171366"
+      confidence: literature
+    non_spherical_faceted_elongated:
+      contact: "small finite contact area rather than a point"
+      motion: "resists rolling, spends more time SLIDING, so it actually cuts"
+      consequence: "higher friction coefficient and higher MRR than spheres of the same size, measured on SiO2, Al2O3 and ZrO2 surfaces"
+      source: "https://doi.org/10.3390/nano15171366"
+      confidence: literature
+      roll_to_slide_transition_axial_ratio:
+        diamond_ellipsoid_on_copper: {value: 0.83, unit: dimensionless, source: "https://doi.org/10.3390/nano15171366", confidence: literature, note: "sliding predominates below this axial ratio"}
+        diamond_ellipsoid_on_silicon: {value: 0.46, unit: dimensionless, source: "https://doi.org/10.3390/nano15171366", confidence: literature}
+    aggregated_fumed:
+      contact: "branched, fused aggregates; contact stress concentrates on a few protruding primary particles"
+      consequence: "high MRR but high scratch rate; aggregates are hard and their size/shape are hard to control"
+      source: "https://doi.org/10.1149/1.2901864"
+      confidence: literature
+      note: "Fumed silica exhibits aggregates of greater hardness than polymer-core composites; both scratch length and depth increase with particle size AND irregularity."
+    cocoon_peanut_elongated_colloidal:
+      consequence: "higher MRR than spherical colloidal silica of similar size, attributed to higher COF and sliding-dominated motion"
+      source: "https://doi.org/10.3390/nano15171366"
+      confidence: literature
+      aspect_ratio_definition: "AR = length / width"
+    soft_core_composite:
+      consequence: "polymer-core / oxide-shell particles give fewer and shallower scratches than the bare oxide, from the spring-like elastic compliance of the core"
+      source: "https://doi.org/10.1149/1.2949085"
+      confidence: literature
+
+  large_particle_tail:
+    why_it_matters: >
+      Scratch defectivity is driven by the oversize tail of the PSD (D99 /
+      large particle count, LPC), not by D50. A slurry can meet its D50 spec
+      and still scratch. Treat LPC as an independent input to the defect model.
+    numerical_anchors:
+      oversize_threshold_nm: {value: 200, unit: nm, source: "https://doi.org/10.1109/TSM.2018.2796564", confidence: literature,
+        note: "Modelling study defines 'large particles' as >200 nm in diameter for a sub-200 nm working slurry."}
+      oversize_fraction_that_degrades_uniformity_wt_pct: {value: 1.0, unit: wt%, source: "https://doi.org/10.1109/TSM.2018.2796564", confidence: literature,
+        note: "Presence of even 1 wt% of larger particles was shown to deteriorate wafer uniformity and promote scratch growth."}
+      filter_retention_target_um: {value: 0.5, unit: um, source: "https://www.entegris.com/content/dam/web/resources/application-notes/appnote-filtration-characteristics-of-cmp-slurries-7590.pdf", confidence: vendor,
+        note: "CMP filters must retain >0.5 um particles while passing the 0.03-0.2 um working particles at high flow and low dP."}
+      filter_transition_curve_penalty_nm: {value: 2000, unit: nm, source: "https://www.entegris.com/content/dam/web/resources/application-notes/appnote-filtration-characteristics-of-cmp-slurries-7590.pdf", confidence: vendor,
+        note: "Media that passes at 200 nm may not reach >80% retention until >2000 nm - the retention curve is broad, so 'filtered' does not mean 'tail-free'."}
+      ceria_case_d50_nm: {value: 70, unit: nm, source: "https://nccavs-usergroups.avs.org/wp-content/uploads/2023/01/P47-CChen.pdf", confidence: literature,
+        note: "Commercial ceria slurry, D50 ~70 nm by DLS, diluted to 0.25 wt%; functional filtration cut LPC and gave >10% reduction in wafer defects >90 nm."}
+      d99_scratch_threshold_nm: {value: null, unit: nm, source: null, confidence: unverified,
+        note: "TODO(owner): no open source gives a single universal D99 scratch threshold. It scales with pad asperity size and film hardness. Calibrate against your own LPC-vs-scratch data."}
+    secondary_sources:
+      - "https://doi.org/10.1149/1.2184036  # Remsen et al., LPC in fumed silica slurries correlated with CMP scratch defects"
+      - "https://doi.org/10.1007/s40544-013-0026-y  # scratch formation review; filtration and water-jet spray as mitigations"
+      - "https://doi.org/10.1149/2.0101806jss  # dispersant reduces LPC measured by SPOS, scratch counts fall accordingly"
+      - "https://doi.org/10.14356/KONA.2008010  # slurry stability, agglomerates and LPC as the microscratch source"
+
+  chemical_tooth:
+    definition: >
+      'Chemical tooth' = the abrasive forms an actual chemical bond to the film,
+      so material is pulled out by bond rupture rather than ploughed out by
+      indentation. Ceria on silica is the canonical case: Si-O-Ce bridging bonds
+      form at the interface. Silica on silica has no such bond - it interacts by
+      physisorption / hydrogen bonding - which is why the two abrasives obey
+      different rate laws at the SAME concentration.
+    ceria_on_silica:
+      bond: "Si-O-Ce (equivalently Ce-O-Si) bridging bond, formed after dissociation of interfacial Si-O-Si and Ce-O-Ce bonds"
+      source: "https://doi.org/10.1021/acs.langmuir.3c00304"
+      confidence: literature
+      efficiency_anchor:
+        ceria_collisions_per_SiO4_removed: {value: 24, unit: collisions, source: "https://doi.org/10.1021/acs.langmuir.3c00304", confidence: literature}
+        silica_collisions_per_SiO4_removed: {value: 500000000, unit: collisions, source: "https://doi.org/10.1021/acs.langmuir.3c00304", confidence: literature,
+          note: "5e8 collisions for silica abrasive vs 24 for ceria - a ~2e7x difference in per-collision efficiency. This is the strongest available quantitative statement of the chemical-tooth advantage."}
+      ph_dependence: "Reactivity between silica and ceria(111) is HIGHER at neutral pH, because more OH groups on both surfaces increase the number of Si-O-Ce bonds formed."
+      facet_dependence: "CeO2(100) is intrinsically more reactive than (111) despite lower surface Ce density; literature disagrees on which calcination temperature (facet mix) polishes better."
+      ce3_role: "Higher surface Ce3+ concentration increases adsorption affinity for silicate ions; larger ceria particles carry more Ce3+."
+      ce3_source: "https://doi.org/10.5772/intechopen.75408"
+      pressure_limit: "Excessive pressure is detrimental: it detaches SiO4 units heterogeneously, roughening the surface and breaking bulk Si-O-Si bonds."
+    adsorption_energy_ceria_silica_kj_mol: {value: null, unit: kJ/mol, source: null, confidence: unverified,
+      note: "TODO(owner): the commonly quoted -111 to -258 kJ/mol range for Si-O-Ce chemisorption could NOT be verified against an accessible primary source in this pass. The qualitative chemisorption claim IS sourced (10.1021/acs.langmuir.3c00304). Supply the primary DFT reference or measure it before using a number."}
+    adsorption_energy_silica_silica_kj_mol: {value: null, unit: kJ/mol, source: null, confidence: unverified,
+      note: "TODO(owner): the -20 to -40 kJ/mol physisorption figure was not verified for the silica/silica CMP pair specifically. General physisorption binding energies are 10-300 meV (~1-29 kJ/mol) per https://en.wikipedia.org/wiki/Physisorption, which brackets but does not confirm the quoted range."}
+
+  electrostatics:
+    principle: >
+      Particle-film adhesion, and therefore the number of particles actually
+      engaged in removal, flips sign when the slurry pH crosses between the
+      abrasive IEP and the film IEP. Opposite signs -> electrostatic attraction
+      -> more particles retained on the wafer -> higher rate but also higher
+      post-CMP particle defectivity. Same sign -> repulsion -> cleaner surface,
+      lower rate. This is why ceria slurries for oxide run below their IEP and
+      nitride slurries run acidic.
+    worked_examples:
+      - "Ceria slurry pH is kept below ~8 so ceria is positive while silicon oxide is negative, facilitating Si-O-Ce formation. (https://doi.org/10.5772/intechopen.75408)"
+      - "Fujimi Si3N4 slurry is designed acidic: the abrasive stays negatively charged pH-independently while Si3N4 is positively charged below pH 5, so attraction raises the nitride rate. (https://nccavs-usergroups.avs.org/wp-content/uploads/CMPUG2015/CMP2015_4Takeda.pdf)"
+      - "Alumina on tungsten: at acidic pH the surface-charge difference creates an attractive force that retains alumina on the wafer - one reason alumina/W scratches. (https://doi.org/10.5772/intechopen.75408)"
+      - "Sapphire CMP: removal rate rises with pH up to 8; the electrostatic interaction between colloidal silica and the sapphire surface is the stated control variable. (https://doi.org/10.1149/2.0241503jss)"
+
+global_warnings:
+
+  cross_abrasive_transfer:
+    severity: critical
+    rule: "NEVER reuse a concentration exponent, size exponent or saturation concentration fitted for one abrasive material on another abrasive material."
+    reason: >
+      The removal mechanisms are physically different. Ceria removes SiO2 by
+      forming Si-O-Ce chemical bonds (chemisorption; ~24 abrasive-substrate
+      collisions per SiO4 unit removed), whereas silica removes SiO2 by
+      physisorption-mediated indentation of a hydrated layer (~5e8 collisions
+      per SiO4 unit). A concentration term calibrated on one is meaningless on
+      the other, and the error is not a scale factor - it changes the exponent.
+    source: "https://doi.org/10.1021/acs.langmuir.3c00304"
+    confidence: literature
+
+  cross_film_transfer:
+    severity: high
+    rule: "Do not reuse an exponent across films for the same abrasive without evidence."
+    reason: >
+      Alumina on tungsten is contact-area/reaction-rate limited (rate rises as
+      particle size falls, 10.1149/1.1390851), while indentation-limited films
+      show the opposite sign. Same abrasive, opposite trend.
+
+  fixed_load_assumption:
+    severity: medium
+    rule: "The C0^(+/-1/3) exponents assume a FIXED total down force shared over the active particles. If your engine instead fixes per-particle load, the concentration exponent changes."
+    source: "https://doi.org/10.3390/nano15171366"
+
+  d50_is_not_enough:
+    severity: high
+    rule: "Feed the simulator a distribution (at least D50 and D99/LPC), never D50 alone. Rate tracks the bulk of the distribution; scratch defectivity tracks the tail."
+    source: "https://doi.org/10.1109/TSM.2018.2796564"
+
+# ---------------------------------------------------------------------
+# Isoelectric points of the FILMS (the other half of the electrostatics)
+# ---------------------------------------------------------------------
+film_iep:
+  oxide:
+    material: SiO2
+    iep_ph: {value: 1.80, unit: pH, source: "https://doi.org/10.1039/d6ra00388e", confidence: literature,
+      note: "Experimental PZC for SiO2 quoted as pH 1.80. CMP practice commonly cites 2-3; treat 1.8-3 as the plausible band."}
+    charge_above_iep: negative
+  sin:
+    material: Si3N4
+    iep_ph: {value: null, unit: pH, source: null, confidence: unverified,
+      note: "TODO(owner): exact IEP not pinned to an open primary source here. What IS sourced: Si3N4 is POSITIVELY charged in solution below about pH 5, i.e. IEP lies near pH 5 for the hydrolysed nitride surface (https://nccavs-usergroups.avs.org/wp-content/uploads/CMPUG2015/CMP2015_4Takeda.pdf). Nitride surfaces hydrolyse to a suboxide/oxide, so the measured IEP drifts with surface history."}
+    charge_below_ph5: positive
+    charge_source: "https://nccavs-usergroups.avs.org/wp-content/uploads/CMPUG2015/CMP2015_4Takeda.pdf"
+  cu:
+    material: Cu (as Cu oxide / hydroxide in slurry)
+    iep_ph: {value: null, unit: pH, source: null, confidence: unverified,
+      note: "TODO(owner): no open primary source verified in this pass. The polished Cu surface is an oxide/complex layer whose IEP depends on the oxidizer and inhibitor (BTA shifts it), so a single number is misleading."}
+  w:
+    material: W (as WO3 passivation layer)
+    iep_ph: {value: null, unit: pH, source: null, confidence: unverified,
+      note: "TODO(owner): not verified. Relevant surface is the WOx passivation layer formed by the oxidizer (https://doi.org/10.5772/intechopen.75408), not metallic W. Tungsten-oxide IEP is low (acidic), which is consistent with alumina/W attraction at acidic pH, but the number is unsourced here."}
+  poly_si:
+    material: polycrystalline Si (native SiOx terminated)
+    iep_ph: {value: null, unit: pH, source: null, confidence: unverified,
+      note: "TODO(owner): a clean Si surface in water bears a native oxide, so its IEP tends toward the silica value (~2-3), but I did not verify a primary measurement."}
+  si:
+    material: Si substrate
+    iep_ph: {value: null, unit: pH, source: null, confidence: unverified,
+      note: "TODO(owner): same caveat as poly_si - native-oxide terminated."}
+  sic:
+    material: SiC
+    iep_ph: {value: 3.8, unit: pH, source: "https://doi.org/10.3390/ma17010056", confidence: literature,
+      note: "IEP 3.8 measured for unmodified SiC powder (PMC10819982). Powder value; a polished 4H-SiC wafer face may differ, and Si-face vs C-face oxidise differently (https://doi.org/10.1038/s41598-023-49622-z)."}
+    charge_above_iep: negative
+  sapphire:
+    material: alpha-Al2O3
+    iep_ph: {value: 9.5, unit: pH, source: "https://doi.org/10.1016/j.mtcomm.2024.109962", confidence: literature,
+      note: "Zero zeta potential of washed alpha-Al2O3 particles at pH ~9.5; pure/unwashed alpha-Al2O3 commonly at pH ~8.5-9 (PMC11462379). Single-crystal sapphire surfaces sit in the same band. Anionic additives shift IEP down."}
+    charge_below_iep: positive
+  snag:
+    material: SnAg solder
+    iep_ph: {value: null, unit: pH, source: null, confidence: unverified,
+      note: "TODO(owner): no source found for SnAg surface IEP under CMP conditions. Surface is a mixed Sn/Ag oxide whose composition depends on the oxidizer."}
+
+# =====================================================================
+# ABRASIVES
+# =====================================================================
+abrasives:
+
+  # -------------------------------------------------------------
+  colloidal_silica:
+    aliases: [silica, sio2, colloidal_sio2, stober_silica, wet_silica]
+    material: SiO2
+    synthesis: "liquid-phase growth from a precursor (Stober / sol-gel); spherical, narrow PSD"
+    shape_class: spherical
+    properties:
+      density_kg_m3: {value: 2201, unit: kg/m^3, source: "https://valleydesign.com/Datasheets/Corning-Fused-Silica-7980.pdf", confidence: vendor,
+        note: "Corning HPFS 7980 fused silica, 2.201 g/cm3. Used as the amorphous-SiO2 proxy for colloidal silica."}
+      hardness_gpa: {value: 5.12, unit: GPa, source: "https://valleydesign.com/Datasheets/Corning-Fused-Silica-7980.pdf", confidence: derived,
+        note: "Derived from Knoop hardness 522 kg/mm^2 (100 g load) x 9.807e-3 GPa per kg/mm^2 = 5.12 GPa. Knoop, not Vickers; colloidal nanoparticles may be softer/more hydrated than bulk fused silica."}
+      youngs_modulus_gpa: {value: 72.7, unit: GPa, source: "https://valleydesign.com/Datasheets/Corning-Fused-Silica-7980.pdf", confidence: vendor}
+      shear_modulus_gpa: {value: 31.4, unit: GPa, source: "https://valleydesign.com/Datasheets/Corning-Fused-Silica-7980.pdf", confidence: vendor}
+      iep_ph: {value: 1.80, unit: pH, source: "https://doi.org/10.1039/d6ra00388e", confidence: literature,
+        note: "Experimental PZC of SiO2. CMP vendor literature usually quotes IEP 2-3; use 1.8-3 as the band."}
+      typical_d50_nm: {value: null, unit: nm, source: null, confidence: unverified,
+        note: "TODO(owner): commercial colloidal silica spans roughly 10-160 nm across the studies cited here (4-105 nm sapphire study, 10-140 nm Si study, 15-160 nm NiP study). No single typical D50 is defensible - set it per product."}
+    defect_character: "lowest scratch risk of the oxide abrasives, from spherical shape and small size; trades rate for defectivity"
+    defect_source: "https://doi.org/10.5772/intechopen.75408"
+    film_effects:
+      oxide:
+        mechanism: "hydration of the SiO2 surface by OH-, then physisorption/hydrogen-bonded contact of the silica particle and mechanical detachment of the softened hydrated layer. No chemical bridging bond to the film."
+        removal_mode: mechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified,
+          note: "TODO(owner): use global_models.concentration_dependence and pick the regime; no silica-on-oxide-specific fitted exponent was verified. Expect the C^(1/3) surface-area branch at small d and the C^(-1/3) indentation branch at large d."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified,
+          note: "TODO(owner): sign is genuinely disputed. Glass 40-120 nm turns over at ~60 nm; Si 10-140 nm turns over at ~80 nm; NiP 15-160 nm is monotonic increasing (all https://doi.org/10.3390/nano15171366). Do not pick one value."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified,
+          note: "TODO(owner): asymptotic saturation in abrasive concentration is predicted (https://doi.org/10.1149/1.1372222) but the knee is formulation-specific."}
+        efficiency_note: "~5e8 abrasive-substrate collisions per SiO4 unit removed, versus ~24 for ceria."
+        efficiency_source: "https://doi.org/10.1021/acs.langmuir.3c00304"
+        selectivity_note: "Silica gives poor oxide:nitride selectivity compared with ceria; it is the non-selective choice."
+        selectivity_source: "https://doi.org/10.5772/intechopen.75408"
+        source: "https://doi.org/10.5772/intechopen.75408"
+        confidence: literature
+      sin:
+        mechanism: "mechanical abrasion of the hydrolysed nitride surface; in acidic slurries the negatively charged silica is electrostatically attracted to the positively charged Si3N4 (pH < 5), which raises the nitride rate"
+        removal_mode: mechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        selectivity_note: "Acidic design is how Fujimi raises Si3N4 rate while suppressing oxide and poly-Si loss (erosion control after nitride clearing)."
+        source: "https://nccavs-usergroups.avs.org/wp-content/uploads/CMPUG2015/CMP2015_4Takeda.pdf"
+        confidence: literature
+      cu:
+        mechanism: "oxidizer forms a Cu oxide/complex passivation layer (Kaufman model); silica abrasives shear that soft layer away. Inhibitor (BTA) and complexant set how fast the layer regrows."
+        removal_mode: chemomechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced as an exponent."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified,
+          note: "Sourced TREND only: MRR of Cu increases as silica size DECREASES over 50-300 nm (https://doi.org/10.3390/nano15171366), i.e. surface-area-limited, exponent expected negative. No fitted number."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        selectivity_note: "Silica on Cu is used where a Cu:barrier ratio near 1 is wanted; alumina is chosen when higher selectivity and planarity are needed."
+        source: "https://doi.org/10.5772/intechopen.75408"
+        confidence: literature
+      w:
+        mechanism: "oxidizer converts W to WOx, which is softer than W; the abrasive removes the WOx passivation layer. Chemistry-dominated, not scratch-dominated."
+        removal_mode: chemomechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified,
+          note: "Sourced TREND only: removal rate increases roughly LINEARLY with abrasive concentration in W CMP, but with a strong loading effect (very low or non-linear rate early in the polish) that is more pronounced than in dielectric CMP (https://doi.org/10.5772/intechopen.75408). Encode the loading transient, not just a steady exponent."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified,
+          note: "See alumina/w: for alumina the W rate rises as size falls (https://doi.org/10.1149/1.1390851). Silica-specific exponent not sourced."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        selectivity_note: "Silica-based W slurries are used for NON-selective W CMP (polishing W and dielectric together) because their W:oxide selectivity is lower than alumina's."
+        source: "https://doi.org/10.5772/intechopen.75408"
+        confidence: literature
+      poly_si:
+        mechanism: "OH--catalysed hydrolysis of Si to soluble species plus mechanical removal; amino-acid additives (arginine, lysine-HCl) on colloidal silica give high poly-Si rate with very high selectivity to oxide and nitride"
+        removal_mode: chemomechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        selectivity_note: "Colloidal-silica + amino-acid slurries reached poly-Si selectivity close to 300 over both oxide and nitride at low down pressure."
+        selectivity_source: "https://doi.org/10.1149/1.3111811"
+        ph_note: "Higher pH raises OH- concentration, which catalyses Si etch and Si polish rate; lower pH suppresses both."
+        ph_source: "https://nccavs-usergroups.avs.org/wp-content/uploads/CMPUG2015/CMP2015_4Takeda.pdf"
+        source: "https://doi.org/10.1149/1.3111811"
+        confidence: literature
+      si:
+        mechanism: "same hydrolysis-plus-abrasion route as poly_si on bulk single-crystal Si; strongly pH driven"
+        removal_mode: chemomechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified,
+          note: "Sourced TREND only: for Si wafers with 10-140 nm silica, MRR rises with size up to ~80 nm then falls (https://doi.org/10.3390/nano15171366). Non-monotonic."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        selectivity_note: "Si rate is suppressed by lowering pH, which is how nitride-selective slurries avoid Si loss."
+        source: "https://nccavs-usergroups.avs.org/wp-content/uploads/CMPUG2015/CMP2015_4Takeda.pdf"
+        confidence: literature
+      sic:
+        mechanism: "SiC is too hard and too inert for silica to cut directly; removal proceeds by oxidising the SiC surface (Fenton-like/oxidiser chemistry) and then shearing the soft oxide. Face-dependent: the C-face oxidises faster than the Si-face and polishes faster."
+        removal_mode: chemomechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        selectivity_note: "Once the oxide layer is engineered correctly, high removal rates were achieved by pad friction ALONE, with no nanoparticle abrasive - evidence that the rate-limiting step on SiC is oxidation, not abrasion."
+        source: "https://doi.org/10.1038/s41598-023-49622-z"
+        confidence: literature
+      sapphire:
+        mechanism: "tribochemical: solid-state reaction between SiO2 and the Al2O3 surface (aluminosilicate formation) plus mechanical removal; rate is controlled by pH through the silica/sapphire electrostatic interaction"
+        removal_mode: chemomechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified,
+          note: "TODO(owner): not fitted. Reference condition in the pH study is 20 wt% colloidal silica (https://doi.org/10.1149/2.0241503jss)."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified,
+          note: "Sourced TREND only: MRR rises with size 20 -> 105 nm, but 4 nm silica gives an anomalously high MRR comparable to 105 nm (https://doi.org/10.11159/icmie25.159). Two mechanisms coexist; a single exponent will not fit."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        ph_optimum: {value: 8, unit: pH, source: "https://doi.org/10.1149/2.0241503jss", confidence: literature,
+          note: "Sapphire removal rate increased with ascending pH until pH 8."}
+        selectivity_note: "Colloidal silica is the standard sapphire finishing abrasive precisely because it is softer than sapphire - removal is chemical, so it does not scratch."
+        source: "https://doi.org/10.1149/2.0241503jss"
+        confidence: literature
+      snag:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no open source found for silica on SnAg solder CMP."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no open source found."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no open source found."}
+        selectivity_note: "TODO(owner): unsourced. SnAg is a soft, ductile metal - expect smearing and embedded-particle defects rather than classical abrasion, but this is engineering judgement, not literature."
+        source: null
+        confidence: unverified
+
+  # -------------------------------------------------------------
+  fumed_silica:
+    aliases: [fumed_sio2, pyrogenic_silica, aerosil]
+    material: SiO2
+    synthesis: "flame hydrolysis of chlorosilane at high temperature; primary particles fuse irreversibly into branched aggregates"
+    shape_class: aggregated_branched
+    properties:
+      density_kg_m3: {value: 2201, unit: kg/m^3, source: "https://valleydesign.com/Datasheets/Corning-Fused-Silica-7980.pdf", confidence: vendor,
+        note: "Skeletal density of amorphous SiO2. NOTE: the effective density of an AGGREGATE is lower because of internal voids - do not use this for aggregate settling."}
+      hardness_gpa: {value: 5.12, unit: GPa, source: "https://valleydesign.com/Datasheets/Corning-Fused-Silica-7980.pdf", confidence: derived,
+        note: "From Knoop 522 kg/mm^2. Separately, fumed aggregates are reported to behave as HARDER contacts than polymer-core composites (https://doi.org/10.1149/1.2901864)."}
+      youngs_modulus_gpa: {value: 72.7, unit: GPa, source: "https://valleydesign.com/Datasheets/Corning-Fused-Silica-7980.pdf", confidence: vendor}
+      iep_ph: {value: 1.80, unit: pH, source: "https://doi.org/10.1039/d6ra00388e", confidence: literature}
+      primary_particle_size_nm: {value: null, unit: nm, source: "https://products.evonik.com/assets/45/92/Technical_Overview_AEROSIL_Fumed_Silica_EN_EN_244592.pdf", confidence: vendor,
+        note: "Range, not a single value: mean primary particle size 5-50 nm for fumed silica."}
+      primary_particle_size_range_nm: {value: [5, 50], unit: nm, source: "https://products.evonik.com/assets/45/92/Technical_Overview_AEROSIL_Fumed_Silica_EN_EN_244592.pdf", confidence: vendor}
+      aggregate_agglomerate_size_um: {value: [1, 40], unit: um, source: "https://products.evonik.com/assets/45/92/Technical_Overview_AEROSIL_Fumed_Silica_EN_EN_244592.pdf", confidence: vendor,
+        note: "1-40 um as supplied. Slurry manufacture must break these down; whatever survives IS the large-particle tail."}
+      bet_surface_area_m2_g: {value: [50, 500], unit: m^2/g, source: "https://products.evonik.com/assets/45/92/Technical_Overview_AEROSIL_Fumed_Silica_EN_EN_244592.pdf", confidence: vendor}
+      native_ph: {value: [3, 5], unit: pH, source: "https://products.evonik.com/assets/45/92/Technical_Overview_AEROSIL_Fumed_Silica_EN_EN_244592.pdf", confidence: vendor}
+      typical_d50_nm: {value: null, unit: nm, source: null, confidence: unverified,
+        note: "TODO(owner): D50 of a fumed slurry is an aggregate size, not a particle size, and is process-dependent."}
+    structure_note: >
+      Primary particles never occur in isolation - they merge into aggregates
+      (irreversible, fused) which then form agglomerates (reversible). Any
+      size-based model must state which of the three it means.
+    structure_source: "https://products.evonik.com/assets/45/92/Technical_Overview_AEROSIL_Fumed_Silica_EN_EN_244592.pdf"
+    defect_character: "high rate but high scratch and LPC risk; prone to re-agglomeration and to clogging slurry delivery lines and filters; industry usage is declining for advanced nodes"
+    defect_source: "https://doi.org/10.5772/intechopen.75408"
+    film_effects:
+      oxide:
+        mechanism: "same hydrated-layer physisorption chemistry as colloidal silica, but load is carried on a few protruding primary particles of a stiff aggregate, so local contact stress is much higher"
+        removal_mode: mechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified,
+          note: "TODO(owner): not fitted. Sourced qualitative fact: commercial fumed-silica dielectric slurries run HIGH abrasive concentration to reach the needed rate, and that high concentration is what drives the scratch/agglomeration/clogging problems (https://doi.org/10.5772/intechopen.75408)."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified,
+          note: "TODO(owner): not fitted. Sourced: both scratch LENGTH and DEPTH increase with particle size and with irregularity (https://doi.org/10.1149/1.2901864)."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        vs_colloidal: "Fumed silica gives a much HIGHER oxide removal rate than colloidal silica, at the cost of much worse scratch defectivity."
+        vs_colloidal_source: "https://doi.org/10.5772/intechopen.75408"
+        lpc_link: "Large particle count in fumed silica slurries correlates directly with CMP scratch defects."
+        lpc_source: "https://doi.org/10.1149/1.2184036"
+        selectivity_note: "Non-selective; no chemical tooth to nitride, so oxide:nitride ratio is low."
+        source: "https://doi.org/10.5772/intechopen.75408"
+        confidence: literature
+      sin:
+        mechanism: "purely mechanical abrasion; no selectivity mechanism"
+        removal_mode: mechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      cu:
+        mechanism: "shears the oxidiser-formed Cu complex layer; fumed silica is the background abrasive in classic glycine/H2O2/BTA Cu slurry studies"
+        removal_mode: chemomechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        selectivity_note: "Inhibitor choice (BTA vs ammonium dodecyl sulfate) dominates planarization efficiency over abrasive choice in this system."
+        source: "https://doi.org/10.1149/1.2717410"
+        confidence: literature
+      w: &fumed_w
+        mechanism: "removes the WOx passivation layer; same chemistry-limited picture as silica on W"
+        removal_mode: chemomechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced; see colloidal_silica.film_effects.w for the sourced linear-with-loading-effect statement."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        selectivity_note: "Used for non-selective W CMP."
+        source: "https://doi.org/10.5772/intechopen.75408"
+        confidence: literature
+      poly_si:
+        mechanism: "hydrolysis plus abrasion; aggregates raise defect risk on a soft film"
+        removal_mode: chemomechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      si:
+        mechanism: "hydrolysis plus abrasion"
+        removal_mode: chemomechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      sic:
+        mechanism: "oxidation-then-abrasion, as for colloidal silica; aggregates add scratch risk on a high-value substrate"
+        removal_mode: chemomechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      sapphire:
+        mechanism: "tribochemical SiO2/Al2O3 reaction as for colloidal silica, with worse surface finish from the irregular aggregates"
+        removal_mode: chemomechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      snag:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+
+  # -------------------------------------------------------------
+  ceria:
+    aliases: [ceo2, cerium_oxide, cerium_dioxide, calcined_ceria, colloidal_ceria]
+    material: CeO2
+    synthesis: >
+      Two industrial routes with very different particle character.
+      (a) CALCINED: oxidise raw ceria then mechanically crush -> irregular,
+      faceted, broad PSD, steady and high removal rate, higher scratch risk.
+      (b) WET / COLLOIDAL: grow from seed nuclei in aqueous Ce solution ->
+      spherical, narrow PSD, lower rate but much better scratch defectivity.
+      A flux/hydrothermal route is also used to narrow the PSD.
+    synthesis_source: "https://doi.org/10.5772/intechopen.75408"
+    shape_class: faceted_or_spherical_depending_on_route
+    properties:
+      density_kg_m3: {value: 7215, unit: kg/m^3, source: "https://www.osti.gov/servlets/purl/1469554", confidence: literature,
+        note: "Theoretical density 7.215 g/cm3 from the measured lattice parameter of stoichiometric CeO2."}
+      hardness_gpa: {value: 6.44, unit: GPa, source: "https://doi.org/10.3390/ma19102134", confidence: literature,
+        note: "Room-temperature nanoindentation hardness 6.44 +/- 0.72 GPa (dense sintered CeO2). Falls to 5.08 GPa at 400 C."}
+      youngs_modulus_gpa: {value: 167.6, unit: GPa, source: "https://doi.org/10.3390/ma19102134", confidence: literature,
+        note: "Room-temperature nanoindentation, 167.6 +/- 12.5 GPa. Independent measurements on fully dense CeO2 give 213 +/- 6 GPa by nanoindentation and 207 GPa extrapolated from resonant ultrasound (https://www.osti.gov/servlets/purl/1469554) - the spread is real, pick per your porosity."}
+      youngs_modulus_alt_gpa: {value: 213, unit: GPa, source: "https://www.osti.gov/servlets/purl/1469554", confidence: literature}
+      iep_ph: {value: 8.0, unit: pH, source: "https://doi.org/10.5772/intechopen.75408", confidence: literature,
+        note: "IEP of ceria ~pH 8 (positive below, negative above). Other compilations put ceria IEP nearer 7; the practical point is that it is far above silica's, so ceria and oxide have OPPOSITE charge in acidic slurry."}
+      typical_d50_nm: {value: 70, unit: nm, source: "https://nccavs-usergroups.avs.org/wp-content/uploads/2023/01/P47-CChen.pdf", confidence: literature,
+        note: "D50 ~70 nm measured by DLS for a commercial ceria CMP slurry. Advanced work is pushing below 10 nm (https://nccavs-usergroups.avs.org/wp-content/uploads/2023/01/P25-RVenkataswamy.pdf)."}
+    ce3_note: >
+      Surface Ce3+ fraction, not just size, sets reactivity. Higher Ce3+ raises
+      affinity for silicate ions, and LARGER ceria particles carry more Ce3+.
+      Below 10 nm, Ce(OH)4 particles are more surface-reactive than CeO2 and
+      recover the rate that small ceria otherwise loses.
+    ce3_sources:
+      - "https://doi.org/10.5772/intechopen.75408"
+      - "https://nccavs-usergroups.avs.org/wp-content/uploads/2023/01/P25-RVenkataswamy.pdf"
+    film_effects:
+      oxide:
+        mechanism: "CHEMICAL TOOTH. Interfacial Si-O-Si and Ce-O-Ce bonds dissociate and a Si-O-Ce bridging bond forms; SiO4 units are then extracted as the particle slides. Removal is bond rupture, not indentation."
+        removal_mode: chemical_tooth
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified,
+          note: "TODO(owner): not fitted in an accessible source. WARNING - do NOT copy the silica exponent here; per-collision efficiency differs by ~2e7x, so the concentration response is a different functional form (site-limited, expect early saturation)."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified,
+          note: "TODO(owner): disputed and confounded by surface chemistry. Larger ceria has more Ce3+ (favours rate) but fewer particles per unit mass (disfavours rate); sub-10 nm ceria loses rate unless made as Ce(OH)4. Sources: https://doi.org/10.5772/intechopen.75408 , https://nccavs-usergroups.avs.org/wp-content/uploads/2023/01/P25-RVenkataswamy.pdf"}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified,
+          note: "TODO(owner): ceria slurries are run DILUTE - the filtration study used a commercial ceria slurry diluted to 0.25 wt%, and the <10 nm study used 0.2 wt% (with 0.2 wt% PVA). That those working points are orders of magnitude below fumed-silica loadings is itself evidence of early saturation, but it is not a measured knee."}
+        working_conc_examples_wt_pct: {value: [0.2, 0.25], unit: wt%, source: "https://nccavs-usergroups.avs.org/wp-content/uploads/2023/01/P47-CChen.pdf", confidence: literature,
+          note: "0.25 wt% commercial ceria (filtration study); 0.2 wt% synthesised ceria + 0.2 wt% PVA at pH 6 (small-particle study)."}
+        rate_anchor_nm_per_min: {value: 350, unit: nm/min, source: "https://doi.org/10.1149/1.3230624", confidence: literature,
+          note: "~350 nm/min blanket oxide with a ceria slurry + 0.05% cyclic amine additive."}
+        ph_note: "Ceria-slurry pH is kept below the ceria IEP (~8) so the particle is positive and the oxide negative; reactivity peaks near neutral pH where both surfaces carry enough OH to form Si-O-Ce."
+        selectivity_note: "Ceria is the selective oxide abrasive: with 0.05% pyridine-HCl / piperazine / imidazole it gives <2-3 nm/min nitride against ~350 nm/min oxide. Ceria oxide rate is roughly 3x conventional silica, but bare ceria raises defectivity."
+        selectivity_sources:
+          - "https://doi.org/10.1149/1.3230624"
+          - "https://doi.org/10.1149/1.2949085"
+        source: "https://doi.org/10.1021/acs.langmuir.3c00304"
+        confidence: literature
+      sin:
+        mechanism: "Si3N4 hydrolyses to a suboxide; surface Ce3+ reacts with that suboxide. Suppressing either the hydrolysis or the Ce3+ sites (additive adsorption) collapses the nitride rate - this is the lever that makes STI selectivity work."
+        removal_mode: chemical_tooth
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not fitted."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not fitted."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        suppressed_rate_nm_per_min: {value: 2, unit: nm/min, source: "https://doi.org/10.1149/1.3596181", confidence: literature,
+          note: "Nitride rate suppressed to <2 nm/min when hydrolysis is hindered or Ce3+ is blocked by additive adsorption."}
+        selectivity_note: "Two polymer additives (poly(4-vinyl pyridine), poly(acrylic acid-co-DADMAC)) adsorb on ceria yet do NOT suppress the nitride rate - so 'adsorbs on ceria' is not sufficient to predict suppression. An alternate removal path exists."
+        source: "https://doi.org/10.1149/1.3596181"
+        confidence: literature
+      cu:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): ceria is not a standard Cu abrasive; no source found."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      w:
+        mechanism: "under development as an alternative to alumina for W CMP"
+        removal_mode: chemomechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        selectivity_note: "Yttrium, ceria, zirconium and composite abrasives have been tried for W CMP; not yet standard."
+        source: "https://doi.org/10.5772/intechopen.75408"
+        confidence: literature
+      poly_si:
+        mechanism: "calcined-ceria slurries with arginine or lysine-HCl give high poly-Si rate with high selectivity over oxide and nitride"
+        removal_mode: chemomechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        selectivity_note: "Selectivity close to 300 over both oxide and nitride reported for amino-acid-containing colloidal-silica and calcined-ceria slurries at low down pressure."
+        source: "https://doi.org/10.1149/1.3111811"
+        confidence: literature
+      si:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source for ceria on bulk Si substrate."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      sic:
+        mechanism: "CeO2 has low Mohs hardness and low elastic modulus, so on SiC it acts as a chemical/catalytic promoter (wetting, friction, Fenton-like Cu+ generation) rather than as a cutting abrasive; the actual cutting is done by a harder partner such as Al2O3."
+        removal_mode: chemomechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        selectivity_note: "Composite CuxO-CeO2/Al2O3 abrasives reached 538.45 nm/h on SiC with Ra 0.629 nm and a 2.3 nm damaged layer."
+        source: "https://doi.org/10.26599/NR.2026.94909100"
+        confidence: literature
+      sapphire:
+        mechanism: "polystyrene-CeO2 core-shell particles improve Ra versus bare CeO2 on reaction-bonded SiC/sapphire-class substrates, at the cost of rate"
+        removal_mode: chemomechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        selectivity_note: "Softening the abrasive (polymer core, or a SiO2 shell that lowers effective hardness) improves Ra but lowers MRR; UV-assisted CeO2-TiO2 recovers rate photocatalytically."
+        source: "https://doi.org/10.3390/nano15171366"
+        confidence: literature
+      snag:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+
+  # -------------------------------------------------------------
+  alumina:
+    aliases: [al2o3, alumina_alpha, alpha_alumina, corundum]
+    material: Al2O3
+    phase: alpha
+    phase_note: >
+      alpha-Al2O3 (corundum, R-3c) is the hard, dense, thermodynamically stable
+      phase and is what CMP means by 'alumina abrasive'. gamma-Al2O3 is a
+      defect-spinel transition alumina: lower density, much higher surface area,
+      softer, and it converts to alpha on calcination. They are NOT
+      interchangeable in a removal model - see the gamma_alumina entry.
+    phase_source: "https://doi.org/10.5772/intechopen.75408"
+    shape_class: faceted_angular
+    properties:
+      density_kg_m3: {value: 3984, unit: kg/m^3, source: "https://srdata.nist.gov/CeramicDataPortal/Pds/Scdaos", confidence: literature,
+        note: "NIST SRD 150, sintered alpha-Al2O3 at 20 C: 3.984 +/- 0.002 g/cm3 (Munro, J. Am. Ceram. Soc. 80:1919, 1997)."}
+      hardness_gpa: {value: 15.0, unit: GPa, source: "https://srdata.nist.gov/CeramicDataPortal/Pds/Scdaos", confidence: literature,
+        note: "Vickers, 1 kg load, 20 C: 15 +/- 2 GPa."}
+      youngs_modulus_gpa: {value: 416, unit: GPa, source: "https://srdata.nist.gov/CeramicDataPortal/Pds/Scdaos", confidence: literature,
+        note: "Elastic modulus 416 +/- 30 GPa at 20 C."}
+      poissons_ratio: {value: 0.231, unit: dimensionless, source: "https://srdata.nist.gov/CeramicDataPortal/Pds/Scdaos", confidence: literature}
+      fracture_toughness_mpa_m05: {value: 3.5, unit: MPa*m^0.5, source: "https://srdata.nist.gov/CeramicDataPortal/Pds/Scdaos", confidence: literature}
+      iep_ph: {value: 9.5, unit: pH, source: "https://doi.org/10.1016/j.mtcomm.2024.109962", confidence: literature,
+        note: "Washed alpha-Al2O3 particles: zero zeta potential at pH ~9.5. Pure/unwashed alpha-Al2O3 more commonly at pH ~8.5-9. Anionic additives shift IEP downward."}
+      typical_d50_nm: {value: null, unit: nm, source: null, confidence: unverified,
+        note: "TODO(owner): W-CMP alumina studies used 0.1 um and larger; product D50 varies widely. Set per product."}
+    hardness_warning: >
+      Alumina at 15 GPa is far harder than W, WOx, Cu and SiO2. It WILL scratch
+      them if the tail of the PSD is not controlled. Composite alumina/polymer
+      abrasives were introduced specifically to address this at advanced nodes.
+    hardness_warning_source: "https://doi.org/10.5772/intechopen.75408"
+    film_effects:
+      w:
+        mechanism: "oxidizer forms a WOx passivation layer softer than W; alumina removes it. At acidic pH the alumina (positive, IEP ~9) and the tungsten-oxide surface carry opposite charge, so alumina is retained on the wafer - good for rate, bad for scratch."
+        removal_mode: chemomechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified,
+          note: "Sourced TREND: removal rate increased with increased solids loading (https://doi.org/10.1149/1.1390851) and is described as roughly linear in abrasive concentration with a strong early-polish loading effect (https://doi.org/10.5772/intechopen.75408). No fitted exponent."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified,
+          note: "Sourced TREND (strong): removal rate INCREASES with DECREASING alumina size from 0.1 um upward, and local roughness is INSENSITIVE to alumina size. The authors conclude removal is NOT a scratching process but contact-area/reaction-rate controlled (https://doi.org/10.1149/1.1390851). Sign is negative - opposite to the indentation branch. Do not reuse an oxide exponent here."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        selectivity_note: "Alumina gives better planarity and better W:oxide selectivity than silica, which is why it is the standard bulk-W abrasive at advanced nodes despite its scratch risk."
+        loading_effect: "Very low or non-linear removal at the start of the polish is more pronounced in W CMP than in dielectric CMP - model it as a transient, not a steady state."
+        source: "https://doi.org/10.5772/intechopen.75408"
+        confidence: literature
+      cu:
+        mechanism: "abrades the oxidiser-formed Cu complex layer; higher hardness gives higher rate and better planarization than silica but more defects"
+        removal_mode: chemomechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        selectivity_note: "Alumina/silica mixed abrasive slurries have been used for Cu and Ta films."
+        source: "https://doi.org/10.1149/1.1564110"
+        confidence: literature
+      oxide:
+        mechanism: "purely mechanical indentation/ploughing - alumina is 3x harder than SiO2, so there is no chemical tooth and defectivity dominates"
+        removal_mode: mechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        selectivity_note: "In alumina/ceria mixed abrasive slurries for STI, oxide:nitride selectivity as high as 65 was reported without additives; TEM showed a sheath of small ceria particles forming around the larger alumina particles, so the alumina acts as a carrier core."
+        selectivity_source: "https://doi.org/10.1149/1.1564110"
+        source: "https://doi.org/10.1149/1.1564110"
+        confidence: literature
+      sin:
+        mechanism: "mechanical abrasion; in the alumina/ceria MAS system the ceria sheath supplies the chemical selectivity, not the alumina"
+        removal_mode: mechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        selectivity_note: "See oxide entry: MAS selectivity up to 65."
+        source: "https://doi.org/10.1149/1.1564110"
+        confidence: literature
+      poly_si:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source; alumina is not used on poly-Si in practice (too hard, no selectivity)."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      si:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      sic:
+        mechanism: "hard-abrasive route: alumina (and SiC, nanodiamond) raise the SiC removal rate mechanically, but cause surface defects and scratches. Best current practice supports a Fenton-like catalyst (CuxO-CeO2) ON the alumina so oxidation and abrasion are co-located."
+        removal_mode: mixed
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        rate_anchor_nm_per_h: {value: 538.45, unit: nm/h, source: "https://doi.org/10.26599/NR.2026.94909100", confidence: literature,
+          note: "CuxO-CeO2/Al2O3 composite abrasive on SiC: 538.45 nm/h, Ra 0.629 nm over 50x50 um, 2.3 nm damaged layer."}
+        selectivity_note: "High-hardness abrasives (SiC, alumina, nanodiamond) improve SiC removal rate but at a defect cost."
+        source: "https://doi.org/10.1038/s41598-023-49622-z"
+        confidence: literature
+      sapphire:
+        mechanism: null
+        removal_mode: mechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified,
+          note: "TODO(owner): alumina on sapphire is same-on-same (both Al2O3) so there is no hardness differential and no chemical tooth. Used for lapping, not for CMP finishing. Not sourced."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      snag:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+
+  # -------------------------------------------------------------
+  gamma_alumina:
+    aliases: [gamma_al2o3, transition_alumina]
+    material: Al2O3
+    phase: gamma
+    shape_class: irregular_porous
+    note: >
+      Listed separately because phase changes the mechanics. gamma-Al2O3 is a
+      defect-spinel transition alumina with lower density, far higher specific
+      surface area and lower hardness than alpha, and it transforms to alpha on
+      calcination. CMP practice uses ALPHA alumina; if a slurry is gamma it will
+      behave as a softer, more chemically active, lower-density abrasive and the
+      alpha numbers must not be substituted.
+    note_source: "https://doi.org/10.5772/intechopen.75408"
+    properties:
+      density_kg_m3: {value: null, unit: kg/m^3, source: null, confidence: unverified,
+        note: "TODO(owner): not verified in this pass. It is lower than alpha's 3984 kg/m^3; do not reuse the alpha value."}
+      hardness_gpa: {value: null, unit: GPa, source: null, confidence: unverified,
+        note: "TODO(owner): not verified. Lower than alpha's 15 GPa."}
+      youngs_modulus_gpa: {value: null, unit: GPa, source: null, confidence: unverified, note: "TODO(owner): not verified."}
+      iep_ph: {value: 7.5, unit: pH, source: "https://doi.org/10.1039/d6ra00388e", confidence: literature,
+        note: "Experimental PZC of gamma-AlO(OH) (boehmite, the hydrated gamma-route surface) is pH 7.5; alpha-AlO(OH) is 7.7. NOTE this is the oxyhydroxide, not anhydrous gamma-Al2O3 - the anhydrous gamma value is not verified here."}
+      typical_d50_nm: {value: null, unit: nm, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+    film_effects:
+      oxide:
+        mechanism: "softer and more porous than alpha; expected to trade rate for defectivity, but no CMP removal study was verified"
+        removal_mode: mechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no gamma-specific CMP source found. Do NOT inherit alpha exponents."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      w:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source. W CMP uses alpha-alumina."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+
+  # -------------------------------------------------------------
+  diamond:
+    aliases: [nanodiamond, diamond_abrasive, c_diamond]
+    material: C (sp3)
+    shape_class: faceted_angular
+    properties:
+      density_kg_m3: {value: 3515, unit: kg/m^3, source: "http://www.ioffe.ru/SVA/NSM/Semicond/Diamond/mechanic.html", confidence: literature,
+        note: "Ioffe NSM archive, 3.515 g/cm3."}
+      hardness_mohs: {value: 10, unit: Mohs, source: "http://www.ioffe.ru/SVA/NSM/Semicond/Diamond/mechanic.html", confidence: literature}
+      hardness_gpa: {value: null, unit: GPa, source: null, confidence: unverified,
+        note: "TODO(owner): Mohs 10 is sourced but an indentation hardness in GPa was not verified from an open primary source in this pass. Commonly quoted ~70-100 GPa - supply a citation before using it."}
+      youngs_modulus_gpa: {value: null, unit: GPa, source: null, confidence: unverified,
+        note: "TODO(owner): Ioffe gives bulk modulus 44.2e11 dyn/cm2 = 442 GPa; Young's modulus (commonly ~1050-1220 GPa) was not verified here."}
+      bulk_modulus_gpa: {value: 442, unit: GPa, source: "http://www.ioffe.ru/SVA/NSM/Semicond/Diamond/mechanic.html", confidence: derived,
+        note: "Converted from 44.2e11 dyn/cm^2 (1 dyn/cm^2 = 0.1 Pa)."}
+      iep_ph: {value: null, unit: pH, source: null, confidence: unverified,
+        note: "TODO(owner): nanodiamond surface charge is set by surface termination (carboxyl vs hydrogen), not by a bulk oxide IEP. Measure for your product."}
+      typical_d50_nm: {value: null, unit: nm, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+    usage_note: >
+      Diamond is a lapping/rough-removal abrasive, not a CMP finishing abrasive,
+      because it is harder than every film in this database and removes by
+      brittle/ductile cutting. Where it is used in CMP it is usually encapsulated
+      (diamond core / SiO2 shell) to blunt the contact.
+    film_effects:
+      sic:
+        mechanism: "direct mechanical cutting; diamond is one of the high-hardness abrasives that raise the SiC removal rate, at the cost of surface defects and scratches"
+        removal_mode: mechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        selectivity_note: "No selectivity - diamond cuts everything. Selectivity must come from the chemistry, not the abrasive."
+        source: "https://doi.org/10.1038/s41598-023-49622-z"
+        confidence: literature
+      sapphire:
+        mechanism: "mechanical cutting; a SiO2 shell on the diamond core adds a solid-state SiO2/sapphire reaction and reduces indentation depth, which is what improves finish"
+        removal_mode: mixed
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        core_shell_gain_mrr_pct: {value: 8.8, unit: "%", source: "https://doi.org/10.3390/mi13122160", confidence: literature,
+          note: "diamond/SiO2 composite vs pure diamond: MRR +8.8% and surface roughness -27.2%, in DI water only (no other chemicals)."}
+        core_shell_roughness_gain_pct: {value: -27.2, unit: "%", source: "https://doi.org/10.3390/mi13122160", confidence: literature}
+        selectivity_note: "Encapsulation is the lever: reducing indentation depth plus chemical corrosion synergy is what improves polishing performance."
+        source: "https://doi.org/10.3390/mi13122160"
+        confidence: literature
+      oxide:
+        mechanism: "would cut, not polish - hardness ratio to SiO2 is extreme"
+        removal_mode: mechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not used/ not sourced for oxide CMP."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      sin:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      cu:
+        mechanism: "MD studies of ellipsoidal diamond particles between copper workpieces are the source of the roll-to-slide transition criterion, but this is a model system, not a production slurry"
+        removal_mode: mechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no production data."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no production data."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no production data."}
+        selectivity_note: "Sliding predominates below an axial ratio of 0.83 for diamond ellipsoids on Cu (0.46 on crystalline Si)."
+        source: "https://doi.org/10.3390/nano15171366"
+        confidence: literature
+      w:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      poly_si:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      si:
+        mechanism: "MD model system for rolling/sliding transition on crystalline Si"
+        removal_mode: mechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "Roll-to-slide transition at axial ratio 0.46 on crystalline Si."
+        source: "https://doi.org/10.3390/nano15171366"
+        confidence: literature
+      snag:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+
+  # -------------------------------------------------------------
+  zirconia:
+    aliases: [zro2, zirconium_oxide, ysz]
+    material: ZrO2
+    shape_class: faceted_angular
+    properties:
+      density_kg_m3: {value: null, unit: kg/m^3, source: null, confidence: unverified,
+        note: "TODO(owner): not verified from an open primary source in this pass (NIST Property Data Summaries cover alumina, SiC, TiB2 and YBCO, not zirconia)."}
+      hardness_gpa: {value: null, unit: GPa, source: null, confidence: unverified, note: "TODO(owner): not verified."}
+      youngs_modulus_gpa: {value: null, unit: GPa, source: null, confidence: unverified, note: "TODO(owner): not verified."}
+      iep_ph: {value: 10.5, unit: pH, source: "https://doi.org/10.1039/d6ra00388e", confidence: literature,
+        note: "Experimental point of zero charge for ZrO2 given as pH 10.0-11.0 (dominant surface species Zr(OH)4); 10.5 is the midpoint of the published range. Doping shifts it by up to ~1 pH unit."}
+      iep_ph_range: {value: [10.0, 11.0], unit: pH, source: "https://doi.org/10.1039/d6ra00388e", confidence: literature}
+      typical_d50_nm: {value: null, unit: nm, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+    usage_note: "Zirconia is an alternative/emerging CMP abrasive rather than a mainstream one; it appears in the W-CMP candidate list alongside yttria and ceria, and as a POLISHED substrate in the shape-factor literature."
+    usage_source: "https://doi.org/10.5772/intechopen.75408"
+    film_effects:
+      w:
+        mechanism: "candidate alternative to alumina for W CMP; under development"
+        removal_mode: chemomechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        selectivity_note: "Yttrium, ceria, zirconium and composite abrasives have been tried for W CMP applications."
+        source: "https://doi.org/10.5772/intechopen.75408"
+        confidence: literature
+      oxide:
+        mechanism: null
+        removal_mode: mechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no zirconia-on-oxide CMP removal study verified."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced. NOTE the reverse case IS sourced: ZrO2 as a POLISHED SURFACE shows higher MRR with non-spherical silica abrasives (https://doi.org/10.3390/nano15171366)."
+        source: null
+        confidence: unverified
+      sin:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      cu:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      poly_si:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      si:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      sic:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      sapphire:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      snag:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+
+  # -------------------------------------------------------------
+  titania:
+    aliases: [tio2, titanium_dioxide, rutile, anatase]
+    material: TiO2
+    shape_class: irregular
+    properties:
+      density_kg_m3: {value: null, unit: kg/m^3, source: null, confidence: unverified,
+        note: "TODO(owner): not verified from an open primary source here. Rutile and anatase differ (~4.25 vs ~3.9 g/cm3) - specify the polymorph."}
+      hardness_gpa: {value: null, unit: GPa, source: null, confidence: unverified, note: "TODO(owner): not verified; polymorph-dependent."}
+      youngs_modulus_gpa: {value: null, unit: GPa, source: null, confidence: unverified, note: "TODO(owner): not verified."}
+      iep_ph: {value: 6.0, unit: pH, source: "https://doi.org/10.1039/d4en00332b", confidence: literature,
+        note: "Review of TiO2 nanomaterial suspensions: pH_IEP for TiO2 nanoparticles ranges 5-7 depending on electrolyte and particle properties; pristine TiO2 aggregates fastest around pH 6.5. 6.0 is the middle of the reported band - carry the range, not the point."}
+      iep_ph_range: {value: [5, 7], unit: pH, source: "https://doi.org/10.1039/d4en00332b", confidence: literature}
+      typical_d50_nm: {value: null, unit: nm, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+    usage_note: >
+      TiO2 in CMP is used less as a cutting abrasive than as a PHOTOCATALYTIC
+      partner: CeO2-TiO2 under UV (photocatalysis-assisted CMP) recovers the
+      removal rate lost when a softer composite abrasive is chosen for finish.
+      A SiO2 coating on TiO2 lowers its IEP markedly, which is a formulation
+      handle on particle-wafer electrostatics.
+    usage_sources:
+      - "https://doi.org/10.3390/nano15171366"
+      - "https://doi.org/10.1039/d4en00332b"
+    film_effects:
+      sic:
+        mechanism: "photocatalytic assist (PCMP): CeO2-TiO2 under UV raises removal rate on reaction-bonded SiC relative to pure CeO2 composites, compensating for the rate lost to a compliant core"
+        removal_mode: chemomechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        selectivity_note: "Rate here is driven by UV flux and catalyst activity, not by abrasive loading - a concentration-only model will mispredict."
+        source: "https://doi.org/10.3390/nano15171366"
+        confidence: literature
+      oxide:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no titania-on-oxide CMP removal study verified."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      sin:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      cu:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      w:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      poly_si:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      si:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      sapphire:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      snag:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+
+  # -------------------------------------------------------------
+  silicon_carbide_abrasive:
+    aliases: [sic_abrasive, carborundum]
+    material: SiC
+    shape_class: faceted_angular
+    note: "This is SiC used AS THE ABRASIVE. SiC as the polished film is under films/sic in every abrasive's film_effects."
+    properties:
+      density_kg_m3: {value: 3160, unit: kg/m^3, source: "https://srdata.nist.gov/CeramicDataPortal/Pds/Scdscs", confidence: literature,
+        note: "NIST SRD 150, sintered alpha-SiC at 20 C: 3.16 g/cm3 (+/-1%)."}
+      hardness_gpa: {value: 32, unit: GPa, source: "https://srdata.nist.gov/CeramicDataPortal/Pds/Scdscs", confidence: literature,
+        note: "Vickers, 1 kg load, 20 C: 32 GPa (+/-15%). Harder than alumina (15 GPa) - extreme scratch risk on every film in this database."}
+      youngs_modulus_gpa: {value: 415, unit: GPa, source: "https://srdata.nist.gov/CeramicDataPortal/Pds/Scdscs", confidence: literature}
+      poissons_ratio: {value: 0.16, unit: dimensionless, source: "https://srdata.nist.gov/CeramicDataPortal/Pds/Scdscs", confidence: literature}
+      fracture_toughness_mpa_m05: {value: 3.1, unit: MPa*m^0.5, source: "https://srdata.nist.gov/CeramicDataPortal/Pds/Scdscs", confidence: literature}
+      iep_ph: {value: 3.8, unit: pH, source: "https://doi.org/10.3390/ma17010056", confidence: literature,
+        note: "IEP 3.8 for unmodified SiC powder; silane/humate surface modification shifts it lower and raises |zeta|. Below pH 6 the surface charge is too low to prevent van der Waals agglomeration."}
+      typical_d50_nm: {value: null, unit: nm, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+    dispersion_warning: "At pH < 6 unmodified SiC particles agglomerate because electrostatic repulsion is insufficient against van der Waals attraction - the agglomerates then become the large-particle tail."
+    dispersion_source: "https://doi.org/10.3390/ma17010056"
+    film_effects:
+      sic:
+        mechanism: "same-on-same mechanical cutting; listed among the high-hardness abrasives that raise SiC removal rate but cause defects"
+        removal_mode: mechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        selectivity_note: "No chemical selectivity; scratch-limited."
+        source: "https://doi.org/10.1038/s41598-023-49622-z"
+        confidence: literature
+      oxide:
+        mechanism: null
+        removal_mode: mechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): SiC is a lapping abrasive for oxide, not a CMP abrasive. No source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      sin:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      cu:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      w:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      poly_si:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      si:
+        mechanism: "classic wire-saw / lapping abrasive for Si; leaves subsurface damage that CMP must then remove"
+        removal_mode: mechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no CMP-regime source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no CMP-regime source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      sapphire:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      snag:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+
+  # -------------------------------------------------------------
+  organic_polymer:
+    aliases: [polymer_abrasive, polystyrene, ps, pmma, polymer_core_composite]
+    material: "polystyrene / PMMA / crosslinked organic particle, optionally shelled with SiO2 or CeO2"
+    shape_class: spherical_compliant
+    properties:
+      density_kg_m3: {value: null, unit: kg/m^3, source: null, confidence: unverified,
+        note: "TODO(owner): polymer-dependent (~1050 kg/m^3 for PS, ~1180 for PMMA) but not verified from a primary source here."}
+      hardness_gpa: {value: null, unit: GPa, source: null, confidence: unverified,
+        note: "TODO(owner): not verified numerically. Sourced QUALITATIVE fact: the polymer core's mechanical properties are highly tunable via synthesis parameters, and a SiO2 shell lowers the effective hardness of the composite abrasive, which improves Ra (https://doi.org/10.1149/1.2949085 , https://doi.org/10.3390/nano15171366)."}
+      youngs_modulus_gpa: {value: null, unit: GPa, source: null, confidence: unverified, note: "TODO(owner): not verified; tunable by synthesis."}
+      iep_ph: {value: null, unit: pH, source: null, confidence: unverified,
+        note: "TODO(owner): set by the shell or by surface functionalisation (sulfate, carboxyl), not by the polymer bulk. If shelled with SiO2 use the silica IEP; if shelled with CeO2 use the ceria IEP."}
+      typical_d50_nm: {value: 300, unit: nm, source: "https://doi.org/10.1149/1.2949085", confidence: literature,
+        note: "300 nm polymer core coated with 14 nm ceria particles in the defectivity study. Not a universal size."}
+    design_rationale: >
+      The point of a polymer abrasive is COMPLIANCE, not hardness. The elastic
+      core acts as a spring that limits the peak contact stress, so a given
+      normal load produces a shallower indentation and shallower scratches.
+      Rate is then recovered chemically by shelling the core with the reactive
+      oxide (ceria for oxide films, silica for a silica-like tooth).
+    film_effects:
+      oxide:
+        mechanism: "compliant-core, reactive-shell: the shell supplies the surface chemistry (Si-O-Ce if ceria-shelled) while the core's elasticity caps the contact stress"
+        removal_mode: mixed
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not fitted in the cited studies."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not fitted."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        defectivity_gain: "Fewer and shallower scratches than colloidal silica and than fumed-silica-shelled composites, for polymer-core/colloidal-silica-shell abrasives."
+        defectivity_source: "https://doi.org/10.1149/1.2740038"
+        ceria_shell_note: "Ceria-based slurries give roughly 3x the removal rate of conventional silica but WORSE defectivity; a 300 nm polymer core coated with 14 nm ceria reduces defectivity via the spring-like elastic core. The two composite routes (silane coupling vs electrostatic assembly) give different rates because they give different morphology and surface composition."
+        ceria_shell_source: "https://doi.org/10.1149/1.2949085"
+        shape_note: "Both scratch length and depth increase with particle size and irregularity; fumed-silica-shelled composites do not fix the fumed aggregate's irregularity."
+        shape_source: "https://doi.org/10.1149/1.2901864"
+        ph_note: "Composite performance was characterised at pH 3 and pH 10 - the electrostatic assembly route in particular is pH-sensitive."
+        selectivity_note: "Selectivity comes from the shell chemistry, so inherit it from the shell material's entry, not from the polymer."
+        source: "https://doi.org/10.1149/1.2740038"
+        confidence: literature
+      sapphire:
+        mechanism: "polystyrene-CeO2 core-shell improves Ra versus bare CeO2 on RB-SiC/sapphire-class hard substrates even though the bare ceria particles are ~10x smaller"
+        removal_mode: mixed
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        selectivity_note: "Finish improves, MRR drops; the rate loss is recovered by photocatalytic assist (CeO2-TiO2 + UV)."
+        source: "https://doi.org/10.3390/nano15171366"
+        confidence: literature
+      sic:
+        mechanism: "same compliant-core rationale on reaction-bonded SiC"
+        removal_mode: mixed
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        selectivity_note: "Improved Ra at the cost of MRR."
+        source: "https://doi.org/10.3390/nano15171366"
+        confidence: literature
+      w:
+        mechanism: "composite alumina/polymer abrasives were introduced for W CMP specifically because of defect concerns at advanced nodes"
+        removal_mode: mixed
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not sourced."}
+        selectivity_note: "Defect-driven adoption, not rate-driven."
+        source: "https://doi.org/10.5772/intechopen.75408"
+        confidence: literature
+      sin:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced; inherit from shell chemistry."
+        source: null
+        confidence: unverified
+      cu:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      poly_si:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      si:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      snag:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): no source."}
+        selectivity_note: "TODO(owner): unsourced. A compliant abrasive is the obvious candidate for a soft solder film, but this is judgement, not literature."
+        source: null
+        confidence: unverified
+
+  # -------------------------------------------------------------
+  abrasive_free:
+    aliases: [afs, abrasive_free_slurry, particle_free, reactive_liquid]
+    material: "none - reactive solution only (complexant + oxidizer, optionally micelles or electrolytic ionization)"
+    shape_class: none
+    properties:
+      density_kg_m3: {value: null, unit: kg/m^3, source: null, confidence: unverified, note: "TODO(owner): not applicable - no particles. Use the carrier fluid density."}
+      hardness_gpa: {value: null, unit: GPa, source: null, confidence: unverified, note: "TODO(owner): not applicable."}
+      youngs_modulus_gpa: {value: null, unit: GPa, source: null, confidence: unverified, note: "TODO(owner): not applicable."}
+      iep_ph: {value: null, unit: pH, source: null, confidence: unverified, note: "TODO(owner): not applicable - no particle surface."}
+      typical_d50_nm: {value: null, unit: nm, source: null, confidence: unverified, note: "TODO(owner): not applicable."}
+    modelling_note: >
+      CRITICAL for the engine: with no abrasive, the concentration and size
+      terms must be switched OFF entirely, not set to a small number. Mechanical
+      removal comes solely from the relative motion of PAD ASPERITIES against
+      the wafer, so the rate model becomes (chemical layer formation rate) x
+      (pad-asperity contact area), and interfacial friction - not particle count
+      - is the mechanical variable. Reported Cu-complex layer regeneration cycle
+      is about 10 ms, so the process is layer-formation-rate limited.
+    modelling_source: "https://doi.org/10.3390/mi14020272"
+    film_effects:
+      cu:
+        mechanism: "oxidizer + complexant grow a Cu-complex layer on the Cu surface; pad asperities shear that layer off. No abrasive is involved, so defectivity from particles is eliminated by construction."
+        removal_mode: chemomechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified,
+          note: "TODO(owner): NOT APPLICABLE - there is no abrasive concentration. The engine must disable this term for abrasive_free, not fit it. The controlling concentrations are the complexant and oxidizer."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified,
+          note: "TODO(owner): NOT APPLICABLE - no particle size."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not applicable."}
+        ph_optimum: {value: [3, 4], unit: pH, source: "https://doi.org/10.3390/mi14020272", confidence: literature,
+          note: "Highest MRR reported for an abrasive-free Cu solution of oxalic acid + H2O2 at pH 3-4."}
+        complex_layer_cycle_ms: {value: 10, unit: ms, source: "https://doi.org/10.3390/mi14020272", confidence: literature,
+          note: "Generation cycle of the Cu complex layer is approximately 10 ms; friction behaviour resembles ILD CMP."}
+        chemistry_note: "Dicarboxylic acids (oxalic, malonic, succinic, glutaric) as complexants - the right one depends on solution pH. Electrolytic ionization raises dissolved oxygen and thereby MRR."
+        selectivity_note: "Selectivity is set entirely by chemistry; there is no mechanical contribution to tune."
+        source: "https://doi.org/10.3390/mi14020272"
+        confidence: literature
+      sic:
+        mechanism: "oxidise the SiC surface into a controllable oxide film, then remove it by pad friction alone"
+        removal_mode: chemomechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not applicable - no abrasive."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not applicable."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not applicable."}
+        selectivity_note: "By controlling the physicochemical properties of the oxide film, high removal rates were achieved by friction with the pad alone, with NO nanoparticle abrasive. The C-face oxidises faster than the Si-face, has a higher friction coefficient and more oxide defects, and therefore polishes faster."
+        source: "https://doi.org/10.1038/s41598-023-49622-z"
+        confidence: literature
+      poly_si:
+        mechanism: "abrasive-free / reactive-liquid buffing of polysilicon; non-Prestonian behaviour is reported, i.e. rate is not simply proportional to P*V"
+        removal_mode: chemomechanical
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not applicable - no abrasive."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not applicable."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not applicable."}
+        selectivity_note: "TODO(owner): specific selectivity numbers not extracted - the primary articles (https://doi.org/10.1016/j.cap.2021.04.006 abrasive-free polysilicon buffing; https://doi.org/10.1149/2.0081905jss reactive liquids for non-Prestonian polysilicon CMP) were identified but are paywalled. Flagged so the Preston exponent is not assumed to be 1."
+        source: "https://doi.org/10.1149/2.0081905jss"
+        confidence: unverified
+      oxide:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not applicable / no source for abrasive-free oxide CMP."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not applicable."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not applicable."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      sin:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not applicable / no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not applicable."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not applicable."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      w:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not applicable / no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not applicable."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not applicable."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      si:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not applicable / no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not applicable."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not applicable."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      sapphire:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not applicable / no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not applicable."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not applicable."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+      snag:
+        mechanism: null
+        removal_mode: null
+        conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not applicable / no source."}
+        size_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not applicable."}
+        saturation_conc_wt_pct: {value: null, unit: wt%, source: null, confidence: unverified, note: "TODO(owner): not applicable."}
+        selectivity_note: "TODO(owner): unsourced."
+        source: null
+        confidence: unverified
+
+# =====================================================================
+meta:
+  schema_version: 1
+  films_covered: [oxide, sin, cu, w, poly_si, si, sic, sapphire, snag]
+  abrasives_covered: [colloidal_silica, fumed_silica, ceria, alumina, gamma_alumina, diamond, zirconia, titania, silicon_carbide_abrasive, organic_polymer, abrasive_free]
+  compiled_by: "CMP-Sim literature pass (open-access sources only)"
+  compiled_on: "2026-09-15"
+  honesty_statement: >
+    Numbers appear here only where a source was actually fetched and read.
+    Where the requested physics is real but the specific number could not be
+    verified against an accessible source (Si-O-Ce and silica-silica adsorption
+    energies in kJ/mol, the indentation-depth prefactor, most per-film
+    concentration and size exponents, SnAg entirely, zirconia and titania
+    mechanical properties, gamma-alumina properties), the value is null with a
+    TODO(owner) note naming what is missing. Nothing was interpolated or
+    invented to fill a gap.
+  key_sources:
+    - "https://doi.org/10.3390/nano15171366  # Bellahsene et al., Nanomaterials 15:1366 (2025) - nano-abrasive review; C^(+/-1/3) and d^(4/3)/d^(-1/3) laws, shape/aspect-ratio, non-monotonic size evidence"
+    - "https://doi.org/10.1021/acs.langmuir.3c00304  # Langmuir (2023) ReaxFF MD of ceria on silica glass; Si-O-Ce bond formation, 24 vs 5e8 collisions per SiO4"
+    - "https://doi.org/10.5772/intechopen.75408  # Kim, IntechOpen (2018) - CMP abrasive technology; silica/ceria/alumina routes, ceria IEP ~8, W and Cu mechanisms"
+    - "https://doi.org/10.1149/1.1390851  # Bielmann et al., ECS (1999) - alumina particle size in W CMP; rate up as size down, contact-area mechanism"
+    - "https://doi.org/10.1149/1.1372222  # A Model of Chemical Mechanical Polishing (2001) - asymptotic saturation in chemical and abrasive concentration"
+    - "https://doi.org/10.1149/1.1997156  # Modeling abrasive size distribution, adhesion, plastic deformation (2005) - rate decreases with size"
+    - "https://doi.org/10.1109/TSM.2018.2796564  # Large particles in CMP; >200 nm definition, 1 wt% degrades uniformity"
+    - "https://doi.org/10.1149/1.2184036  # Remsen et al. - LPC in fumed silica slurries correlates with scratch defects"
+    - "https://doi.org/10.1149/1.2901864  # Composite polymer-core silica-shell; scratch length/depth vs size and irregularity"
+    - "https://doi.org/10.1149/1.2740038  # Composite polymer-core silica-shell abrasives in oxide CMP; fewer/shallower scratches"
+    - "https://doi.org/10.1149/1.2949085  # Polymer-core ceria-shell defectivity; ceria ~3x silica rate, higher defectivity"
+    - "https://doi.org/10.1149/1.3596181  # Si3N4 removal with ceria dispersions; Ce3+ and suboxide, <2 nm/min suppression"
+    - "https://doi.org/10.1149/1.3230624  # STI selective oxide/nitride CMP with ceria + cyclic amines; ~350 nm/min oxide"
+    - "https://doi.org/10.1149/1.3111811  # Selective polysilicon polishing; amino acids, selectivity ~300"
+    - "https://doi.org/10.1149/1.1564110  # Mixed abrasive slurries alumina+ceria; selectivity up to 65, ceria sheath on alumina"
+    - "https://doi.org/10.1149/2.0241503jss  # Effect of pH on sapphire CMP; rate rises to pH 8, 20 wt% colloidal silica"
+    - "https://doi.org/10.11159/icmie25.159  # Sapphire CMP MRR model, silica 4/20/55/105 nm, anomalous 4 nm rate"
+    - "https://doi.org/10.3390/mi13122160  # Diamond/SiO2 core-shell on sapphire; +8.8% MRR, -27.2% Ra"
+    - "https://doi.org/10.1038/s41598-023-49622-z  # SiC Si-face vs C-face oxidation; high rate by pad friction alone, no abrasive"
+    - "https://doi.org/10.3390/mi14020272  # Abrasive-free Cu CMP; pad-asperity removal, pH 3-4, 10 ms complex-layer cycle"
+    - "https://doi.org/10.26599/NR.2026.94909100  # CuxO-CeO2/Al2O3 composite abrasives on SiC; 538.45 nm/h, Ra 0.629 nm"
+    - "https://srdata.nist.gov/CeramicDataPortal/Pds/Scdaos  # NIST SRD 150 sintered alpha-Al2O3 (Munro 1997)"
+    - "https://srdata.nist.gov/CeramicDataPortal/Pds/Scdscs  # NIST SRD 150 sintered alpha-SiC"
+    - "https://www.osti.gov/servlets/purl/1469554  # Thermal and mechanical properties of CeO2; density 7.215, E 213/207 GPa"
+    - "https://doi.org/10.3390/ma19102134  # High-temperature nanoindentation of CeO2; RT H 6.44 GPa, E 167.6 GPa"
+    - "https://valleydesign.com/Datasheets/Corning-Fused-Silica-7980.pdf  # Corning HPFS 7980; density 2.201, E 72.7 GPa, Knoop 522"
+    - "http://www.ioffe.ru/SVA/NSM/Semicond/Diamond/mechanic.html  # Ioffe NSM diamond; density 3.515, Mohs 10, B 442 GPa"
+    - "https://products.evonik.com/assets/45/92/Technical_Overview_AEROSIL_Fumed_Silica_EN_EN_244592.pdf  # AEROSIL; primary 5-50 nm, aggregates 1-40 um, BET 50-500 m2/g"
+    - "https://doi.org/10.1039/d6ra00388e  # PZC modelling of metal oxides; SiO2 1.80, ZrO2 10-11, AlO(OH) 7.5-7.7"
+    - "https://doi.org/10.1016/j.mtcomm.2024.109962  # Yield stress and zeta potential of washed alpha-Al2O3; IEP ~9.5"
+    - "https://doi.org/10.1039/d4en00332b  # TiO2 nanomaterial suspension stability review; pH_IEP 5-7"
+    - "https://doi.org/10.3390/ma17010056  # SiC powder dispersion; IEP 3.8, agglomeration below pH 6"
+    - "https://nccavs-usergroups.avs.org/wp-content/uploads/CMPUG2015/CMP2015_4Takeda.pdf  # Fujimi Si3N4 selectivity; Si3N4 positive below pH 5, OH- catalysed Si etch"
+    - "https://nccavs-usergroups.avs.org/wp-content/uploads/2023/01/P47-CChen.pdf  # CMP filtration for LPC; ceria D50 70 nm at 0.25 wt%, >10% defect reduction"
+    - "https://nccavs-usergroups.avs.org/wp-content/uploads/2023/01/P25-RVenkataswamy.pdf  # Sub-10 nm ceria; Ce(OH)4 more reactive than CeO2, 0.2 wt% working point"
+    - "https://www.entegris.com/content/dam/web/resources/application-notes/appnote-filtration-characteristics-of-cmp-slurries-7590.pdf  # CMP slurry filtration; >0.5 um retention vs 0.03-0.2 um pass"
+    - "https://doi.org/10.1007/s40544-013-0026-y  # Scratch formation mechanism review"
+    - "https://doi.org/10.14356/KONA.2008010  # Particulate science of CMP slurries; LPC and microscratching"
+    - "https://doi.org/10.1149/2.0101806jss  # Dispersant reduces LPC (SPOS) and scratch counts"
+    - "https://doi.org/10.1149/1.2717410  # ADS/BTA inhibitors in fumed-silica Cu slurry"
+    - "https://en.wikipedia.org/wiki/Physisorption  # physisorption binding energy 10-300 meV, context for the chemisorption contrast"

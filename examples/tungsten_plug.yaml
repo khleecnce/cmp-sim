@@ -1,0 +1,25 @@
+# Tungsten plug CMP: Fe-catalysed H2O2 (Fenton) chemistry on a hard metal.
+# W is the most scratch-sensitive system in the defect model (exponent 2.54).
+model: full
+
+wafer:
+  film: w
+  diameter_mm: 300
+  initial_thickness_nm: 600
+  n_radial: 81
+
+slurry:
+  pack: w_fe_oxidizer
+  ph: 2.5
+  abrasive: {kind: silica, conc_wt_pct: 5.0, d50_nm: 60.0}
+  additives:
+    - {name: hydrogen_peroxide, role: oxidizer, conc_wt_pct: 2.0}
+
+pad: {name: IC1010, shore_d: 57.0, groove_width_mm: 0.5, groove_pitch_mm: 2.0, groove_depth_mm: 0.75}
+
+tool:
+  pressure_psi: 3.0
+  rpm_platen: 100
+  rpm_head: 97
+  flow_ml_min: 250
+  time_s: 60

@@ -1,0 +1,121 @@
+# Blanket Cu CMP — conventional IC1000 polyurethane pad, ONE fixed slurry,
+# down force 1.5 / 4.0 psi x pad+platen rotation 60 / 120 / 200 rpm (6 conditions).
+# Printed patent example table (no digitization).
+
+source: >
+  Dow Global Technologies Inc., "Materials and methods for low pressure chemical-mechanical
+  planarization", US Patent 6,918,821 B2, granted 2005-07-19.
+  Free full text: https://www.freepatentsonline.com/6918821.html
+  Numbers transcribed from: TABLE 1 ("Cu" removal-rate table), rows with Pad Type = IC1000
+  only. Columns printed as: Pad Type | RPM | Downforce (PSI)/(kPa) | Removal Rate (Å/min).
+  Conditions from the "Cu Polishing Tests" running text immediately preceding TABLE 1.
+
+film: cu
+pack: cu_slurry          # if this pack name does not exist in the repo, retarget to the
+                         # project's copper parameter pack before scoring.
+in_scope: true
+used_for_calibration: false
+
+wafer_radius_m: 0.025     # patent: "A series of 2-inch (approximately 5 cm) test wafers"
+center_offset_m: 0.200    # r_cc not stated in the patent; base value used.
+
+# ── Why only the IC1000 rows ───────────────────────────────────────────────
+#  TABLE 1 has four pad types: three experimental FIXED-ABRASIVE foam pads (A, B, C, each
+#  loaded with 500 nm ceria particles inside the pad) and the conventional IC1000 (Rodel)
+#  polyurethane pad. Only the IC1000 rows are a conventional slurry-CMP configuration where
+#  the abrasive comes from the slurry, which is what this simulator models. The fixed-abrasive
+#  rows are recorded verbatim in the notes below but are NOT used as conditions, because the
+#  abrasive source differs from the engine's assumption.
+#
+# ── Chemistry: fixed across all six conditions ─────────────────────────────
+#  "a 70:30 mixture of an abrasive-free slurry, specifically Hitachi's HS-C430-A3 slurry and
+#   a 30 wt % hydrogen peroxide solution ... to produce a solution having an initial
+#   composition comprising about 9 wt % H2O2" — one slurry, one oxidizer level, all runs.
+#  Slurry pH and flow rate are not printed in the patent, so they are not set here.
+#
+# ── Units and kinematics ───────────────────────────────────────────────────
+#  Removal rate printed in Å/min; nm/min = Å/min / 10. Original value kept in
+#  measured_mrr_angstrom_per_min.
+#  Speed: the patent gives a single "rotation speed" of 60/120/200 rpm and states the tool
+#  "provided for wafer and platen rotation rates from 60-200 rpm", so rpm_wafer == rpm_platen.
+#  Polish time 10 min per wafer; rate obtained by weighing the wafer before/after.
+
+conditions:
+  - label: "IC1000 pad, 1.5 psi (10.3 kPa), 60 rpm"
+    pressure_psi: 1.5
+    rpm_platen: 60.0
+    rpm_wafer: 60.0
+    mrr_nm_per_min: 42.5
+    measured_mrr_angstrom_per_min: 425
+    read_method: table
+    overrides: {}
+  - label: "IC1000 pad, 1.5 psi (10.3 kPa), 120 rpm"
+    pressure_psi: 1.5
+    rpm_platen: 120.0
+    rpm_wafer: 120.0
+    mrr_nm_per_min: 41.9
+    measured_mrr_angstrom_per_min: 419
+    read_method: table
+    overrides: {}
+  - label: "IC1000 pad, 1.5 psi (10.3 kPa), 200 rpm"
+    pressure_psi: 1.5
+    rpm_platen: 200.0
+    rpm_wafer: 200.0
+    mrr_nm_per_min: 25.0
+    measured_mrr_angstrom_per_min: 250
+    read_method: table
+    overrides: {}
+  - label: "IC1000 pad, 4.0 psi (27.6 kPa), 60 rpm"
+    pressure_psi: 4.0
+    rpm_platen: 60.0
+    rpm_wafer: 60.0
+    mrr_nm_per_min: 59.4
+    measured_mrr_angstrom_per_min: 594
+    read_method: table
+    overrides: {}
+  - label: "IC1000 pad, 4.0 psi (27.6 kPa), 120 rpm"
+    pressure_psi: 4.0
+    rpm_platen: 120.0
+    rpm_wafer: 120.0
+    mrr_nm_per_min: 138.4
+    measured_mrr_angstrom_per_min: 1384
+    read_method: table
+    overrides: {}
+  - label: "IC1000 pad, 4.0 psi (27.6 kPa), 200 rpm"
+    pressure_psi: 4.0
+    rpm_platen: 200.0
+    rpm_wafer: 200.0
+    mrr_nm_per_min: 163.6
+    measured_mrr_angstrom_per_min: 1636
+    read_method: table
+    overrides: {}
+
+notes: >
+  Swept axes: down force (1.5 / 4.0 psi) x rotation speed (60 / 120 / 200 rpm), full 2x3
+  factorial, all six (pressure, rpm) pairs distinct. Slurry, pad, wafer type, polish time
+  and conditioning are identical across all six runs.
+
+  ⚠ STRONGLY non-Prestonian at low pressure. At 4 psi the rate rises monotonically with
+  speed (594 -> 1384 -> 1636 Å/min), as Preston predicts. At 1.5 psi it goes the other way
+  (425 -> 419 -> 250 Å/min): rate FALLS as speed rises. That is the patent's whole point —
+  the conventional IC1000 pad loses copper rate at low down force, which motivates their
+  fixed-abrasive pads. A pure Preston MRR = Kp*P*V model cannot reproduce the 1.5 psi branch
+  and will overpredict it badly. This dataset is therefore most valuable as a FAILURE probe /
+  rank test of the low-pressure regime, not as a Kp calibration set. Do not calibrate on it.
+
+  ── TABLE 1 verbatim, all four pad types (Å/min), for the record ──
+  Pad A (fixed abrasive, 500 nm ceria in pad):
+      4.0 psi: 200 rpm 1500 / 120 rpm 1160 / 60 rpm 870
+      1.5 psi: 200 rpm 1439 / 120 rpm 1293 / 60 rpm 874
+  Pad B: 4.0 psi: 1124 / 1130 / 925    1.5 psi: 1625 / 1567 / 1200
+  Pad C: 4.0 psi: 1200 / 1030 / 849    1.5 psi: 1328 /  950 /  717
+  IC1000: 4.0 psi: 1636 / 1384 / 594   1.5 psi:  250 /  419 /  425   <- the rows used above
+  (TABLE 2 of the patent gives the matching TaN rates; TaN is not transcribed here because
+   several IC1000 entries are printed as "—", i.e. too low to measure.)
+
+  ⚠ Not stated by the patent, so not set here: slurry pH, slurry flow rate, abrasive size
+  and concentration (the slurry is described as abrasive-free), pad groove pattern.
+  Absolute MRR comparisons will carry an unknown scale factor; prefer rank comparisons.
+
+  Small-tool caveat: 2-inch wafers on a 6-inch pad with in-situ diamond conditioning at
+  60 rpm / 0.6 psi. Rates were derived by weighing (mass loss), not by film metrology.

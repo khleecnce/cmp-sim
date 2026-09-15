@@ -1,0 +1,23 @@
+# Multi-zone carrier: the knob that actually controls the radial profile.
+# Kinematics cannot produce radial non-uniformity when head and platen rpm
+# match (the relative speed is then uniform over the wafer), so the profile
+# below is entirely the zone pressure field.
+model: full
+
+wafer: {film: oxide, diameter_mm: 300, initial_thickness_nm: 1000, n_radial: 81}
+
+slurry:
+  pack: oxide_silica
+  ph: 10.5
+  abrasive: {kind: silica, conc_wt_pct: 12.0, d50_nm: 70.0}
+
+pad: {name: IC1000, shore_d: 57.0, groove_width_mm: 0.5, groove_pitch_mm: 2.0, groove_depth_mm: 0.75}
+
+tool:
+  pressure_psi: 3.0
+  rpm_platen: 66.31
+  rpm_head: 66.31
+  flow_ml_min: 200
+  time_s: 60
+  zone_pressures_psi: [2.5, 3.0, 4.0]
+  zone_edges_norm: [0.0, 0.5, 0.8, 1.0]

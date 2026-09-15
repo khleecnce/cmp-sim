@@ -1,0 +1,52 @@
+# 4H-SiC CMP — ceria / H2O2 alkaline slurry.
+#
+# OVERRIDE of the inherited legacy/knowledge/params/sic_ceria_h2o2.yaml.
+#
+# Why this file exists
+# --------------------
+# The inherited SiC pack declares `base: sti_ceria` and never overrides
+# `kp_m_per_pa`, so it silently inherited the OXIDE Preston coefficient
+# (2.2e-13 m/Pa). 4H-SiC is one of the hardest materials polished in a fab and
+# removes roughly two orders of magnitude slower than oxide, so the inherited
+# pack over-predicted SiC removal by ~128x: a 5.5 psi / 60 rpm run returned
+# ~6,300 A/min where the source data for that very condition reports 2-7 nm/min
+# (20-70 A/min).
+#
+# This was not a modelling error but an inheritance accident: the pack was
+# created to switch the pH term on, and Kp was never revisited. The fix is data,
+# not code.
+#
+# How the value below was obtained
+# --------------------------------
+# Least-squares fit of the single free constant Kp over all 50 runs of the
+# source DOE (the same data the rest of this pack is built from):
+#
+#     Kp* = <x, y> / <x, x> = 1.714e-15 m/Pa
+#
+# where x is the area-averaged P*V term at Kp = 1 and y the measured rate.
+#
+# HONEST LIMIT: the residual of that fit is 59% MAPE, because in this DOE
+# pressure and speed are NOT the dominant factors. The source's own factor
+# ranking is pH (+0.520) > head rpm (+0.341) > CeO2 (+0.286) > pressure
+# (+0.266) > H2O2 (+0.221), and pump flow (-0.317) and polish time (-0.324)
+# outrank composition entirely. SiC removal is chemically rate-limited, so a
+# mechanical P*V law cannot fit it well no matter how Kp is chosen. Use this
+# pack for RANKING composition changes, not for absolute rate.
+
+base: sic_ceria_h2o2
+description: "4H-SiC: ceria/H2O2 alkaline slurry, Kp refitted to SiC's own DOE"
+
+params:
+  kp_m_per_pa:
+    value: 1.714e-15
+    unit: m/Pa
+    note: >
+      Least-squares fit of Kp over the full 50-run 4H-SiC DOE (Wang et al.,
+      figshare:31056549, ACS SI Table S3), measured rates 1.24-16.0 nm/min.
+      Replaces the oxide value of 2.2e-13 that was inherited unintentionally
+      from the sti_ceria parent, which over-predicted SiC by ~128x.
+      Fit residual 59% MAPE: SiC is chemically rate-limited, so P*V explains
+      only part of the variance (the source ranks pH and flow above pressure).
+      Adequate for ranking, not for absolute rate.
+    source: "figshare:31056549 ACS SI Table S3 (50-run DOE, least-squares Kp fit)"
+    confidence: measured

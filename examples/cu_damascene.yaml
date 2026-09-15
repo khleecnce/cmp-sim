@@ -1,0 +1,30 @@
+# Copper damascene: H2O2 oxidizer with a BTA inhibitor, patterned die.
+# Demonstrates the chemistry layer (oxidizer + inhibitor), the defect proxy
+# (a deliberately fat 900 nm D99 tail) and pattern dishing.
+model: full
+
+wafer:
+  film: cu
+  diameter_mm: 300
+  initial_thickness_nm: 800
+  pattern_density: 0.5
+  n_radial: 81
+
+slurry:
+  pack: cu_h2o2_bta
+  ph: 7.2
+  temperature_c: 35
+  abrasive: {kind: silica, conc_wt_pct: 3.0, d50_nm: 100.0, d99_nm: 900.0}
+  additives:
+    - {name: hydrogen_peroxide, role: oxidizer, conc_wt_pct: 1.0}
+    - {name: benzotriazole, role: inhibitor, conc_mM: 5.0}
+
+pad: {name: IC1010, shore_d: 55.0, groove_width_mm: 0.5, groove_pitch_mm: 2.0, groove_depth_mm: 0.75}
+disk: {name: 3M-A165, hours_used: 20.0}
+
+tool:
+  pressure_psi: 2.0
+  rpm_platen: 93
+  rpm_head: 87
+  flow_ml_min: 300
+  time_s: 60

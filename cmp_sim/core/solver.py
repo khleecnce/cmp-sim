@@ -436,6 +436,10 @@ def simulate(recipe: Recipe) -> Result:
         if pat.get("pattern"):
             extras["pattern_effects"] = pat["pattern"]
 
+    # Is the absolute number even plausible for this film?
+    from cmp_sim.core.sanity import check_rate
+    warnings.extend(check_rate(recipe.wafer.film, mean_nm * 10.0))
+
     notes.append(f"pressure profile: {p_label}")
     notes.append(f"parameter pack: {' -> '.join(rr.pack.lineage)}")
     notes.append(f"Kp_base={rr.kp_base:.4g} m/Pa; Kp_eff={kp:.4g} m/Pa")

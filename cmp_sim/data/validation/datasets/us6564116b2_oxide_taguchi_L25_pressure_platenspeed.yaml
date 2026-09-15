@@ -1,0 +1,285 @@
+# Blanket oxide CMP on a production 200 mm polisher — Taguchi L25(5^5) orthogonal array.
+# Down force (4/5/6/7/8 psi) x platen speed (20/30/40/50/60 rpm) are swept together with
+# slurry solid content, back pressure and polish time. All 25 (down force, platen speed)
+# pairs are DISTINCT — the L25 array covers the 5x5 pressure-speed grid exactly once each.
+#
+# Why this source: it is a printed patent example table (no digitization error), the MRR
+# column is measured (thickness change / time at 9 points per wafer by AFT), and the patent
+# itself frames the experiment against the Preston equation.
+
+source: >
+  G.-J. Wang, J.-C. Tsai, J.-L. Chen, "Method for determining efficiently parameters in
+  chemical-mechanical polishing (CMP)", US Patent 6,564,116 B2, granted 2003-05-13
+  (filed 2001-04-06, appl. 09/826,929). Free full text:
+  https://www.freepatentsonline.com/6564116.html
+  Numbers transcribed from: TABLE 1 (L25(5^5) orthogonal array — the factor levels of every
+  trial: solid content wt%, down force psi, back pressure psi, platen speed rpm, polish time s)
+  joined row-by-row with TABLE 2 ("an experimental results and S/N ratio table" — the measured
+  MRR column, headed "MRR (A/S)", i.e. Angstrom per second).
+  Carrier (head) speed 25 rpm and the oxide film type come from the running text and TABLE 5
+  ("Since the carrier speed and oscillation speed have little influence ... the primitive
+  settings of those two parameters by NDL are adopted" — Carrier Speed 25 rpm).
+  Experiments were run at the National Nano Device Laboratory (NDL), Taiwan.
+
+film: oxide
+pack: oxide_silica
+in_scope: true
+used_for_calibration: false
+
+wafer_radius_m: 0.100      # not stated in the patent; NDL-era tool, left at a plausible default.
+                           # NOTE: the patent does not state wafer size. Treat absolute MRR with care.
+center_offset_m: 0.200     # r_cc not stated in the patent; base value used.
+
+# ── Units and reading method ────────────────────────────────────────────────
+#  read_method: table for every condition — both the factor levels and the MRR are PRINTED
+#  numbers in the patent's own tables. Nothing here is digitized or interpolated.
+#  Unit conversion: patent prints MRR in Angstrom/second.
+#      nm/min = (A/s) * 60 / 10 = (A/s) * 6      e.g. 9.14 A/s -> 548.4 A/min -> 54.84 nm/min
+#  measured_mrr_angstrom_per_min keeps the converted-to-per-minute Angstrom value;
+#  the raw printed A/s value is given in each label so nothing is lost.
+#
+#  ⭐ Self-check on the unit interpretation: TABLE 5 reports a separate verification run at
+#     15% solids / 7 psi / 3 psi back / 20 rpm / 60 s with "Experimental MRR 26.65 A/s" and
+#     "Average of removal amount 1599.2 A" — and 1599.2 A / 60 s = 26.65 A/s exactly.
+#     So the TABLE 2 column really is Angstrom/second. (That TABLE 5 run is NOT included
+#     below because it is a different polish time from any L25 row; row 14 is the same
+#     factor combination but at 50 s and reads 22.11 A/s.)
+#
+# ── What is NOT held fixed ─────────────────────────────────────────────────
+#  This is an L25 orthogonal array, so slurry solid content (5/10/15/20/25 wt%), back
+#  pressure (0/1/2/3/3.5 psi) and polish time (40-60 s) vary along with pressure and speed.
+#  Solid content is carried in overrides as abrasive_wt_pct so the fit can group on it.
+#  Back pressure and polish time have no engine parameter and are recorded in the labels only.
+
+conditions:
+  - label: "row1: 5wt%, DF=4psi, BP=0psi, 20rpm, 40s (9.14 A/s)"
+    pressure_psi: 4.0
+    rpm_platen: 20.0
+    rpm_wafer: 25.0
+    mrr_nm_per_min: 54.84
+    measured_mrr_angstrom_per_min: 548.4
+    read_method: table
+    overrides: {abrasive_wt_pct: 5.0}
+  - label: "row2: 5wt%, DF=5psi, BP=1psi, 30rpm, 45s (14.5 A/s)"
+    pressure_psi: 5.0
+    rpm_platen: 30.0
+    rpm_wafer: 25.0
+    mrr_nm_per_min: 87.0
+    measured_mrr_angstrom_per_min: 870.0
+    read_method: table
+    overrides: {abrasive_wt_pct: 5.0}
+  - label: "row3: 5wt%, DF=6psi, BP=2psi, 40rpm, 50s (16.34 A/s)"
+    pressure_psi: 6.0
+    rpm_platen: 40.0
+    rpm_wafer: 25.0
+    mrr_nm_per_min: 98.04
+    measured_mrr_angstrom_per_min: 980.4
+    read_method: table
+    overrides: {abrasive_wt_pct: 5.0}
+  - label: "row4: 5wt%, DF=7psi, BP=3psi, 50rpm, 55s (20.31 A/s)"
+    pressure_psi: 7.0
+    rpm_platen: 50.0
+    rpm_wafer: 25.0
+    mrr_nm_per_min: 121.86
+    measured_mrr_angstrom_per_min: 1218.6
+    read_method: table
+    overrides: {abrasive_wt_pct: 5.0}
+  - label: "row5: 5wt%, DF=8psi, BP=3.5psi, 60rpm, 60s (20.55 A/s)"
+    pressure_psi: 8.0
+    rpm_platen: 60.0
+    rpm_wafer: 25.0
+    mrr_nm_per_min: 123.3
+    measured_mrr_angstrom_per_min: 1233.0
+    read_method: table
+    overrides: {abrasive_wt_pct: 5.0}
+
+  - label: "row6: 10wt%, DF=4psi, BP=3psi, 30rpm, 50s (16.09 A/s)"
+    pressure_psi: 4.0
+    rpm_platen: 30.0
+    rpm_wafer: 25.0
+    mrr_nm_per_min: 96.54
+    measured_mrr_angstrom_per_min: 965.4
+    read_method: table
+    overrides: {abrasive_wt_pct: 10.0}
+  - label: "row7: 10wt%, DF=5psi, BP=3.5psi, 40rpm, 55s (23.45 A/s)"
+    pressure_psi: 5.0
+    rpm_platen: 40.0
+    rpm_wafer: 25.0
+    mrr_nm_per_min: 140.7
+    measured_mrr_angstrom_per_min: 1407.0
+    read_method: table
+    overrides: {abrasive_wt_pct: 10.0}
+  - label: "row8: 10wt%, DF=6psi, BP=0psi, 50rpm, 60s (28.92 A/s)"
+    pressure_psi: 6.0
+    rpm_platen: 50.0
+    rpm_wafer: 25.0
+    mrr_nm_per_min: 173.52
+    measured_mrr_angstrom_per_min: 1735.2
+    read_method: table
+    overrides: {abrasive_wt_pct: 10.0}
+  - label: "row9: 10wt%, DF=7psi, BP=1psi, 60rpm, 40s (34.64 A/s)"
+    pressure_psi: 7.0
+    rpm_platen: 60.0
+    rpm_wafer: 25.0
+    mrr_nm_per_min: 207.84
+    measured_mrr_angstrom_per_min: 2078.4
+    read_method: table
+    overrides: {abrasive_wt_pct: 10.0}
+  - label: "row10: 10wt%, DF=8psi, BP=2psi, 20rpm, 45s (22.51 A/s)"
+    pressure_psi: 8.0
+    rpm_platen: 20.0
+    rpm_wafer: 25.0
+    mrr_nm_per_min: 135.06
+    measured_mrr_angstrom_per_min: 1350.6
+    read_method: table
+    overrides: {abrasive_wt_pct: 10.0}
+
+  - label: "row11: 15wt%, DF=4psi, BP=1psi, 40rpm, 60s (19.44 A/s)"
+    pressure_psi: 4.0
+    rpm_platen: 40.0
+    rpm_wafer: 25.0
+    mrr_nm_per_min: 116.64
+    measured_mrr_angstrom_per_min: 1166.4
+    read_method: table
+    overrides: {abrasive_wt_pct: 15.0}
+  - label: "row12: 15wt%, DF=5psi, BP=2psi, 50rpm, 40s (27.68 A/s)"
+    pressure_psi: 5.0
+    rpm_platen: 50.0
+    rpm_wafer: 25.0
+    mrr_nm_per_min: 166.08
+    measured_mrr_angstrom_per_min: 1660.8
+    read_method: table
+    overrides: {abrasive_wt_pct: 15.0}
+  - label: "row13: 15wt%, DF=6psi, BP=3psi, 60rpm, 45s (36.89 A/s)"
+    pressure_psi: 6.0
+    rpm_platen: 60.0
+    rpm_wafer: 25.0
+    mrr_nm_per_min: 221.34
+    measured_mrr_angstrom_per_min: 2213.4
+    read_method: table
+    overrides: {abrasive_wt_pct: 15.0}
+  - label: "row14: 15wt%, DF=7psi, BP=3.5psi, 20rpm, 50s (22.11 A/s)"
+    pressure_psi: 7.0
+    rpm_platen: 20.0
+    rpm_wafer: 25.0
+    mrr_nm_per_min: 132.66
+    measured_mrr_angstrom_per_min: 1326.6
+    read_method: table
+    overrides: {abrasive_wt_pct: 15.0}
+  - label: "row15: 15wt%, DF=8psi, BP=0psi, 30rpm, 55s (31.84 A/s)"
+    pressure_psi: 8.0
+    rpm_platen: 30.0
+    rpm_wafer: 25.0
+    mrr_nm_per_min: 191.04
+    measured_mrr_angstrom_per_min: 1910.4
+    read_method: table
+    overrides: {abrasive_wt_pct: 15.0}
+
+  - label: "row16: 20wt%, DF=4psi, BP=3.5psi, 50rpm, 45s (20.44 A/s)"
+    pressure_psi: 4.0
+    rpm_platen: 50.0
+    rpm_wafer: 25.0
+    mrr_nm_per_min: 122.64
+    measured_mrr_angstrom_per_min: 1226.4
+    read_method: table
+    overrides: {abrasive_wt_pct: 20.0}
+  - label: "row17: 20wt%, DF=5psi, BP=0psi, 60rpm, 50s (29.22 A/s)"
+    pressure_psi: 5.0
+    rpm_platen: 60.0
+    rpm_wafer: 25.0
+    mrr_nm_per_min: 175.32
+    measured_mrr_angstrom_per_min: 1753.2
+    read_method: table
+    overrides: {abrasive_wt_pct: 20.0}
+  - label: "row18: 20wt%, DF=6psi, BP=1psi, 20rpm, 55s (18.37 A/s)"
+    pressure_psi: 6.0
+    rpm_platen: 20.0
+    rpm_wafer: 25.0
+    mrr_nm_per_min: 110.22
+    measured_mrr_angstrom_per_min: 1102.2
+    read_method: table
+    overrides: {abrasive_wt_pct: 20.0}
+  - label: "row19: 20wt%, DF=7psi, BP=2psi, 30rpm, 60s (28.72 A/s)"
+    pressure_psi: 7.0
+    rpm_platen: 30.0
+    rpm_wafer: 25.0
+    mrr_nm_per_min: 172.32
+    measured_mrr_angstrom_per_min: 1723.2
+    read_method: table
+    overrides: {abrasive_wt_pct: 20.0}
+  - label: "row20: 20wt%, DF=8psi, BP=3psi, 40rpm, 40s (39.28 A/s)"
+    pressure_psi: 8.0
+    rpm_platen: 40.0
+    rpm_wafer: 25.0
+    mrr_nm_per_min: 235.68
+    measured_mrr_angstrom_per_min: 2356.8
+    read_method: table
+    overrides: {abrasive_wt_pct: 20.0}
+
+  - label: "row21: 25wt%, DF=4psi, BP=2psi, 60rpm, 55s (23.25 A/s)"
+    pressure_psi: 4.0
+    rpm_platen: 60.0
+    rpm_wafer: 25.0
+    mrr_nm_per_min: 139.5
+    measured_mrr_angstrom_per_min: 1395.0
+    read_method: table
+    overrides: {abrasive_wt_pct: 25.0}
+  - label: "row22: 25wt%, DF=5psi, BP=3psi, 20rpm, 60s (17.1 A/s)"
+    pressure_psi: 5.0
+    rpm_platen: 20.0
+    rpm_wafer: 25.0
+    mrr_nm_per_min: 102.6
+    measured_mrr_angstrom_per_min: 1026.0
+    read_method: table
+    overrides: {abrasive_wt_pct: 25.0}
+  - label: "row23: 25wt%, DF=6psi, BP=3.5psi, 30rpm, 40s (25.74 A/s)"
+    pressure_psi: 6.0
+    rpm_platen: 30.0
+    rpm_wafer: 25.0
+    mrr_nm_per_min: 154.44
+    measured_mrr_angstrom_per_min: 1544.4
+    read_method: table
+    overrides: {abrasive_wt_pct: 25.0}
+  - label: "row24: 25wt%, DF=7psi, BP=0psi, 40rpm, 45s (34.59 A/s)"
+    pressure_psi: 7.0
+    rpm_platen: 40.0
+    rpm_wafer: 25.0
+    mrr_nm_per_min: 207.54
+    measured_mrr_angstrom_per_min: 2075.4
+    read_method: table
+    overrides: {abrasive_wt_pct: 25.0}
+  - label: "row25: 25wt%, DF=8psi, BP=1psi, 50rpm, 50s (44.11 A/s)"
+    pressure_psi: 8.0
+    rpm_platen: 50.0
+    rpm_wafer: 25.0
+    mrr_nm_per_min: 264.66
+    measured_mrr_angstrom_per_min: 2646.6
+    read_method: table
+    overrides: {abrasive_wt_pct: 25.0}
+
+notes: >
+  Swept axes: down force 4/5/6/7/8 psi and platen speed 20/30/40/50/60 rpm, in an L25
+  orthogonal array so that all 25 (pressure, rpm) pairs are distinct and each of the
+  5 pressure levels appears once at each of the 5 speeds. This is a clean mechanical-axis
+  (Preston P*V) test: no two conditions share a (pressure, rpm) combination.
+
+  ⚠ Chemistry is NOT strictly fixed. Solid content moves 5 -> 25 wt% across the array and is
+  recorded in overrides (abrasive_wt_pct). The patent's own ANOVA/response table (TABLE 3)
+  ranks the S/N effect on MRR as: down force (24.53 -> 29.61 across levels 1..5) and platen
+  speed (24.62 -> 28.99) strongly monotonic; solid content also monotonic (23.80 -> 28.77);
+  back pressure essentially flat (27.72 -> 26.97). So pressure and speed dominate, which is
+  exactly what this dataset is here to test.
+
+  ⚠ Not recorded by the patent, so not in this file: slurry pH, abrasive type and size,
+  pad type, slurry flow rate, wafer diameter. Oscillation speed 2 mm/s and carrier speed
+  25 rpm come from TABLE 5. rpm_wafer is set to that carrier speed for all conditions.
+  Because abrasive identity and pH are unknown, ABSOLUTE MRR from oxide_silica pack will
+  carry an unknown systematic scale factor — read rank agreement, not magnitude.
+
+  ⚠ Back pressure (0 / 1 / 2 / 3 / 3.5 psi) is a wafer-carrier backside pressure, a separate
+  knob from the down force. It is not modelled by the engine and is left out of the
+  condition fields; it is preserved in the labels. The patent measured it to be the least
+  influential of the five factors on MRR.
+
+  Replication: single wafer per trial, 9-point thickness measurement per wafer (AFT).
+  No error bars are printed, so no uncertainty field is given.
