@@ -142,6 +142,72 @@ def _cmd_validate(args: argparse.Namespace) -> int:
     return validate_main(argv)
 
 
+def _cmd_fit(args: argparse.Namespace) -> int:
+    """Fit the model's physical factors to a CSV of measurements."""
+    from cmp_sim.core.measurement_io import TEMPLATE, read_file
+
+    if args.template:
+        print(TEMPLATE, end="")
+        return 0
+    if not args.csv:
+        print("give a CSV of measurements, or --template to see the format",
+              file=sys.stderr)
+        return 2
+
+    try:
+        measurements = read_file(args.csv)
+    except (OSError, ValueError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+
+    recipe = load_config(args.config)
+    recipe.measurements = measurements
+    try:
+        result = simulate(recipe)
+    except ParamMissing as exc:
+        print(f"ParamMissing: {exc}", file=sys.stderr)
+        return 2
+    except FilmNotEstablished as exc:
+        print(str(exc), file=sys.stderr)
+        return 3
+
+    fit = result.extras.get("factor_fit") or {}
+    cal = result.extras.get("calibration") or {}
+    print(f"fitted to {fit.get('n_points', len(measurements))} measurement(s) "
+          f"from {args.csv}\n")
+    print(f"  Kp            {fit.get('kp_m_per_pa') or cal.get('kp_m_per_pa'):.4e} m/Pa")
+    base = fit.get("baseline_cross_validated_mape_percent")
+    cv = fit.get("cross_validated_mape_percent")
+    if cv is not None:
+        gain = "" if base is None else f"  (scale alone: {base:.1f}%)"
+        print(f"  accuracy      +/-{cv:.1f}% leave-one-out{gain}")
+    else:
+        print("  accuracy      not estimable from a single measurement")
+
+    if fit.get("fitted_factors"):
+        print("\n  fitted factors")
+        for name, value in fit["fitted_factors"].items():
+            print(f"    {name:<32} {value}")
+    if fit.get("rejected"):
+        print("\n  rejected (did not improve out-of-sample error)")
+        for name in fit["rejected"]:
+            print(f"    {name}")
+    if fit.get("locked"):
+        print("\n  locked (this dataset cannot identify them)")
+        for name, why in fit["locked"].items():
+            print(f"    {name:<32} {why[:70]}")
+    if cal.get("next_experiment"):
+        print(f"\n  next experiment: {cal['next_experiment']}")
+
+    if args.out:
+        payload = result.summary()
+        Path(args.out).write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8")
+        print(f"\nwrote {args.out}")
+    return 0
+
+
 def _cmd_packs(_args: argparse.Namespace) -> int:
     for name in available_packs():
         print(name)
@@ -185,6 +251,14 @@ def build_parser() -> argparse.ArgumentParser:
     sw.add_argument("--steps", type=int, default=7)
     sw.add_argument("--json", help="also write the full result here")
     sw.set_defaults(func=_cmd_sweep)
+
+    ft = sub.add_parser("fit", help="fit the model's factors to a CSV of measurements")
+    ft.add_argument("config", help="YAML config describing the process")
+    ft.add_argument("csv", nargs="?", help="CSV of measured rates and conditions")
+    ft.add_argument("--template", action="store_true",
+                    help="print an example CSV and exit")
+    ft.add_argument("--out", help="write the full calibrated result here")
+    ft.set_defaults(func=_cmd_fit)
 
     va = sub.add_parser("validate", help="run the literature backtest")
     va.add_argument("--gate", type=float, default=15.0,
