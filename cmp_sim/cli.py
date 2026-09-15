@@ -42,12 +42,22 @@ def recipe_from_dict(cfg: Dict[str, Any]) -> Recipe:
     slurry.abrasive = abrasive
     slurry.additives = additives
 
+    wafer_cfg = dict(cfg.pop("wafer", {}) or {})
+    # Record that the film was never stated. The dataclass default keeps old
+    # configs working, but the film sets the removal mechanism, the plausibility
+    # envelope and the maturity grade - so an omitted film silently returning
+    # the oxide rate is a guess presented as a result.
+    film_defaulted = not str(wafer_cfg.get("film") or "").strip()
+    wafer_cfg.pop("film_was_defaulted", None)
+    wafer = _build(Wafer, wafer_cfg)
+    wafer.film_was_defaulted = film_defaulted
+
     return Recipe(
         slurry=slurry,
         pad=_build(Pad, cfg.pop("pad", {}) or {}),
         disk=_build(Disk, cfg.pop("disk", {}) or {}),
         tool=_build(Tool, cfg.pop("tool", {}) or {}),
-        wafer=_build(Wafer, cfg.pop("wafer", {}) or {}),
+        wafer=wafer,
         model=cfg.pop("model", "preston"),
         params=cfg.pop("params", {}) or {},
         measurements=cfg.pop("measurements", []) or [],

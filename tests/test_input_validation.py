@@ -137,6 +137,48 @@ def test_a_pack_with_no_preston_coefficient_refuses_by_name():
         "the message offers no way forward")
 
 
+def test_a_text_quantity_is_refused_by_field_name():
+    """A string pressure used to raise TypeError: '<=' not supported between
+    'str' and 'int' - deep in a comparison, naming no field."""
+    from cmp_sim.api import run_recipe
+    from cmp_sim.core.validate_input import RecipeInvalid
+
+    with pytest.raises((RecipeInvalid, ValueError)) as exc:
+        run_recipe({"model": "auto", "wafer": {"film": "oxide"},
+                    "slurry": {"pack": "oxide_silica"},
+                    "tool": {"pressure_psi": "three", "rpm_platen": 60,
+                             "rpm_head": 60, "time_s": 60}})
+    msg = str(exc.value)
+    assert "pressure" in msg.lower(), f"the error does not name the field: {msg}"
+    assert "TypeError" not in msg
+
+
+def test_nan_is_refused_rather_than_passing_every_range_check():
+    """Every comparison with NaN is False, so a NaN pressure passed all the
+    range checks and failed inside the contact solver instead."""
+    from cmp_sim.api import run_recipe
+    from cmp_sim.core.validate_input import RecipeInvalid
+
+    with pytest.raises((RecipeInvalid, ValueError)) as exc:
+        run_recipe({"model": "auto", "wafer": {"film": "oxide"},
+                    "slurry": {"pack": "oxide_silica"},
+                    "tool": {"pressure_psi": float("nan"), "rpm_platen": 60,
+                             "rpm_head": 60, "time_s": 60}})
+    assert "nan" in str(exc.value).lower()
+
+
+def test_infinity_is_refused():
+    from cmp_sim.api import run_recipe
+    from cmp_sim.core.validate_input import RecipeInvalid
+
+    with pytest.raises((RecipeInvalid, ValueError)) as exc:
+        run_recipe({"model": "auto", "wafer": {"film": "oxide"},
+                    "slurry": {"pack": "oxide_silica"},
+                    "tool": {"pressure_psi": 3.0, "rpm_platen": float("inf"),
+                             "rpm_head": 60, "time_s": 60}})
+    assert "infinit" in str(exc.value).lower()
+
+
 def test_low_flow_is_flagged_as_starvation():
     r = simulate(_recipe(flow_ml_min=5.0))
     assert any("starvation" in w or "supply" in w.lower() for w in r.warnings)

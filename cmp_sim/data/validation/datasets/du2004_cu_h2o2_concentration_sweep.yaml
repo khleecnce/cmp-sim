@@ -1,0 +1,192 @@
+# Blanket Cu CMP — pure H2O2 (oxidizer) CONCENTRATION sweep at otherwise-FIXED formulation.
+# 6 peroxide levels: 0 / 1 / 3 / 5 / 7.5 / 10 vol%, pH 4 buffer, 4.6 wt% alumina,
+# 7.63 psi, 0.2 m/s (30 rpm), 5 min polish, average of 5 runs — all held constant.
+#
+# ⭐ This is the dataset the peaked (Kaufman-style) oxidizer term needs: the rate RISES
+#   from 0 -> 1%, PEAKS at 1%, then FALLS monotonically to 10%. Points exist on BOTH
+#   sides of the peak, so peak position and shape exponent are identifiable.
+#
+# ⚠ DIGITIZED FROM A PLOT. The paper prints only ONE of the six values in text
+#   ("reaches a maximum of 180 nm/min in 1% H2O2"). The other five were read by
+#   pixel-centroid analysis of the Figure 1 raster, NOT by eye and NOT from a table.
+#   See the read-method block below. confidence: low for that reason.
+
+source: >
+  T. Du, D. Tamboli, Y. Obeng, V. Desai, "Mechanism of Copper Removal during CMP in
+  Acidic H2O2 Slurry", Journal of The Electrochemical Society, 151 (4) G230-G235 (2004).
+  Local PDF: ~/fab-sim/papers/du2004-jes-mechanism-cu-removal-acidic-h2o2-slurry.pdf
+  Numbers from: FIGURE 1, "Effect of H2O2 concentration on removal rates and static etch
+  rates of copper" — the filled-circle "Removal rate" series only. Figure 1 is printed on
+  PDF page 3 (journal page G231, left column, top); its caption text sits on the same page.
+  Experimental conditions from the "Experimental / CMP" section, PDF page 2 (journal G230,
+  right column).
+  ⭐ Self-check of the digitization: the Results text on PDF page 3 (journal G231, left
+  column, first paragraph) prints "reaches a maximum of 180 nm/min in 1% H2O2". The
+  pixel-centroid read of that same marker gives 1.01 vol%, 180.4 nm/min — 0.2% error.
+  That validates the reading procedure; the remaining five points are still digitized.
+
+film: copper
+pack: copper_alumina      # PLACEHOLDER if no such pack exists in the repo — retarget
+                          # before scoring. Slurry is alumina, NOT silica/ceria.
+in_scope: true
+used_for_calibration: false
+confidence: low           # digitized from a raster plot; only 1 of 6 values printed.
+
+wafer_radius_m: 0.0127    # NOT a wafer. 1 in. diam Cu DISK (25.4 mm) on a Buehler
+                          # Minimet 1000 benchtop polisher. Radius 12.7 mm.
+center_offset_m: 0.200    # r_cc not stated; base value used.
+
+# ── Units ──────────────────────────────────────────────────────────────────
+#  Figure 1 y-axis is "Rate (nm/min)" directly — no Angstrom conversion needed.
+#  measured_mrr_nm_per_min carries the digitized value as read.
+# ── X axis: VOL%, not wt% ──────────────────────────────────────────────────
+#  ⚠ IMPORTANT. The Figure 1 x-axis is labelled "Peroxide Concentration (Vol%)".
+#  The body text calls the same points "1% H2O2", "5% H2O2", "10% H2O2" without a unit.
+#  The Experimental section mentions a "30% H2O2 (3:1)" reagent in a DIFFERENT context
+#  (a cited wet-etch recipe), so it is NOT certain whether "Vol%" means vol% of neat
+#  H2O2 or vol% of 30% stock solution. If it is vol% of 30 wt% stock, the true
+#  concentrations would be ~3.3x LOWER in wt%. DO NOT silently treat these as wt%.
+#  h2o2_vol_pct below is the printed axis quantity. h2o2_wt_pct is deliberately ABSENT.
+# ── Kinematics ─────────────────────────────────────────────────────────────
+#  "The linear velocity of polishing was maintained at 0.2 m/s (30 rpm)" — printed,
+#  identical for all six points. "The applied downward pressure was 7.63 psi" — printed.
+# ── Chemistry: identical in all six rows EXCEPT H2O2 ───────────────────────
+#  MSW 2000 alumina slurry, abrasive 4.6 wt%, pH 4 (ACS standard buffer), no glycine,
+#  no BTA, no other complexant or inhibitor mentioned. Polish time 5 min. Each reported
+#  rate is an average of FIVE polishing runs (printed).
+
+# ── READ METHOD (full disclosure) ──────────────────────────────────────────
+# Figure 1 in this PDF is a CCITTFax raster image (xref 44, 1025x747 px), not vector art,
+# so PDF coordinate extraction was impossible. Procedure used instead:
+#   1. Binarize at 50% gray.
+#   2. Locate the axis frame and tick marks from ink column/row profiles:
+#      x ticks at px 138.5/286/429/575/718/864/1007 -> 0/2/4/6/8/10/12 vol%
+#      (spacing 72.375 px per 2 vol%, linear to 0.3 px);
+#      horizontal gridlines at px rows 13-15 (=200 nm/min) and 611-613 (=0 nm/min)
+#      -> 2.9875 px per nm/min.
+#   3. Binary-erode with a 7x7 structuring element to destroy the ~4 px curve/gridlines
+#      while the ~14 px filled circular markers survive, then take connected-component
+#      CENTROIDS. The open-circle etch-rate markers are hollow and vanish under the
+#      erosion, so they cannot contaminate the removal-rate series.
+# Reading uncertainty: marker centroid scatter and the marker radius give roughly
+#   +/- 0.05 vol% on x and +/- 1.5 nm/min on y (about +/- 1-2% of rate).
+#   The 0 vol% point reads 0.04 vol% / 20.3 nm/min; x is taken as exactly 0.
+# No number in this file was estimated by eye.
+
+conditions:
+  - label: "pH 4, 4.6 wt% alumina, 0 vol% H2O2, 7.63 psi, 0.2 m/s"
+    pressure_psi: 7.63
+    rpm_platen: 30.0
+    rpm_wafer: 30.0
+    mrr_nm_per_min: 20.3
+    measured_mrr_nm_per_min: 20.3
+    read_method: digitized
+    source: "du2004 Fig. 1, removal-rate series, PDF p.3 (J. Electrochem. Soc. G231); digitized, +/-1.5 nm/min"
+    overrides:
+      h2o2_vol_pct: 0.0
+      abrasive_wt_pct: 4.6
+      slurry_ph: 4.0
+  - label: "pH 4, 4.6 wt% alumina, 1 vol% H2O2, 7.63 psi, 0.2 m/s  <-- PEAK"
+    pressure_psi: 7.63
+    rpm_platen: 30.0
+    rpm_wafer: 30.0
+    mrr_nm_per_min: 180.4
+    measured_mrr_nm_per_min: 180.4
+    read_method: digitized
+    source: "du2004 Fig. 1, PDF p.3; CONFIRMED by printed text 'maximum of 180 nm/min in 1% H2O2', same page"
+    overrides:
+      h2o2_vol_pct: 1.0
+      abrasive_wt_pct: 4.6
+      slurry_ph: 4.0
+  - label: "pH 4, 4.6 wt% alumina, 3 vol% H2O2, 7.63 psi, 0.2 m/s"
+    pressure_psi: 7.63
+    rpm_platen: 30.0
+    rpm_wafer: 30.0
+    mrr_nm_per_min: 145.5
+    measured_mrr_nm_per_min: 145.5
+    read_method: digitized
+    source: "du2004 Fig. 1, removal-rate series, PDF p.3; digitized, marker read at 2.97 vol%, +/-1.5 nm/min"
+    overrides:
+      h2o2_vol_pct: 3.0
+      abrasive_wt_pct: 4.6
+      slurry_ph: 4.0
+  - label: "pH 4, 4.6 wt% alumina, 5 vol% H2O2, 7.63 psi, 0.2 m/s"
+    pressure_psi: 7.63
+    rpm_platen: 30.0
+    rpm_wafer: 30.0
+    mrr_nm_per_min: 109.4
+    measured_mrr_nm_per_min: 109.4
+    read_method: digitized
+    source: "du2004 Fig. 1, removal-rate series, PDF p.3; digitized, marker read at 4.98 vol%, +/-1.5 nm/min"
+    overrides:
+      h2o2_vol_pct: 5.0
+      abrasive_wt_pct: 4.6
+      slurry_ph: 4.0
+  - label: "pH 4, 4.6 wt% alumina, 7.5 vol% H2O2, 7.63 psi, 0.2 m/s"
+    pressure_psi: 7.63
+    rpm_platen: 30.0
+    rpm_wafer: 30.0
+    mrr_nm_per_min: 99.9
+    measured_mrr_nm_per_min: 99.9
+    read_method: digitized
+    source: "du2004 Fig. 1, removal-rate series, PDF p.3; digitized, marker read at 7.49 vol%, +/-1.5 nm/min"
+    overrides:
+      h2o2_vol_pct: 7.5
+      abrasive_wt_pct: 4.6
+      slurry_ph: 4.0
+  - label: "pH 4, 4.6 wt% alumina, 10 vol% H2O2, 7.63 psi, 0.2 m/s"
+    pressure_psi: 7.63
+    rpm_platen: 30.0
+    rpm_wafer: 30.0
+    mrr_nm_per_min: 85.3
+    measured_mrr_nm_per_min: 85.3
+    read_method: digitized
+    source: "du2004 Fig. 1, removal-rate series, PDF p.3; digitized, marker read at 9.99 vol%, +/-1.5 nm/min"
+    overrides:
+      h2o2_vol_pct: 10.0
+      abrasive_wt_pct: 4.6
+      slurry_ph: 4.0
+
+notes: >
+  Swept axis: H2O2 concentration ONLY. Pressure (7.63 psi), velocity (0.2 m/s / 30 rpm),
+  pad (Buehler Polimet, non-woven perforated), abrasive (MSW 2000 alumina at 4.6 wt%),
+  pH (4, ACS buffer), polish time (5 min) and tool (Buehler Minimet 1000) are stated as
+  constant for all runs. No glycine, no BTA, no other complexant or inhibitor is named,
+  so the "complexant fixed" and "inhibitor fixed" requirements are met trivially (both
+  absent). Each point is an average of five polishing runs.
+
+  PEAK STRUCTURE — the whole point of this file. One point BELOW the peak (0 vol%),
+  the peak itself (1 vol%), and FOUR points ABOVE it (3, 5, 7.5, 10 vol%). The decline
+  is 180 -> 146 -> 109 -> 100 -> 85 nm/min, i.e. a clear roll-off that levels off, which
+  is exactly the Kaufman-type passivation-limited shape. Peak position and the falling
+  exponent are both identifiable from this set. The rising limb, however, is sampled by
+  only ONE non-peak point (0 vol%), so the LOW-side sharpness is weakly constrained —
+  any fit will nail the peak and the tail but should not be trusted for the shape
+  between 0 and 1 vol%.
+
+  ⚠ UNIT CAVEAT, repeated because it matters: the x-axis is VOL%, not wt%. Do not map
+  h2o2_vol_pct onto a wt% model parameter without deciding what the vol% is vol% OF.
+  The peak sits at 1 vol%, which is at the low end of the "1-3 wt%" folklore peak and
+  would be well BELOW it if the vol% refers to 30% stock.
+
+  ⚠ Physical cross-check inside the same paper: the static ETCH rate (open circles,
+  same Figure 1) follows the same peaked shape at ~10x lower magnitude, and the
+  corrosion current density in Figure 3 (PDF p.3) is said to "follow a trend consistent
+  with that observed for the removal and etch rates". Those are supporting evidence for
+  the shape but are NOT removal rates and are deliberately not included as data points.
+
+  ⚠ This is a 1-inch copper DISK on a benchtop Minimet polisher at 7.63 psi and only
+  0.2 m/s — not a 200/300 mm production tool. Absolute magnitudes will not transfer.
+  Use this file for the SHAPE of the oxidizer response along the H2O2 axis.
+
+  ⚠ Not stated by the paper: slurry flow rate, pad conditioning schedule (the authors
+  explicitly ran without conditioning after a 15 min break-in), error bars or standard
+  deviations on the five-run averages, and the Cu film/disk metallurgy beyond "99.95%
+  purity". No uncertainty field is given beyond the digitization uncertainty above.
+
+  Rejected alternatives that were checked in the same paper directory:
+  gopal-talbot-2007 Table III mixes EXPERIMENTAL points from Seal et al. with the
+  authors' own MODEL PREDICTIONS and varies glycine alongside H2O2, so its four rows are
+  not a fixed-formulation sweep. ihnfeldt2008 has only two H2O2 levels (0.1 and 2.0 wt%).
+  aksu2003 and aksudoyle2002 report dissolution/electrochemistry, not removal rate.
+  ilie2017 holds H2O2 FIXED at 5.5 vol% and sweeps pH instead.

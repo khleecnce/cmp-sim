@@ -111,9 +111,19 @@ class Tool:
 # ──────────────────────────────────────────────────────────────────────
 # Wafer
 # ──────────────────────────────────────────────────────────────────────
+#: Sentinel meaning "the caller did not say". A plain default of "oxide" made
+#: an omitted film silently return the oxide rate - the film sets the removal
+#: mechanism, the plausibility envelope and the maturity grade, so guessing it
+#: is guessing the answer. The default is kept for backward compatibility with
+#: existing configs but is now reported rather than assumed silently.
+FILM_DEFAULTED = "oxide"
+
+
 @dataclass
 class Wafer:
-    film: str = "oxide"                  # oxide | cu | w | poly_si | si | snag | sin
+    film: str = FILM_DEFAULTED           # oxide | cu | w | poly_si | si | snag
+    #: True when `film` came from the default rather than from the caller.
+    film_was_defaulted: bool = False
     diameter_mm: float = 300.0
     initial_thickness_nm: Optional[float] = None
     pattern_density: Optional[float] = None

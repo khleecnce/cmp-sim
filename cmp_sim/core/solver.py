@@ -165,12 +165,57 @@ def resolve(recipe: Recipe) -> ResolvedRecipe:
             f"Set slurry.pack explicitly or add the film to FILM_PACK. "
             f"Known films: {sorted(FILM_PACK)}"
         )
+    # An explicit pack used to let wafer.film through unchecked, so asking for
+    # film 'cu' with pack 'oxide_silica' silently returned the OXIDE rate under
+    # a copper label - and asking for a film that does not exist at all returned
+    # a number as if it did. Both are confidently wrong answers, which is the
+    # failure mode this simulator exists to avoid.
+    # Case and surrounding space are typing noise, not meaning: 'Cu' and 'cu'
+    # are the same film, and refusing one of them teaches nothing. A name that
+    # is genuinely not in the table is a different matter and is refused below.
+    film = str(recipe.wafer.film or "").strip()
+    if film and film not in FILM_PACK and film.lower() in FILM_PACK:
+        film = film.lower()
+        recipe.wafer.film = film
+    if not film:
+        raise ParamMissing(
+            "wafer.film is required: the film sets the removal mechanism, the "
+            "plausibility envelope and the maturity grade, none of which can be "
+            f"inferred from the slurry alone. Known films: {sorted(FILM_PACK)}")
+    if film not in FILM_PACK:
+        near = [f for f in FILM_PACK if f.startswith(film.lower()[:2])]
+        raise ParamMissing(
+            f"unknown film '{film}'. The run was refused rather than returning "
+            "the rate for whatever pack was loaded, which would be a wrong "
+            f"answer wearing the right label. Known films: {sorted(FILM_PACK)}"
+            + (f". Did you mean {near}?" if near else "")
+            + (f". Note film names are lower-case: try '{film.lower()}'"
+               if film.lower() in FILM_PACK else ""))
+    expected = FILM_PACK[film]
     pack = load_pack(name)
 
     from cmp_sim.slurry.formulation import apply_overrides, to_overrides
     form = to_overrides(recipe.slurry)
     notes = list(form.notes)
     warnings = list(form.warnings)
+    # A mismatch is warned about, not refused: trying a tungsten slurry on
+    # copper is a legitimate screening experiment. But the pack's Kp was
+    # back-calculated on ITS film, so the absolute rate transfers to another
+    # film only by coincidence.
+    if getattr(recipe.wafer, "film_was_defaulted", False):
+        warnings.append(
+            f"wafer.film was not stated, so '{film}' was assumed. The film "
+            "selects the removal mechanism, the plausibility envelope and the "
+            "maturity grade, so this is a guess at the answer rather than a "
+            f"harmless default. State it explicitly: {sorted(FILM_PACK)}")
+    if name != expected:
+        warnings.append(
+            f"pack '{name}' is the reference pack for a different film "
+            f"(film '{film}' normally uses '{expected}'). The pack's Kp was "
+            f"back-calculated from a measurement on that other film, so the "
+            f"absolute rate here is not anchored to anything measured on "
+            f"'{film}' - treat it as a ranking between recipes. Supply "
+            f"measurements: to calibrate it to this film.")
     if form.overrides:
         pack, apply_notes = apply_overrides(pack, form.overrides)
         warnings.extend(apply_notes)

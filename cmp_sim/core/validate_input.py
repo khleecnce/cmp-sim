@@ -16,6 +16,7 @@ Refusing them would hide the fact that the model still produces a number there.
 """
 from __future__ import annotations
 
+import math
 from typing import List, Tuple
 
 from cmp_sim.core.state import Recipe
@@ -34,6 +35,48 @@ def check(recipe: Recipe) -> Tuple[List[str], List[str]]:
     warnings: List[str] = []
     t, w, s, p, d = (recipe.tool, recipe.wafer, recipe.slurry,
                      recipe.pad, recipe.disk)
+
+    # ── is it even a number? ─────────────────────────────────────────
+    # Every check below compares against zero, which raises an opaque
+    # TypeError on a string and silently succeeds on NaN (all comparisons
+    # with NaN are False, so a NaN pressure passed straight through to the
+    # contact solver and surfaced as "The function value at x=... is NaN").
+    # Both are caught here, where the message can name the field.
+    numeric_fields = (
+        ("tool.pressure_psi", getattr(t, "pressure_psi", None)),
+        ("tool.rpm_platen", getattr(t, "rpm_platen", None)),
+        ("tool.rpm_head", getattr(t, "rpm_head", None)),
+        ("tool.time_s", getattr(t, "time_s", None)),
+        ("tool.flow_ml_min", getattr(t, "flow_ml_min", None)),
+        ("tool.center_offset_m", getattr(t, "center_offset_m", None)),
+        ("slurry.ph", getattr(s, "ph", None)),
+        ("wafer.n_radial", getattr(w, "n_radial", None)),
+        ("wafer.diameter_mm", getattr(w, "diameter_mm", None)),
+        ("wafer.pattern_density", getattr(w, "pattern_density", None)),
+        ("pad.use_hours", getattr(p, "use_hours", None)),
+        ("disk.hours_used", getattr(d, "hours_used", None)),
+    )
+    for label, value in numeric_fields:
+        if value is None or isinstance(value, bool):
+            continue
+        if not isinstance(value, (int, float)):
+            errors.append(
+                f"{label} must be a number, got {type(value).__name__} "
+                f"{value!r}. A quantity given as text cannot be compared or "
+                "multiplied, and letting it through produces an error deep in "
+                "the solver that does not name the field.")
+        elif math.isnan(value):
+            errors.append(
+                f"{label} is NaN. Every comparison with NaN is false, so this "
+                "would pass all the range checks below and then surface as an "
+                "unintelligible failure inside the contact solver.")
+        elif math.isinf(value):
+            errors.append(
+                f"{label} is infinite ({value}). No physical quantity here can "
+                "be unbounded.")
+    if errors:
+        # Nothing further can be trusted once a field is not a finite number.
+        return errors, warnings
 
     # ── impossible ───────────────────────────────────────────────────
     if t.pressure_psi is None or t.pressure_psi <= 0:
