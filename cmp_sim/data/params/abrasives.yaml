@@ -489,7 +489,7 @@ abrasives:
         selectivity_note: "Inhibitor choice (BTA vs ammonium dodecyl sulfate) dominates planarization efficiency over abrasive choice in this system."
         source: "https://doi.org/10.1149/1.2717410"
         confidence: literature
-      w: &fumed_w
+      w:
         mechanism: "removes the WOx passivation layer; same chemistry-limited picture as silica on W"
         removal_mode: chemomechanical
         conc_exponent: {value: null, unit: dimensionless, source: null, confidence: unverified, note: "TODO(owner): not sourced; see colloidal_silica.film_effects.w for the sourced linear-with-loading-effect statement."}
