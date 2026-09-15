@@ -59,6 +59,8 @@ class ResolvedRecipe:
     used_keys: List[str] = field(default_factory=list)
     formulation_notes: List[str] = field(default_factory=list)
     formulation_warnings: List[str] = field(default_factory=list)
+    #: blanket rate [m/s], filled in once the rate layers have run (P6 needs it)
+    blanket_rate_m_per_s: Optional[float] = None
 
     # ── pack access ────────────────────────────────────────────
     def p(self, key: str) -> Any:
@@ -244,6 +246,89 @@ def _supply_diagnostic(rr: ResolvedRecipe) -> Dict[str, Any]:
             "supply_state": state, "mean_speed_m_s": mean_speed}
 
 
+def _defect_diagnostic(rr: ResolvedRecipe) -> Dict[str, Any]:
+    """P8 — scratch-risk index. Diagnostic only; never multiplied into MRR."""
+    from cmp_sim.models import defect_proxy as dp
+
+    risk = dp.evaluate(
+        d99_nm=rr.p_or("abrasive_d99_nm", None),
+        d99_ref_nm=rr.p_or("abrasive_ref_d99_nm", None),
+        exponent=rr.p_or("damage_exponent", None),
+        aggregate_ratio=rr.p_or("aggregate_ratio", None),
+        d50_nm=rr.p_or("abrasive_size_nm", None),
+        pad_hardness_pa=rr.p_or("pad_asperity_hardness_max_pa", None),
+        film_hardness_pa=rr.p_or("film_bulk_hardness_pa", None),
+        film=rr.recipe.wafer.film,
+    )
+    return {"name": "_defect", "value": None, "notes": risk.notes,
+            "warnings": risk.warnings, "defect": risk.as_dict()}
+
+
+def _pad_life_diagnostic(rr: ResolvedRecipe) -> Dict[str, Any]:
+    """P7 — pad glazing and conditioner ageing. Diagnostic only.
+
+    The drift is reported rather than applied to Kp: the inherited MRR proxy
+    peaks at ~7 min against a measured ~3 min, so using it as a multiplier
+    would claim a precision the data does not support.
+    """
+    from cmp_sim.pad import wear
+
+    pad, disk = rr.recipe.pad, rr.recipe.disk
+    if not (pad.use_hours or disk.hours_used):
+        return {}
+    state = wear.evaluate(
+        pressure_psi=rr.recipe.tool.pressure_psi,
+        polish_minutes=float(pad.use_hours) * 60.0,
+        disk_hours=float(disk.hours_used),
+        glazing_rate=rr.p_or("pad_glazing_rate", None),
+        conditioning_rate=rr.p_or("pad_conditioning_rate", None),
+    )
+    return {"name": "_pad_life", "value": None, "notes": state.notes,
+            "warnings": state.warnings, "pad_life": state.as_dict()}
+
+
+def _pattern_diagnostic(rr: ResolvedRecipe) -> Dict[str, Any]:
+    """P6 — dishing and erosion for a patterned wafer. Diagnostic only."""
+    from cmp_sim.models import pattern_density as pdm
+
+    w = rr.recipe.wafer
+    if w.pattern_density is None:
+        return {}
+    pl = rr.p_or("planarization_length_m", None)
+    if not pl:
+        return {"name": "_pattern", "value": None, "warnings": [
+            "a pattern density was given but this pack has no planarization "
+            "length, so pattern effects were NOT computed. The planarization "
+            "length is a pad/process property and is not guessed"]}
+
+    step0 = rr.p_or("initial_step_height_m", None)
+    if not step0:
+        return {"name": "_pattern", "value": None, "warnings": [
+            "a pattern density was given but no initial step height "
+            "(initial_step_height_m) is available, so step-height evolution "
+            "was NOT computed"]}
+
+    # Uniform density array across one die; a real layout map is a future input.
+    span = float(rr.p_or("die_size_m", 0.02))
+    x = np.linspace(0.0, span, 201)
+    rho = np.full_like(x, float(w.pattern_density))
+
+    res = pdm.evaluate(
+        blanket_rate_m_per_s=float(rr.blanket_rate_m_per_s or 0.0),
+        rho_local=rho, x_m=x, planarization_length_m=float(pl),
+        initial_step_m=float(step0), time_s=rr.recipe.tool.time_s,
+        rate_stop_m_per_s=rr.p_or("stop_layer_rate_m_per_s", None),
+        dishing_max_m=rr.p_or("dishing_max_m", None),
+        oxide_sensitivity_b=rr.p_or("oxide_dishing_sensitivity_b", None),
+        overpolish_time_s=float(rr.p_or("overpolish_time_s", 0.0)),
+    )
+    out = res.as_dict()
+    notes = out.pop("notes", [])
+    warnings = out.pop("warnings", [])
+    return {"name": "_pattern", "value": None, "notes": notes,
+            "warnings": warnings, "pattern": out}
+
+
 def _chemistry_hook(rr: ResolvedRecipe) -> Dict[str, Any]:
     """P4 — slurry chemistry through the softened-hardness channel."""
     if rr.recipe.model not in _WITH_CHEMISTRY:
@@ -272,7 +357,7 @@ def simulate(recipe: Recipe) -> Result:
 
     hooks = list(_FACTOR_HOOKS) + [_kappa_contact_hook, _abrasive_hook, _chemistry_hook]
     if recipe.model in _WITH_SUPPLY:
-        hooks.append(_supply_diagnostic)
+        hooks.extend([_supply_diagnostic, _defect_diagnostic, _pad_life_diagnostic])
 
     kp = rr.kp_base
     extras: Dict[str, Any] = {}
@@ -289,6 +374,10 @@ def simulate(recipe: Recipe) -> Result:
         if out.get("supply"):
             extras["slurry_supply"] = out["supply"]
             supply_state = out.get("supply_state")
+        for key in ("defect", "pad_life", "pattern"):
+            if out.get(key):
+                extras[{"defect": "defect_risk", "pad_life": "pad_life",
+                        "pattern": "pattern_effects"}[key]] = out[key]
         if out.get("value") is None:
             continue
         factors[out["name"]] = float(out["value"])
@@ -337,6 +426,15 @@ def simulate(recipe: Recipe) -> Result:
                 "remaining thickness clipped at 0; endpoint/stop-layer physics is P6"
             )
             remaining = np.clip(remaining, 0.0, None)
+
+    # P6 runs last: it needs the blanket rate the layers above just produced.
+    if recipe.model in _WITH_SUPPLY and recipe.wafer.pattern_density is not None:
+        rr.blanket_rate_m_per_s = mean_nm / 60.0 * 1e-9
+        pat = _pattern_diagnostic(rr) or {}
+        notes.extend(pat.get("notes", []))
+        warnings.extend(pat.get("warnings", []))
+        if pat.get("pattern"):
+            extras["pattern_effects"] = pat["pattern"]
 
     notes.append(f"pressure profile: {p_label}")
     notes.append(f"parameter pack: {' -> '.join(rr.pack.lineage)}")
