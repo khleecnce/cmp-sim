@@ -304,6 +304,37 @@ function render(r){
         ? card("Scratch risk", r.defect_risk.delta_risk_index, " &times;") : ""}
   </div>`;
 
+  if(r.cmp_maturity && r.cmp_maturity.grade !== "established"){
+    const m = r.cmp_maturity;
+    h += `<div class="err"><b>${m.grade.toUpperCase()} CMP target &mdash; ${m.film}</b>
+      <ul class="msgs">${(m.reasons||[]).map(x=>`<li class="n">${x}</li>`).join("")}</ul></div>`;
+  }
+  if(r.kp_estimate){
+    const e = r.kp_estimate;
+    const band = e.kp_range_m_per_pa;
+    h += `<h2>Preston coefficient &mdash; estimated, not measured</h2>
+      <table><tr><th>Kp</th><td class="num">${e.kp_m_per_pa.toExponential(2)} m/Pa</td></tr>
+      <tr><th>plausible band</th><td class="num">${band[0].toExponential(2)} &ndash; ${band[1].toExponential(2)}</td></tr>
+      <tr><th>uncertainty</th><td class="num">&times;/&divide; ${e.uncertainty_factor}</td></tr></table>
+      <div class="hint">${e.basis}</div>`;
+  }
+  if(r.calibration){
+    const c = r.calibration;
+    h += `<h2>Calibrated to your measurements</h2>
+      <table><tr><th>points</th><td class="num">${c.n_points}</td></tr>
+      <tr><th>fitted Kp</th><td class="num">${c.kp_m_per_pa.toExponential(3)} m/Pa</td></tr>
+      <tr><th>accuracy</th><td class="num">${c.accuracy_to_quote || "needs a 2nd point"}</td></tr>
+      ${c.pv_exponent!=null?`<tr><th>P&middot;V exponent</th><td class="num">${c.pv_exponent} <span class="hint">(Preston = 1.0)</span></td></tr>`:""}
+      </table>`;
+    if(c.residuals && c.residuals.length){
+      h += `<table><tr><th>condition</th><th>measured</th><th>predicted</th><th>error</th></tr>` +
+        c.residuals.map(x=>`<tr><td>${x.label}</td><td class="num">${x.measured_A_per_min}</td>
+          <td class="num">${x.predicted_A_per_min}</td><td class="num">${x.error_percent}%</td></tr>`).join("") +
+        `</table>`;
+    }
+    if(c.next_experiment) h += `<div class="hint"><b>Next experiment:</b> ${c.next_experiment}</div>`;
+  }
+
   if(r.situation){
     const s = r.situation;
     const axes = ["film_class","rate_limit","contact_branch","asperity_regime",

@@ -111,20 +111,30 @@ def test_a_load_beyond_the_contact_model_explains_itself_in_english():
 
 def test_a_pack_with_no_preston_coefficient_refuses_by_name():
     """A null Kp is how an unsourced value is honestly recorded, so it must not
-    surface as "float() argument must be ... not 'NoneType'"."""
+    surface as "float() argument must be ... not 'NoneType'".
+
+    With a hardness present the Archard estimator now carries the run, so this
+    checks the path where neither a Kp nor a hardness is available.
+    """
+    from cmp_sim.core.maturity import FilmNotEstablished
     from cmp_sim.core.params import ParamMissing
 
     r = _recipe()
     r.wafer.film = "snag"
     r.slurry.pack = None
-    with pytest.raises(ParamMissing) as exc:
+    r.slurry.ph = 6.5
+    r.params = {"film_bulk_hardness_pa": None}
+    # The maturity gate fires first for an unestablished film; both refusals
+    # must name the missing key rather than leaking a float() TypeError.
+    with pytest.raises((ParamMissing, FilmNotEstablished)) as exc:
         simulate(r)
     msg = str(exc.value)
     assert "snag" in msg, "the message does not say which film"
     assert "kp_m_per_pa" in msg, "the message does not name the missing value"
-    assert "not been sourced" in msg, (
+    assert ("not been sourced" in msg or "not an established CMP target" in msg), (
         "the message does not distinguish unsourced from zero")
-    assert "slurry.pack" in msg, "the message offers no way forward"
+    assert ("slurry.pack" in msg or "measurements" in msg), (
+        "the message offers no way forward")
 
 
 def test_low_flow_is_flagged_as_starvation():

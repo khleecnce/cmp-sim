@@ -13,19 +13,25 @@ from cmp_sim.core.state import Disk, Pad, Recipe, Slurry, Tool, Wafer
 
 
 def _snag(params=None):
+    # pH is supplied throughout: without it the maturity gate stops the run
+    # before Kp is ever consulted, which is a different behaviour tested in
+    # tests/test_maturity_and_calibration.py.
     return Recipe(
         model="auto",
         wafer=Wafer(film="snag", n_radial=11),
-        slurry=Slurry(pack="snag_solder"),
+        slurry=Slurry(pack="snag_solder", ph=6.5),
         pad=Pad(groove_width_mm=0.5, groove_pitch_mm=2.0, groove_depth_mm=0.75),
         disk=Disk(),
         tool=Tool(pressure_psi=1.5, rpm_platen=60.0, rpm_head=60.0, time_s=60.0),
         params=params or {})
 
 
-def test_without_an_owner_value_the_run_refuses():
-    with pytest.raises(ParamMissing):
-        simulate(_snag())
+def test_without_an_owner_value_the_rate_is_estimated_not_refused():
+    """With the pH supplied, the Archard estimate from hardness carries the run,
+    but the result must be labelled as an estimate rather than a measurement."""
+    r = simulate(_snag())
+    assert r.mean_rr_angstrom_per_min > 0
+    assert any("ESTIMATED from hardness" in w for w in r.warnings)
 
 
 def test_the_advice_in_that_error_actually_works():

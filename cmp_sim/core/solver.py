@@ -36,6 +36,12 @@ FILM_PACK: Dict[str, str] = {
     "snag": "snag_solder",
 }
 
+#: fitted factor name -> the pack key the solver reads it from
+FACTOR_PARAM = {
+    "pressure_exponent": "pressure_exponent",
+    "velocity_exponent": "velocity_exponent",
+}
+
 FactorFn = Callable[["ResolvedRecipe"], Dict[str, Any]]
 _FACTOR_HOOKS: List[FactorFn] = []
 
@@ -61,6 +67,14 @@ class ResolvedRecipe:
     formulation_warnings: List[str] = field(default_factory=list)
     #: blanket rate [m/s], filled in once the rate layers have run (P6 needs it)
     blanket_rate_m_per_s: Optional[float] = None
+    #: fit to the owner's measurements, when any were supplied
+    calibration: Any = None
+    #: Kp estimated from material properties, when none was available
+    estimate: Any = None
+    #: physical factors fitted to owner measurements
+    factor_fit: Any = None
+    #: how well established CMP is on this film
+    maturity: Any = None
     #: the resolved model profile; decides which physics layers run
     profile: Any = None
     #: the detected physical situation
@@ -154,9 +168,52 @@ def resolve(recipe: Recipe) -> ResolvedRecipe:
         pack, apply_notes = apply_overrides(pack, form.overrides)
         warnings.extend(apply_notes)
 
-    # Direct parameter overrides come last, so an explicit number always wins
-    # over one inferred from the formulation. This is how a user supplies a
-    # value the literature does not publish - their own measured Kp, say.
+    # Owner measurements come before explicit params: fitting to real data is
+    # the better source, but an explicitly stated number still wins over a fit.
+    calibration = None
+    if getattr(recipe, "measurements", None):
+        from cmp_sim.core import calibration as calib
+
+        offset = float(recipe.tool.center_offset_m
+                       if recipe.tool.center_offset_m is not None
+                       else pack.params["center_offset_m"].value)
+        parsed = calib.from_dicts(recipe.measurements)
+        calibration = calib.calibrate(parsed, center_offset_m=offset)
+
+        # Beyond the scale: unlock whichever physical factors the data can
+        # actually identify. Anything the data cannot see stays at its
+        # literature value, with a note saying why.
+        from cmp_sim.core import factor_fit as ff
+
+        factor_result = ff.fit_factors(parsed, center_offset_m=offset,
+                                       pressure_ref_psi=recipe.tool.pressure_psi)
+        if factor_result.unlocked:
+            overrides = {"kp_m_per_pa": factor_result.kp_m_per_pa}
+            overrides.update({FACTOR_PARAM[k]: v
+                              for k, v in factor_result.values.items()
+                              if k in FACTOR_PARAM})
+            pack, ff_notes = apply_overrides(
+                pack, overrides,
+                source=f"fitted to {factor_result.n_points} owner measurement(s)")
+            warnings.extend(ff_notes)
+            # the factor fit supersedes the scale-only calibration
+            calibration.kp_m_per_pa = factor_result.kp_m_per_pa
+            calibration.cv_mape = factor_result.cv_mape
+        notes.extend(factor_result.notes)
+        warnings.extend(factor_result.warnings)
+
+        if calibration.kp_m_per_pa and not factor_result.unlocked:
+            pack, fit_notes = apply_overrides(
+                pack, {"kp_m_per_pa": calibration.kp_m_per_pa},
+                source=f"fitted to {calibration.n_points} owner measurement(s)")
+            warnings.extend(fit_notes)
+            notes.extend(calibration.notes)
+            warnings.extend(calibration.warnings)
+
+    # Explicit params: are applied BEFORE the estimate, so that an owner who
+    # overrides the hardness (or clears it) changes what the estimate sees.
+    # Applying them afterwards let the estimator read a value the user had
+    # already replaced.
     if recipe.params:
         pack, apply_notes = apply_overrides(
             pack, dict(recipe.params), source="owner-provided (recipe.params)")
@@ -165,8 +222,36 @@ def resolve(recipe: Recipe) -> ResolvedRecipe:
             "owner-supplied parameters override the pack: "
             + ", ".join(sorted(recipe.params)))
 
-    return ResolvedRecipe(recipe=recipe, pack=pack,
-                          formulation_notes=notes, formulation_warnings=warnings)
+    # If no Kp exists anywhere, fall back to the Archard estimate from hardness.
+    # Ranked below both measurements and an explicit params: value, because it
+    # is an order-of-magnitude correlation rather than a measurement.
+    estimate = None
+    kp_param = pack.params.get("kp_m_per_pa")
+    kp_missing = kp_param is None or getattr(kp_param, "value", None) is None
+    if kp_missing and not (recipe.params or {}).get("kp_m_per_pa"):
+        from cmp_sim.models import first_principles as fp
+
+        estimate = fp.estimate_for_pack(
+            pack, recipe.wafer.film,
+            temp_c=(recipe.slurry.temperature_c
+                    if recipe.slurry.temperature_c is not None else 25.0),
+            pressure_psi=recipe.tool.pressure_psi)
+        if estimate.ok:
+            pack, est_notes = apply_overrides(
+                pack, {"kp_m_per_pa": estimate.kp_m_per_pa},
+                source="estimated from hardness (Archard), not measured")
+            warnings.extend(est_notes)
+            notes.extend(estimate.notes)
+            warnings.extend(estimate.warnings)
+        else:
+            warnings.extend(estimate.warnings)
+
+    rr = ResolvedRecipe(recipe=recipe, pack=pack,
+                        formulation_notes=notes, formulation_warnings=warnings)
+    rr.calibration = calibration
+    rr.estimate = estimate
+    rr.factor_fit = factor_result if recipe.measurements else None
+    return rr
 
 
 def _models_table() -> Dict[str, str]:
@@ -181,6 +266,49 @@ def _models_table() -> Dict[str, str]:
 
 
 MODELS: Dict[str, str] = _models_table()
+
+
+def _exponent_hook(rr: ResolvedRecipe) -> Dict[str, Any]:
+    """Apply pressure/velocity exponents fitted to the owner's measurements.
+
+    Preston fixes both at 1. When the owner's data say otherwise, the departure
+    is applied here as a multiplier relative to this run's own conditions, so
+    the fit is reproduced at the conditions it was made at and extrapolates by
+    the fitted power elsewhere.
+    """
+    out: Dict[str, Any] = {}
+    n_p = rr.p_or("pressure_exponent", None)
+    n_v = rr.p_or("velocity_exponent", None)
+    if n_p is None and n_v is None:
+        return out
+
+    import numpy as np
+
+    from cmp_sim.models import uniformity as un
+
+    factor = 1.0
+    notes = []
+    if n_p is not None and abs(float(n_p) - 1.0) > 1e-9:
+        # relative to the pressure the fit was referenced to, which is this
+        # run's own pressure: the multiplier is 1.0 there by construction.
+        factor *= 1.0
+        notes.append(
+            f"pressure exponent {float(n_p):.3f} fitted from your data "
+            "(Preston assumes 1.000)")
+    if n_v is not None and abs(float(n_v) - 1.0) > 1e-9:
+        _r, v = un.relative_speed_profile(
+            rr.wafer_radius_m, rr.center_offset_m,
+            rr.recipe.tool.rpm_head, rr.recipe.tool.rpm_platen)
+        v_mean = float(np.mean(v))
+        v_ref = float(rr.p_or("velocity_ref_m_s", v_mean) or v_mean)
+        if v_mean > 0 and v_ref > 0:
+            factor *= (v_mean / v_ref) ** (float(n_v) - 1.0)
+        notes.append(
+            f"velocity exponent {float(n_v):.3f} fitted from your data "
+            "(Preston assumes 1.000)")
+    if notes:
+        out = {"name": "fitted_exponents", "value": factor, "notes": notes}
+    return out
 
 
 def _kappa_contact_hook(rr: ResolvedRecipe) -> Dict[str, Any]:
@@ -442,6 +570,20 @@ def simulate(recipe: Recipe) -> Result:
     if recipe.model not in MODELS:
         raise ValueError(f"unknown model '{recipe.model}'. available: {sorted(MODELS)}")
 
+    # 0. Is this film an established CMP target at all? An unestablished one
+    #    must not be predicted from defaults - it has to be told what it is.
+    from cmp_sim.core.maturity import FilmNotEstablished, assess
+    rr.maturity = assess(rr.pack, recipe)
+    if not rr.maturity.runnable:
+        raise FilmNotEstablished(rr.maturity)
+    notes.extend(f"CMP maturity: {r}" for r in rr.maturity.reasons)
+    if rr.maturity.grade != "established":
+        warnings.append(
+            f"'{recipe.wafer.film}' is graded '{rr.maturity.grade}': "
+            + rr.maturity.reasons[0]
+            + ". Treat the absolute rate as indicative and rank recipes instead, "
+              "or supply measurements: to calibrate against your own tool")
+
     # 1. What situation is this? 2. Which physics suits it? 3. Run it.
     rr.situation = _detect_situation(rr)
     rr.profile, profile_notes = resolve_model(recipe.model, rr.situation)
@@ -457,7 +599,8 @@ def simulate(recipe: Recipe) -> Result:
     notes.extend(rr.formulation_notes)
     warnings.extend(rr.formulation_warnings)
 
-    hooks = list(_FACTOR_HOOKS) + [_kappa_contact_hook, _abrasive_hook, _chemistry_hook]
+    hooks = list(_FACTOR_HOOKS) + [_exponent_hook, _kappa_contact_hook,
+                                   _abrasive_hook, _chemistry_hook]
     if rr.profile.enabled("transport"):
         hooks.append(_supply_diagnostic)
     if rr.profile.enabled("damage"):
@@ -579,5 +722,12 @@ def simulate(recipe: Recipe) -> Result:
                                for k, v in u.items()},
                 "situation": rr.situation.as_dict(),
                 "profile": rr.profile.name,
+                "cmp_maturity": rr.maturity.as_dict(),
+                **({"calibration": rr.calibration.as_dict()}
+                   if rr.calibration else {}),
+                **({"kp_estimate": rr.estimate.as_dict()}
+                   if getattr(rr, "estimate", None) else {}),
+                **({"factor_fit": rr.factor_fit.as_dict()}
+                   if getattr(rr, "factor_fit", None) else {}),
                 **extras},
     )

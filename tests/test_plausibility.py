@@ -115,15 +115,24 @@ def test_an_example_with_no_published_value_refuses_and_explains_why(stem):
                           capture_output=True, text=True, cwd=str(ROOT))
     assert proc.returncode != 0, "it ran; the refusal is stale"
     combined = proc.stderr + proc.stdout
-    assert "ParamMissing" in combined
-    assert "kp_m_per_pa" in combined
-    assert "not been sourced" in combined
+    # Either gate is a correct refusal: the maturity gate fires when the film is
+    # graded unestablished, the missing-Kp gate when nothing can set the scale.
+    assert ("not an established CMP target" in combined
+            or "not been sourced" in combined)
+    assert "measurements" in combined, "the refusal does not say how to proceed"
 
 
 @pytest.mark.parametrize("stem", sorted(EXPECTED_TO_REFUSE))
 def test_such_an_example_runs_once_the_owner_supplies_the_value(stem):
     """The refusal must be a gap in the data, not a broken model."""
     recipe = load_config(str(ROOT / "examples" / f"{stem}.yaml"))
-    recipe.params = {"kp_m_per_pa": 2.0e-13}
+    recipe.slurry.ph = 6.5
+    recipe.measurements = [
+        {"rate_A_per_min": 3200, "pressure_psi": 1.0, "rpm_platen": 60},
+        {"rate_A_per_min": 6500, "pressure_psi": 2.0, "rpm_platen": 60},
+    ]
     result = simulate(recipe)
     assert result.mean_rr_angstrom_per_min > 0
+    assert result.extras["calibration"]["kp_m_per_pa"] > 0
+    # A real measurement must retire the hardness estimate entirely.
+    assert "kp_estimate" not in result.extras

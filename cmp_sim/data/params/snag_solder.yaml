@@ -73,6 +73,28 @@ description: "SnAg (tin-silver) solder microbump CMP for advanced packaging: har
 
 params:
 
+  cmp_maturity:
+    value: unestablished
+    unit: "-"
+    note: >
+      SnAg is NOT a routine CMP target, and this is a finding rather than a gap
+      in the search. The only primary CMP-on-Sn report ([DEP16], 300 mm CuNiSn
+      bumps) ELIMINATED both slurry windows it tried without qualifying a third:
+      alkaline pH 10-11 etched the tin away leaving only Ni3Sn4 intermetallic,
+      and acidic-neutral pH 5-7 scratched both the tin and the polymer. That is
+      consistent with tin being amphoteric - it dissolves as Sn2+ at low pH and
+      as stannate at high pH, with a passivating SnO/SnO2 window only in
+      between. Both [DEP16] and [INO21] conclude that fine-pitch tin bumps are
+      currently planarised by FLY-CUTTING (surface planer), not by CMP, which is
+      precisely why no CMP process data exist to fit.
+
+      The grading system may only LOWER a grade from what the evidence supports,
+      never raise it; documented process failures are evidence, so this
+      declaration is honoured. The effect is that the simulator refuses to
+      predict this film from defaults and asks for measurements instead.
+    source: "imec IWLPC/ESTC 2016 (d-nb.info/1214304923/34); Inoue 2021"
+    confidence: literature
+
   film:
     value: snag_solder
     note: >

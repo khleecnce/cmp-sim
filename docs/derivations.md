@@ -646,3 +646,107 @@ rate is not trustworthy while rankings are.
 Locked by `tests/test_chemically_limited_limit.py`, which also fails if the
 exemption ever goes stale — if P*V starts explaining the variance, the test
 demands the exemption be reconsidered rather than kept as a standing excuse.
+
+---
+
+## Films nobody polishes: grading, estimating, converging
+
+### The problem
+Not every film here is a routine polish step. Oxide and copper have decades of
+published process data; SnAg solder has none, because the packaging industry
+planarises fine-pitch tin bumps by fly-cutting rather than CMP, so the CMP
+numbers were never generated. Treating those two identically is how a simulator
+produces a confident number for a process nobody has demonstrated.
+
+### Grading (`core/maturity.py`)
+Films are graded **from their pack's own evidence**, not by declaration:
+
+* `established` — Kp measured, and the pack backtested against published P*V data.
+* `emerging` — Kp exists but was back-calculated from one published operating
+  point, with no independent dataset to check the predicted shape.
+* `unestablished` — no Kp at any operating point, or the literature records
+  attempts that failed.
+
+A pack may **lower** its own grade but never raise it. SnAg lowers itself,
+because documented process failures are evidence: the only primary CMP-on-Sn
+report eliminated alkaline pH 10-11 (etched the tin to bare Ni3Sn4) and
+acidic-neutral pH 5-7 (scratched tin and polymer) without qualifying a third.
+That is consistent with tin being amphoteric — it dissolves as Sn(2+) at low pH
+and as stannate at high pH, with a passivating SnO/SnO2 window only between.
+
+An unestablished film **refuses to run on defaults** and names what it needs: a
+rate anchor, the intended pH (the window itself is unknown for such a film), and
+the film hardness.
+
+### Estimating Kp from material properties (`models/first_principles.py`)
+Preston's law and Archard's wear law are the same statement. Archard gives worn
+volume per unit sliding distance as `V/L = k*W/H`; dividing by contact area
+turns load into pressure and sliding distance into velocity:
+
+    MRR = k*P*V/H     and Preston says MRR = Kp*P*V     =>     **Kp = k/H**
+
+Hardness carries the film identity; `k` is the dimensionless efficiency of the
+abrasive-pad-slurry system. Computed from this repository's own packs:
+
+| pack | Kp [m/Pa] | H [GPa] | k = Kp*H | tool class |
+|---|---:|---:|---:|---|
+| cu_h2o2_bta | 3.50e-13 | 1.2 | 4.2e-04 | device, 1-6 psi |
+| w_fe_oxidizer | 7.00e-14 | 12.0 | 8.4e-04 | device |
+| oxide_silica | 1.00e-13 | 9.0 | 9.0e-04 | device |
+| poly_si_alkaline | 1.07e-13 | 11.5 | 1.2e-03 | device |
+| sti_ceria | 2.20e-13 | 9.0 | 2.0e-03 | device |
+| si_substrate_alkaline | 6.91e-13 | 10.0 | 6.9e-03 | **wafer-maker, 0.6 psi** |
+| sic_ceria_h2o2 | 1.71e-15 | 26.0 | 4.5e-05 | **chemically limited** |
+
+Two exclusions, both forced by the data rather than chosen:
+
+* **SiC** — chemically rate-limited (rate varies 5.2x at identical P*V, R^2=0.09).
+* **Si substrate** — a different machine class; its k is the largest outlier at
+  5.2x the geometric mean of the others.
+
+**The improvement is modest, and the module says so.** Over the five device-CMP
+films the log-10 standard deviation falls from 0.284 (Kp alone) to 0.247 (k):
+a typical factor of 1.9x becomes 1.8x. Include the wafer-maker point and
+dividing by hardness is *actively worse* than not doing it (0.378 -> 0.415),
+which is exactly why tool class is part of the exclusion rule.
+
+So the physical argument for the 1/H form is far stronger than the statistical
+evidence from five points. The estimator earns its place by extrapolating in the
+right direction — a film three times softer should polish about three times
+faster — not by being accurate. A held-out check is in the tests: estimating
+copper from hardness alone lands inside the advertised band.
+
+Two physics caveats it raises rather than models:
+
+* **Creep.** Sn-3.5Ag sits at ~0.6 of its melting point at room temperature, so
+  it creeps while being polished. Archard assumes hardness is a fixed flow
+  stress; for a creeping solid the effective hardness falls with strain rate, so
+  the true rate is likely *higher* and dwell-time dependent.
+* **Smearing.** A soft, ductile film embeds abrasive instead of fracturing, which
+  no term here represents.
+
+### Converging on the owner's tool (`core/calibration.py`)
+Measured rates are fitted with `Kp = sum(pv*r)/sum(pv^2)`, and the accuracy is
+reported by **leave-one-out cross-validation** rather than in-sample error. The
+distinction is the point: a one-parameter fit passes exactly through a single
+point, so its in-sample error is 0% by construction and means nothing. With one
+measurement the module refuses to quote an accuracy at all.
+
+Measured on a synthetic tool 1.6x the pack's rate, predicting a held-out point:
+
+| measurements | error vs held-out truth | cross-validated MAPE |
+|---:|---:|---:|
+| 0 | -56.7% | — |
+| 1 | -0.8% | (refused) |
+| 2 | -2.0% | 1.5% |
+| 3 | -1.3% | 1.7% |
+| 4 | -1.2% | 0.9% |
+
+With three or more points spread across pressure and speed, the **P*V exponent**
+is fitted rather than assumed. Preston requires exactly 1; anything outside
+0.75-1.25 means a single Kp cannot describe the process, which is how the model
+detects for itself the same departure that makes the published copper dataset in
+this repository unfittable.
+
+Precedence throughout: **measurements > explicit `params:` > Archard estimate >
+pack default**, and every level is labelled in the provenance.

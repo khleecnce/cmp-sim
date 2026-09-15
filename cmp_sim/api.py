@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from cmp_sim.cli import recipe_from_dict
+from cmp_sim.core.maturity import FilmNotEstablished
 from cmp_sim.core.params import ParamMissing, available_packs
 from cmp_sim.core.solver import FILM_PACK, MODELS, simulate
 
@@ -187,6 +188,14 @@ class Handler(BaseHTTPRequestHandler):
             # A film with no parameter pack yet is a data gap, not a server
             # fault: 500 would send the user looking for a crash.
             return self._json(422, {"error": "PackMissing", "detail": str(exc)})
+        except FilmNotEstablished as exc:
+            # 400 would blame the request. The request is fine; the FIELD has
+            # no CMP data, and the response says what to supply.
+            return self._json(422, {
+                "error": "FilmNotEstablished",
+                "detail": str(exc),
+                "maturity": exc.maturity.as_dict(),
+            })
         except (ValueError, KeyError, TypeError) as exc:
             return self._json(400, {"error": type(exc).__name__, "detail": str(exc)})
         except Exception as exc:                   # pragma: no cover

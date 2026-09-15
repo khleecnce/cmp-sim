@@ -29,9 +29,29 @@ pad:
 disk:
   name: generic-diamond
 
-# Uncomment to supply your own measured Preston coefficient. It is recorded as
-# owner-provided in the result's provenance, so it can never be confused with a
-# value taken from the literature.
+# ── How to make this run ─────────────────────────────────────────────
+# Uncomment BOTH blocks below. The pH is required because for an unestablished
+# film the viable window is itself unknown: the only primary CMP-on-Sn report
+# eliminated alkaline (etched the tin) and acidic (scratched it) without
+# qualifying a third, so it cannot be defaulted.
+#
+# slurry.ph: 6.5
+#
+# Then give whatever rates you have measured. The model fits Kp to them and
+# reports a LEAVE-ONE-OUT cross-validated accuracy - each point predicted by a
+# fit that never saw it - so the number it quotes is an honest out-of-sample
+# error rather than the 0% a one-parameter fit always scores on its own data.
+#
+# One point sets the scale but permits no error estimate. Two give a first
+# estimate. Four or more, spread across pressure and speed, give a usable one
+# and test whether removal really is proportional to P*V on your tool.
+#
+# measurements:
+#   - {label: "lot A", rate_A_per_min: 3200, pressure_psi: 1.0, rpm_platen: 60}
+#   - {label: "lot A", rate_A_per_min: 6500, pressure_psi: 2.0, rpm_platen: 60}
+#   - {label: "lot B", rate_A_per_min: 4700, pressure_psi: 1.5, rpm_platen: 60}
+#
+# Alternatively, if you already know your Preston coefficient:
 # params:
 #   kp_m_per_pa: 2.0e-13
 

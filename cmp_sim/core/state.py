@@ -136,6 +136,12 @@ class Recipe:
     #: win over the pack and are reported in the provenance as owner-supplied,
     #: so they can never be mistaken for a sourced value.
     params: Dict[str, Any] = field(default_factory=dict)
+    #: Measured removal rates from the owner's own tool, each with the
+    #: conditions it was measured at:
+    #:     [{"rate_A_per_min": 1450, "pressure_psi": 3, "rpm_platen": 60}, ...]
+    #: The model fits itself to these and reports a cross-validated accuracy,
+    #: so more measurements make the prediction converge on the real tool.
+    measurements: List[Dict[str, Any]] = field(default_factory=list)
     meta: Dict[str, Any] = field(default_factory=dict)
 
 

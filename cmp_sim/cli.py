@@ -15,6 +15,7 @@ from typing import Any, Dict
 
 import yaml
 
+from cmp_sim.core.maturity import FilmNotEstablished
 from cmp_sim.core.params import ParamMissing, available_packs
 from cmp_sim.core.solver import MODELS, simulate
 from cmp_sim.core.state import (Abrasive, Additive, Disk, Pad, Recipe, Slurry,
@@ -49,6 +50,7 @@ def recipe_from_dict(cfg: Dict[str, Any]) -> Recipe:
         wafer=_build(Wafer, cfg.pop("wafer", {}) or {}),
         model=cfg.pop("model", "preston"),
         params=cfg.pop("params", {}) or {},
+        measurements=cfg.pop("measurements", []) or [],
         meta=cfg.pop("meta", {}) or {},
     )
 
@@ -66,6 +68,10 @@ def _cmd_run(args: argparse.Namespace) -> int:
     except ParamMissing as exc:
         print(f"ParamMissing: {exc}", file=sys.stderr)
         return 2
+    except FilmNotEstablished as exc:
+        # Not a crash: the model is telling the user what it needs.
+        print(str(exc), file=sys.stderr)
+        return 3
     payload = result.summary()
     if args.provenance:
         payload["provenance"] = result.provenance
