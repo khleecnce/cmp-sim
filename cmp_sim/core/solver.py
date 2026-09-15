@@ -61,6 +61,10 @@ class ResolvedRecipe:
     formulation_warnings: List[str] = field(default_factory=list)
     #: blanket rate [m/s], filled in once the rate layers have run (P6 needs it)
     blanket_rate_m_per_s: Optional[float] = None
+    #: the resolved model profile; decides which physics layers run
+    profile: Any = None
+    #: the detected physical situation
+    situation: Any = None
 
     # ── pack access ────────────────────────────────────────────
     def p(self, key: str) -> Any:
@@ -132,22 +136,23 @@ def resolve(recipe: Recipe) -> ResolvedRecipe:
                           formulation_notes=notes, formulation_warnings=warnings)
 
 
-MODELS: Dict[str, str] = {
-    "preston": "P1 Preston: MRR = Kp*P*V (nominal pressure, no contact mechanics)",
-    "gw_preston": "P1+P2 Preston with a Greenwood-Williamson pad contact factor",
-    "full": "P1-P4: Preston x GW contact x abrasive mechanics x slurry chemistry",
-}
+def _models_table() -> Dict[str, str]:
+    """Selectable models = profiles + the legacy aliases + auto."""
+    from cmp_sim.core.profiles import ALIASES, PROFILES
+    out = {name: p.description for name, p in PROFILES.items()}
+    out["auto"] = "pick the profile that fits the detected situation"
+    for alias, target in ALIASES.items():
+        out[alias] = (f"alias for '{target}'" if target
+                      else "resolved per situation (same as 'auto')")
+    return out
 
-#: models that switch on each physics layer
-_WITH_CONTACT = {"gw_preston", "full"}
-_WITH_ABRASIVE = {"full"}
-_WITH_CHEMISTRY = {"full"}
-_WITH_SUPPLY = {"full"}
+
+MODELS: Dict[str, str] = _models_table()
 
 
 def _kappa_contact_hook(rr: ResolvedRecipe) -> Dict[str, Any]:
     """P2 — pad contact mechanics."""
-    if rr.recipe.model not in _WITH_CONTACT:
+    if not rr.profile.enabled("contact"):
         return {}
     from cmp_sim.pad.material import contact_factor_for
     out = contact_factor_for(rr.recipe, rr)
@@ -157,7 +162,7 @@ def _kappa_contact_hook(rr: ResolvedRecipe) -> Dict[str, Any]:
 
 def _abrasive_hook(rr: ResolvedRecipe) -> Dict[str, Any]:
     """P3 — abrasive count / size / load mechanics."""
-    if rr.recipe.model not in _WITH_ABRASIVE:
+    if not rr.profile.enabled("abrasive"):
         return {}
     from cmp_sim.models import luo_dornfeld as ld
 
@@ -331,7 +336,7 @@ def _pattern_diagnostic(rr: ResolvedRecipe) -> Dict[str, Any]:
 
 def _chemistry_hook(rr: ResolvedRecipe) -> Dict[str, Any]:
     """P4 — slurry chemistry through the softened-hardness channel."""
-    if rr.recipe.model not in _WITH_CHEMISTRY:
+    if not rr.profile.enabled("chemistry"):
         return {}
     from cmp_sim.models.chemical_rate import chemical_factor
 
@@ -343,7 +348,32 @@ def _chemistry_hook(rr: ResolvedRecipe) -> Dict[str, Any]:
             "warnings": eff.warnings, "terms": eff.terms}
 
 
+def _detect_situation(rr: ResolvedRecipe):
+    """Classify the run BEFORE choosing physics.
+
+    Needs the pad contact state and the supply state, which are computed here
+    independently of whether their layers end up enabled — detection must not
+    depend on the choice it informs.
+    """
+    from cmp_sim.core.regime import detect
+
+    contact_state = supply_state = None
+    try:
+        from cmp_sim.pad.material import pad_state
+        contact_state, _n, _w = pad_state(rr.recipe.pad, rr)
+    except Exception:                                    # pragma: no cover
+        pass
+    try:
+        out = _supply_diagnostic(rr)
+        supply_state = out.get("supply_state")
+    except Exception:                                    # pragma: no cover
+        pass
+    return detect(rr, contact_state=contact_state, supply_state=supply_state)
+
+
 def simulate(recipe: Recipe) -> Result:
+    from cmp_sim.core.profiles import check as check_profile, resolve_model
+
     rr = resolve(recipe)
     notes: List[str] = []
     warnings: List[str] = []
@@ -352,12 +382,28 @@ def simulate(recipe: Recipe) -> Result:
     if recipe.model not in MODELS:
         raise ValueError(f"unknown model '{recipe.model}'. available: {sorted(MODELS)}")
 
+    # 1. What situation is this? 2. Which physics suits it? 3. Run it.
+    rr.situation = _detect_situation(rr)
+    rr.profile, profile_notes = resolve_model(recipe.model, rr.situation)
+    notes.extend(rr.situation.notes)
+    notes.extend(profile_notes)
+    notes.append(f"profile '{rr.profile.name}' layers: "
+                 + (", ".join(rr.profile.layers) or "none (Preston only)"))
+    warnings.extend(check_profile(rr.profile, rr.situation))
+    warnings.extend(rr.profile.caveats)
+    for item in rr.situation.undetermined:
+        warnings.append("undetermined — " + item)
+
     notes.extend(rr.formulation_notes)
     warnings.extend(rr.formulation_warnings)
 
     hooks = list(_FACTOR_HOOKS) + [_kappa_contact_hook, _abrasive_hook, _chemistry_hook]
-    if recipe.model in _WITH_SUPPLY:
-        hooks.extend([_supply_diagnostic, _defect_diagnostic, _pad_life_diagnostic])
+    if rr.profile.enabled("transport"):
+        hooks.append(_supply_diagnostic)
+    if rr.profile.enabled("damage"):
+        hooks.append(_defect_diagnostic)
+    if rr.profile.enabled("wear"):
+        hooks.append(_pad_life_diagnostic)
 
     kp = rr.kp_base
     extras: Dict[str, Any] = {}
@@ -428,7 +474,7 @@ def simulate(recipe: Recipe) -> Result:
             remaining = np.clip(remaining, 0.0, None)
 
     # P6 runs last: it needs the blanket rate the layers above just produced.
-    if recipe.model in _WITH_SUPPLY and recipe.wafer.pattern_density is not None:
+    if rr.profile.enabled("pattern") and recipe.wafer.pattern_density is not None:
         rr.blanket_rate_m_per_s = mean_nm / 60.0 * 1e-9
         pat = _pattern_diagnostic(rr) or {}
         notes.extend(pat.get("notes", []))
@@ -465,5 +511,8 @@ def simulate(recipe: Recipe) -> Result:
         provenance=rr.pack.provenance(rr.used_keys),
         notes=notes,
         warnings=warnings,
-        extras={"uniformity": {k: round(float(v), 4) for k, v in u.items()}, **extras},
+        extras={"uniformity": {k: round(float(v), 4) for k, v in u.items()},
+                "situation": rr.situation.as_dict(),
+                "profile": rr.profile.name,
+                **extras},
     )

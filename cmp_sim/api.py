@@ -28,12 +28,15 @@ DEFAULT_PORT = 8765
 
 
 def _meta() -> Dict[str, Any]:
+    from cmp_sim.core.profiles import LAYERS, PROFILES
     from cmp_sim.slurry.formulation import abrasive_database, additive_database
 
     additives = additive_database()
     abrasives = abrasive_database()
     return {
         "models": MODELS,
+        "profiles": {n: p.as_dict() for n, p in PROFILES.items()},
+        "layers": list(LAYERS),
         "packs": available_packs(),
         "films": sorted(FILM_PACK),
         "film_pack": FILM_PACK,

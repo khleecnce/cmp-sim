@@ -72,7 +72,11 @@ def _cmd_run(args: argparse.Namespace) -> int:
     if args.out:
         Path(args.out).write_text(text + "\n", encoding="utf-8")
         rr = payload["removal_rate_A_per_min"]
-        print(f"wrote {args.out}  (RR={rr} A/min, WIWNU={payload['wiwnu_percent']}%)")
+        sit = payload.get("situation", {})
+        print(f"wrote {args.out}  (RR={rr} A/min, "
+              f"WIWNU={payload['wiwnu_percent']}%, "
+              f"profile={payload.get('profile')}, "
+              f"situation={sit.get('film_class')}/{sit.get('rate_limit')}-limited)")
     else:
         print(text)
     return 0
@@ -85,8 +89,17 @@ def _cmd_packs(_args: argparse.Namespace) -> int:
 
 
 def _cmd_models(_args: argparse.Namespace) -> int:
-    for name, desc in sorted(MODELS.items()):
-        print(f"{name:12s} {desc}")
+    from cmp_sim.core.profiles import LAYERS, PROFILES
+    print("PROFILES — a bundle of physics layers chosen for a SITUATION, not a film\n")
+    print(f"{'name':24s} {'layers':56s} suits")
+    print("-" * 110)
+    for name, p in sorted(PROFILES.items()):
+        suits = "; ".join(f"{k}={'/'.join(v)}" for k, v in p.suits.items()) or "-"
+        print(f"{name:24s} {', '.join(p.layers) or '(none)':56s} {suits}")
+    print(f"\nlayers: {', '.join(LAYERS)}")
+    print("\nauto  — detect the situation and pick the profile that fits it")
+    print("aliases: preston -> preston_baseline, gw_preston -> mechanical_screening, "
+          "full -> auto")
     return 0
 
 
@@ -101,7 +114,8 @@ def build_parser() -> argparse.ArgumentParser:
     run.set_defaults(func=_cmd_run)
 
     sub.add_parser("packs", help="list available parameter packs").set_defaults(func=_cmd_packs)
-    sub.add_parser("models", help="list available models").set_defaults(func=_cmd_models)
+    sub.add_parser("models", help="list models/profiles").set_defaults(func=_cmd_models)
+    sub.add_parser("profiles", help="alias for 'models'").set_defaults(func=_cmd_models)
     return ap
 
 

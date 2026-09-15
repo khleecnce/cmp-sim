@@ -91,7 +91,10 @@ def test_pressure_linearity_survives_the_contact_layer_below_saturation():
     with the contact factor on. Checked on a stiff pad, which stays unsaturated."""
     a = _rate(2.0, shore_d=60.0)
     b = _rate(4.0, shore_d=60.0)
-    assert not any("saturation" in w for w in a.warnings + b.warnings)
+    # "summits in contact" is the saturation warning; the situation report also
+    # mentions saturation as a metric, which is not a failure signal.
+    assert not any("summits in contact" in w for w in a.warnings + b.warnings)
+    assert a.extras["situation"]["load_regime"] == "unsaturated"
     assert b.mean_rr_nm_per_min == pytest.approx(2.0 * a.mean_rr_nm_per_min, rel=1e-6)
 
 

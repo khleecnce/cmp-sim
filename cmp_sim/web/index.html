@@ -139,9 +139,12 @@
       <input id="zones" placeholder="e.g. 2.5, 3.0, 4.0"/></label>
   </fieldset>
 
-  <fieldset><legend>Model</legend>
+  <fieldset><legend>Model profile</legend>
     <label><select id="model"></select></label>
     <div class="hint" id="modeldesc"></div>
+    <div class="hint">A profile bundles physics layers for a <b>situation</b>,
+      not for a film. <b>auto</b> detects the situation and picks for you; the
+      result shows what it detected and warns if your choice does not fit.</div>
   </fieldset>
 
   <button id="run">Simulate</button>
@@ -171,8 +174,9 @@ async function boot(){
   opts("add1", META.additives, "(none)");
   opts("add2", META.additives, "(none)");
   const m = $("model"); m.innerHTML = "";
-  Object.entries(META.models).forEach(([k,v]) => m.appendChild(new Option(k, k)));
-  m.value = "full";
+  const order = ["auto"].concat(Object.keys(META.models).filter(k => k !== "auto"));
+  order.forEach(k => m.appendChild(new Option(k, k)));
+  m.value = "auto";
   const desc = () => $("modeldesc").textContent = META.models[m.value] || "";
   m.onchange = desc; desc();
 }
@@ -273,6 +277,25 @@ function render(r){
     ${r.defect_risk && r.defect_risk.active
         ? card("Scratch risk", r.defect_risk.delta_risk_index, " &times;") : ""}
   </div>`;
+
+  if(r.situation){
+    const s = r.situation;
+    const axes = ["film_class","rate_limit","contact_branch","asperity_regime",
+                  "load_regime","lubrication","topography","pad_state"];
+    h += `<h2>Detected situation &rarr; profile <code>${r.profile||""}</code></h2>
+      <table><tr>${axes.map(a=>`<th>${a.replace(/_/g," ")}</th>`).join("")}</tr>
+      <tr>${axes.map(a=>{
+        const v = s[a] || "?";
+        const dim = (v==="unknown"||v==="?") ? ' style="color:var(--muted)"' : "";
+        return `<td${dim}>${v}</td>`;
+      }).join("")}</tr></table>`;
+    if((s.undetermined||[]).length){
+      h += `<details><summary>${s.undetermined.length} axis/axes could not be
+        determined from the available data</summary>
+        <ul class="msgs">${s.undetermined.map(u=>`<li class="n">${u}</li>`).join("")}</ul>
+        </details>`;
+    }
+  }
 
   h += `<h2>Radial profile</h2>${chart(r.radial_profile)}`;
 

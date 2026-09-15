@@ -463,3 +463,89 @@ it caught three real bugs:
 
 The lesson generalises: a pipeline that runs without error is not a pipeline
 that is right. Check the output against what the physical world is known to do.
+
+---
+
+## Model selection — situation, not film
+
+### The problem with keying models to films
+The first design exposed a ladder: `preston -> gw_preston -> full`. It bundles
+choices that are physically independent, and it embeds two false assumptions.
+
+**False assumption 1: more physics is always better.** Enabling the chemistry
+layer on a pack whose Kp was *calibrated with that chemistry present* double
+counts it. Applying the Greenwood-Williamson correction against a guessed
+reference pad inflates every rate by 2-3x (this actually happened; see the
+contact-factor note above).
+
+**False assumption 2: the film picks the model.** It does not. The appropriate
+model is set by the *regime*, and the regime is a property of the whole
+operating point:
+
+- SiC and sapphire are different films in the **same** regime — hard, inert,
+  chemically rate-limited. Both need the chemical path and neither is described
+  by a P*V law.
+- Copper at 1.5 psi and copper at 4 psi are the **same** film in different
+  regimes. US 6,918,821 B2 exists precisely because the low-pressure branch
+  does not behave like the high-pressure one.
+- Any film on a saturated pad leaves the regime where Preston's linearity is
+  derivable, regardless of what it is made of.
+
+### What replaced it
+Two modules, `core/regime.py` and `core/profiles.py`.
+
+`regime.detect()` classifies a resolved recipe along eight axes, all computed
+from quantities already in the model:
+
+| axis | derived from | boundary |
+|---|---|---|
+| `contact_branch` | particle contact stress / softened surface hardness | elastic <= 0.5, plastic >= 1.0 |
+| `asperity_regime` | plasticity index psi = (E*/H) sqrt(sigma/R) | plastic above 1.0 (Greenwood-Williamson 1966) |
+| `load_regime` | fraction of summits in contact | saturated above 0.50 |
+| `lubrication` | lambda = h_film / roughness | boundary < 1, full film > 3 (Bhushan) |
+| `film_class` | material family, then hardness within it | soft metal < 2 GPa; hard ceramic >= 15 GPa |
+| `rate_limit` | film class + whether reactive species are present | - |
+| `topography` | pattern density given or not | - |
+| `pad_state` | pad or conditioner hours given | - |
+
+**Family before hardness.** Classifying by hardness alone puts tungsten
+(~4-7 GPa) and thermal oxide (~7-9 GPa) in the same bin, yet W removes by
+oxidise-then-abrade and oxide by hydrolyse-then-abrade. The material family
+therefore decides the class, and hardness only splits soft from hard *within*
+a family. A pack may state `material_family` explicitly; otherwise it comes
+from the film name.
+
+An axis that cannot be computed is reported in `undetermined`, never defaulted.
+`contact_branch` is the common case: it needs the softened surface hardness,
+which is rarely published, and silently assuming the elastic branch would fix
+the sign of the particle-size exponent in P3 without the user ever knowing.
+
+### Profiles
+A profile is a named bundle of the seven orthogonal layers (`contact`,
+`abrasive`, `chemistry`, `transport`, `pattern`, `wear`, `damage`) together
+with a declaration of the situations it suits. `recommend()` scores each
+profile against a detected situation (+1 per matching axis, -2 per mismatch);
+`check()` warns when the chosen profile does not fit what the run actually is.
+
+`auto` detects and picks. An explicitly named profile is **respected as given**
+— the simulator warns but does not substitute, because the user asked for that
+physics on purpose.
+
+**Overlays.** `wear` and `pattern` describe extra circumstances rather than a
+different theory of removal, so they are added to whichever profile fits
+instead of competing with it. Without this, a worn patterned copper wafer would
+have to choose between modelling copper and modelling pad wear — the earlier
+ranking did exactly that, selecting `pad_life_study` for a copper run and
+thereby dropping the plastic contact branch.
+
+### Regime-independent warnings
+Some mismatches matter whatever profile is chosen, so they are checked
+separately: summit saturation (Preston linearity gone), plastic asperities
+(elastic GW outside its validity range), a full hydrodynamic film (abrasives
+cannot reach the wafer, so any predicted removal is meaningless), chemistry
+off on a chemically limited system, pattern off on a patterned wafer, and wear
+off when pad hours were supplied.
+
+### Backward compatibility
+`preston`, `gw_preston` and `full` still work. `full` now means "the profile
+that suits this run", which is what it was always trying to approximate.
