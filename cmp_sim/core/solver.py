@@ -112,7 +112,20 @@ def resolve(recipe: Recipe) -> ResolvedRecipe:
     return ResolvedRecipe(recipe=recipe, pack=load_pack(name))
 
 
-MODELS: Dict[str, str] = {"preston": "P1 Preston: MRR = Kp*P*V"}
+MODELS: Dict[str, str] = {
+    "preston": "P1 Preston: MRR = Kp*P*V (nominal pressure, no contact mechanics)",
+    "gw_preston": "P1+P2 Preston with a Greenwood-Williamson pad contact factor",
+}
+
+
+def _kappa_contact_hook(rr: ResolvedRecipe) -> Dict[str, Any]:
+    """P2 hook — only active for the ``gw_preston`` model."""
+    if rr.recipe.model != "gw_preston":
+        return {}
+    from cmp_sim.pad.material import contact_factor_for
+    out = contact_factor_for(rr.recipe, rr)
+    out.pop("state", None)
+    return out
 
 
 def simulate(recipe: Recipe) -> Result:
@@ -124,8 +137,9 @@ def simulate(recipe: Recipe) -> Result:
     if recipe.model not in MODELS:
         raise ValueError(f"unknown model '{recipe.model}'. available: {sorted(MODELS)}")
 
+    hooks = list(_FACTOR_HOOKS) + [_kappa_contact_hook]
     kp = rr.kp_base
-    for hook in _FACTOR_HOOKS:
+    for hook in hooks:
         out = hook(rr) or {}
         if out.get("value") is None:
             continue
