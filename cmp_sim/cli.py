@@ -48,6 +48,7 @@ def recipe_from_dict(cfg: Dict[str, Any]) -> Recipe:
         tool=_build(Tool, cfg.pop("tool", {}) or {}),
         wafer=_build(Wafer, cfg.pop("wafer", {}) or {}),
         model=cfg.pop("model", "preston"),
+        params=cfg.pop("params", {}) or {},
         meta=cfg.pop("meta", {}) or {},
     )
 

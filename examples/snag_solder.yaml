@@ -1,0 +1,43 @@
+# SnAg solder microbump planarization (advanced packaging / hybrid bonding).
+#
+# THIS EXAMPLE IS EXPECTED TO REFUSE TO RUN, and that is the point.
+#
+# The pack carries 68 sourced numbers - SnAg nanohardness, tin electrochemistry,
+# abrasive properties - but no Preston coefficient, because no primary source
+# publishes a SnAg or pure-Sn CMP removal rate together with the pressure and
+# velocity it was measured at. There is nothing to divide.
+#
+# Running it produces a ParamMissing naming the film, the missing key and the
+# way forward, rather than a number invented to fill the gap. Supply your own
+# Kp in a pack override and the rest of the model works.
+model: auto
+
+wafer:
+  film: snag
+  diameter_mm: 300
+  n_radial: 81
+
+slurry:
+  pack: snag_solder
+
+pad:
+  name: IC1000
+  groove_width_mm: 0.5
+  groove_pitch_mm: 2.0
+  groove_depth_mm: 0.75
+
+disk:
+  name: generic-diamond
+
+# Uncomment to supply your own measured Preston coefficient. It is recorded as
+# owner-provided in the result's provenance, so it can never be confused with a
+# value taken from the literature.
+# params:
+#   kp_m_per_pa: 2.0e-13
+
+tool:
+  pressure_psi: 1.5         # solder is soft; packaging CMP runs gentle
+  rpm_platen: 60
+  rpm_head: 60
+  flow_ml_min: 200
+  time_s: 60

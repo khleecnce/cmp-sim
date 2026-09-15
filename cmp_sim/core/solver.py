@@ -153,6 +153,18 @@ def resolve(recipe: Recipe) -> ResolvedRecipe:
     if form.overrides:
         pack, apply_notes = apply_overrides(pack, form.overrides)
         warnings.extend(apply_notes)
+
+    # Direct parameter overrides come last, so an explicit number always wins
+    # over one inferred from the formulation. This is how a user supplies a
+    # value the literature does not publish - their own measured Kp, say.
+    if recipe.params:
+        pack, apply_notes = apply_overrides(
+            pack, dict(recipe.params), source="owner-provided (recipe.params)")
+        warnings.extend(apply_notes)
+        notes.append(
+            "owner-supplied parameters override the pack: "
+            + ", ".join(sorted(recipe.params)))
+
     return ResolvedRecipe(recipe=recipe, pack=pack,
                           formulation_notes=notes, formulation_warnings=warnings)
 

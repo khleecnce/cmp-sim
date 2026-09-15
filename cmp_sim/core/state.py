@@ -130,6 +130,12 @@ class Recipe:
     tool: Tool = field(default_factory=Tool)
     wafer: Wafer = field(default_factory=Wafer)
     model: str = "preston"
+    #: Direct parameter-pack overrides, e.g. ``{"kp_m_per_pa": 2.0e-13}``.
+    #: This is how a user supplies a number the literature does not publish --
+    #: their own measured Preston coefficient, for instance. Values set here
+    #: win over the pack and are reported in the provenance as owner-supplied,
+    #: so they can never be mistaken for a sourced value.
+    params: Dict[str, Any] = field(default_factory=dict)
     meta: Dict[str, Any] = field(default_factory=dict)
 
 
