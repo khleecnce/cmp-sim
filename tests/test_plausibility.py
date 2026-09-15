@@ -78,8 +78,16 @@ def test_contact_factor_cannot_silently_inflate_every_rate():
     assert reference_pad_is_trustworthy(rr2)
 
 
+# Examples that are SUPPOSED to refuse, because the literature has no value to
+# run them with. They are shipped so the refusal itself is demonstrable and
+# tested, not to be quietly skipped.
+EXPECTED_TO_REFUSE = {"snag_solder"}
+
+RUNNABLE = [p for p in EXAMPLES if p.stem not in EXPECTED_TO_REFUSE]
+
+
 # ── every shipped example must be plausible ──────────────────────────
-@pytest.mark.parametrize("path", EXAMPLES, ids=lambda p: p.stem)
+@pytest.mark.parametrize("path", RUNNABLE, ids=lambda p: p.stem)
 def test_every_example_runs_and_is_plausible(path):
     result = simulate(load_config(str(path)))
     implausible = [w for w in result.warnings if "IMPLAUSIBLE" in w]
@@ -87,7 +95,7 @@ def test_every_example_runs_and_is_plausible(path):
     assert result.mean_rr_angstrom_per_min > 0
 
 
-@pytest.mark.parametrize("path", EXAMPLES, ids=lambda p: p.stem)
+@pytest.mark.parametrize("path", RUNNABLE, ids=lambda p: p.stem)
 def test_every_example_runs_through_the_cli(path):
     proc = subprocess.run([sys.executable, "-m", "cmp_sim.cli", "run", str(path)],
                           capture_output=True, text=True, cwd=str(ROOT))
@@ -95,3 +103,27 @@ def test_every_example_runs_through_the_cli(path):
     payload = json.loads(proc.stdout)
     assert payload["removal_rate_A_per_min"] > 0
     assert payload["radial_profile"]["radius_mm"]
+
+
+@pytest.mark.parametrize("stem", sorted(EXPECTED_TO_REFUSE))
+def test_an_example_with_no_published_value_refuses_and_explains_why(stem):
+    """It must fail for the documented reason, with a non-zero exit code and a
+    message naming the missing parameter — not crash, and not invent a number."""
+    path = ROOT / "examples" / f"{stem}.yaml"
+    assert path.exists(), f"{stem} is listed as expected-to-refuse but is missing"
+    proc = subprocess.run([sys.executable, "-m", "cmp_sim.cli", "run", str(path)],
+                          capture_output=True, text=True, cwd=str(ROOT))
+    assert proc.returncode != 0, "it ran; the refusal is stale"
+    combined = proc.stderr + proc.stdout
+    assert "ParamMissing" in combined
+    assert "kp_m_per_pa" in combined
+    assert "not been sourced" in combined
+
+
+@pytest.mark.parametrize("stem", sorted(EXPECTED_TO_REFUSE))
+def test_such_an_example_runs_once_the_owner_supplies_the_value(stem):
+    """The refusal must be a gap in the data, not a broken model."""
+    recipe = load_config(str(ROOT / "examples" / f"{stem}.yaml"))
+    recipe.params = {"kp_m_per_pa": 2.0e-13}
+    result = simulate(recipe)
+    assert result.mean_rr_angstrom_per_min > 0
