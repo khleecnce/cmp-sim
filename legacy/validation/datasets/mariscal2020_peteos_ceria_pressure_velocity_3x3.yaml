@@ -1,0 +1,137 @@
+# PETEOS 산화막(200mm blanket) 세리아 CMP — 압력 3수준 × 슬라이딩속도 3수준 완전요인 9조건
+#
+# ⭐ 우리가 가진 최초의 "실리콘 웨이퍼 반도체 산화막" 백테스트 데이터다.
+#    기존 5개 데이터셋은 전부 초경합금·Mo·SiC·석영유리(in_scope: false)였다.
+
+source: >
+  J. C. Mariscal, J. McAllister, Y. Sampurno, J. Sierra Suarez, M. O'Neill, H. Zhou,
+  M. Grief, D. Slutz, A. Philipossian, "Tribological, Thermal and Kinetic Characterization
+  of SiO2 and Si3N4 Polishing for STI CMP on Blanket and Patterned Wafers",
+  ECS J. Solid State Sci. Technol. 9, 044008 (2020). doi:10.1149/2162-8777/ab89bc
+  (오픈액세스 — ECS/IOP. PDF 확보 후 papers/에만 보관, 커밋하지 않음)
+  수치 출처: Figure 5 "SiO2 wafer polishing—RR vs COF × P × v".
+  본문에 표로 인쇄된 조건 정의(2/3/4 PSI × 0.75/1.25/1.75 m/s, 각 1분 폴리싱)와
+  Figure 5의 9개 마커를 대응시켰다.
+
+in_scope: true
+used_for_calibration: false
+pack: sti_ceria
+
+# ── 판독 방법과 그 정확도 검증 ────────────────────────────────────────────
+# Figure 5는 래스터 이미지가 아니라 PDF 벡터 그래픽이라, 마커 중심 좌표와 축
+# 눈금 좌표를 PDF에서 직접 읽어 선형사상했다(눈으로 찍은 값이 아니다).
+# ⭐ 자기검증: 본문이 "A measured RR of 2,528 Å min−1 on PETEOS-based SiO2
+#    blanket wafers"(3 PSI, 1.25 m/s)라고 인쇄해 두었는데, 같은 조건을 이 방법으로
+#    읽으니 2,529 Å/min이 나왔다 — 오차 0.04%. 판독 절차가 검증된 셈이다.
+#    그래도 인쇄된 표에서 옮긴 것이 아니므로 read_method는 정직하게 digitized로 둔다.
+#
+# ── 단위 환산 ──────────────────────────────────────────────────────────
+#   원문 Å/min ÷ 10 → nm/min. 원문값은 measured_mrr_angstrom_per_min에 함께 남긴다.
+#   슬라이딩속도 v[m/s] → rpm 환산: rpm = v·60/(2π·r_cc), r_cc = 0.180 m
+#   (base.yaml center_offset_m 기본값). 헤드/플래튼 rpm을 같게 두면 운동학상
+#   웨이퍼 전면 상대속도가 v로 균일해진다(kinematics.py Lai Eq.2.12).
+#   ⚠ 실제 장비(Araca APD-800)의 헤드/플래튼 rpm 조합은 논문에 없다. 논문이 준 것은
+#     슬라이딩속도뿐이므로 그것을 재현하는 등속 조합을 썼다.
+
+conditions:
+  # ── v = 0.75 m/s (Fig.5 파란 계열) ──
+  - label: "P=2psi, v=0.75 m/s"
+    pressure_psi: 2.0
+    rpm_wafer: 39.79
+    rpm_platen: 39.79
+    mrr_nm_per_min: 69.8
+    measured_mrr_angstrom_per_min: 698
+    read_method: digitized
+  - label: "P=3psi, v=0.75 m/s"
+    pressure_psi: 3.0
+    rpm_wafer: 39.79
+    rpm_platen: 39.79
+    mrr_nm_per_min: 140.4
+    measured_mrr_angstrom_per_min: 1404
+    read_method: digitized
+  - label: "P=4psi, v=0.75 m/s"
+    pressure_psi: 4.0
+    rpm_wafer: 39.79
+    rpm_platen: 39.79
+    mrr_nm_per_min: 206.4
+    measured_mrr_angstrom_per_min: 2064
+    read_method: digitized
+
+  # ── v = 1.25 m/s (Fig.5 빨강 계열) ──
+  - label: "P=2psi, v=1.25 m/s"
+    pressure_psi: 2.0
+    rpm_wafer: 66.31
+    rpm_platen: 66.31
+    mrr_nm_per_min: 155.8
+    measured_mrr_angstrom_per_min: 1558
+    read_method: digitized
+  - label: "P=3psi, v=1.25 m/s (본문 인쇄값 2,528 Å/min과 대조 확인)"
+    pressure_psi: 3.0
+    rpm_wafer: 66.31
+    rpm_platen: 66.31
+    mrr_nm_per_min: 252.9
+    measured_mrr_angstrom_per_min: 2529
+    read_method: digitized
+  - label: "P=4psi, v=1.25 m/s"
+    pressure_psi: 4.0
+    rpm_wafer: 66.31
+    rpm_platen: 66.31
+    mrr_nm_per_min: 307.9
+    measured_mrr_angstrom_per_min: 3079
+    read_method: digitized
+
+  # ── v = 1.75 m/s (Fig.5 초록 계열) ──
+  - label: "P=2psi, v=1.75 m/s"
+    pressure_psi: 2.0
+    rpm_wafer: 92.84
+    rpm_platen: 92.84
+    mrr_nm_per_min: 171.8
+    measured_mrr_angstrom_per_min: 1718
+    read_method: digitized
+  - label: "P=3psi, v=1.75 m/s"
+    pressure_psi: 3.0
+    rpm_wafer: 92.84
+    rpm_platen: 92.84
+    mrr_nm_per_min: 283.8
+    measured_mrr_angstrom_per_min: 2838
+    read_method: digitized
+  - label: "P=4psi, v=1.75 m/s"
+    pressure_psi: 4.0
+    rpm_wafer: 92.84
+    rpm_platen: 92.84
+    mrr_nm_per_min: 346.3
+    measured_mrr_angstrom_per_min: 3463
+    read_method: digitized
+
+notes: >
+  변수: 압력(2/3/4 psi)과 슬라이딩속도(0.75/1.25/1.75 m/s)뿐. 조성은 전 조건 고정
+  (단일 상용 콜로이달 세리아 슬러리, 조성비 비공개)이므로 overrides를 두지 않았다.
+  이 데이터셋이 시험하는 것은 화학층이 아니라 **기계층(Preston 압력·속도 축)**이다.
+
+  DOE인가 양산인가: 명백한 DOE다. 200mm blanket PETEOS 웨이퍼를 조건마다 새로 1분씩
+  연마한 완전요인 실험이고, 압력·속도는 실험자가 독립적으로 설정한 값이다.
+  폐루프 제어된 양산 데이터가 아니므로 상관계수가 물리를 반증할 수 있다.
+
+  ⚠ 모델이 다루지 못하는 것: 논문 결론은 이 계가 **non-Prestonian**이라는 것이다.
+  Langmuir-Hinshelwood 화학/기계 직렬모델을 맞춰 k1/k2 = 6.3~142.2를 얻었고, RR이
+  COF×P×v에 대해 곡률을 가지며 P×v ≈ 2,000 Pa·m/s 부근에 인큐베이션(RR=0) 절편이
+  있다고 보고했다. 우리 엔진은 P·v 선형(Preston 기반 GW 보정)이므로 저(P×v) 구간을
+  과대예측할 소지가 있다. 절대값 대조가 아니라 순위 대조로만 읽어야 한다.
+
+  ⚠ 팩 선택: 슬러리가 세리아이므로 sti_ceria 팩을 썼다. 이 팩의 kp(2.2e-13)는
+  confidence: estimated이고 slurry_ph 기본값 5.5는 이 논문 슬러리의 pH와 무관하다
+  (논문은 pH를 공개하지 않았다). 따라서 계통 배율 편향이 크게 날 수 있고, 그것은
+  이 데이터셋으로 판정할 수 없는 항이다.
+
+  ✅ 실행 결과(ρ=+0.967, τ=+0.889, 쌍적중 94.4%): 9조건 예측이 **전부 서로 다르고**
+  동점이 없다. 압력·rpm은 엔진에 실제로 연결돼 있으므로 이 지표는 부분동점으로
+  부풀려진 것이 아니다 — 우리가 가진 in-scope 데이터셋 중 유일하게 그렇다.
+  틀린 쌍은 1쌍뿐이다: 실측은 (2psi,1.75)=171.8 > (3psi,0.75)=140.4 인데
+  예측은 16.34 < 24.52로 뒤집혔다. 논문이 말한 non-Prestonian 거동(저 P×v 인큐베이션)
+  때문에 저압·고속 조건의 실측이 Preston 예상보다 높게 나온 자리다.
+  ⚠ 계통 편향 13.19배(예측이 실측의 1/13). sti_ceria의 kp=2.2e-13(estimated)이
+  이 계에 맞지 않는다는 뜻이며, 순위와 무관하게 절대값은 못 쓴다.
+
+  ⚠ r_cc 가정: 슬라이딩속도→rpm 환산에 base.yaml의 r_cc=0.180 m를 썼다. 실제 APD-800의
+  r_cc는 논문에 없다. r_cc가 다르면 rpm 절대값이 달라지지만 세 속도의 **비율**은
+  보존되므로 순위 지표에는 영향이 없다.

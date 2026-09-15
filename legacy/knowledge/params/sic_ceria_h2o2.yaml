@@ -1,0 +1,313 @@
+# 4H-SiC CMP — 세리아/H2O2 알칼리 슬러리 (실측 DOE 기반)
+#
+# ⚠ 이 팩은 **Si 반도체용이 아니다.** 4H-SiC 웨이퍼 전용이다.
+#   Si 산화막/Cu/W 공정에 이 값을 쓰면 안 된다.
+#
+# 왜 만들었나 (2026-09-08):
+#   Wang et al. ACS SI Table S3의 50조건 완전 DOE가, 우리가 확보한 데이터 중
+#   조성(CeO2·H2O2·pH)과 압력·rpm이 모두 절대값으로 있는 **유일한** 것이다.
+#   기존 sti_ceria 팩에는 pH 파라미터가 없어 화학층의 pH 항이 통째로 꺼져
+#   있었는데(chemistry.py `_ph_softening_term`이 파라미터 부재 시 스킵),
+#   실측에서 pH가 **가장 강한 인자(rho=+0.520)**로 나왔다.
+#   그래서 이 데이터로 계수를 역산해 pH 항을 처음으로 켠다.
+#
+# 실측 역산 근거 (같은 조성·압력·rpm에서 pH만 다른 9개 조, n=12쌍):
+#   pH 1단위당 MRR 배수 중앙값 = 1.633
+#   MRR ∝ H^-1.5 이므로 경도비 = 1.633^(-1/1.5) = 0.7213
+#   → ph_softening_per_unit = 1 - 0.7213 = 0.2787
+#
+#   ⚠ 이 값은 SiC 표면 화학에서 나왔다. Si 산화막의 pH 의존성은 다르다
+#     (실리카 등전점 pH~2, 세리아 ~7 → 정전기 상호작용이 반대로 움직인다).
+#     다른 재료계로 옮기지 마라.
+#
+# 실측된 인자 순위 (이 팩의 검증 기준선):
+#   pH +0.520 > head rpm +0.341 > CeO2 +0.286 > 압력 +0.266 > H2O2 +0.221
+#   > platen +0.153 | 펌프유량 -0.317, 연마시간 -0.324 (둘 다 엔진에 없음)
+#
+#   ⚠ 펌프유량·시간이 조성보다 강하다. 논문 PCA도 같다(pump +0.563, time +0.535).
+#     엔진이 이 둘을 모델링하지 않으므로 이 데이터셋에서 순위 일치도의 상한이
+#     구조적으로 제한된다. rho가 낮아도 화학층만의 문제가 아니다.
+
+base: sti_ceria
+description: "4H-SiC CMP: 세리아/H2O2 알칼리 슬러리, pH 항 실측 역산"
+
+params:
+  film:
+    value: sic_4h
+    source: "Wang et al. ACS SI Table S3 — 4H-SiC 웨이퍼"
+    confidence: measured
+
+  abrasive:
+    value: ceria
+    source: "Wang et al. ACS SI Table S3 — CeO2 연마입자"
+    confidence: measured
+
+  slurry_ph:
+    value: 10.0
+    unit: ""            # pH 는 무차원(로그 활동도)
+    source: "Wang et al. ACS SI Table S3 — DOE 중심 수준 (pH 9/10/11)"
+    confidence: measured
+
+  ph_softening_ref:
+    value: 10.0
+    unit: ""            # pH 기준점 — 무차원
+    source: "Wang et al. ACS SI Table S3 — DOE 중심값을 기준으로 잡는다"
+    confidence: measured
+
+  ph_softening_per_unit:
+    value: 0.2787
+    source: "Wang et al. ACS SI Table S3 50조건 역산 (pH만 다른 9조/12쌍, 배수 1.633, H^-1.5 환산). 2026-09-08"
+    confidence: measured
+
+  abrasive_ref_wt_pct:
+    value: 4.0
+    unit: "wt%"
+    source: "Wang et al. ACS SI Table S3 — DOE 중심 수준 (CeO2 2/4/6 wt%)"
+    confidence: measured
+
+  abrasive_conc_exponent:
+    value: -0.406
+    unit: "-"
+    note: >
+      base(oxide_silica)의 +1/3(표면적지배, Li2021 콜로이달실리카 1~30wt%)을 오버라이드.
+      SiC+알루미나 직접 실측(US20220315802A1 Table 1, n=5, 0.1~5wt%)에서 로그-로그
+      회귀로 지수 -0.406(음수, 압입지배 레짐) 확인 — EVIDENCE-RULES.md §판정: 두 E3급
+      문헌 중 계 근접도(SiC vs oxide)로 이 값을 채택. 화학(알루미나 vs 세리아)이
+      다르므로 기계적 κ 농도항에만 적용, χ(pH 화학항)는 무관.
+      ⚠ n=5 회귀라 지수 정밀도는 미검증 — 방향(음수)·자릿수(-0.5 근방)만 신뢰.
+      판정#37(2026-09-15): 같은 특허 Table 1은 "Example 1 (Comparative)"로 자칭되고
+      Table 9(발명 공정 S-I1계열)는 동일 저농도 구간에서 부호가 반대(단조증가)임을
+      확인했으나, Table 9의 유효 관측 구간(0.1~1.0wt%)이 이 팩의 c_ref=4.0wt%를
+      전혀 포함하지 않아(4배 외삽) Table 1(0.1~5.0wt%, c_ref 포함) 유지로 재확정.
+      값·신뢰도 불변. 상세: knowledge/cmp/sic-abrasive-conc-exponent-table-provenance.md
+    source: knowledge/cmp/sic-alumina-concentration-negative-exponent-entegris.md §3, §5
+    confidence: literature
+
+  oxidizer_ref_wt_pct:
+    value: 4.0
+    unit: "vol%"
+    note: >
+      ⚠ 키 이름은 wt_pct 인데 원문 단위는 **vol%** 다(Wang DOE: H2O2 2/4/6 vol%).
+      H2O2 30% 수용액 기준 vol%↔wt% 는 밀도차로 약 1.1배 어긋나므로 엄밀히 같지 않다.
+      χ 항이 **기준 대비 비(c/c_ref)** 로만 쓰므로 같은 단위끼리 나눠 배수는 불변이고,
+      그래서 값을 환산하지 않고 단위만 정직하게 표기한다. 절대 농도를 쓰는 항이
+      생기면 그때 환산해야 한다 (2026-09-11 차원 검사에서 발견).
+    source: "Wang et al. ACS SI Table S3 — DOE 중심 수준 (H2O2 2/4/6 vol%)"
+    confidence: measured
+
+  # ── 연마입자 입경 (base sti_ceria의 80nm 오버라이드) ─────
+  abrasive_size_nm:
+    value: 120.0
+    unit: nm
+    note: >
+      SiC+세리아 1차 문헌 실측값으로 승격(기존 base sti_ceria 상속값 80nm는 세리아가 아니라
+      같은 원문의 실리카 dmean을 잘못 전용한 값으로 보임 — 노트 §3). Chen et al. 2017
+      (RSC Adv. 7, 16938–16952, DOI 10.1039/C6RA27508G, 오픈액세스, 원문 1차 확인) §2.1
+      Materials: "ceria abrasives (dmean ≈ 120 nm, 30 wt%, Chuangyuan New materials Co. Ltd.)"
+      — 공급업체 콜로이달 스펙이자 TEM(JEOL-2100)으로 직접 확인(Fig. 1b), 실제 6H-SiC CMP
+      실험(§2.3, 4psi/80·80rpm/IC-1000)에 2wt%로 희석해 실사용.
+      ⚠ 산화제 불일치: 이 논문은 KMnO4(0.05M)를 쓰고 이 팩은 H2O2다. 그러나 연마입자
+      입경은 공급업체 콜로이달 분산 물성(입자 자체 기하)이라 산화제와 독립적 — SiC+ceria
+      입경 계는 동일하다고 본다. 산화제 차이는 화학층(MRR 배수) 쪽에만 영향.
+      ⚠ 웨이퍼는 6H-SiC(이 팩은 4H-SiC) — 폴리타입 다르나 연마입자 스펙 자체는 웨이퍼
+      폴리타입과 무관(공급업체 물성이므로 교차 적용 타당).
+    source: knowledge/cmp/sic-ceria-abrasive-particle-size-chen2017-rsc.md
+    confidence: literature
+
+  # ── ψ 표면 흡착 보호 (분산제 경로, 교차계 전이) ──────────
+  dispersant_type:
+    value: "NONE"
+    unit: "-"
+    note: >
+      oxide_silica 팩(→sti_ceria 경유)에서 상속된 경로였다. Li et al. 2021은 실리카 슬러리
+      실측이라 세리아 화학계로의 전이는 교차계 외삽(EVIDENCE-RULES E4)이고, 값 자체는
+      여전히 전이하지 않는다(아래 참조).
+
+      2026-09-14 EVIDENCE-RULES 판정#15(sti_ceria.yaml과 동일 판정, 이 팩도 base로 상속):
+      Kim et al. 2024(doi:10.3390/polym16243593, PMC11679047, CC-BY) §Results가 이 팩과
+      같은 화학(EAA 공중합제 분산제)·같은 oxide 막질(PETEOS)에서 실측을 제공한다 — 분산제
+      함량 5→7wt%(D5→D7)에서 oxide MRR이 **4224→4712 Å/min(+11.55%)로 오른다.**
+      실리카/Li 2021의 PVA(−3.6%)·PVP(−7.9%)와 **부호가 반대**다. 실리카형 억제 배수를
+      전이하지 않는(=NONE, 배수 1.0) 현재 선택은 부호 반대의 1차 대상계 실측(E3, 대상계
+      실측이나 DLS 입경이 281.6→227.2nm로 동시에 변해 교란)으로 뒷받침된다.
+
+      ⚠ **값은 바꾸지 않는다.** Kim 2024의 +11.55%도 입경 교란과 뒤섞여 있어(sti_ceria의
+      abrasive_size_peak_nm=163 정점 모델로 역산하면 입경만으로 +7.42%가 설명되고 잔차
+      +3.85%는 방향은 알아도 ψ 단독 귀속 불가) 정량 ψ 배수를 추출할 근거가 못 된다.
+      이 팩은 SiC 웨이퍼(4H-SiC)라 Kim 2024(Si oxide/PETEOS)와 막질이 또 한 겹 다르지만,
+      화학(세리아+EAA 분산제)은 동일 — "실리카형 억제를 쓰지 않는다"는 판단의 근거로는
+      sti_ceria와 같은 논리를 그대로 적용한다(오히려 이 팩은 SiC라 실리카 전이 근거가
+      sti_ceria보다도 더 약했었다).
+
+      confidence를 estimated→literature로 올린다 — "NONE의 정량값이 문헌에서 나왔다"는
+      뜻이 아니라, "이 경로를 실리카형으로 쓰지 않는다는 결정 자체가 이제 1차 대상계
+      실측으로 뒷받침된다"는 뜻이다(EVIDENCE-RULES §4 null도 결론이다).
+    source: knowledge/cmp/ceria-dispersant-eaa-oxide-mrr-direction-vs-silica.md (EVIDENCE-RULES 판정#15)
+    confidence: literature
+
+  # ── ψ 표면 흡착 보호 — 첨가제 농도축: 문헌 없음 (2026-09-14) ──────────
+  # 부모(sti_ceria)의 shield_K_* 는 계면활성제×SiO₂/Si₃N₄ 쌍의 상수다. SiC 는
+  # Si–C 공유결합 세라믹이라 실란올 표면화학이 없고, SiC 위 첨가제 농도-RR 스윕
+  # 문헌이 코퍼스(1510건)·웹 검색 어디에도 없다. K 를 자기선언하지 않으므로
+  # factors._f_psi 의 has_own 게이트가 농도축을 비활성(partial)으로 둔다 —
+  # 지어낸 숫자보다 정직한 부재가 낫다. 드라이버만 선언해 사유를 기록한다.
+  shield_additive_wt_pct:
+    value: 0.0
+    unit: wt%
+    note: >
+      SiC 팩의 첨가제 농도. ⚠ 흡착상수(shield_langmuir_K) 미선언 → 이 값을 바꿔도
+      결과가 변하지 않는다(partial, notes 에 신고). 검색 흔적: Zhou 2015 6H-SiC Triton X-100
+      (doi:10.1016/j.apsusc.2015.10.158)은 초록만 확보(0.5 wt% 단일 최적점, 스윕 표 미확인)
+      — 원문 확보 시 그 표로 K 를 역산해 자기선언하면 자동 활성화된다.
+    source: knowledge/cmp/psi-adsorption-shield-oxide-systems.md §6
+    confidence: literature
+  shield_ref_wt_pct:
+    value: 0.0
+    unit: wt%
+    note: 기준 농도(무첨가 DOE, Wang et al. ACS SI Table S3). 활성화 시 그대로 사용.
+    source: knowledge/cmp/psi-adsorption-shield-oxide-systems.md §6
+    confidence: literature
+
+  # -- tau slurry transport (viscosity) ------------------------
+  slurry_viscosity_pa_s:
+    value: 1.4e-3
+    unit: "Pa·s"
+    note: >
+      세리아 슬러리 실제 점도(sti_ceria와 동일 근거: Kim 2024
+      DOI 10.3390/polym16243593 §3.3 Fig.17d 상용 세리아 1.41 cP, 25°C).
+      ⚠ H2O2 추가 세리아 슬러리의 점도를 **직접 재는 문헌은 미확보**다.
+      H2O2는 저농도 수용액이라 점도를 크게 바꾸지 않을 것으로 보이나 근거가 없으므로,
+      세리아 일반값의 전용이며 **이 전용 자체는 미검증**이다(노트 §4 한계 5).
+    source: knowledge/materials/slurry-viscosity-rheology-literature-values.md §2 §4-5
+    confidence: literature
+
+  abrasive_ref_size_nm:
+    source: "이 팩의 abrasive_size_nm 과 같은 출처 — 기준점은 독립 측정값이 아니라 '어느 조건에서 Kp 를 역산했는가'의 선언이다"
+    value: 120.0
+    unit: nm
+    note: >
+      κ 입경항 기준점 — 이 팩의 abrasive_size_nm(120 nm)과 일치시킨다.
+      키가 없어 실리카 부모의 50 nm 를 상속하고 있었다
+      (2026-09-13 model_hygiene 극한검사가 검출).
+    confidence: literature
+
+  abrasive_wt_pct:
+    value: 4.0
+    unit: "wt%"
+    note: >
+      이 팩의 근거 DOE(Wang et al. ACS SI Table S3) 중심 수준. 이전에는 키가 없어
+      실리카 부모의 20 wt% 를 상속했는데, 그 값은 DOE 범위(2/4/6 wt%) 밖이고
+      이 재료계의 근거가 아니다 — 기준점 4.0 과 5배 어긋나 기준조건에서 κ 농도항이
+      0.52 로 눌려 있었다(2026-09-13 model_hygiene 검출). 근거 있는 쪽(기준점)을
+      두고 근거 없는 쪽(본값)을 DOE 중심으로 맞춘다.
+    source: "Wang et al. ACS SI Table S3 — DOE 중심 수준 (CeO2 2/4/6 wt%)"
+    confidence: measured
+
+  wafer_iep_ph:
+    value: 4.9
+    unit: pH
+    note: >
+      SiC 표면 등전점(1차 문헌 실측, 분산제 무첨가 조건, PCD·입도·점도 3중 정합).
+      base(sti_ceria)에서 상속되던 실리카 산화막 IEP(2.5)는 SiC 표면이 아니라 다른
+      막질(oxide_silica) 것이므로 이 팩 전용값을 명시적으로 선언한다(sim/factors.py
+      _ph_ceria_window_term의 `pack.has_own("wafer_iep_ph")` 게이트 — 상속값으로는
+      항이 조용히 스킵되고 있었다, 2026-09-13 COMPLETION-C4/UNWIRED abrasive_size_nm
+      회차에서 발견). Singh, Jena, Besra, Bhattacharjee 2007(J. Nanoparticle Res. 9,
+      797-806, DOI 10.1007/s11051-006-9121-6) Abstract: "the isoelectric point (iep)
+      of SiC powder was pH_iep (4.9)".
+      ⚠ 분말(나노입자) 실측이지 CMP로 깎는 단결정 웨이퍼 표면 실측이 아니다 — 표면
+      산화막 특성이 유사하다고 가정한 전이(추정). 분산제 첨가 시 IEP가 3.6까지 이동한다는
+      보고도 있어(같은 원문), 실제 CMP 슬러리(계면활성제 포함)에서는 이 값이 과대추정일
+      수 있음. 폴리타입(원문 미명시 vs 팩의 4H-SiC)도 교차 적용.
+    source: knowledge/cmp/sic-isoelectric-point-singh2006-jnr.md
+    confidence: literature
+
+  film_bulk_hardness_pa:
+    value: 2.6e+10
+    unit: Pa
+    note: >
+      4H-SiC 단결정의 나노압입 경도. 이 저장소에서 가장 단단한 막질이고, 그래서 같은 압력에서도 탄성 쪽에 깊이 머문다.
+      ⚠ 이것은 **벌크** 경도이지 CMP 가 실제로 깎는 화학 변질층의 경도가 아니다.
+      변질층 경도의 절대값은 공개 문헌에 없다(_knowledge_audit/mechanics.md 의
+      최대 병목). 다만 변질층은 벌크보다 무르므로 H_surface ≤ H_bulk 이고,
+      이 부등식이 한쪽 방향의 판정을 확정해 준다 — 접촉응력이 벌크 경도를
+      넘으면 변질층에서는 더더욱 소성이다. 그 용도로만 쓴다
+      (sim/regime_adapter.py::alpha_from_bulk_bound).
+    source: "Nanoindentation of 4H-SiC single crystal — 보고 범위 24~28 GPa"
+    confidence: literature
+
+  # ── κ 입경 정점형 곡선 — 세리아 실측으로 재선언 (2026-09-13) ──────────
+  # ⚠ 이 세 키는 조부모(oxide_silica)에서 상속되고 있었다. 상속값 정점 80 nm 는
+  #   콜로이달 **실리카** 슬러리 값이라, 이 팩의 본값 120 nm 가 **감소 가지** 위에
+  #   놓여 "세리아 입자를 키우면 MRR이 떨어진다"는 문헌과 반대 방향 예측을 하고
+  #   있었다. 근거: knowledge/cmp/ceria-abrasive-size-mrr-peak-shift-vs-silica.md §1·§3
+  abrasive_size_peak_nm:
+    value: 163.0
+    unit: nm
+    note: >
+      세리아 입경-MRR 정점. 근거·한계·등급은 sti_ceria.yaml 의 동일 키와 같다
+      (Oh et al. 2010 MEE DOI 10.1016/j.mee.2010.07.040, 62/116/163/232 nm 중
+      163 nm 최대 — 1차 전문 미확보, Wang et al. 2020 DOI 10.1177/0036850420982451
+      2차 인용으로 확인, E5).
+      ⚠ **교차막질 전이**: 근거 문헌 4편은 전부 SiO2/SiN 막이고 이 팩은 4H-SiC 다
+      (EVIDENCE-RULES E4). 세리아+SiC 입경 1축 스윕 실측은 이번 회차에 확보하지
+      못했다 — 미검증. 다만 상속값(실리카 연마입자 기준 80 nm)보다는 최소한
+      **연마입자 종류가 일치**하므로 개선으로 판단해 채택한다. SiC+세리아 입경
+      스윕이 나오면 즉시 교체한다.
+    source: knowledge/cmp/ceria-abrasive-size-mrr-peak-shift-vs-silica.md §2 §5
+    confidence: literature
+  abrasive_size_exp_below_peak:
+    value: 1.3333333333
+    unit: dimensionless
+    note: >
+      압입 지배 d^(4/3). Bellahsene et al. 2025 (DOI 10.3390/nano15171366, MDPI OA,
+      전문 확보) §2.1 Eq.(1) 메커니즘 폐형식. 상속을 끊고 명시 재선언
+      (값은 부모와 동일하나 판단 주체를 이 팩으로 옮긴다).
+      ⚠ 세리아·SiC 계 실측 재추정 없음 — 형식 전용, 미검증.
+    source: knowledge/cmp/ceria-abrasive-size-mrr-peak-shift-vs-silica.md §3
+    confidence: literature
+  abrasive_size_exp_above_peak:
+    value: -0.3333333333
+    unit: dimensionless
+    note: >
+      표면적 지배 d^(-1/3). 근거·한계는 abrasive_size_exp_below_peak 와 동일.
+      ⚠ 이 팩의 본값 120 nm 는 정점 163 nm 아래이므로 이 지수는 현재 기준조건에서
+      발동하지 않는다(120 nm < 163 nm → below 가지). 입경 슬라이더를 163 nm 위로
+      올렸을 때만 쓰인다.
+    source: knowledge/cmp/ceria-abrasive-size-mrr-peak-shift-vs-silica.md §3
+    confidence: literature
+
+  ph_ref:
+    value: 10.0
+    unit: pH
+    source: >
+      이 팩의 slurry_ph 와 같은 출처 — 기준점은 독립 측정값이 아니라 "어느 조건에서
+      Kp 를 역산했는가"의 선언이다. 부모(실리카 계열)의 5.5 를 상속하고 있었는데,
+      막질 등전점을 자기선언해 pH 정전 창 항이 활성화되면서 기준 조건 배수가
+      0.4877 로 어긋났다(2026-09-13 optimize_loop 검출). 이 팩의 운전 pH 와
+      일치시켜 배수를 1.0 으로 복원한다 — 예측 형상은 불변이다.
+      ⚠ 항을 **활성화**할 때도 기준점 동반 이동이 필요하다. 비활성 상태에서는
+      기준점이 틀려도 증상이 없어 조용히 남는다.
+    confidence: literature
+  oxidizer_wt_pct:
+    value: 3.0
+    unit: "wt%"
+    note: >
+      이 팩의 기준 조성 산화제 농도. oxidizer_ref_wt_pct 와 짝을 이룬다.
+      WARN 기준점(ref)은 있는데 본값이 없어서 산화제 항이 침묵했다 —
+      0/3/6 wt% 에서 예측 MRR 이 완전히 동일했다(314.5698).
+      override 로만 주입되는 축은 팩이 본값을 모르므로 상대항을 만들 수 없다.
+    source: knowledge/cmp/cu-cmp-ph-mechanism.md
+    confidence: literature
+
+  # ── 연마입자 밀도 (2026-09-15) ────────────────────────────────
+  # 피복률 유도의 입력이다: theta_p = 1.5 * phi * h / d, phi = wt% -> 부피분율.
+  # 피복률이 있어야 입자당 접촉응력이 팩마다 갈리고, 그래야 alpha(탄성/소성)
+  # 판정이 '입력 부재로 인한 기본값'에서 실제 판정으로 바뀐다.
+  # ⚠ 물질의 고유 밀도이지 슬러리 제형 정보가 아니다.
+  abrasive_density_kg_m3:
+    value: 7220.0
+    unit: kg/m^3
+    confidence: literature
+    source: >
+      산화세륨 CeO2 7.22 g/cm3 — CRC Handbook. ⚠ 알루미나 계열 데이터셋에 적용할 때는 3950 으로 override 해야 한다(연마입자가 다르다).

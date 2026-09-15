@@ -1,0 +1,330 @@
+# 텅스텐 플러그 CMP — 이 파일은 "설계가 진짜인가"를 증명하려고 만들었다.
+#
+# 2026-09-06: 파라미터 팩 도입 직후, sim/ 의 파이썬 코드를 **한 줄도 건드리지 않고**
+# 이 YAML 하나만 새로 써서 W CMP 시뮬레이션이 돌아가는지 확인했다. 돌아갔다.
+# 그게 "그 내용만 바꾸면 각각 다른 시뮬레이션을 할수있도록" 지시의 수용 기준이었다.
+base: base
+description: "W plug CMP: Fe계 산화제 산성 슬러리, 알루미나 연마입자"
+
+params:
+  film:
+    value: w
+    confidence: verified
+  abrasive:
+    value: alumina
+    source: knowledge/cmp/slurry-components-overview.md
+    confidence: literature
+
+  kp_m_per_pa:
+    value: 2.8e-13
+    unit: m^2/N
+    note: >
+      ⚠ 문헌 W MRR 범위(300~600 nm/min @ 3psi)에서 역산한 대표값. 미재현.
+      W는 Fe(III)/H2O2 산화 후 기계적 제거라 산화막과 메커니즘이 다르다.
+    source: knowledge/cmp/surface-chemistry-cu-w-pourbaix-passivation.md
+    confidence: estimated
+
+  slurry_ph:
+    value: 2.5
+    unit: pH
+    note: 강산성 — Pourbaix상 W 산화물 용해 억제하며 부동태막 유지
+    source: knowledge/cmp/surface-chemistry-cu-w-pourbaix-passivation.md
+    confidence: literature
+  # ── W 산성역 pH 항 (χ PARTIAL 해소, 2026-09-15) ────────────────────────────
+  # pH 는 W 를 직접 깎지 않는다 — 산화(WO3 생성) 구동력을 통해서만 MRR 에 들어온다.
+  # Nernst: W + 3H2O -> WO3 + 6H+ + 6e-,  E_rev = -0.119 - 0.059*pH
+  # 이 키가 있어야 sim/factors.py::_ph_w_acidic_term 이 켜진다(산화제 없는 W 계는
+  # 부호가 반대라 게이트가 필요하다 — 노트 §4 참조).
+  ph_ref:
+    value: 2.5
+    unit: pH
+    note: 이 팩의 기준 pH. 기준조건에서 pH 항이 정확히 1.0 이 되도록 slurry_ph 와 같다.
+    source: knowledge/cmp/w-cmp-ph-acidic-oxidizer-mediated-stojadinovic.md
+    confidence: literature
+  w_ph_acid_k:
+    value: 0.1163
+    unit: 1/pH
+    note: >-
+      f(pH)=exp(-k*(pH-ph_ref)). Stojadinovic 2016 Table 1 (3% 실리카 12nm, KIO3
+      4수준 고정, HCl 로 pH 만 5->2) 의 산화제 존재 3조건 MRR 비 1.429/1.533/1.300 을
+      로그평균해 dpH=3 으로 나눈 값. 재현오차 -0.8/-7.6/+9.0 %.
+      ⚠ 대리계다 — 원문 산화제는 KIO3, 이 팩은 Fe(NO3)3 (막질·pH영역·산화경로는 동일).
+      ⚠ 2점 할선이라 pH 2~5 밖은 외삽. 알칼리역은 용해 지배로 부호가 반대(미모델링).
+      ⚠ 3조건 개별 k 산포 0.0875~0.1426 (+-22%) — 지수형 가정 자체는 미검증.
+      ⚠ 단위 불일치(의도됨, 환산하지 않는다): 접미사 `_k` 의 기본 해석은 온도 K 이지만
+      이 키는 온도가 아니라 **지수 감쇠의 pH 역수 계수**(1/pH)다. exp() 의 지수는
+      무차원이어야 하므로 (pH - ph_ref) [pH] 와 곱해질 때만 소거된다 — K 로 바꿔
+      환산하면 오히려 차원이 깨진다. 이 값을 읽는 곳은 sim/factors.py 의 χ pH 항
+      하나뿐이고(다른 모듈은 참조하지 않음) 그 항이 같은 pH 단위로 곱한다.
+    source: knowledge/cmp/w-cmp-ph-acidic-oxidizer-mediated-stojadinovic.md
+    confidence: literature
+  oxidizer:
+    value: Fe(NO3)3
+    source: knowledge/cmp/slurry-components-overview.md
+    confidence: literature
+  # ── H2O2 산화제 항 (χ 활성화) — US20110186542A1 15조건에서 역산 (2026-09-09) ──
+  # ⚠ 이 4개는 그 특허 실시예 표에서 뽑았으므로 그 데이터셋은 used_for_calibration: true.
+  #   held-out 검증은 별도 문헌(US8070843B2, 3M Mirra 3400)으로만 한다.
+  oxidizer_wt_pct:
+    value: 3.0
+    unit: "wt%"
+    note: 이번 런의 H2O2 농도. Fe(III) 활성제와 공존하는 W 슬러리의 통상 상한 구간.
+    source: papers/US20110186542A1.txt
+    confidence: literature
+  oxidizer_ref_wt_pct:
+    value: 3.0
+    unit: "wt%"
+    note: 기준 농도 — 화학 배수 1.0. 실시예 표의 최고 농도(3 wt%)를 기준으로 상대화했다.
+    source: papers/US20110186542A1.txt
+    confidence: literature
+  oxidizer_peak_wt_pct:
+    value: 6.0
+    unit: "wt%"
+    note: >
+      ⚠ 실측 3점(0/1/3 wt%)이 단조 증가라 정점을 직접 못 봤다. Kaufman 단봉을 0→1→3의
+      상대비(0.14/0.63/1.0)에 격자 적합해 얻은 값(n=3, log-err 0.012). 3 wt% 위는 외삽.
+      (비활성 — Langmuir 경로로 대체됨, 판정#19)
+    source: papers/US20110186542A1.txt
+    confidence: estimated
+  oxidizer_curve_n:
+    value: 3.0
+    unit: "-"
+    note: >
+      위와 같은 적합에서. 현상론 형상 파라미터. [식별성 판정 2026-09-14, EVIDENCE-RULES 판정#19]
+      등급 불변(estimated 유지) — 단 이 값은 잔차 최소해가 아니며, 애초에 식별 가능한 값이 아니다.
+      정점(C_peak) 아래 관측만 있으면 (n, C_peak)는 완전축퇴해 n=0.5->C_peak=22.1 / n=2->41.1 /
+      n=6->83.0 wt% 가 전부 문헌 상대비(1wt% 0.63, 3wt% 1.00)를 잔차 0으로 재현한다. 현 저장값
+      (n=3, C_peak=6.0)은 1wt%에서 0.6373을 줘 관측 0.63 대비 +1.16% 어긋난다(같은 n=3의 잔차 0
+      해는 C_peak=52.3). 값을 바꾸지 않는 이유: 어느 쪽도 근거가 없어 바꾸면 근거 없는 변경이 되고
+      기존 백테스트 기준선만 흔들기 때문이다. 축퇴를 깨려면 C_peak의 2배 이상 농도 실측 1점이 필요.
+      상세: knowledge/cmp/chi-oxidizer-curve-exponent-identifiability.md
+      (비활성 — Langmuir 경로로 대체됨, 판정#19)
+    source: papers/US20110186542A1.txt
+    confidence: estimated
+  oxidizer_langmuir_K:
+    value: 0.549550
+    unit: "1/wt%"
+    note: >
+      판정#19(chi-oxidizer-curve-exponent-identifiability.md)로 (n, C_peak) 형상이
+      정점 아래 관측만으로는 완전축퇴(식별 불가)임이 확인됨에 따라, 식별 가능한
+      1파라미터 Langmuir 표면피복 θ(C)=K·C/(1+K·C)로 대체한다.
+      폐형식 유도: f(C) = φ + (1-φ)·θ(C)/θ(C_ref), φ=oxidizer_mech_floor=0.14,
+      C_ref=3.0 wt%. f(1.0)=0.63 관측을 풀면 t=(0.63-φ)/(1-φ), K=(3t-1)/(3-3t)
+      → K=0.549550 /wt%. 이 K로 세 관측점(US20110186542A1 실시예 표, 0/1/3 wt%
+      상대비 0.14/0.63/1.00)이 전부 잔차 0.0000%로 재현된다: f(0)=0.140000,
+      f(1)=0.630000, f(3)=1.000000. 기존 (n=3,C_peak=6.0) 저장값은 1wt%에서
+      +1.16% 어긋났던 것과 대비된다. 자유 파라미터가 K 하나뿐이라 3관측점(사실상
+      2자유도: φ, K)으로 완전히 식별된다 — n·C_peak 2파라미터 축퇴 문제가 없다.
+    source: papers/US20110186542A1.txt
+    confidence: literature
+  oxidizer_mech_floor:
+    value: 0.14
+    unit: "-"
+    note: >
+      H2O2 0 wt%에서 남는 순수 기계 연마 분율(3 wt% 대비). 15조건 전부에서 0.117~0.189,
+      평균 0.142. Kaufman 단봉은 C=0에서 0이라 이 바닥이 없으면 산화제 0 예측이 0이 된다.
+    source: papers/US20110186542A1.txt
+    confidence: literature
+  abrasive_size_nm:
+    value: 50.0
+    unit: nm
+    note: >
+      Bielmann et al. 1999(ECS Solid-State Lett. 2(3) 148, DOI:10.1149/1.1390765) 실측 W CMP
+      폴리싱 슬러리의 γ-알루미나 1차입자경("primary size ~50 nm diam"). 원래 후보였던 OSTI
+      0.7μm(질산철 문구가 구리·석영유리 캡션에만 있고 텅스텐 캡션엔 없음, E5)과 Cabot v.
+      Solution Technology 판례의 60nm(그 제품 화학성분은 질산이지 질산철이 아니고, boehmite+
+      질산철 조합은 구리용 — 대상계 불일치로 기각)를 원문 대조 후 모두 기각하고, 계 근접도가
+      가장 높은 이 1차 문헌으로 대체했다. 산화제가 K3Fe(CN)6(Fe(NO3)3 아님)라는 차이는 남음 —
+      상세 근거는 노트 참조.
+    source: knowledge/cmp/w-cmp-abrasive-d50-bielmann1999-osti-cabot-conflict.md
+    confidence: literature
+
+  abrasive_ref_size_nm:
+    value: 50.0
+    unit: nm
+    note: >
+      κ 입경항 기준점 — abrasive_size_nm과 같은 값(cu_h2o2_bta의 abrasive_ref_size_nm 패턴과 동일).
+    source: knowledge/cmp/w-cmp-abrasive-d50-bielmann1999-osti-cabot-conflict.md
+    confidence: literature
+  abrasive_size_exponent:
+    value: 0.0
+    unit: "-"
+    note: >
+      **검증된 영(null) 결과** — cu_h2o2_bta와 독립적인 두 번째 계에서 확정.
+      Egan & Kim 2019(ECS JSSTechnol. 8(5) P3206, DOI:10.1149/2.0311905jss, GLOBALFOUNDRIES W
+      contact CMP 실제 양산 데이터) 초록: "tungsten removal rate is not affected by abrasive size".
+      본문: "rate tests were done on multiple slurry samples with varying ranges of abrasive
+      size. In each case, the rate was statistically comparable." 독립 2차 확증: Bouvet et al.
+      2002(JVST B 20(4) 1556, DOI:10.1116/1.1490393) — 콜로이달 실리카 12-75nm(factor 6.25)
+      범위에서 W 제거율이 "quite constant"(정량 범위 확인, 단 연마입자 종류는 실리카로 다름).
+      두 독립 문헌이 같은 방향(입경 무반응)으로 수렴 — EVIDENCE-RULES.md 판정#6.
+      ⚠ Egan&Kim은 정량 수치가 없어(서술적 결론) cu_h2o2_bta의 null 판정(Spearman ρ 정량 재검정 +
+      Chen 이론 이중 지지)보다 근거가 약하다 — 향후 정량 데이터가 나오면 재검토 대상.
+    source: knowledge/cmp/w-cmp-abrasive-size-null-result-egan-kim-2019.md
+    confidence: literature
+
+  # ── κ 농도항 (2026-09-12 정확도루프 — kappa PARTIAL 채움) ──────────
+  abrasive_wt_pct:
+    value: 10.0
+    unit: "wt%"
+    note: >
+      Bielmann et al. 1999(같은 논문·같은 문장, 위 abrasive_size_nm과 동일 출처) —
+      "The polishing slurries contained 10 wt % γ-alumina particles". 입경과 농도를
+      같은 실험·같은 문장에서 동시 확보해 내적 정합성을 유지했다(다른 논문 조합 회피).
+    source: knowledge/cmp/kappa-abrasive-concentration-cu-w-cooper-bielmann.md §4
+    confidence: literature
+  abrasive_ref_wt_pct:
+    value: 10.0
+    unit: "wt%"
+    note: κ 농도항 기준점 — 이 실험 조건 자체(Bielmann 1999)를 기준으로 잡아 κ=1.0 계약 유지
+    source: knowledge/cmp/kappa-abrasive-concentration-cu-w-cooper-bielmann.md §4
+    confidence: literature
+  abrasive_conc_exponent:
+    value: 0.3333
+    unit: "-"
+    note: >
+      Wang et al. 2012(ECS Trans. 41(43) 103-111, DOI:10.1149/1.4717508, Applied Materials
+      Reflexion GT 실제 W CMP 실험)이 W 계에서 **직접** "the removal rate was observed to
+      scale with the cubic root of the abrasive concentration"라고 명시(E1, 동일계 실측,
+      Cooper 2002를 인용하며 W 데이터로 재확인). abrasive_wt_pct(Bielmann 1999)와는 다른
+      논문 출처이나 둘 다 "W+알루미나+Fe계 산화제, 저농도 선형(collision-frequency) 레짐"
+      동일 화학 패밀리 — 완전 단일 출처 DOE로 교체 전까지 유효.
+      ⚠ 절대 wt% 스케일(x축 그래프 눈금)은 원문 텍스트에 없어 미확보. 지수값(1/3)만 채택.
+    source: knowledge/cmp/kappa-abrasive-concentration-cu-w-cooper-bielmann.md §4
+    confidence: literature
+
+  # ── Δ 손상 유발도 (스크래치 위험) — 진단 전용, MRR에 곱해지지 않음 ──
+  # ⚠ Egan & Kim 2019 §3.4: 텅스텐 벌크 CMP에서 대입자는 **MRR을 올리지 않고 스크래치만**
+  #   늘린다("the rate does not increase … statistically comparable"). Δ와 κ의 분리 설계가
+  #   이 팩에서 특히 물리적으로 옳다.
+  abrasive_d99_nm:
+    value: 250.0
+    unit: nm
+    note: >
+      abrasive_size_nm(50 nm, Bielmann 1999 실측) × D99/D50 비율 5.00 = 250 nm.
+      옛 근거(Silco/Levitronix 2008 일반비, 세리아 실측으로 재현 안 됨)로
+      2026-09-14 EVIDENCE-RULES 판정#16이 estimated로 강등했었다.
+      [등급 판정 2026-09-14, 재승격] estimated→literature. 새 근거: US7344988B2(DuPont
+      Air Products Nanomaterials LLC, "Alumina abrasive for chemical mechanical
+      polishing") — 화학종(알루미나)·용도("especially preferred for … copper and/or
+      tungsten") 정확히 일치하는 1차 특허. post-milled D99.9 "more preferably less
+      than **5 times**" D50 명세가 이 팩의 비율(250/50=5.00)과 정확히 일치. 값은
+      바꾸지 않는다(항등적으로 동일 계산) — 근거만 알루미나 전용 1차 특허 스펙으로
+      교체. ⚠ D99.9→D99 상한 근사(D99≤D99.9), 단일 실측 로트가 아니라 설계 스펙
+      범위(cu_h2o2_bta와 동일 논거). Showa Denko US6770218B2 상한 0.5 µm, Remsen 2006
+      스크래치 임계 680 nm 대조는 그대로 유지(정합적).
+      상세: knowledge/cmp/abrasive-particle-size-distribution-d99-tail.md §2, §4.1, §5.
+    source: knowledge/cmp/abrasive-particle-size-distribution-d99-tail.md §2, §4.1, knowledge/cmp/delta-scratch-damage-d99-oversize-particle-model.md §4.2
+    confidence: literature
+  abrasive_ref_d99_nm:
+    value: 250.0
+    unit: nm
+    note: >
+      기준 조건(Δ=1.0)의 기준점 — abrasive_d99_nm과 동일값으로 이중 계상 방지.
+      [2026-09-14 재승격] abrasive_d99_nm과 동일 사유로 confidence를 literature로
+      맞춘다(knowledge/cmp/abrasive-particle-size-distribution-d99-tail.md §4.1).
+    source: knowledge/cmp/abrasive-particle-size-distribution-d99-tail.md §4.1
+    confidence: literature
+  damage_exponent:
+    value: 2.54
+    unit: "-"
+    note: >
+      Egan & Kim 2019(ECS JSS 8(5) P3206) 두 관측의 기하평균 √(3.73×1.73).
+      막질·공정 완전 일치(텅스텐 벌크 CMP, 300mm 양산 라인 defect inspection 실측).
+      ⚠ 각 관측이 n=1 단일 대응쌍이고 저자 서술이 반올림("sixty times", "85% reduction")이라
+      정밀도는 낮다 — 순위만 신뢰.
+    source: knowledge/cmp/delta-scratch-damage-d99-oversize-particle-model.md §4.3
+    confidence: literature
+
+  # ── psi 표면 보호도 (억제제) — Lee & Seo 2022(DOI:10.3390/app12031227) 재현 (2026-09-10) ──
+  # ⚠ 정확도 루프 UNMODELED 갭 해결: w_fe_oxidizer는 이제껏 억제제 파라미터가 없어
+  #   부식억제제를 넣어도 ψ(psi)가 계산 안 됐다. sim/chemistry.py::_inhibitor_term은
+  #   BTA(cu_h2o2_bta)와 동일 함수를 그대로 재사용한다(함수는 범용, 화학종만 다름).
+  inhibitor:
+    value: picolinic_acid
+    source: knowledge/cmp/w-cmp-picolinic-acid-inhibitor-langmuir-dissolution-suppression.md
+    confidence: literature
+  inhibitor_mM:
+    value: 121.8
+    unit: mM
+    note: >
+      1.5 wt% 피콜린산(포화 농도, 밀도 1 g/mL 근사)에 해당하는 몰농도. 원문 Lee & Seo(2022)
+      3.3절에서 정지식각 90->11 A/min(8.2배 감소), CMP 제거율 120->85 A/min(1.41배 감소)의
+      실측 포인트.
+      [등급 판정 2026-09-14, EVIDENCE-RULES 판정#17] estimated→literature 승격.
+      사유: 피콜린산(picolinic acid, PubChem CID 1018) MW=123.11 g/mol로 1.5 wt%를
+      환산하면 ρ=1.000 g/mL 기준 121.84 mM — 팩 값 121.8과 −0.03% 차이로 사실상 일치.
+      희박수용액 영역이라 밀도를 0.995~1.010으로 흔들어도 몰농도는 121.23~123.06 mM
+      (기준 대비 −0.5%~+1.0%)로만 움직여 ψ 계산에서 무시 가능. ⚠ `inhibitor_ref_mM`과
+      값이 같아 이 팩의 ψ 배수는 현재 항상 1.0이다 — 이번 환산 정확도 확인은 **다른
+      농도를 시뮬레이션할 때만** 실질적 의미를 갖는다. `inhibitor_ref_mM`은 기준점
+      선택 문제(환산 문제 아님)라 confidence를 건드리지 않는다.
+      상세: knowledge/cmp/bta-inhibitor-langmuir-K-effective-cu-cmp-falsification.md §8
+    source: knowledge/cmp/w-cmp-picolinic-acid-inhibitor-langmuir-dissolution-suppression.md
+    confidence: literature
+  inhibitor_K_L_per_mol:
+    value: 1108.0
+    unit: L/mol
+    note: >
+      원문 Table 1 Langmuir 상수 b=0.009 L/mg를 MW=123.11 g/mol로 몰단위 환산. 노트 verify
+      블록 PASS(K=1108 L/mol).
+    source: knowledge/cmp/w-cmp-picolinic-acid-inhibitor-langmuir-dissolution-suppression.md
+    confidence: literature
+  inhibitor_ref_mM:
+    value: 121.8
+    unit: mM
+    note: >
+      기준 농도 = inhibitor_mM과 동일(1.5 wt% 포화점) — 이중계상 방지를 위한 정의.
+      [등급 판정 2026-09-14, EVIDENCE-RULES 판정#24] estimated 유지. 원래 이 노트가
+      "kp_m_per_pa가 이 농도 근처에서 역산됐다"고 적었으나, kp_m_per_pa의 실제 출처는
+      피콜린산 농도와 무관한 일반 W MRR 범위(300~600 nm/min @ 3psi) 대표값이다 — 조성
+      일치 근거는 성립하지 않는다. cu_h2o2_bta의 동일 성격 파라미터도 같은 사유로
+      verified→estimated 하향해 등급을 맞췄다(양쪽 다 estimated로 일치).
+      상세: knowledge/cmp/psi-inhibitor-strength-k-grade-ruling.md §A.4
+    source: knowledge/cmp/w-cmp-picolinic-acid-inhibitor-langmuir-dissolution-suppression.md
+    confidence: estimated
+  inhibitor_strength_k:
+    value: 2.117
+    unit: "-"
+    note: >
+      정지식각 90->11 A/min(8.2배 감소, 1.5wt% 앵커) 역산값. Cu/BTA의 k=3.0(cu_h2o2_bta.yaml)과
+      다른 화학종 전용 값.
+      [등급 판정 2026-09-14, EVIDENCE-RULES 판정#24] unverified 유지(승격하지 않음). 사유:
+      원문 Figure 4b를 픽셀 판독해 0.5wt% 실측 정지식각(≈55.7 A/10min, None≈89.7 대비 잔여율
+      0.621)을 확보했다(기존 "정량값 없음" 기록을 정정). K=1108 L/mol(Table 1)+임의의 k로는
+      1.5wt% 앵커(잔여율 0.134)를 만족시키며 동시에 0.5wt% 값(0.621)을 재현할 수 없다 — K→0
+      극한(이론적 하한)에서도 예측 0.512로 실측 0.621에 17.6% 못 미친다. 즉 **k를 어떤 값으로
+      바꿔도(심지어 K까지 자유롭게 풀어도) 이 불일치가 해소되지 않는다** — 약한 고리가 k
+      단독이 아니라 Langmuir(n=1)+exp(-kθ) 함수형 자체의 구조적 한계(고농도 앵커에 맞추면
+      저농도에서 과포화). 대체 폐형식(임계피복률 문턱·Frumkin 등온식 등)은 이 코퍼스에서
+      확보하지 못해 코드 변경 없이 한계로만 기록. 판정#16과 달리(그쪽은 등급만 잘못 낮았던
+      순수 하이진 결함) 여기는 정량 반증이 실재해 승격 불가.
+      상세: knowledge/cmp/psi-inhibitor-strength-k-grade-ruling.md §A
+    source: knowledge/cmp/psi-inhibitor-strength-k-grade-ruling.md
+    confidence: unverified
+
+  film_bulk_hardness_pa:
+    value: 1.2e+10
+    unit: Pa
+    note: >
+      CVD 텅스텐막의 나노압입 경도.
+      ⚠ 이것은 **벌크** 경도이지 CMP 가 실제로 깎는 화학 변질층의 경도가 아니다.
+      변질층 경도의 절대값은 공개 문헌에 없다(_knowledge_audit/mechanics.md 의
+      최대 병목). 다만 변질층은 벌크보다 무르므로 H_surface ≤ H_bulk 이고,
+      이 부등식이 한쪽 방향의 판정을 확정해 준다 — 접촉응력이 벌크 경도를
+      넘으면 변질층에서는 더더욱 소성이다. 그 용도로만 쓴다
+      (sim/regime_adapter.py::alpha_from_bulk_bound).
+    source: "Nanoindentation of CVD W films — 보고 범위 10~14 GPa"
+    confidence: literature
+
+  # ── 연마입자 밀도 (2026-09-15) ────────────────────────────────
+  # 피복률 유도의 입력이다: theta_p = 1.5 * phi * h / d, phi = wt% -> 부피분율.
+  # 피복률이 있어야 입자당 접촉응력이 팩마다 갈리고, 그래야 alpha(탄성/소성)
+  # 판정이 '입력 부재로 인한 기본값'에서 실제 판정으로 바뀐다.
+  # ⚠ 물질의 고유 밀도이지 슬러리 제형 정보가 아니다.
+  abrasive_density_kg_m3:
+    value: 3950.0
+    unit: kg/m^3
+    confidence: literature
+    source: >
+      알파-알루미나 Al2O3 3.95 g/cm3 — CRC Handbook, corundum. 이 팩의 연마입자는 알루미나다.

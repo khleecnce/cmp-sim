@@ -1,0 +1,68 @@
+# PHM 2016 Data Challenge — 드레서 사용량 vs MRR (S×Γ 드레서 마모 경로 순위 검증 전용)
+#
+# ⚠ 이 데이터셋은 절대 MRR 백테스트에 **쓸 수 없다**. 모든 컬럼이 은닉 배율로 스케일돼 있고
+#   (압력 0~498 ≠ psi, 회전 0~34.9 ≠ rpm) 슬러리 조성이 없으며 압력이 폐루프 제어로 고정이다
+#   (validation/raw/phm2016/README.md). 따라서 in_scope: false 로 held-out 집계에서 제외하고,
+#   검증은 S(stab) 팩터의 **순위**로만 한다(knowledge/materials/
+#   pad-steady-state-glazing-conditioning-balance.md §4(D) verify 블록이 판정기).
+#
+# 여기 담긴 조건은 원본 477 웨이퍼를 드레서 사용량 5분위로 묶은 대표값(중앙값)이다 —
+# 원 데이터는 validation/raw/phm2016/joined.json (validation/fetch_phm2016.py 로 재생성).
+
+source: >
+  PHM Society 2016 Data Challenge, "CMP tool health tracking" (removal-rate labels 2,829건,
+  조건+MRR 연결 477 웨이퍼). 미러: https://github.com/akangel0307/PHM-Data-Challenge
+  (원본 Dropbox 링크는 HTML만 반환). 정답 파일 PHM16TestValidationAnswers/orig_CMP-{test,validation}-removalrate.csv.
+  로컬 조인: validation/raw/phm2016/joined.json.
+
+used_for_calibration: false
+in_scope: false            # 스케일된 관측 데이터 — 절대 MRR·조성 검증 불가. 순위 전용(아래 rank_only).
+rank_only: true
+validates_factor: stab     # S×Γ 드레서 마모 경로. 판정기: 균형 노트 §4(D) (저속군 ρ=+0.696 재현 assert)
+pack: oxide_silica         # 슬러리 미상 — 패드 재질 공통 균형 모델이라 팩 선택이 순위에 영향 없음
+
+# 저속군(MRR<120, n=433) 드레서 사용량(스케일된 단위) 5분위별 중앙값(사용량, MRR). cond_disk_usage_hours
+# 환산 배율은 미상이라 overrides 에는 순서만 보존하는 임의 배율(0.05 h/단위)을 넣었다 — S 순위는 배율 무관(§4(D)).
+conditions:
+  - label: "dresser Q1 (사용량 중앙값 88.1, 최소)"
+    pressure_psi: 3.0
+    rpm_wafer: 60
+    rpm_platen: 55
+    mrr_nm_per_min: 78.7
+    read_method: table
+    overrides: {cond_disk_usage_hours: 4.4}
+  - label: "dresser Q2 (169.6)"
+    pressure_psi: 3.0
+    rpm_wafer: 60
+    rpm_platen: 55
+    mrr_nm_per_min: 76.5
+    read_method: table
+    overrides: {cond_disk_usage_hours: 8.5}
+  - label: "dresser Q3 (291.7)"
+    pressure_psi: 3.0
+    rpm_wafer: 60
+    rpm_platen: 55
+    mrr_nm_per_min: 70.7
+    read_method: table
+    overrides: {cond_disk_usage_hours: 14.6}
+  - label: "dresser Q4 (593.4)"
+    pressure_psi: 3.0
+    rpm_wafer: 60
+    rpm_platen: 55
+    mrr_nm_per_min: 64.7
+    read_method: table
+    overrides: {cond_disk_usage_hours: 29.7}
+  - label: "dresser Q5 (696.3, 최대)"
+    pressure_psi: 3.0
+    rpm_wafer: 60
+    rpm_platen: 55
+    mrr_nm_per_min: 65.4
+    read_method: table
+    overrides: {cond_disk_usage_hours: 34.8}
+
+notes: >
+  변수는 드레서 사용량 하나(5분위). MRR 값은 스케일된 단위(nm/min 아님)이며 절대값 비교 금지.
+  압력·rpm 은 팩 기본값(양산 레시피 고정, 원 데이터 압력 vs MRR ρ=−0.077 — 폐루프 제어된 종속변수라
+  물리 반증이 아님). 이 파일의 5점 순위(Q4/Q5 중앙값이 64.7/65.4 로 사실상 동률, ρ=−0.9)는 원 저속군 ρ=−0.696 을 분위 요약한 것이므로
+  유의성 주장은 원 데이터(n=433, 균형 노트 §4(D))로만 한다. S 는 MRR_COUPLED 밖이라 backtest.py 의
+  MRR 예측에는 반영되지 않는다 — 이 파일은 S 팩터 순위 검증의 기록용이며 in_scope:false 로 집계 제외.

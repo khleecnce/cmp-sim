@@ -1,0 +1,124 @@
+# 열산화막(thermal SiO2) CMP — 세리아(68 nm, 1.0 wt%) 슬러리 pH 4수준
+#
+# Dandu 2009(dandu2009_sio2_ceria_ph_sweep.yaml)와 **독립적인 저자·장비·입경**의
+# 두 번째 pH 데이터셋이다. 두 논문의 pH 경향이 서로 다르다는 점이 중요하다.
+
+source: >
+  C. M. Netzband, K. Dunn, "Controlling the Cerium Oxidation State During Silicon Oxide
+  CMP to Improve Material Removal Rate and Roughness",
+  ECS J. Solid State Sci. Technol. 9, 044001 (2020). doi:10.1149/2162-8777/ab8393
+  (오픈액세스 CC BY 4.0 — ECS/IOP)
+  수치 출처: Figure 3a "Effect of slurry pH on the (a) MRR of ceria slurries".
+
+in_scope: true
+used_for_calibration: false
+pack: sti_ceria
+
+# ⚠ used_for_calibration 판단 근거를 남긴다:
+#   knowledge/params/sti_ceria.yaml의 ce3_fraction 주석이 이 논문(Netzband & Dunn 2020)의
+#   "H2O2 0.5wt%에서 MRR 5.5배" 서술을 인용하고 있다. 다만 그 인용은 **H2O2 실험(Fig.1a)**에
+#   대한 정성 서술이고, 팩 파라미터 값(ce3_fraction=0.15, ceria_tooth_gain=1.0)은 이 논문의
+#   수치로 회귀시킨 것이 아니라 "문헌에 폐형식이 없어 보수적으로 놓았다"고 팩 자신이 밝힌다.
+#   이 데이터셋은 그 H2O2 실험이 아니라 **pH 실험(Fig.3a)**이고, pH는 팩 캘리브레이션에
+#   전혀 쓰이지 않았다(sti_ceria의 slurry_ph=5.5는 세리아 IEP 논거에서 온 값).
+#   → used_for_calibration: false 로 두되, 같은 논문이 팩 주석에 등장한다는 사실은
+#     여기에 명시해 둔다. 판단이 갈릴 수 있는 지점이므로 감추지 않는다.
+
+# ── 판독 방법 ──────────────────────────────────────────────────────────
+# Figure 3a는 PDF 벡터 막대그래프다. 막대 상단 y좌표와 y축 눈금(0/5/10/15/20 nm/min)
+# 좌표를 직접 읽어 선형사상했다(선형 잔차 < 0.004 nm/min).
+# ⭐ 자기검증: 본문이 "both low and high pH resulted in removal rates ~20 nm min−1,
+#    about 4 times that of the commercial slurry"라고 서술한다. 판독값은
+#    pH4=19.8, pH8=20.0, pH10=21.3, 상용=4.11 → 비율 4.8/4.9/5.2배로 서술과 정합.
+#    또 "At pH 6, the MRR is low"도 판독값 11.3 nm/min으로 재현된다.
+#
+# ⭐ 독립 재판독 감사(2026-09-14): PDF 벡터 rect 에서 y축 눈금(713.21pt=0, 559.15pt=30 nm/min,
+#    축척 5.1353 pt per nm/min)과 초록 막대 top 좌표를 직접 추출해 재환산한 결과
+#    pH4=19.79 / pH6=11.28 / pH8=19.98 / pH10=21.26 nm/min — 아래 값들과 전부 0.2% 이내 일치.
+#    수동 판독과 벡터 추출이라는 다른 경로가 같은 값을 주므로 판독 오류가 아니다.
+#    상세·verify 블록: knowledge/cmp/netzband2020-fig3a-revalidation-and-c2-root-causes.md §2
+#
+# 고정 조건(본문): 세리아 68 nm, 1.0 wt%, 다운포스 20 kPa = 2.9 psi,
+#   플래튼 40 rpm / 헤드 20 rpm, 폴리싱 1분, 열산화막 쿠폰(2.25 cm²),
+#   MRR은 분광타원계(J.A. Woollam RC-2)로 측정.
+
+conditions:
+  - label: "pH 4 (68nm ceria 1wt%, 20kPa)"
+    pressure_psi: 2.9
+    rpm_wafer: 20
+    rpm_platen: 40
+    mrr_nm_per_min: 19.8
+    read_method: digitized
+    overrides:
+      slurry_ph: 4.0
+      abrasive_wt_pct: 1.0
+      abrasive_size_nm: 68.0
+  - label: "pH 6 (최저)"
+    pressure_psi: 2.9
+    rpm_wafer: 20
+    rpm_platen: 40
+    mrr_nm_per_min: 11.3
+    read_method: digitized
+    overrides:
+      slurry_ph: 6.0
+      abrasive_wt_pct: 1.0
+      abrasive_size_nm: 68.0
+  - label: "pH 8 (세리아 IEP 부근)"
+    pressure_psi: 2.9
+    rpm_wafer: 20
+    rpm_platen: 40
+    mrr_nm_per_min: 20.0
+    read_method: digitized
+    overrides:
+      slurry_ph: 8.0
+      abrasive_wt_pct: 1.0
+      abrasive_size_nm: 68.0
+  - label: "pH 10 (최고)"
+    pressure_psi: 2.9
+    rpm_wafer: 20
+    rpm_platen: 40
+    mrr_nm_per_min: 21.3
+    read_method: digitized
+    overrides:
+      slurry_ph: 10.0
+      abrasive_wt_pct: 1.0
+      abrasive_size_nm: 68.0
+
+notes: >
+  변수: pH 하나(4/6/8/10). 입경 68 nm, 농도 1.0 wt%, 압력 20 kPa, rpm 전부 고정.
+  DOE이지 양산 데이터가 아니다.
+
+  ⚠ 상용 슬러리(4.11 nm/min) 조건은 **일부러 제외했다.** 그것은 pH뿐 아니라 입경(50 nm),
+  농도(비공개), 첨가제까지 전부 다른 별개 슬러리라 pH DOE의 한 수준으로 취급하면
+  교란변수가 섞인다. 정직하게 4조건만 쓴다(순위 지표 최소요건 3조건은 충족).
+
+  ⭐ 두 pH 데이터셋을 함께 보는 것이 이 데이터의 진짜 가치다:
+    - Dandu 2009 (0.25 wt%, 60 nm): pH 4~5.5에서 정점, pH 6 이상 급락.
+    - Netzband 2020 (1.0 wt%, 68 nm): pH 4와 pH 8~10 **양쪽**이 높고 pH 6이 골짜기.
+  Netzband의 설명은 이중 극값이다 — 산화막 IEP(2~3)와 세리아 IEP(~8) 두 지점에서
+  축합반응이 최대가 되고, 그 사이(pH 6)에서는 어느 쪽도 최적이 아니다. 즉 이 계의
+  pH 응답은 단조도 아니고 단봉도 아니다. 우리 팩의 단조 증가형 pH 항으로는
+  **어느 쪽도 맞힐 수 없다.** 두 데이터셋의 Spearman 부호가 서로 엇갈리게 나오면
+  그것이 바로 "pH 항이 재료계를 구분하지 못한다"는 증거다.
+
+  ⚠ 장비 스케일 불일치(중대): 이 실험은 300 mm 웨이퍼 폴리셔가 아니라 **벤치탑
+  폴리셔(Allied MultiPrep)의 2.25 cm² 쿠폰**이다. 우리 엔진은 base.yaml의
+  300 mm 웨이퍼(R=0.15 m)와 r_cc=0.18 m 기하로 상대속도를 계산하므로, 이 실험의
+  실제 슬라이딩 속도와 전혀 다른 값을 쓴다. 그래서 **절대 MRR 대조는 무의미하다.**
+  pH만 변하는 DOE라 순위는 여전히 읽을 수 있다(속도 오차가 전 조건 공통 상수배).
+
+  ⛔ **이 데이터셋의 ρ=+0.949를 성과로 읽지 마라 — 실행 후 확인된 사실이다.**
+  실제 예측값은 pH4=3.82, pH6=3.82, pH8=6.26, pH10=68.59 였다.
+  pH 4와 pH 6이 **완전히 동일한 값**이다. 우리 팩의 pH 항은 pH 8 미만에서 아예
+  응답하지 않기 때문이다(oxide_silica의 ph_peak=11 기반 항을 상속받아 산성 영역이
+  死구간). 즉 4조건 중 2조건이 동점이고, 나머지 상승 순서가 우연히 실측(11.3 → 19.8
+  ≈ 20.0 → 21.3)의 완만한 상승과 맞아떨어져 높은 ρ가 나온 것이다.
+  ⚠ backtest.py의 "예측값 전 조건 동일" 경고는 **전부** 같을 때만 뜨므로 이 경우를
+  잡아내지 못한다. 부분 동점은 지표를 부풀린다 — 이 한계를 아는 사람만 이 숫자를
+  올바로 읽을 수 있다. 이 데이터셋은 "합격"이 아니라 **"pH 항 미구현"의 증거**다.
+
+  ⚠ 모델에 전달하지 못한 축: 같은 논문의 Fig.1a(H2O2 0~5 wt%)와 Fig.5a(입경 5/20/68 nm)도
+  정량 데이터지만 넣지 않았다. H2O2는 sti_ceria 팩에 산화제 항이 없어 전달 통로가 없고,
+  입경은 abrasive_size_nm을 넘겨도 엔진 응답이 0이다(oxide_silica가 abrasive_size_exponent를
+  일부러 비워 뒀기 때문 — 팩 주석 참조). 없는 축을 있는 척 넣으면 전 조건 동일 예측이
+  나와 지표가 nan이 된다.

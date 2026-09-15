@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+# owner / customer measured data never enters the repo
+data/customer/
+papers/
+out/
+*.json.tmp

@@ -1,0 +1,2969 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0b0f14">
+<link rel="manifest" href="/manifest.webmanifest">
+<title>FabSim — CMP Simulator</title>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#131a23; --panel2:#1a2430; --line:#243141;
+    --fg:#e6edf3; --dim:#8b9cb0; --accent:#4da3ff; --warn:#ffb454;
+    --bad:#ff6b6b; --good:#5ddc9a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+       font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+       overflow:hidden}
+  #app{display:flex;height:100vh}
+  #view{flex:1;position:relative;min-width:0}
+  canvas{display:block;touch-action:none}   /* 터치 제스처를 브라우저가 스크롤로 가로채지 않게 */
+  /* ── 파트 전용 시각화 (2026-09-11: 슬러리공급/패드/디스크/로딩부) ── */
+  .viz{background:#0d1319;border:1px solid var(--line);border-radius:8px;padding:8px;margin-bottom:10px}
+  /* ⚠ 캔버스 크기는 JS(cv())가 CSS px + DPR 로 직접 잡는다. 여기서 width:100% 를 주면
+     640px 논리 캔버스가 폰에서 축소돼 글자가 5px이 된다(2026-09-11 모바일 대응). */
+  .viz canvas{display:block;border-radius:4px;max-width:100%}
+  .viz .cap{color:var(--dim);font-size:11px;margin-top:6px;line-height:1.45}
+  .viz .cap b{color:var(--fg)}
+  /* P&ID 플로우 */
+  .pid{display:flex;align-items:stretch;gap:0;flex-wrap:wrap;margin:2px 0 8px}
+  .pid .nd{flex:1 1 auto;min-width:62px;text-align:center;background:var(--panel2);border:1px solid var(--line);
+           border-radius:6px;padding:6px 4px;font-size:10.5px;line-height:1.3}
+  .pid .nd .ic{font-size:16px;display:block;margin-bottom:1px}
+  .pid .nd .vl{color:var(--accent);font-weight:600;font-size:10px}
+  .pid .nd.dead{border-style:dashed;color:var(--dim)}
+  .pid .nd.dead .vl{color:var(--warn)}
+  .pid .ar{flex:0 0 16px;display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:13px}
+  /* FOUP 슬롯 격자 */
+  .foup{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:8px}
+  .foup .sl{position:relative;border:1px solid var(--line);border-radius:5px;background:var(--panel2);
+            padding:5px 3px;text-align:center;cursor:pointer;font-size:10px;transition:.12s}
+  .foup .sl:hover{border-color:var(--accent)}
+  .foup .sl .n{color:var(--dim);font-size:9px}
+  .foup .sl .w{font-weight:600;font-size:10px;margin-top:1px}
+  .foup .sl.empty{opacity:.42}
+  .foup .sl.empty .w{color:var(--dim);font-weight:400}
+  .foup .sl.on{border-color:var(--accent);background:#16324d;box-shadow:0 0 0 1px var(--accent) inset}
+  .foup .sl.npw .w{color:var(--good)} .foup .sl.ptw .w{color:var(--warn)}
+  .foupbar{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+  .foupbar button{flex:1 1 auto;background:var(--panel2);color:var(--fg);border:1px solid var(--line);
+                  border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer}
+  .foupbar button:hover{border-color:var(--accent)}
+  /* 폰: FOUP 슬롯은 터치 표적이 최소 40px 은 돼야 누를 수 있다 */
+  @media (max-width: 560px){
+    .foup{grid-template-columns:repeat(4,1fr);gap:5px}
+    .foup .sl{padding:8px 3px}
+    .foup .sl .w{font-size:11px}
+    .pid .nd{min-width:56px;font-size:10px}
+    .pid .ar{flex:0 0 12px;font-size:11px}
+  }
+  #crumb{position:absolute;left:14px;top:12px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;
+         background:rgba(11,15,20,.78);padding:6px 11px;border-radius:7px;border:1px solid var(--line);z-index:3}
+  #crumb .lv{color:var(--accent);cursor:pointer} #crumb .lv:hover{text-decoration:underline}
+  #crumb .sep{color:var(--dim);margin:0 2px} #crumb .cur{color:var(--fg)}
+  #crumb .mini{margin-left:10px;padding:2px 8px;font-size:11px;background:var(--panel2);color:var(--dim);
+         border:1px solid var(--line);border-radius:5px;cursor:pointer} #crumb .mini:hover{color:var(--fg)}
+  /* 빌드 시각 — 폰에서 "고친 게 반영됐나"를 확인하는 유일한 단서 */
+  #buildTag{margin-left:8px;color:var(--dim);opacity:.75;font-size:11px}
+  /* 슬러리 팩 카드 — 고른 슬러리가 무엇인지 한눈에 (2026-09-11) */
+  .packcard{margin-top:7px;padding:8px 10px;background:#0d1319;border:1px solid var(--line);
+            border-radius:7px;font-size:11px;line-height:1.5}
+  .packcard .row{display:flex;gap:8px;margin-bottom:3px;align-items:baseline}
+  .packcard .k{flex:0 0 84px;color:var(--dim)}
+  .packcard .v{flex:1;text-align:left}   /* 값은 왼쪽 정렬 — 부모의 오른쪽 정렬을 끊는다 */
+  .packcard .note{margin-top:5px;padding-top:5px;border-top:1px dashed var(--line);color:var(--warn)}
+  .packcard .idline{margin-top:5px;color:var(--dim);opacity:.6;font-size:10px}
+  .packcard code{background:#0a0e14;padding:1px 5px;border-radius:3px;color:var(--dim)}
+  @media (max-width: 560px){ .packcard .row{display:block} .packcard .k{margin-bottom:1px} }
+  #card{position:absolute;left:14px;bottom:14px;max-width:420px;font-size:12px;line-height:1.5;color:var(--dim);
+        background:rgba(11,15,20,.80);padding:9px 12px;border-radius:8px;border:1px solid var(--line);display:none;pointer-events:none}
+  #card b{color:var(--fg);display:block;margin-bottom:3px;font-size:12.5px}
+  #card .x{margin-top:5px;color:var(--good);font-size:11px}
+  #cleanBadge{position:absolute;right:14px;top:12px;font-size:11px;color:var(--warn);background:#2a1f14;border:1px solid #4a3a20;
+        padding:5px 9px;border-radius:6px;display:none;pointer-events:none}
+  #hint{position:absolute;left:14px;top:48px;color:var(--dim);font-size:12px;
+        background:rgba(11,15,20,.72);padding:7px 11px;border-radius:7px;
+        border:1px solid var(--line);pointer-events:none}
+  #label{position:absolute;padding:4px 9px;background:var(--accent);color:#04121f;
+         font-weight:600;font-size:12px;border-radius:5px;pointer-events:none;
+         display:none;transform:translate(-50%,-140%);white-space:nowrap}
+  #side{width:400px;background:var(--panel);border-left:1px solid var(--line);
+        display:flex;flex-direction:column}
+  #tabs{display:flex;border-bottom:1px solid var(--line);flex-shrink:0;flex-wrap:wrap}
+  .tab{flex:1;padding:9px 4px;text-align:center;cursor:pointer;color:var(--dim);
+       font-size:11px;border-bottom:2px solid transparent;user-select:none;min-width:60px}
+  .tab:hover{color:var(--fg);background:var(--panel2)}
+  .tab.on{color:var(--accent);border-bottom-color:var(--accent);background:var(--panel2)}
+  #body{flex:1;overflow-y:auto;padding:14px}
+  h3{margin:0 0 4px;font-size:14px}
+  .sub{color:var(--dim);font-size:11px;margin-bottom:14px;line-height:1.5}
+  .fld{margin-bottom:13px}
+  .fld label{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}
+  .fld .val{color:var(--accent);font-variant-numeric:tabular-nums;font-weight:600}
+  input[type=range]{width:100%;accent-color:var(--accent)}
+  select{width:100%;background:var(--panel2);color:var(--fg);border:1px solid var(--line);
+         padding:6px;border-radius:5px;font-size:12px}
+  .meta{font-size:10px;color:var(--dim);margin-top:3px;line-height:1.45}
+  .dead{color:var(--warn)}
+  .weak{color:#8ab4d8}
+  .closed{color:#9aa0a6}
+  #out{border-top:1px solid var(--line);padding:11px 14px;background:var(--panel2);
+       max-height:44vh;overflow-y:auto;flex-shrink:0}
+  .row{display:flex;justify-content:space-between;padding:3px 0;font-size:12px}
+  .row b{font-variant-numeric:tabular-nums}
+  .sec{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.09em;
+       margin:11px 0 5px;padding-bottom:3px;border-bottom:1px solid var(--line)}
+  .fchip{display:flex;align-items:center;gap:7px;padding:3px 0;font-size:12px}
+  .fsym{width:19px;font-weight:700;text-align:center;font-size:14px}
+  .bar{flex:1;height:5px;background:#0a0f15;border-radius:3px;overflow:hidden;position:relative}
+  .bar i{position:absolute;top:0;bottom:0;background:var(--accent);border-radius:3px}
+  .bar i.lo{background:var(--bad)} .bar i.hi{background:var(--good)}
+  .fval{width:52px;text-align:right;font-variant-numeric:tabular-nums;font-size:11px}
+  .tag{font-size:9px;padding:1px 5px;border-radius:3px;background:#2a3644;color:var(--dim)}
+  .tag.unmodeled{background:#4a2f1a;color:var(--warn)}
+  .tag.partial{background:#3a3a1a;color:#ffe08a}
+  .tag.modeled{background:#1a3a2a;color:var(--good)}
+  #notes{font-size:10.5px;color:var(--dim);line-height:1.55}
+  #notes div{padding:3px 0;border-bottom:1px solid #1b2430}
+  #notes div.w{color:var(--warn)}
+  .btn{width:100%;padding:9px;background:var(--accent);color:#04121f;border:0;
+       border-radius:6px;font-weight:700;cursor:pointer;font-size:12px;margin-top:6px}
+  .banner{background:#2a1f14;border:1px solid #4a3a20;color:var(--warn);
+          padding:8px 10px;border-radius:6px;font-size:11px;margin-bottom:12px;line-height:1.5}
+
+  /* ══ 모바일 (≤820px 또는 세로 태블릿) ═════════════════════════════
+     데스크톱은 좌 3D / 우 패널 2단인데, 폰에서 그대로 두면 패널 400px가
+     화면의 대부분을 먹고 3D가 손톱만해진다. 세로로 쌓고 3D를 상단에 고정한다.
+     터치 조작은 아래 script의 pointer/touch 핸들러가 담당한다.
+     ⚠ 슬라이더·탭은 손가락 타겟이라 44px 가까이 키운다 — 데스크톱 값(9px 패딩)
+     그대로 두면 실기에서 옆 탭이 눌린다. */
+  /* 3D를 크게 보고 싶을 때 패널을 접는다 (모바일 전용 버튼)
+     ⚠ 이 기본 규칙은 반드시 @media보다 **앞에** 와야 한다. 뒤에 두면 같은
+     명시도에서 나중 규칙이 이겨 미디어쿼리의 display:flex를 덮어버린다
+     (실제로 모바일 스모크에서 버튼이 안 보였다). */
+  #mtoggle{display:none;position:absolute;right:14px;bottom:14px;z-index:5;
+           align-items:center;gap:6px;padding:9px 13px;border-radius:20px;
+           background:rgba(19,26,35,.92);border:1px solid var(--line);
+           color:var(--fg);font-size:12px;font-weight:600;cursor:pointer}
+  body.panel-collapsed #view{height:calc(100vh - 46px)}
+  body.panel-collapsed #side{flex:0 0 46px;overflow:hidden}
+
+  @media (max-width: 820px), (max-height: 520px) and (orientation: landscape){
+    #app{flex-direction:column}
+    #view{height:44vh;min-height:220px;flex:none;border-bottom:1px solid var(--line)}
+    /* 폰에서는 패널을 **하나의 스크롤 기둥**으로 만든다.
+       데스크톱처럼 body와 out을 각각 스크롤시키면 out이 자기 자연 높이(결과 20여 줄)를
+       차지해 슬라이더가 든 body가 0px로 눌린다 — 실제로 첫 렌더에서 컨트롤이
+       통째로 사라졌다. flex:none + 바깥 스크롤이 정답이다. */
+    #side{width:100%;flex:1;min-height:0;border-left:0;overflow-y:auto;
+          -webkit-overflow-scrolling:touch}
+    #body{flex:none;overflow:visible;padding:12px 12px 4px}
+    #out{flex:none;max-height:none;overflow:visible}
+    #tabs{overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;
+          position:sticky;top:0;background:var(--panel);z-index:4}
+    .tab{flex:0 0 auto;padding:12px 14px;font-size:12px;min-width:0}
+    input[type=range]{height:30px}
+    select,input[type=number],input[type=text]{font-size:16px;padding:9px}  /* iOS 자동 확대 방지: 16px 미만이면 확대된다 */
+    .btn{padding:14px;font-size:14px}
+    /* 설명 카드가 3D의 절반을 덮으면 장비가 안 보인다 — 접어두고 탭하면 편다.
+       ⚠ Controls 버튼과 같은 우하단을 쓰면 겹친다 — 카드 오른쪽을 비워 둔다. */
+    #card{max-width:none;right:150px;font-size:11px;max-height:2.9em;overflow:hidden;
+          pointer-events:auto;cursor:pointer}
+    #card.open{max-height:60%;overflow-y:auto;right:14px;bottom:56px}
+    #hint{display:none}
+    #label{display:none !important}   /* 호버 라벨은 터치에서 의미 없다 */
+    #crumb{font-size:12px;padding:5px 9px}
+    #mtoggle{display:flex}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="view">
+    <div id="crumb"><span class="lv" data-lv="0">Whole Tool</span><span id="crumbTail"></span>
+      <button id="cutBtn" class="mini">Cutaway: off</button></div>
+    <div id="hint">Drag = orbit · Wheel = zoom · <b>Click a station to enter</b> · Esc = back
+      <span id="buildTag" title="서버가 넣어주는 파일 수정 시각. 고친 게 반영됐는지 여기로 확인한다."></span></div>
+    <div id="card"></div>
+    <div id="cleanBadge">Cleaning: visualization only — no defect/particle model wired</div>
+    <div id="label"></div>
+    <div id="mtoggle">▤ <span id="mtoggleTxt">Controls</span></div>
+  </div>
+  <div id="side">
+    <div id="tabs"></div>
+    <div id="body"></div>
+    <div id="out"></div>
+  </div>
+</div>
+<script>
+"use strict";
+const API = location.origin;
+
+/* ══════════════════════════════════════════════════════════════
+   파트 정의 — ARCHITECTURE-V2.md §1
+   각 필드의 `pk`는 팩 키다. 없으면 UI에만 있고 엔진에 안 붙은 것 →
+   'dead:true'로 표시해 **거짓 UI를 만들지 않는다**.
+   (V1 demo_app의 film 드롭다운이 골라도 Kp가 안 변하는 거짓 UI였다.)
+   ══════════════════════════════════════════════════════════════ */
+const PARTS = {
+  tool: { name:"① Tool", icon:"⚙",
+    sub:"Operator set-points on a production polisher (AMAT Reflexion / Mirra class). 'Tool Outputs' below are derived diagnostics, not settings.",
+    fields:[
+      {section:"Polish Recipe"},
+      {k:"pressure_psi", l:"Pressure", u:"psi", min:0.5, max:8, step:0.1, pk:"pressure_psi"},
+      {k:"rotation", l:"Rotation (P/H)", special:"rotation", u:"rpm",
+       min:10, max:150, step:1,
+       hint:"P = platen, H = head (carrier). Shown in one cell as on a real recipe sheet."},
+      {k:"sfr_ml_min", l:"Slurry Flow Rate (SFR)", u:"mL/min", min:20, max:400, step:5, pk:"sfr_ml_min"},
+      {k:"time_s", l:"Polish Time", u:"s", min:10, max:300, step:5, special:"time"},
+      {section:"Conditioner"},
+      {k:"cond_downforce_lbf", l:"Conditioner Force", u:"lbf", min:0, max:12, step:0.5, pk:"cond_downforce_lbf"},
+      {k:"cond_duty_pct", l:"Conditioning Duty", u:"%", min:0, max:100, step:5, pk:"cond_duty_pct",
+       hint:"100% = continuous in-situ. At 0 the disk sweep stops in 3D."},
+      {section:"Tool Constants (not recipe)"},
+      {k:"center_offset_m", l:"Head Offset r_cc", u:"m", min:0.10, max:0.30, step:0.005, pk:"center_offset_m",
+       hint:"Wafer-center to platen-center distance. Fixed by where the head sits on the platen — a tool constant, not a per-recipe knob. Enters MRR as relative velocity V = ω_p·r_cc. Typical 0.18 m on 300 mm tools."},
+    ]},
+  /* ② 슬러리 — 조성과 공급을 한 탭에 둔다.
+     사용자 지시(2026-09-11): "슬러리 공급은 어차피 수정할거 없으니까 슬러리 정보랑
+     공급이랑 슬러리 공급장치 클릭하면 한번에 나올수있게해".
+     순서는 실제 물질 흐름대로 — 무엇을 섞는가(조성) → 어떻게 보내는가(공급).
+     공급 쪽은 SFR 하나만 엔진에 붙어 있어 따로 탭을 둘 만큼 손댈 것이 없다. */
+  sds:{ name:"② Slurry", icon:"💧",
+    sub:"What the slurry is, and how it reaches the pad — one place. Composition is what a formulator mixes; the P&ID below is the cabinet outside the polisher (drum/IBC → blend tank → pump → filter → flow meter → arm nozzle). Of the delivery path only SFR reaches the engine; the rest is recorded for provenance.",
+    fields:[
+      {section:"Abrasive"},
+      {k:"abrasive_type", l:"Abrasive Type", special:"select", pk:null,
+       options:[["colloidal_silica","Colloidal Silica"],["fumed_silica","Fumed Silica"],["ceria","Ceria (CeO₂)"],["alumina","Alumina (Al₂O₃)"],["zirconia","Zirconia"],["mixed","Mixed / Composite"]],
+       hint:"Which abrasive the pack models is fixed by the pack (silica → oxide_silica, ceria → sti_ceria). Changing this here re-selects the pack; it is not a free slider."},
+      {k:"abrasive_wt_pct", l:"Abrasive Loading", u:"wt%", min:0, max:50, step:0.5, pk:"abrasive_wt_pct",
+       hint:"Above ~7 wt% Luo–Dornfeld saturation: MRR stops rising in measured systems. That range is over-estimated."},
+      {k:"abrasive_d10_nm", l:"Particle Size D10", u:"nm", min:5, max:300, step:5, pk:null,
+       dead:"Recorded only. The engine consumes D50 (below) — no D10 term exists in the literature we hold."},
+      {k:"abrasive_size_nm", l:"Particle Size D50", u:"nm", min:5, max:300, step:5, pk:"abrasive_size_nm",
+       closed:"Wired, pack-dependent by evidence ruling. Oxide/ceria packs use a peak model (peak 80 nm silica / 163 nm ceria, ruling #10): 40→80 nm raises MRR 106→268 nm/min on oxide_silica, and ceria keeps rising to 163 nm. Cu and W packs are deliberately flat (exponent 0.0) — rulings #1 and #6 found the size→MRR effect null once particle-shape confounding was removed, confirmed by two independent W studies. A flat response here is a result, not a missing term."},
+      {k:"abrasive_d90_nm", l:"Particle Size D90", u:"nm", min:5, max:600, step:5, pk:null,
+       weak:"Recorded. Δ (Damage) will use D90/D99 for large-particle scratch risk once that axis is wired."},
+      {k:"abrasive_mean_nm", l:"Particle Size Mean", u:"nm", min:5, max:300, step:5, pk:null,
+       dead:"Recorded only. Not consumed by the engine."},
+      {k:"abrasive_shape", l:"Particle Shape", special:"select", pk:null,
+       options:[["spherical","Spherical"],["cocoon","Cocoon (peanut, silica)"],["irregular","Irregular / Faceted (ceria, fumed)"],["aggregated","Aggregated"]],
+       dead:"Recorded only. Shape → contact-area term is not in the engine; literature we hold gives direction (non-spherical ↑ MRR & ↑ defects) but no calibrated exponent."},
+      {section:"Additives"},
+      {special:"additives"},
+      {k:"slurry_ph", l:"pH", u:"", min:0, max:14, step:0.1, pk:"slurry_ph",
+       hint:"Silica pack: peak at pH 11 (Li 2021). Ceria pack: electrostatic window 2.5–6.8, collapses past pH 6 (Dandu 2009). Outside measured range = extrapolation."},
+      {section:"Supply Path (P&ID)"},
+      {special:"sdsflow"},
+      {section:"Delivery Set-points"},
+      {k:"sfr_ml_min", l:"Slurry Flow Rate (SFR)", u:"mL/min", min:20, max:400, step:5, pk:"sfr_ml_min",
+       hint:"The one delivery number the engine consumes: it drives Θ (thermal/flow load) as fresh-slurry supply per unit area."},
+      {k:"diw_flow_ml_min", l:"DIW Dilution Flow", u:"mL/min", min:0, max:400, step:5, pk:null,
+       dead:"Point-of-use dilution changes the abrasive wt% that actually reaches the pad. We hold no literature that quantifies in-line dilution vs. as-mixed concentration, so the engine uses the ③ Slurry loading as-is."},
+      {section:"Filtration — sets the D99 tail"},
+      {k:"filter_rating_um", l:"Filter Rating (absolute)", u:"µm", min:0.2, max:10, step:0.1, pk:null,
+       dead:"⚠ THIS IS THE REAL DEAD ONE THAT MATTERS. Δ (Damage) consumes abrasive_d99_nm, and in a real fab the POU filter is what sets that tail — but our D99 is a derived value (D50 × 5.00), not a filter-dependent one. Wiring filter → D99 needs retention-efficiency data we do not hold. Until then D99 is edited in ③ Slurry directly."},
+      {k:"filter_stage_count", l:"Filter Stages", u:"", min:1, max:3, step:1, pk:null,
+       dead:"Recorded only. Multi-stage retention is not modeled."},
+      {section:"Plumbing (recorded for provenance)"},
+      {k:"pump_type", l:"Pump Type", special:"select", pk:null,
+       options:[["diaphragm","Diaphragm"],["bellows","Bellows"],["centrifugal","Centrifugal"],["peristaltic","Peristaltic"],["magnetic_levitation","Magnetic Levitation"]],
+       dead:"Recorded only. Pump shear breaks agglomerates (Levitronix 2008 measured LPC growth across pump types) but we hold no calibrated shear→LPC transfer, so this does not move Δ."},
+      {k:"line_residence_s", l:"Line Residence Time", u:"s", min:0, max:600, step:10, pk:null,
+       dead:"Recorded only. Relevant to H₂O₂ decomposition and settling in long runs; no kinetics model held."},
+      {k:"blend_tank_l", l:"Blend Tank Volume", u:"L", min:10, max:2000, step:10, pk:null,
+       dead:"Recorded only."},
+    ]},
+  pad:{ name:"③ Pad", icon:"▤",
+    sub:"Pad sets both Contact (κ) and Slurry Transport (τ). The disk (④) is what creates this surface — read the two together.",
+    fields:[
+      {section:"Groove Cross-section"},
+      {special:"padsection"},
+      {k:"groove_width_um", l:"Groove Width", u:"µm", min:200, max:1200, step:25, pk:"groove_width_um",
+       weak:"⚠ η peaks at 600 µm and drops again at 900 µm (Mu 2016 measured). Wider is not better. Outside 300–900 µm the end value is held, not extrapolated."},
+      {k:"groove_depth_mm", l:"Groove Depth", u:"mm", min:0.2, max:1.5, step:0.02, pk:"groove_depth_mm",
+       closed:"Scope-closed 2026-09-13 (3-round rule). Depth→τ multipliers exist in Wei/Kim/Guo only as graph images with no extractable numbers, so no term was built rather than a guessed one. τ is modeled on groove width + porosity; depth redraws the cross-section only. Reopens if a paper with tabulated depth-series MRR appears."},
+      {k:"groove_pitch_mm", l:"Groove Pitch", u:"mm", min:1, max:8, step:0.05, pk:"groove_pitch_mm",
+       closed:"Scope-closed 2026-09-13, same ruling as depth — pitch appears in the held literature only as un-digitizable plots. Redraws the cross-section; does not move MRR by design."},
+      {section:"Surface Statistics (Greenwood–Williamson)"},
+      {special:"padasperity"},
+      {k:"pad_hardness_shore_d", l:"Hardness", u:"Shore D", min:0, max:100, step:1, pk:"pad_hardness_shore_d",
+       hint:"Full Shore D scale shown as requested. Real CMP pads occupy a narrower band — see Performance Factors below for the sourced product range; outside it the H^-1.5 law is extrapolation."},
+      {k:"pad_porosity_pct", l:"Porosity", u:"%", min:10, max:50, step:1, pk:"pad_porosity_pct",
+       weak:"⚠ Porosity 15→45% (3×) raises MRR only 8% (Prasad 2013). The intuition 'more slurry carried = proportionally more MRR' is rejected by measurement."},
+      {section:"Life / Glazing"},
+      {special:"padlife"},
+      {section:"Performance Factors (literature)"},
+      {special:"perf", part:"pad"},
+    ]},
+  disk:{ name:"④ Disk", icon:"◈",
+    sub:"Conditioner disk. Geometry is a consumable (κ); downforce & sweep are tool set-points (Γ) — different axes, never mixed. The disk carves the pad surface shown in ④.",
+    fields:[
+      {section:"Grit Map (disk face)"},
+      {special:"diskgrit"},
+      {section:"Pad Cut-Rate Profile (sweep × radius)"},
+      {special:"diskpcr"},
+      {section:"Asperity Statistics the disk produces"},
+      {k:"asperity_density_per_m2", l:"Asperity Density", u:"1/m²", min:2e10, max:4e11, step:1e10,
+       pk:"asperity_density_per_m2", fmt:v=>v.toExponential(2),
+       weak:"⚠ 2026-09-11: five independent sources converge on 2.0e8 /m², ~500× below this value. Geometry also disagrees — at 1e11 the asperity spacing is 3.16 µm while the tip radius is 50 µm, so the hemispheres would interpenetrate. Pending a set-wise change (η together with R and σ); see the asperity panel above."},
+      {k:"pad_asperity_radius_m", l:"Asperity Tip Radius", u:"m", min:1e-6, max:2e-5, step:1e-6,
+       pk:"pad_asperity_radius_m", fmt:v=>v.toExponential(2),
+       closed:"Model-conditional, not unwired: active under the GW contact model (tier2.gw_physical_kp) and ignored by Preston, which folds asperity geometry into Kp. Switch the model in ⑥ to make this slider move the result."},
+      {section:"Performance Factors (literature)"},
+      {special:"perf", part:"disk"},
+    ]},
+  wafer:{ name:"⑤ Loading Unit", icon:"◫",
+    sub:"Factory Interface — wafers enter here from the FOUP, so this is where they are specified. Pick a slot, then set what is in it. ⚠ Wafer is the target film, not a tuning parameter: it is excluded from the merged parameters and serves only as the baseline for post-polish performance.",
+    fields:[
+      {section:"FOUP — Load Port 1 (25 slots)"},
+      {special:"foup"},
+      {section:"Selected Slot — Wafer Identity"},
+      {k:"npw", l:"NPW (blanket test wafer)", special:"npw"},
+      {k:"pack", l:"Film / Parameter Pack", special:"pack"},
+      {section:"Selected Slot — Initial State (pre-CMP)"},
+      {k:"initial_thickness_nm", l:"Initial Thickness (top film)", u:"nm", min:50, max:5000, step:10, special:"thick"},
+      {k:"initial_ttv_nm", l:"Initial TTV", u:"nm", min:0, max:2000, step:10, pk:null,
+       weak:"Recorded and used as the pre-CMP baseline for the post-polish comparison. The engine's TTV output is the polish-induced non-uniformity; final TTV = initial ⊕ polish-induced is not yet combined (needs an incoming-profile model)."},
+      {k:"initial_roughness_ra_nm", l:"Initial Roughness Ra", u:"nm", min:0, max:20, step:0.1, pk:null,
+       dead:"Recorded only. No literature model held that maps incoming Ra → MRR or final Ra."},
+      {k:"initial_bow_um", l:"Bow", u:"µm", min:-100, max:100, step:1, pk:null,
+       dead:"Recorded only. Bow → pressure-distribution coupling not modeled."},
+    ]},
+  data:{ name:"⑥ Data", icon:"📊",
+    sub:"Every run is stored automatically. Drop measurement files (Excel/CSV) to store as-is; with ≥3 for a pack, a Kp calibration factor is computed.",
+    fields:[ {special:"data"} ]},
+};
+
+const state = { pack:"oxide_silica", wafer:"NPW", time_s:60, recorded:{}, formulation:[],
+                initial_thickness_nm:1000, overrides:{}, base:{}, packs:[],
+                /* ⑥ Loading Unit — FOUP 25슬롯. 사용자 지시(2026-09-11): 웨이퍼는 로딩부에서 입력.
+                   시뮬레이션은 선택된 1장만 돌린다(배치 실행은 후속). slots[i]=null 이면 빈 슬롯. */
+                foup:{ sel:0, slots:Array.from({length:25}, (_,i)=> i===0
+                  ? {wafer:"NPW", pack:"oxide_silica", thick:1000, ttv:0, note:"active"}
+                  : null) } };
+let current = "tool";
+
+/* ─────────────────────────────────────────── 3D 씬
+   AMAT Reflexion LK-class 300 mm CMP tool — whole-tool model (metres).
+   Layout source of truth: knowledge/equipment/tool-layout-reflexion-class.md §1.3 (tool X=width, Y=depth, Z=height,
+   origin = front-left-bottom).  three.js mapping: x = X, y = Z, z = −Y  (helper W3()).
+   Level 0  whole tool (carousel indexing + wafer-flow guide)
+   Level 1  polishing station close-up = the original close-up scene (1 unit ≈ 253 mm) parented under `closeup`,
+            scaled 0.253 and placed at platen P1 (1.61, 3.74, pad Z 1.00)
+   Level 2  cleaning station interior (Desica-class vertical-wafer modules)
+   외부 의존 이름(유지): hot / buildGrooves / buildGrits / waferMat  (+ num, select 호출, window.applyResult)
+   ────────────────────────────────────────────────────────────── */
+const view = document.getElementById("view");
+const scene = new THREE.Scene();
+const cam = new THREE.PerspectiveCamera(38, 1, 0.05, 90);
+const rend = new THREE.WebGLRenderer({antialias:true, powerPreference:"high-performance"});
+rend.shadowMap.enabled = true;
+rend.shadowMap.type = THREE.PCFSoftShadowMap;
+rend.toneMapping = THREE.ACESFilmicToneMapping;
+rend.toneMappingExposure = 1.05;
+rend.outputColorSpace = THREE.SRGBColorSpace;
+view.appendChild(rend.domElement);
+const ANISO = rend.capabilities.getMaxAnisotropy();
+
+/* ── 배경: 방사 그라데이션 (CDN 의존 없음) ── */
+(function(){
+  const c = document.createElement("canvas"); c.width = c.height = 512;
+  const g = c.getContext("2d");
+  const grd = g.createRadialGradient(256,230,40, 256,256,380);
+  grd.addColorStop(0, "#1c2330"); grd.addColorStop(0.55, "#0f141b"); grd.addColorStop(1, "#06080b");
+  g.fillStyle = grd; g.fillRect(0,0,512,512);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  scene.background = tex;
+})();
+scene.fog = new THREE.Fog(0x0a0d12, 18, 48);
+
+/* ── 환경맵: 스튜디오 룸을 코드로 만들어 PMREM (RoomEnvironment 동등, CDN 불필요) ── */
+(function(){
+  try{
+    const room = new THREE.Scene();
+    const box = new THREE.Mesh(new THREE.BoxGeometry(12,12,12),
+      new THREE.MeshStandardMaterial({color:0x3a4048, side:THREE.BackSide, roughness:1, metalness:0}));
+    box.position.y = 4; room.add(box);
+    const lamp = (w,h,x,y,z,ry,rx,I,tint)=>{
+      const col = new THREE.Color(tint||0xffffff).multiplyScalar(I);
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w,h), new THREE.MeshBasicMaterial({color:col, side:THREE.DoubleSide}));
+      m.position.set(x,y,z); m.rotation.set(rx||0, ry||0, 0); room.add(m);
+    };
+    lamp(6,2.2,  0, 9.5,  0,   0, -Math.PI/2, 14, 0xf4f7ff);   // 천장 소프트박스
+    lamp(2.5,6, -5.9, 5, 0,  Math.PI/2, 0, 9, 0xe9f0ff);          // 좌 스트립
+    lamp(2.5,6,  5.9, 5, 0, -Math.PI/2, 0, 6, 0xffffff);          // 우 스트립
+    lamp(8,1.2,  0, 6.5, -5.9, 0, 0, 5, 0xbfd6ff);                // 후면 림 (차가움)
+    lamp(3,3,    0, 3.5,  5.9, Math.PI, 0, 2.5, 0xffffff);        // 정면 필
+    const pm = new THREE.PMREMGenerator(rend); pm.compileEquirectangularShader();
+    scene.environment = pm.fromScene(room, 0.04).texture;
+    pm.dispose();
+  }catch(e){ console.warn("env map 실패, 라이트만 사용", e); }
+})();
+
+/* ── 조명: 클린룸 차가운 백색 키 + 필 + 림, 소프트 섀도 ── */
+scene.add(new THREE.HemisphereLight(0xdfe8f5, 0x151a20, 0.55));
+const key = new THREE.DirectionalLight(0xf3f7ff, 2.4);
+key.castShadow = true;
+key.shadow.mapSize.set(2048,2048);
+key.shadow.camera.near = 0.5; key.shadow.camera.far = 40;
+key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02; key.shadow.radius = 4;
+scene.add(key); scene.add(key.target);
+/* 섀도 프러스텀을 현재 뷰 대상에 맞춘다 (전체 툴 = 넓게, 클로즈업 = 좁고 선명하게) */
+function shadowFocus(center, half){
+  key.target.position.copy(center);
+  key.position.copy(center).add(new THREE.Vector3(4.5,9,1.5));
+  const c = key.shadow.camera; c.left = c.bottom = -half; c.right = c.top = half; c.updateProjectionMatrix();
+}
+const fill = new THREE.DirectionalLight(0xdfe9ff, 0.7); fill.position.set(-5,3,4); scene.add(fill);
+const rim  = new THREE.DirectionalLight(0x8fbaff, 1.4); rim.position.set(-3,4,-6); scene.add(rim);
+
+/* ── 재질 (PBR) ── */
+const M = {
+  steel:   new THREE.MeshStandardMaterial({color:0xd5dae0, metalness:1.0, roughness:0.28}),
+  steelD:  new THREE.MeshStandardMaterial({color:0x9aa3ad, metalness:1.0, roughness:0.36}),
+  alu:     new THREE.MeshStandardMaterial({color:0xb9bfc7, metalness:1.0, roughness:0.42}),
+  anod:    new THREE.MeshStandardMaterial({color:0x2b3037, metalness:0.9, roughness:0.5}),
+  frame:   new THREE.MeshStandardMaterial({color:0xe3e6ea, metalness:0.15, roughness:0.55}), // 분체도장 패널
+  black:   new THREE.MeshStandardMaterial({color:0x14171b, metalness:0.6, roughness:0.6}),
+  pps:     new THREE.MeshStandardMaterial({color:0xd8d0bc, metalness:0.0, roughness:0.62}),  // 리테이너 링 PPS
+  rubber:  new THREE.MeshStandardMaterial({color:0x1b1d20, metalness:0.0, roughness:0.9}),
+  bolt:    new THREE.MeshStandardMaterial({color:0x6d7680, metalness:1.0, roughness:0.45}),
+  tube:    new THREE.MeshStandardMaterial({color:0xcfd5db, metalness:1.0, roughness:0.22}),
+  hose:    new THREE.MeshStandardMaterial({color:0xf2f4f6, metalness:0.0, roughness:0.35, transparent:true, opacity:0.85}),
+  /* whole-tool materials (§5) */
+  foup:    new THREE.MeshPhysicalMaterial({color:0xe8781e, metalness:0.0, roughness:0.22, clearcoat:1.0, clearcoatRoughness:0.08, transparent:true, opacity:0.88}),
+  foupLid: new THREE.MeshPhysicalMaterial({color:0xd9dde2, metalness:0.1, roughness:0.4, clearcoat:0.5}),
+  glass:   new THREE.MeshPhysicalMaterial({color:0xc4dcec, metalness:0.0, roughness:0.03, transparent:true, opacity:0.22, depthWrite:false}),
+  acrylic: new THREE.MeshPhysicalMaterial({color:0xd7ebf5, metalness:0.0, roughness:0.05, clearcoat:1.0, transparent:true, opacity:0.30, depthWrite:false}),
+  modWall: new THREE.MeshPhysicalMaterial({color:0xf1f3f5, metalness:0.0, roughness:0.45, transparent:true, opacity:0.42, depthWrite:false}),
+  liquid:  new THREE.MeshPhysicalMaterial({color:0x8fcbe8, metalness:0.0, roughness:0.02, transparent:true, opacity:0.5, depthWrite:false}),
+  pp:      new THREE.MeshStandardMaterial({color:0xeceff1, metalness:0.0, roughness:0.55}),
+  pva:     new THREE.MeshStandardMaterial({color:0xf1e6c6, metalness:0.0, roughness:0.97}),
+  teal:    new THREE.MeshPhysicalMaterial({color:0x1b9aa3, metalness:0.15, roughness:0.35, clearcoat:0.8, clearcoatRoughness:0.15}),
+  hotspot: new THREE.MeshBasicMaterial({color:0x4da3ff, transparent:true, opacity:0.0, depthWrite:false}),
+  token:   new THREE.MeshStandardMaterial({color:0xbfe8ff, emissive:0x2aa7ff, emissiveIntensity:1.2, metalness:0.6, roughness:0.2, depthTest:false, transparent:true, opacity:0.95}),
+};
+
+/* ── 기하 헬퍼 ── */
+/* 챔퍼 원통 (LatheGeometry) : 모든 금속 원통은 모서리를 깎는다 */
+function chamferCyl(r, h, c, seg){
+  seg = seg||96; c = Math.min(c, r*0.45, h*0.45);
+  const pts = [ new THREE.Vector2(0,-h/2), new THREE.Vector2(r-c,-h/2),
+    new THREE.Vector2(r,-h/2+c), new THREE.Vector2(r,h/2-c),
+    new THREE.Vector2(r-c,h/2), new THREE.Vector2(0,h/2) ];
+  const g = new THREE.LatheGeometry(pts, seg); g.computeVertexNormals(); return g;
+}
+/* 챔퍼 링(관) : 리테이너 링, 트레이 등 */
+function chamferRing(ri, ro, h, c, seg){
+  seg = seg||96; c = Math.min(c, (ro-ri)*0.45, h*0.45);
+  const pts = [ new THREE.Vector2(ri,-h/2), new THREE.Vector2(ro-c,-h/2), new THREE.Vector2(ro,-h/2+c),
+    new THREE.Vector2(ro,h/2-c), new THREE.Vector2(ro-c,h/2), new THREE.Vector2(ri+c,h/2),
+    new THREE.Vector2(ri,h/2-c), new THREE.Vector2(ri,-h/2) ];
+  const g = new THREE.LatheGeometry(pts, seg); g.computeVertexNormals(); return g;
+}
+function mesh(geo, mat, x,y,z, parent, shadow){
+  const m = new THREE.Mesh(geo, mat); m.position.set(x||0,y||0,z||0);
+  m.castShadow = shadow!==false; m.receiveShadow = true; (parent||scene).add(m); return m;
+}
+/* 볼트 원(六角 헤드) */
+function boltCircle(parent, R, y, n, s){
+  const g = new THREE.CylinderGeometry(s, s, s*0.9, 6);
+  const im = new THREE.InstancedMesh(g, M.bolt, n);
+  const o = new THREE.Object3D();
+  for(let i=0;i<n;i++){
+    const a = i/n*Math.PI*2;
+    o.position.set(Math.cos(a)*R, y, Math.sin(a)*R); o.rotation.y = a; o.updateMatrix();
+    im.setMatrixAt(i, o.matrix);
+  }
+  im.castShadow = true; parent.add(im); return im;
+}
+/* 두 점 사이 파이프 */
+function pipe(a, b, r, mat, parent){
+  const d = new THREE.Vector3().subVectors(b,a), L = d.length();
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r,r,L,24), mat||M.tube);
+  m.position.copy(a).addScaledVector(d, .5);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), d.normalize());
+  m.castShadow = true; (parent||scene).add(m); return m;
+}
+
+const hot = {};   // Level 1 클릭 가능한 파트 (pad/tool/wafer/disk/slurry) — 외부 의존 이름
+
+/* ── 공유 재질: 패드 텍스처(P1·P2·P3 공유) + 웨이퍼 ── */
+/* 패드: IC1000 계열(탁한 카키/연두). 그루브는 CanvasTexture 동심원 → 진짜 홈처럼 보인다 */
+const PAD_PX = 2048, PAD_R_MM = 380;      // 패드 반지름 380 mm (Ø760)
+const padCanvas = document.createElement("canvas"); padCanvas.width = padCanvas.height = PAD_PX;
+const padBump = document.createElement("canvas"); padBump.width = padBump.height = PAD_PX;
+const padBase = (function(){               // 노이즈 베이스는 한 번만 만든다
+  const c = document.createElement("canvas"); c.width = c.height = PAD_PX;
+  const g = c.getContext("2d");
+  g.fillStyle = "#9a9a6d"; g.fillRect(0,0,PAD_PX,PAD_PX);
+  const img = g.getImageData(0,0,PAD_PX,PAD_PX), d = img.data;
+  for(let i=0;i<d.length;i+=4){
+    const n = (Math.random()-0.5)*26, p = Math.random()<0.06 ? -22 : 0;  // 기공
+    d[i]=Math.max(0,d[i]+n+p); d[i+1]=Math.max(0,d[i+1]+n+p); d[i+2]=Math.max(0,d[i+2]+n*0.8+p);
+  }
+  g.putImageData(img,0,0);
+  /* 사용 흔적: 방사형 미세 연마 자국 */
+  g.strokeStyle = "rgba(255,255,255,0.05)"; g.lineWidth = 1;
+  for(let i=0;i<220;i++){
+    const a = Math.random()*Math.PI*2, r0 = Math.random()*PAD_PX/2;
+    g.beginPath(); g.arc(PAD_PX/2, PAD_PX/2, r0, a, a+0.02+Math.random()*0.15); g.stroke();
+  }
+  return c;
+})();
+const padTex = new THREE.CanvasTexture(padCanvas); padTex.colorSpace = THREE.SRGBColorSpace; padTex.anisotropy = ANISO;
+const padBumpTex = new THREE.CanvasTexture(padBump); padBumpTex.anisotropy = ANISO;
+const padMat = new THREE.MeshStandardMaterial({map:padTex, bumpMap:padBumpTex, bumpScale:0.012,
+  color:0xffffff, roughness:0.92, metalness:0.0});
+const padSideMat = new THREE.MeshStandardMaterial({color:0x8c8c62, roughness:0.95, metalness:0});
+/* 웨이퍼 (면을 아래로, 링 안에서 살짝 돌출) — 거울 같은 산화막 */
+const waferMat = new THREE.MeshStandardMaterial({
+  color:0xd6e3f0, metalness:0.95, roughness:0.06,
+  emissive:0x0d2942, emissiveIntensity:.55});
+/* Level 2 라벨 (영어) */
+const CLEAN_LABEL = {
+  IN:"IN — Input Module (horizontal → vertical flip)",
+  MEG:"MEG — Megasonic Immersion Tank (~1 MHz transducer)",
+  BB1:"BB1 — Brush Box 1 (PVA roller brushes, both faces)",
+  BB2:"BB2 — Brush Box 2 (PVA roller brushes, both faces)",
+  DRY:"DRY — Marangoni Dryer (full immersion, IPA vapor, vertical lift)",
+  OUT:"OUT — Output Module (vertical → horizontal flip)",
+};
+const CLEAN_DESC = {
+  IN:"Motorized hinge rotates the wafer support from horizontal (wet-robot hand-off) to vertical for the in-line modules. Optional notch finder.",
+  MEG:"Single-wafer immersion. Transducer plate at the tank floor radiates ~1 MHz upward; edge rollers rotate the wafer for full-face exposure. Heated / RCA chemistry supported.",
+  BB1:"Two PVA cylindrical brushes (L ≈ 0.32 m, Ø ≈ 0.07 m) close symmetrically on the vertical wafer. Chemistry is fed through the mandrel to the brush core; two drive rollers spin the wafer.",
+  BB2:"Second brush box — typically a different chemistry (e.g. dilute NH₄OH / HF) for particle and metallic removal.",
+  DRY:"Wafer is fully immersed, then lifted slowly through the liquid–air interface while IPA vapor is blown at the meniscus; surface-tension gradient pulls water off (watermark-free).",
+  OUT:"Hinge flips the dried wafer back to horizontal for the dry robot → FOUP. Dry-in / dry-out.",
+};
+
+
+/* ══════════════════════════════════════════════════════════════
+   §1.3 좌표표 (m).  W3(X,Y,Z) → three.Vector3(x=X, y=Z, z=−Y)
+   ══════════════════════════════════════════════════════════════ */
+const W3 = (x,y,z)=>new THREE.Vector3(x, z, -y);
+const LAY = {
+  W:2.2, H:2.2,
+  FI:[0.45,1.4], CL:[1.4,2.6], PM:[3.0,5.5], CAB:[5.5,6.0],
+  LP:{x:[0.55,1.06,1.56], y:0.20, z:0.90, pitch:0.505},
+  DR:{x:1.1, y:0.95, z:0.9, track:[0.3,1.9]},
+  CLM:{y:2.0, pitch:0.30, x:[0.35,0.65,0.95,1.25,1.55,1.85], id:["IN","MEG","BB1","BB2","DRY","OUT"], open:1.3},
+  HND:{z:1.8, x:[0.3,1.9]},
+  WR:{x:0.6, y:2.8, z:0.9, track:[0.3,1.9]},
+  CAR:{x:1.10, y:4.25, R:0.72, z0:0.95, z1:1.75},
+  TS:{x:0.59, y:3.74}, P1:{x:1.61, y:3.74}, P2:{x:1.61, y:4.76}, P3:{x:0.59, y:4.76},
+  PAD_Z:1.00, TABLE_Z:0.95, COND_OFF:0.55, COND_L:0.5,
+};
+/* 툴 좌표 박스 (x0..x1, y0..y1, z0..z1) */
+function boxT(x0,x1,y0,y1,z0,z1,mat,parent,shadow){
+  return mesh(new THREE.BoxGeometry(x1-x0, z1-z0, y1-y0), mat, (x0+x1)/2, (z0+z1)/2, -(y0+y1)/2, parent, shadow);
+}
+
+/* ── 클린룸 바닥 + 그리드 (y=0) ── */
+(function(){
+  const c = document.createElement("canvas"); c.width = c.height = 256;
+  const g = c.getContext("2d");
+  g.fillStyle = "#2a2e34"; g.fillRect(0,0,256,256);
+  g.strokeStyle = "rgba(255,255,255,0.10)"; g.lineWidth = 2; g.strokeRect(1,1,254,254);
+  g.strokeStyle = "rgba(255,255,255,0.035)"; g.lineWidth = 1;
+  for(let i=64;i<256;i+=64){ g.beginPath(); g.moveTo(i,0); g.lineTo(i,256); g.moveTo(0,i); g.lineTo(256,i); g.stroke(); }
+  const tex = new THREE.CanvasTexture(c); tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(40,40); tex.anisotropy = ANISO; tex.colorSpace = THREE.SRGBColorSpace;   // 1 tile = 0.6 m raised-floor panel
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(24,24),
+    new THREE.MeshStandardMaterial({map:tex, color:0xffffff, metalness:0.25, roughness:0.38}));
+  floor.rotation.x = -Math.PI/2; floor.position.set(1.1,0,-3.0); floor.receiveShadow = true; scene.add(floor);
+})();
+
+/* ══════════════════════════════════════════════════════════════
+   툴 외장 (블록별 셸: 흰색 클리어코트 패널 + 청록 밴드 + 검정 킥플레이트)
+   블록 셸은 hover/컷어웨이/레벨에 따라 페이드된다.
+   ══════════════════════════════════════════════════════════════ */
+const tool = new THREE.Group(); scene.add(tool);
+function panelMat(){ return new THREE.MeshPhysicalMaterial({color:0xf3f5f7, metalness:0.05, roughness:0.32, clearcoat:0.65, clearcoatRoughness:0.2, transparent:true, opacity:1}); }
+function bandMat(){ return M.teal.clone(); }
+const blocks = {};
+function newBlock(id){
+  const b = {id, grp:new THREE.Group(), panel:panelMat(), band:bandMat(), glass:M.glass.clone(), trim:M.anod.clone(), op:1, goal:1};
+  b.band.transparent = true; b.trim.transparent = true; b.grp.name = id; tool.add(b.grp); blocks[id] = b; return b;
+}
+const T_WALL = 0.03;
+/* 정면/후면 벽 (XZ 평면, 깊이 y). win = [x0,x1,z0,z1] 창, slit = [x0,x1,z0,z1] 슬릿 도어(검정) */
+function wallY(b, y, x0,x1, z0,z1, win, slit){
+  const t = T_WALL, ya = y-t/2, yb = y+t/2, P = b.panel, G = b.grp;
+  if(!win){ boxT(x0,x1,ya,yb,z0,z1,P,G); }
+  else{
+    const [a,c,d,e] = win;
+    boxT(x0,a,ya,yb,z0,z1,P,G); boxT(c,x1,ya,yb,z0,z1,P,G);
+    boxT(a,c,ya,yb,z0,d,P,G);   boxT(a,c,ya,yb,e,z1,P,G);
+    boxT(a,c,y-0.004,y+0.004,d,e,b.glass,G,false);
+    const f = 0.025;
+    boxT(a-f,c+f,ya-0.004,yb+0.004,d-f,d,b.trim,G); boxT(a-f,c+f,ya-0.004,yb+0.004,e,e+f,b.trim,G);
+    boxT(a-f,a,ya-0.004,yb+0.004,d,e,b.trim,G);     boxT(c,c+f,ya-0.004,yb+0.004,d,e,b.trim,G);
+  }
+  if(slit){ const [a,c,d,e] = slit; boxT(a,c,ya-0.006,yb+0.006,d,e,b.trim,G); }
+}
+/* 측면 벽 (YZ 평면, 폭 x). win = [y0,y1,z0,z1] */
+function wallX(b, x, y0,y1, z0,z1, win){
+  const t = T_WALL, xa = x-t/2, xb = x+t/2, P = b.panel, G = b.grp;
+  if(!win){ boxT(xa,xb,y0,y1,z0,z1,P,G); return; }
+  const [a,c,d,e] = win;
+  boxT(xa,xb,y0,a,z0,z1,P,G); boxT(xa,xb,c,y1,z0,z1,P,G);
+  boxT(xa,xb,a,c,z0,d,P,G);   boxT(xa,xb,a,c,e,z1,P,G);
+  boxT(x-0.004,x+0.004,a,c,d,e,b.glass,G,false);
+  const f = 0.025;
+  boxT(xa-0.004,xb+0.004,a-f,c+f,d-f,d,b.trim,G); boxT(xa-0.004,xb+0.004,a-f,c+f,e,e+f,b.trim,G);
+  boxT(xa-0.004,xb+0.004,a-f,a,d,e,b.trim,G);     boxT(xa-0.004,xb+0.004,c,c+f,d,e,b.trim,G);
+}
+/* 서비스 도어 심(seam) — 측면 x 면 위 사각 홈 + 손잡이 */
+function doorX(b, x, y0,y1, z0,z1){
+  const s = 0.008, o = x<1.1 ? -0.006 : 0.006, xa = x+o-0.003, xb = x+o+0.003, G = b.grp, T = b.trim;
+  boxT(xa,xb,y0,y1,z0,z0+s,T,G,false); boxT(xa,xb,y0,y1,z1-s,z1,T,G,false);
+  boxT(xa,xb,y0,y0+s,z0,z1,T,G,false); boxT(xa,xb,y1-s,y1,z0,z1,T,G,false);
+  boxT(x+o*2-0.008,x+o*2+0.008, y1-0.10,y1-0.04, (z0+z1)/2-0.01,(z0+z1)/2+0.01, M.steelD, G, false); // 손잡이
+}
+/* 후면(y 면) 도어 심 */
+function doorY(b, y, x0,x1, z0,z1){
+  const s = 0.008, ya = y+0.006-0.003, yb = y+0.006+0.003, G = b.grp, T = b.trim;
+  boxT(x0,x1,ya,yb,z0,z0+s,T,G,false); boxT(x0,x1,ya,yb,z1-s,z1,T,G,false);
+  boxT(x0,x0+s,ya,yb,z0,z1,T,G,false); boxT(x1-s,x1,ya,yb,z0,z1,T,G,false);
+}
+/* 상단 청록 밴드 (4면, 패널보다 1 cm 돌출) */
+function bandRing(b, x0,x1, y0,y1, z0,z1){
+  const p = 0.028, G = b.grp, B = b.band;
+  boxT(x0-p,x1+p, y0-p,y0+T_WALL, z0,z1, B, G); boxT(x0-p,x1+p, y1-T_WALL,y1+p, z0,z1, B, G);
+  boxT(x0-p,x0+T_WALL, y0,y1, z0,z1, B, G);     boxT(x1-T_WALL,x1+p, y0,y1, z0,z1, B, G);
+}
+/* 검정 킥플레이트 (툴 전체 하부) */
+boxT(0.02,2.18, 0.47,5.98, 0,0.12, M.black, tool, false);
+
+/* ══ (a) Factory Interface — 로드포트 3, 드라이 로봇 ══ */
+const scaraBots = [];
+/* SCARA 형 트랙 로봇 (드라이/웻 공용). 로컬: 원점 = 트랙 위 캐리지 중심, y up */
+function scara(parent, pos, effMat){
+  const g = new THREE.Group(); g.position.copy(pos); parent.add(g);
+  mesh(new THREE.BoxGeometry(0.26,0.10,0.22), M.frame, 0,0.05,0, g);                 // 캐리지
+  mesh(chamferCyl(0.07,0.22,0.01,48), M.frame, 0,0.21,0, g);                          // 컬럼(Z축)
+  mesh(chamferCyl(0.09,0.06,0.01,48), M.anod, 0,0.35,0, g);                           // 숄더 베어링
+  const a1 = new THREE.Group(); a1.position.y = 0.39; g.add(a1);
+  mesh(new THREE.BoxGeometry(0.36,0.05,0.10), M.frame, 0.16,0,0, a1);
+  mesh(chamferCyl(0.055,0.06,0.008,32), M.anod, 0.34,0.04,0, a1);
+  const a2 = new THREE.Group(); a2.position.set(0.34,0.075,0); a1.add(a2);
+  mesh(new THREE.BoxGeometry(0.34,0.04,0.08), M.frame, 0.15,0,0, a2);
+  mesh(chamferCyl(0.04,0.04,0.006,32), M.anod, 0.32,0.025,0, a2);
+  const eff = new THREE.Group(); eff.position.set(0.32,0.045,0); a2.add(eff);
+  mesh(new THREE.BoxGeometry(0.30,0.006,0.12), effMat||M.anod, 0.14,0,0, eff);        // 엔드이펙터 패들
+  mesh(new THREE.BoxGeometry(0.14,0.006,0.03), effMat||M.anod, 0.30,0,0.05, eff);
+  mesh(new THREE.BoxGeometry(0.14,0.006,0.03), effMat||M.anod, 0.30,0,-0.05, eff);
+  const bot = {g,a1,a2,eff}; scaraBots.push(bot); return bot;
+}
+(function buildFI(){
+  const b = newBlock("fi"), [y0,y1] = LAY.FI, W = LAY.W, H = LAY.H;
+  wallY(b, y0, 0,W, 0.12,H);                                                          // 정면
+  wallY(b, y1, 0,W, 0.12,H, null, [0.75,1.45,1.0,1.06]);                              // FI↔클리너 격벽 + 슬릿
+  wallX(b, 0, y0,y1, 0.12,H); wallX(b, W, y0,y1, 0.12,H);
+  doorX(b, W, y0+0.10,y1-0.10, 0.25,1.75);
+  boxT(0,W, y0,y1, H-T_WALL,H, b.panel, b.grp);                                       // 천장
+  bandRing(b, 0,W, y0,y1, 1.95,2.12);
+  /* 로드포트 3 (SEMI E15.1 피치 0.505) + 주황 FOUP 0.40×0.40×0.35 */
+  for(const x of LAY.LP.x){
+    boxT(x-0.22,x+0.22, 0.02,y0, 0.12,0.86, M.frame, tool);                           // 페데스탈
+    boxT(x-0.23,x+0.23, 0.0,y0, 0.86,LAY.LP.z, M.steelD, tool);                       // 스테이지 플레이트 (상면 Z 0.90)
+    [[x-0.08,0.10],[x+0.08,0.10],[x,0.30]].forEach(([px,py])=>                       // 키네마틱 핀
+      mesh(new THREE.CylinderGeometry(0.008,0.008,0.012,12), M.steel, px,LAY.LP.z+0.006,-py, tool));
+    boxT(x-0.20,x+0.20, 0.0,0.40, LAY.LP.z+0.01,LAY.LP.z+0.36, M.foup, tool);         // FOUP 셸
+    boxT(x-0.19,x+0.19, 0.395,0.415, LAY.LP.z+0.02,LAY.LP.z+0.35, M.foupLid, tool);   // FOUP 도어(툴 쪽)
+    mesh(chamferCyl(0.05,0.02,0.004,32), M.black, x, LAY.LP.z+0.37, -0.20, tool);      // 로봇 플랜지
+    boxT(x-0.19,x+0.19, y0-0.012,y0+0.004, 0.92,1.32, b.trim, b.grp, false);          // 포트 도어 프레임(패널 위)
+    boxT(x-0.17,x+0.17, y0-0.008,y0+0.004, 0.94,1.30, M.frame, b.grp, false);
+  }
+  /* 시그널 타워 */
+  [[0xff4d4d,2.42],[0xffb454,2.36],[0x5ddc9a,2.30]].forEach(([c,z])=>
+    mesh(new THREE.CylinderGeometry(0.03,0.03,0.055,24), new THREE.MeshStandardMaterial({color:c, emissive:c, emissiveIntensity:0.6, roughness:0.3}), 2.05, z, -0.60, tool));
+  mesh(new THREE.CylinderGeometry(0.012,0.012,0.16,12), M.steelD, 2.05, 2.20, -0.60, tool);
+  /* 드라이 로봇: 트랙 X 0.3~1.9 @ Y 0.95, 베이스 Z 0.9 */
+  boxT(LAY.DR.track[0],LAY.DR.track[1], LAY.DR.y-0.04,LAY.DR.y+0.04, 0.82,0.88, M.steel, tool);
+  boxT(0.2,2.0, 0.55,1.35, 0.12,0.82, M.frame, tool);                                 // FI 하부 캐비닛
+  b.dr = scara(tool, W3(LAY.DR.x, LAY.DR.y, 0.88), M.anod);
+})();
+
+/* ══ (b) Cleaner (Desica-class) — 수직 웨이퍼 모듈 6칸 + 오버헤드 핸들러 ══ */
+const clean = { modules:[], wafers:{}, brushes:[], grippers:[], carried:[], proxies:[] };
+(function buildCleaner(){
+  const b = newBlock("cl"), [y0,y1] = LAY.CL, W = LAY.W, H = LAY.H;
+  wallY(b, y1, 0,W, 0.12,H, null, [0.75,1.45,1.0,1.06]);                              // 클리너↔폴리셔 격벽 + 슬릿
+  wallX(b, 0, y0,y1, 0.12,H); wallX(b, W, y0,y1, 0.12,H);
+  doorX(b, 0, y0+0.10,y1-0.10, 0.25,1.75); doorX(b, W, y0+0.10,y1-0.10, 0.25,1.75);
+  boxT(0,W, y0,y1, H-T_WALL,H, b.panel, b.grp);
+  bandRing(b, 0,W, y0,y1, 1.95,2.12);
+  /* 내부 데크 (모듈 밑 유틸리티 캐비닛, 상판 Z 0.75) */
+  boxT(0.12,2.08, 1.55,2.45, 0.12,0.72, M.frame, tool);
+  boxT(0.10,2.10, 1.52,2.48, 0.72,0.75, M.steelD, tool);
+  const Ymod = LAY.CLM.y;
+  const vdisc = ()=>{ const m = new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.15,0.0035,72), waferMat); m.rotation.z = Math.PI/2; m.castShadow = true; return m; };
+  LAY.CLM.x.forEach((x,i)=>{
+    const id = LAY.CLM.id[i];
+    const g = new THREE.Group(); g.position.copy(W3(x, Ymod, 0)); tool.add(g);      // 로컬: x, y=Z, z=−(Y−2.0)
+    /* 모듈 바디 0.28(X)×0.45(Y)×0.55(Z), 바닥 Z 0.75, 상단 개구 Z 1.30, 반투명 PP/PVDF */
+    const wall = (w,h,d,px,py,pz)=>mesh(new THREE.BoxGeometry(w,h,d), M.modWall, px,py,pz, g, false);
+    wall(0.012,0.55,0.45, -0.134,1.025,0); wall(0.012,0.55,0.45, 0.134,1.025,0);
+    wall(0.28,0.55,0.012, 0,1.025,-0.219); wall(0.28,0.55,0.012, 0,1.025,0.219);
+    mesh(new THREE.BoxGeometry(0.28,0.012,0.45), M.pp, 0,0.756,0, g);                 // 바닥
+    mesh(new THREE.BoxGeometry(0.30,0.008,0.185), M.pp, 0,1.304,0.1325, g, false);    // 슬라이딩 리드 2분할 (슬릿 0.08)
+    mesh(new THREE.BoxGeometry(0.30,0.008,0.185), M.pp, 0,1.304,-0.1325, g, false);
+    mesh(new THREE.BoxGeometry(0.06,0.10,0.10), M.anod, 0,0.90,0.26, g);              // 후면 드레인/배기 플레넘
+    const mod = {id, g, x};
+    if(id==="MEG"||id==="DRY"){
+      mesh(new THREE.BoxGeometry(0.11,0.41,0.42), M.acrylic, 0,0.975,0, g, false);    // 투명 탱크 0.10(X)×0.40(Y)×0.40(Z)
+      mesh(new THREE.BoxGeometry(0.096,0.36,0.40), M.liquid, 0,0.95,0, g, false);     // 액체 (액면 Z 1.13)
+      mesh(new THREE.BoxGeometry(0.05,0.02,0.15), M.steelD, 0,0.78,0, g);             // 트랜스듀서 판(바닥 중앙) / 셔틀 트랙
+    }
+    if(id==="DRY"){
+      /* Marangoni: 탱크 위 드라이 인클로저(내벽 하단이 액면 아래로 잠김) + IPA 증기 노즐 바 2 + 린스 노즐 */
+      const enc = (w,h,d,px,py,pz)=>mesh(new THREE.BoxGeometry(w,h,d), M.modWall, px,py,pz, g, false);
+      enc(0.012,0.40,0.42, -0.064,1.32,0); enc(0.012,0.40,0.42, 0.064,1.32,0);
+      enc(0.13,0.40,0.012, 0,1.32,-0.21);  enc(0.13,0.40,0.012, 0,1.32,0.21);
+      mesh(new THREE.BoxGeometry(0.14,0.01,0.44), M.pp, 0,1.525,0, g, false);
+      [-0.045,0.045].forEach(px=>{
+        pipe(new THREE.Vector3(px,1.19,-0.19), new THREE.Vector3(px,1.19,0.19), 0.007, M.tube, g);   // IPA 증기 노즐 바 (액면 ~5 cm 위)
+        pipe(new THREE.Vector3(px*1.2,1.30,-0.19), new THREE.Vector3(px*1.2,1.30,0.19), 0.005, M.hose, g); // 린스 노즐
+      });
+      mesh(new THREE.BoxGeometry(0.02,0.30,0.02), M.steel, 0,1.20,-0.235, g);          // 리프터 가이드
+    }
+    if(id==="BB1"||id==="BB2"){
+      /* PVA 롤러 브러시 2 (L 0.32, Ø0.07) 웨이퍼 양면 대칭, 맨드릴 샤프트, 피벗 플레이트, 스프레이 바 */
+      [-0.049,0.049].forEach(px=>{
+        const bg = new THREE.Group(); bg.position.set(px,0.95,0); bg.rotation.x = Math.PI/2; g.add(bg);
+        const br = mesh(new THREE.CylinderGeometry(0.035,0.035,0.32,40), M.pva, 0,0,0, bg);
+        mesh(new THREE.CylinderGeometry(0.011,0.011,0.44,16), M.steel, 0,0,0, bg);     // 맨드릴
+        clean.brushes.push(br);
+        mesh(new THREE.BoxGeometry(0.02,0.16,0.02), M.anod, px*1.5,1.20,0.20, g);       // 포지셔닝 암
+        mesh(new THREE.BoxGeometry(0.02,0.16,0.02), M.anod, px*1.5,1.20,-0.20, g);
+      });
+      mesh(new THREE.BoxGeometry(0.20,0.02,0.05), M.anod, 0,1.285,0.20, g);            // 피벗 플레이트
+      mesh(new THREE.BoxGeometry(0.20,0.02,0.05), M.anod, 0,1.285,-0.20, g);
+      pipe(new THREE.Vector3(-0.09,1.22,-0.18), new THREE.Vector3(-0.09,1.22,0.18), 0.006, M.tube, g);  // 스프레이 바
+      pipe(new THREE.Vector3( 0.09,1.22,-0.18), new THREE.Vector3( 0.09,1.22,0.18), 0.006, M.tube, g);
+    }
+    if(id!=="IN"&&id!=="OUT"){
+      /* 하부 구동 롤러 2 (홈 안에 웨이퍼 엣지) + 센서 휠 */
+      [-0.10,0.10].forEach(pz=>{ const r = mesh(new THREE.CylinderGeometry(0.025,0.025,0.02,24), M.rubber, 0,0.79,pz, g); r.rotation.z = Math.PI/2; });
+      const sw = mesh(new THREE.CylinderGeometry(0.015,0.015,0.01,16), M.anod, 0,0.79,0, g); sw.rotation.z = Math.PI/2;
+      const w = vdisc(); w.position.set(0,0.95,0); g.add(w); mod.wafer = w;             // 수직 웨이퍼 Ø0.30 (하단 롤러 위)
+    } else {
+      /* IN/OUT: 모터 힌지(상단, Y축 방향)로 웨이퍼 지지대를 수평↔수직 회전 */
+      const hg = new THREE.Group(); hg.position.set(0,1.30,0); g.add(hg); mod.hinge = hg;
+      mesh(new THREE.CylinderGeometry(0.015,0.015,0.36,16), M.steelD, 0,0,0, hg).rotation.x = Math.PI/2;
+      mesh(new THREE.BoxGeometry(0.012,0.34,0.03), M.anod, 0,-0.17,-0.15, hg);          // 지지 프레임 레일
+      mesh(new THREE.BoxGeometry(0.012,0.34,0.03), M.anod, 0,-0.17, 0.15, hg);
+      const w = vdisc(); w.position.set(0,-0.15,0); hg.add(w); mod.wafer = w;
+      mesh(chamferCyl(0.04,0.06,0.006,32), M.anod, 0,0,-0.22, g).rotation.x = Math.PI/2; // 힌지 모터
+      mod.flipDir = id==="IN" ? 1 : -1;
+    }
+    /* Level 2 툴팁 프록시 */
+    const px = new THREE.Mesh(new THREE.BoxGeometry(0.30,0.60,0.48), M.hotspot.clone());
+    px.position.set(0,1.05,0); g.add(px);
+    const ed = new THREE.LineSegments(new THREE.EdgesGeometry(px.geometry), new THREE.LineBasicMaterial({color:0x4da3ff, transparent:true, opacity:0.9}));
+    ed.visible = false; px.add(ed);
+    px.userData = {id, edges:ed, label:CLEAN_LABEL[id], desc:CLEAN_DESC[id]};
+    clean.proxies.push(px);
+    clean.modules.push(mod);
+  });
+  /* 오버헤드 핸들러: 레일 X 0.3~1.9 @ Z 1.8, 캐리지 + 그리퍼 5 (피치 0.30, n−1) */
+  boxT(LAY.HND.x[0],LAY.HND.x[1], Ymod-0.03,Ymod+0.03, 1.80,1.86, M.steel, tool);
+  for(const x of LAY.HND.x) boxT(x-0.03,x+0.03, Ymod-0.03,Ymod+0.03, 0.75,1.80, M.frame, tool);
+  const hnd = new THREE.Group(); hnd.position.copy(W3(0, Ymod, 1.78)); tool.add(hnd); clean.hnd = hnd;
+  mesh(new THREE.BoxGeometry(1.34,0.05,0.07), M.anod, 0.95,0,0, hnd);                  // 캐리지 바 (X 0.28~1.62)
+  for(let k=0;k<5;k++){
+    const gg = new THREE.Group(); gg.position.set(0.35+0.30*k, -0.025, 0); hnd.add(gg);
+    const bar = mesh(new THREE.CylinderGeometry(0.012,0.012,1,12), M.steel, 0,-0.5,0, gg);   // 길이 1 → scale.y 로 조절
+    const fork = new THREE.Group(); gg.add(fork);
+    mesh(new THREE.BoxGeometry(0.04,0.02,0.16), M.black, 0,-0.01,0, fork);
+    mesh(new THREE.BoxGeometry(0.03,0.05,0.02), M.black, 0,-0.035,-0.075, fork);
+    mesh(new THREE.BoxGeometry(0.03,0.05,0.02), M.black, 0,-0.035, 0.075, fork);
+    const w = vdisc(); w.position.set(0,-0.15,0); fork.add(w); w.visible = false;
+    clean.grippers.push({gg,bar,fork}); clean.carried.push(w);
+  }
+  /* 웻 로봇 (트랙 X 0.3~1.9 @ Y 2.8, Z 0.9) — 격벽 슬릿을 통해 폴리셔와 웨이퍼 교환 */
+  boxT(LAY.WR.track[0],LAY.WR.track[1], LAY.WR.y-0.04,LAY.WR.y+0.04, 0.82,0.88, M.steel, tool);
+  boxT(0.2,2.0, 2.65,2.95, 0.12,0.82, M.frame, tool);
+  b.wr = scara(tool, W3(LAY.WR.x, LAY.WR.y, 0.88), M.black);
+  /* 폴리셔 앞 웻로봇 구역은 폴리싱 모듈 인클로저에 포함 (Y 2.6~3.0) */
+})();
+/* ══ (c) Polishing Module — 테이블 탑, 플래튼 P2/P3 (간략), TS, 캐러셀 + 4헤드 ══ */
+const pm = { platens:{}, heads:[], arms:[], conds:[] };
+/* 간략 플래튼(P2/P3): 플래튼 Ø0.80 + 패드 Ø0.775(공유 패드 텍스처) + 컨디셔너 + 슬러리 암.  s = 컨디셔너/슬러리 배치 부호 */
+function simplePlaten(id, P, s){
+  const c = W3(P.x, P.y, 0);
+  const grp = new THREE.Group(); grp.position.copy(c); tool.add(grp);
+  mesh(chamferRing(0.42,0.48,0.008,0.003,128), M.anod, 0,LAY.TABLE_Z+0.004,0, grp, false);   // 환형 드레인 홈
+  mesh(chamferCyl(0.30,0.05,0.006,64), M.anod, 0,0.925,0, grp);                                // 허브
+  const spin = new THREE.Group(); grp.add(spin);
+  mesh(chamferCyl(0.40,0.08,0.006,128), M.alu, 0,0.94,0, spin);                                 // 플래튼 0.90~0.98
+  boltCircle(spin, 0.375, 0.985, 24, 0.006);
+  const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.3875,0.3875,0.02,128), [padSideMat, padMat, padSideMat]);
+  pad.position.y = LAY.PAD_Z-0.01; pad.castShadow = pad.receiveShadow = true; spin.add(pad);
+  /* 컨디셔너: 피벗 = 플래튼 중심에서 바깥 모서리 방향(캐러셀 축 반대) 0.55, 암 L 0.5 @ Z 1.05, 디스크 Ø0.10, 세척 컵 Ø0.15 */
+  const dirA = Math.atan2(P.y-LAY.CAR.y, P.x-LAY.CAR.x);
+  const ca = dirA - s*14*Math.PI/180, sa = dirA + s*56*Math.PI/180;
+  const cp = new THREE.Vector3(Math.cos(ca)*LAY.COND_OFF, 0, -Math.sin(ca)*LAY.COND_OFF);
+  mesh(chamferCyl(0.05,0.42,0.006,48), M.frame, cp.x,LAY.TABLE_Z+0.21,cp.z, grp);
+  mesh(chamferCyl(0.04,0.06,0.006,32), M.anod, cp.x,LAY.TABLE_Z+0.45,cp.z, grp);
+  mesh(chamferRing(0.06,0.075,0.05,0.004,48), M.pp, cp.x+Math.sin(ca)*0.12*s, LAY.TABLE_Z+0.03, cp.z+Math.cos(ca)*0.12*s, grp); // 디스크 세척 컵
+  const carm = new THREE.Group(); carm.position.copy(cp); carm.position.y = 1.05; grp.add(carm);
+  const yaw0 = Math.atan2(-(0-cp.z), (0-cp.x));                                                   // 암이 플래튼 중심을 향하는 yaw
+  mesh(new THREE.BoxGeometry(LAY.COND_L,0.025,0.04), M.frame, LAY.COND_L/2,0,0, carm);
+  mesh(chamferCyl(0.035,0.05,0.004,32), M.steelD, 0,0,0, carm);
+  const dsk = new THREE.Group(); dsk.position.set(LAY.COND_L,0,0); carm.add(dsk);
+  mesh(chamferCyl(0.03,0.05,0.004,32), M.steelD, 0,-0.02,0, dsk);
+  mesh(chamferCyl(0.05,0.012,0.002,48), M.steel, 0,-0.046,0, dsk);
+  pm.conds.push({carm, dsk, yaw0});
+  /* 슬러리 암: 포스트 → 튜브가 패드 중심 근처로, 노즐 @ Z 1.10 */
+  const sp = new THREE.Vector3(Math.cos(sa)*0.51, 0, -Math.sin(sa)*0.51);
+  mesh(chamferCyl(0.033,0.36,0.004,32), M.frame, sp.x,LAY.TABLE_Z+0.18,sp.z, grp);
+  mesh(chamferCyl(0.025,0.03,0.003,32), M.anod, sp.x,LAY.TABLE_Z+0.375,sp.z, grp);
+  const drop = new THREE.Vector3(-Math.cos(sa)*0.06, 1.10, Math.sin(sa)*0.06);
+  pipe(new THREE.Vector3(sp.x,1.09,sp.z), drop, 0.009, M.tube, grp);
+  pipe(new THREE.Vector3(sp.x+0.012,1.09,sp.z+0.012), new THREE.Vector3(drop.x+0.012,1.10,drop.z+0.012), 0.003, M.hose, grp);
+  mesh(new THREE.CylinderGeometry(0.006,0.008,0.07,16), M.tube, drop.x,1.065,drop.z, grp);
+  pm.platens[id] = {grp, spin, pad, center:c};
+  return grp;
+}
+(function buildPM(){
+  const b = newBlock("pm"), [y0,y1] = LAY.PM, W = LAY.W, H = LAY.H, yw = LAY.CL[1];
+  wallY(b, y0, 0,W, 1.0,H, [0.5,1.7,1.10,1.75]);                                     // 폴리셔 정면 창 (웻로봇 구역 위)
+  wallY(b, y1, 0,W, 0.12,H);                                                          // 후면(전장 캐비닛과의 격벽)
+  wallX(b, 0, yw,y1, 0.12,H, [3.3,5.2,1.10,1.75]); wallX(b, W, yw,y1, 0.12,H, [3.3,5.2,1.10,1.75]);
+  doorX(b, 0, 3.10,4.20, 0.25,1.00); doorX(b, 0, 4.30,5.40, 0.25,1.00);
+  doorX(b, W, 3.10,4.20, 0.25,1.00); doorX(b, W, 4.30,5.40, 0.25,1.00);
+  doorX(b, 0, yw+0.05,y0-0.05, 0.25,1.75); doorX(b, W, yw+0.05,y0-0.05, 0.25,1.75);
+  boxT(0,W, yw,y1, H-T_WALL,H, b.panel, b.grp);
+  bandRing(b, 0,W, yw,y1, 1.95,2.12);
+  /* 테이블 탑 2.2×2.5 @ Z 0.95 (두께 0.05) + 하부 베이스 */
+  boxT(0.05,W-0.05, y0+0.05,y1-0.05, 0.12,0.90, M.frame, tool);
+  boxT(0,W, y0,y1, 0.90,LAY.TABLE_Z, M.steelD, tool);
+  simplePlaten("P2", LAY.P2, +1);
+  simplePlaten("P3", LAY.P3, -1);
+  /* 트랜스퍼 스테이션: 로드컵(Ø0.36, H0.12) + 버퍼 2(3핀) + 2-그리퍼 회전 로봇 (축은 버퍼·로드컵 중심을 지나는 원의 중심) */
+  const ts = W3(LAY.TS.x, LAY.TS.y, 0);
+  const cup = new THREE.Group(); cup.position.copy(ts); tool.add(cup);
+  mesh(chamferRing(0.15,0.18,0.12,0.006,96), M.pp, 0,LAY.TABLE_Z+0.06,0, cup);         // 베이슨
+  mesh(chamferCyl(0.15,0.01,0.002,96), M.pp, 0,LAY.TABLE_Z+0.005,0, cup);
+  const lift = mesh(chamferCyl(0.13,0.012,0.003,96), M.steelD, 0,LAY.TABLE_Z+0.05,0, cup); // 리프트 플레이트
+  [0,120,240].forEach(a=>{ const r=a*Math.PI/180; mesh(new THREE.CylinderGeometry(0.006,0.006,0.02,12), M.rubber, Math.cos(r)*0.11, LAY.TABLE_Z+0.066, Math.sin(r)*0.11, cup); });
+  [45,135].forEach(a=>{ const r=a*Math.PI/180; mesh(new THREE.CylinderGeometry(0.006,0.008,0.05,12), M.tube, Math.cos(r)*0.19, LAY.TABLE_Z+0.13, Math.sin(r)*0.19, cup).rotation.z = 0.5*(a<90?1:-1); }); // 린스 노즐
+  pm.ts = {cup, lift};
+  const tsAxis = W3(LAY.TS.x, LAY.TS.y-0.32, 0);
+  const bufs = [W3(LAY.TS.x-0.31, LAY.TS.y-0.24, 0), W3(LAY.TS.x+0.31, LAY.TS.y-0.24, 0)];
+  bufs.forEach(p=>{ [0,120,240].forEach(a=>{ const r=a*Math.PI/180;
+    mesh(new THREE.CylinderGeometry(0.008,0.008,0.05,12), M.black, p.x+Math.cos(r)*0.14, LAY.TABLE_Z+0.025, p.z+Math.sin(r)*0.14, tool); });
+    const w = new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.15,0.004,72), waferMat); w.position.set(p.x, LAY.TABLE_Z+0.052, p.z); tool.add(w); });
+  const tsr = new THREE.Group(); tsr.position.copy(tsAxis); tool.add(tsr);
+  mesh(chamferCyl(0.06,0.17,0.006,48), M.frame, 0,LAY.TABLE_Z+0.085,0, tsr);
+  const tsArm = new THREE.Group(); tsArm.position.y = LAY.TABLE_Z+0.18; tsr.add(tsArm);
+  [0,Math.PI].forEach(a=>{ const g = new THREE.Group(); g.rotation.y = a; tsArm.add(g);
+    mesh(new THREE.BoxGeometry(0.32,0.02,0.05), M.frame, 0.16,0,0, g);
+    mesh(new THREE.BoxGeometry(0.06,0.015,0.20), M.black, 0.32,-0.01,0, g); });
+  pm.tsArm = tsArm;
+  /* 캐러셀: 중앙 포스트 Ø0.25 (Z 0.95→1.75), 십자 지지판 Ø1.85·두께 0.06·팔폭 0.30 (상면 Z 1.75), 방사형 슬롯 4, 허브 캡 */
+  const car = new THREE.Group(); car.position.copy(W3(LAY.CAR.x, LAY.CAR.y, 0)); tool.add(car); pm.car = car;
+  mesh(chamferCyl(0.125,0.80,0.008,64), M.steelD, 0,1.35,0, car);
+  mesh(chamferCyl(0.20,0.06,0.006,64), M.anod, 0,LAY.TABLE_Z+0.03,0, tool).position.copy(car.position).setY(LAY.TABLE_Z+0.03); // 베이스 베어링
+  const plate = new THREE.Group(); plate.position.y = 1.72; car.add(plate);
+  mesh(new THREE.BoxGeometry(1.85,0.06,0.30), M.alu, 0,0,0, plate);
+  mesh(new THREE.BoxGeometry(0.30,0.06,1.85), M.alu, 0,0,0, plate);
+  mesh(chamferCyl(0.30,0.09,0.01,64), M.frame, 0,0.075,0, plate); boltCircle(plate, 0.25, 0.125, 12, 0.008);
+  const R = LAY.CAR.R;
+  for(let i=0;i<4;i++){
+    const phi = (225+90*i)*Math.PI/180;                                              // 스테이션 순서 TS(225°) P1(315°) P2(45°) P3(135°)
+    const arm = new THREE.Group(); arm.rotation.y = phi; car.add(arm);              // 로컬 +x = 반경 방향
+    mesh(new THREE.BoxGeometry(0.50,0.066,0.10), M.black, 0.70,1.72,0, arm);         // 방사형 슬롯
+    const slide = new THREE.Group(); arm.add(slide);                                 // 슬롯 안 헤드 슬라이드 (스윕)
+    mesh(new THREE.BoxGeometry(0.12,0.14,0.09), M.anod, 0,1.72,0, slide);
+    mesh(chamferCyl(0.07,0.20,0.008,48), M.steelD, 0,1.90,0, slide);                 // 헤드 회전 모터 (판 위)
+    mesh(chamferCyl(0.03,0.17,0.004,32), M.steel, 0,1.605,0, slide);                 // 드라이브 샤프트 상부 (1.52→1.69)
+    pipe(new THREE.Vector3(0.05,2.0,0), new THREE.Vector3(-0.55,1.95,0), 0.012, M.rubber, slide); // 케이블
+    const head = new THREE.Group(); slide.add(head);                                 // 헤드 (P1 dwell 중엔 상세 캐리어로 대체)
+    mesh(chamferRing(0.150,0.172,0.018,0.003,96), M.pps, 0,1.012,0, head);           // 리테이너 링 (하면 Z 1.003)
+    const wf = new THREE.Mesh(new THREE.CylinderGeometry(0.149,0.149,0.006,96), waferMat); wf.position.y = 1.004; head.add(wf);
+    mesh(chamferCyl(0.162,0.012,0.002,96), M.rubber, 0,1.027,0, head);               // 멤브레인 베이스
+    mesh(chamferCyl(0.177,0.076,0.006,96), M.steel, 0,1.071,0, head);                // 하우징 Ø0.35
+    mesh(chamferRing(0.15,0.177,0.003,0.001,96), M.anod, 0,1.111,0, head);
+    mesh(chamferCyl(0.139,0.040,0.005,64), M.steelD, 0,1.13,0, head);
+    mesh(chamferCyl(0.076,0.030,0.008,48), M.anod, 0,1.167,0, head);                 // 짐벌
+    mesh(chamferCyl(0.023,0.30,0.003,32), M.steel, 0,1.33,0, head);                  // 스핀들 샤프트
+    mesh(chamferCyl(0.058,0.106,0.008,48), M.steelD, 0,1.47,0, head);                // 스핀들 모터
+    pm.heads.push(head); pm.arms.push({arm, slide, head, i});
+  }
+})();
+
+/* ══ (d) 후면 전장·유틸리티 캐비닛 ══ */
+(function buildCab(){
+  const b = newBlock("cab"), [y0,y1] = LAY.CAB, W = LAY.W, H = LAY.H;
+  wallY(b, y1, 0,W, 0.12,H); wallX(b, 0, y0,y1, 0.12,H); wallX(b, W, y0,y1, 0.12,H);
+  boxT(0,W, y0,y1, H-T_WALL,H, b.panel, b.grp);
+  bandRing(b, 0,W, y0,y1, 1.95,2.12);
+  doorY(b, y1, 0.10,1.05, 0.25,1.85); doorY(b, y1, 1.15,2.10, 0.25,1.85);
+  /* 유틸 접속 (PCW·CDA·N2·배기) */
+  [[0.4,0x8fa3b5],[0.6,0xd9dde2],[0.8,0xe8e8e8]].forEach(([x,c])=>
+    mesh(new THREE.CylinderGeometry(0.025,0.025,0.30,24), new THREE.MeshStandardMaterial({color:c, metalness:0.9, roughness:0.3}), x, 2.30, -5.75, tool));
+  mesh(new THREE.CylinderGeometry(0.08,0.08,0.40,32), M.steelD, 1.6, 2.36, -5.75, tool);   // 배기 덕트
+  /* 슬러리 POU 밸브박스 (측면, §1.3 SDS) — SDS 캐비닛에서 온 배관이 여기로 들어온다 */
+  boxT(2.2,2.6, 4.2,4.5, 0.6,1.2, M.pp, tool);
+})();
+
+/* ══ (e) 슬러리 공급장치 (SDS) — 폴리셔 옆 독립 캐비닛 ══
+   사용자 지시(2026-09-11): "3D모델로 공급장치가 없다고".
+   이전까지 3D에는 암 노즐과 POU 밸브박스만 있었다. 실제 팹에서 슬러리는
+   폴리셔 안이 아니라 **옆에 선 별도 캐비닛**에서 온다:
+     드럼/IBC → 블렌드 탱크(교반) → 펌프 → 필터 → 유량계 → POU → 암 노즐
+   ② Slurry 탭의 P&ID와 같은 순서로 왼쪽에서 오른쪽으로 세운다.
+   치수는 상용 SDS(반도체 CDS/블렌딩 유닛) 통상값 기준의 **추정**이다 —
+   1차 출처를 못 찾았으므로 STATION.SDS 설명에 estimated 로 명시한다. */
+(function buildSDS(){
+  const X0 = -1.55, X1 = -0.15;          // 툴 왼쪽(음의 x)에 나란히
+  const Y0 = 3.05, Y1 = 4.95;            // 폴리싱 모듈과 같은 깊이대
+  const ZT = 2.05;                       // 캐비닛 높이
+
+  /* 베이스 프레임 + 바닥 팬(누액 받이) */
+  boxT(X0, X1, Y0, Y1, 0.00, 0.12, M.steelD, tool, true);
+  boxT(X0+0.03, X1-0.03, Y0+0.03, Y1-0.03, 0.12, 0.16, M.pp, tool);   // 화학 누액 팬
+
+  /* 뒤판 + 양 측판. ⚠ 불투명 패널로 두면 어느 각도에서 봐도 내부가 안 보인다
+     (실제로 첫 렌더에서 캐비닛이 빈 흰 상자로만 나왔다). 안이 보여야 의미가 있으므로
+     측판은 반투명 모듈월로, 앞면은 아예 비운다. */
+  boxT(X0, X1, Y1-0.06, Y1, 0.16, ZT, M.frame, tool, true);           // 뒤판(불투명, 배경)
+  boxT(X0, X0+0.05, Y0, Y1, 0.16, ZT, M.modWall, tool, false);        // 좌 측판(반투명)
+  boxT(X1-0.05, X1, Y0, Y1, 0.16, ZT, M.modWall, tool, false);        // 우 측판(반투명)
+  boxT(X0, X1, Y0, Y1, ZT-0.05, ZT, M.modWall, tool, false);          // 천판(반투명 — 위에서도 보이게)
+  /* 프레임 기둥 — 반투명 벽만 있으면 형태가 흐려지니 모서리를 세운다 */
+  [[X0+0.03,Y0+0.03],[X1-0.03,Y0+0.03],[X0+0.03,Y1-0.03],[X1-0.03,Y1-0.03]].forEach(([px,py])=>
+    mesh(new THREE.BoxGeometry(0.06,ZT-0.16,0.06), M.steelD, px, (0.16+ZT)/2, -py, tool));
+
+  const mid = (Y0+Y1)/2;
+  /* 툴 좌표(x=가로, y=깊이, z=높이) → 월드(x, 높이, -깊이).
+     ⚠ mesh()는 (x, y=높이, z)를 받는다. W3와 같은 규약으로 변환해야 한다 —
+     처음에 인자 순서를 틀려 부품이 전부 캐비닛 밖 바닥에 깔렸다(2026-09-11). */
+  const put = (g,m,x,z,y,sh)=> mesh(g, m, x, z, -(y===undefined?mid:y), tool, sh);
+
+  /* ① 드럼 / IBC — 원료 통 2개 (왼쪽 끝) */
+  [[X0+0.30, mid-0.42],[X0+0.30, mid+0.42]].forEach(([dx,dy])=>{
+    put(chamferCyl(0.24, 0.86, 0.03, 40), M.pp, dx, 0.16+0.43, dy, true);
+    put(new THREE.CylinderGeometry(0.25,0.25,0.03,40), M.steelD, dx, 0.16+0.88, dy);  // 뚜껑 링
+    put(new THREE.CylinderGeometry(0.05,0.05,0.10,20), M.tube,   dx, 0.16+0.95, dy);  // 인출 포트
+  });
+
+  /* ② 블렌드 탱크 — 투명 동체 + 액면 + 교반 모터 */
+  const TX = X0+0.72;
+  put(new THREE.CylinderGeometry(0.30,0.30,0.92,48), M.acrylic, TX, 0.16+0.52, mid);
+  put(new THREE.CylinderGeometry(0.285,0.285,0.55,40), M.liquid, TX, 0.16+0.34, mid);   // 액면
+  put(new THREE.CylinderGeometry(0.31,0.31,0.03,48), M.steelD, TX, 0.16+0.99, mid);     // 상판
+  put(new THREE.BoxGeometry(0.20,0.16,0.20), M.anod,          TX, 0.16+1.10, mid);      // 교반 모터
+  put(new THREE.CylinderGeometry(0.018,0.018,0.70,16), M.steel, TX, 0.16+0.62, mid);    // 교반축
+  [0,1].forEach(i=> put(new THREE.BoxGeometry(0.22,0.012,0.05), M.steel, TX, 0.16+0.34+i*0.16, mid)); // 임펠러
+
+  /* ③ 펌프 — 다이어프램 헤드 + 모터 */
+  const PX = X0+1.06;
+  put(new THREE.BoxGeometry(0.20,0.22,0.24), M.frame, PX, 0.16+0.30, mid, true);
+  put(chamferCyl(0.09, 0.20, 0.02, 28), M.steel, PX, 0.16+0.52, mid);
+  put(new THREE.CylinderGeometry(0.055,0.055,0.16,24), M.anod, PX+0.14, 0.16+0.52, mid);
+
+  /* ④ 필터 하우징 — D99 꼬리를 자르는 자리. 2단으로 세운다 */
+  [mid-0.26, mid+0.26].forEach(fy=>{
+    put(chamferCyl(0.075, 0.62, 0.02, 32), M.steel, X0+1.26, 0.16+0.55, fy, true);
+    put(new THREE.CylinderGeometry(0.085,0.085,0.04,32), M.steelD, X0+1.26, 0.16+0.88, fy);
+    put(new THREE.CylinderGeometry(0.02,0.02,0.06,16), M.tube,   X0+1.26, 0.16+0.93, fy); // 벤트
+  });
+
+  /* ⑤ 배관 — 드럼 → 탱크 → 펌프 → 필터 → 토출. 같은 높이로 가로질러 인과를 보여준다 */
+  const pipeY = 0.16+0.98, r = 0.022;
+  function runX(xa, xb, yy, zz){
+    const L = Math.abs(xb-xa);
+    const m = mesh(new THREE.CylinderGeometry(r,r,L,16), M.tube, (xa+xb)/2, zz, -yy, tool);
+    m.rotation.z = Math.PI/2; return m;
+  }
+  function runY(ya, yb, xx, zz){
+    const L = Math.abs(yb-ya);
+    const m = mesh(new THREE.CylinderGeometry(r,r,L,16), M.tube, xx, zz, -(ya+yb)/2, tool);
+    m.rotation.x = Math.PI/2; return m;
+  }
+  runY(mid-0.42, mid+0.42, X0+0.30, pipeY);          // 드럼 2통 합류
+  runX(X0+0.30, TX,       mid,      pipeY);          // → 탱크
+  runX(TX,      PX,       mid,      0.16+0.52);      // 탱크 → 펌프(하단 인출)
+  runX(PX+0.14, X0+1.26,  mid,      0.16+0.52);      // 펌프 → 필터
+  runY(mid-0.26, mid+0.26, X0+1.26, 0.16+0.52);      // 필터 2기 합류
+
+  /* ⑥ 유량계 — 여기까지가 SDS, 이후는 툴 배관 */
+  const FX = X1-0.22;
+  put(new THREE.BoxGeometry(0.12,0.20,0.14), M.anod, FX, 0.16+0.62, mid);
+  put(new THREE.BoxGeometry(0.10,0.12,0.02), M.teal, FX, 0.16+0.62, mid-0.075);   // 표시창
+  runX(X0+1.26, FX, mid, 0.16+0.52);
+  runX(FX, X1+0.10, mid, 0.16+0.62);
+
+  /* ⑦ 툴로 건너가는 배관 — POU 밸브박스(2.2~2.6, 4.2~4.5)까지 눈으로 잇는다.
+     이게 있어야 "옆 캐비닛에서 와서 암 노즐로 나간다"가 읽힌다. */
+  runY(mid, 4.35, X1+0.10, 0.16+0.62);
+  runX(X1+0.10, 2.4, 4.35, 0.16+0.62);
+
+  /* 라벨 판 */
+  put(new THREE.BoxGeometry(0.42,0.14,0.02), M.teal, X0+0.55, ZT+0.09, Y1-0.04);
+})();
+
+/* ══════════════════════════════════════════════════════════════
+   Level 1 — 폴리싱 스테이션 클로즈업 (기존 씬). 1 unit = 253 mm.
+   `closeup` 그룹: scale 0.253, 원점 = P1 패드 상면 (1.61, 3.74, Z 1.00), yaw 135° 로 헤드 오프셋(+x)이 캐러셀 축을 향한다.
+   ══════════════════════════════════════════════════════════════ */
+const U = 0.253;
+const closeup = new THREE.Group();
+closeup.scale.setScalar(U); closeup.position.copy(W3(LAY.P1.x, LAY.P1.y, LAY.PAD_Z)); closeup.rotation.y = Math.PI*0.75;
+tool.add(closeup);
+const cm = (g,m,x,y,z,p,s)=>mesh(g,m,x,y,z,p||closeup,s);
+
+/* ── 슬러리 배수 트레이/스플래시가드 (테이블 탑에 매입) ── */
+const trayLathe = (function(){                                             // 트레이: 바닥+외벽(립)
+  const pts = [ new THREE.Vector2(1.56,-0.40), new THREE.Vector2(1.92,-0.40), new THREE.Vector2(1.96,-0.36),
+    new THREE.Vector2(1.96, 0.12), new THREE.Vector2(1.90, 0.16), new THREE.Vector2(1.86, 0.12),
+    new THREE.Vector2(1.86,-0.34), new THREE.Vector2(1.60,-0.34), new THREE.Vector2(1.56,-0.30) ];
+  const g = new THREE.LatheGeometry(pts, 128); g.computeVertexNormals(); return g;
+})();
+cm(trayLathe, M.steelD, 0,0,0);
+cm(new THREE.CylinderGeometry(0.06,0.06,0.5,16), M.black, 1.72,-0.60,0.55); // 배수구
+/* 플래튼 허브(회전하지 않는 베어링 하우징) */
+cm(chamferCyl(0.95,0.14,0.02,96), M.anod, 0,-0.35,0);
+
+/* ══ 플래튼 + 패드 : 회전한다 ══ */
+const PAD_TOP = 0.0;
+const platenGrp = new THREE.Group(); closeup.add(platenGrp);
+const platen = cm(chamferCyl(1.5,0.22,0.02,128), M.alu, 0,-0.17,0, platenGrp);
+boltCircle(platenGrp, 1.42, -0.06, 24, 0.022);        // 플래튼 상면 볼트
+cm(chamferRing(1.30,1.50,0.03,0.008,128), M.steelD, 0,-0.055,0, platenGrp); // 패드 클램프 링(외곽)
+void platen;
+
+const pad = new THREE.Mesh(new THREE.CylinderGeometry(1.5,1.5,0.06,128), [padSideMat, padMat, padSideMat]);
+pad.position.y = PAD_TOP-0.03; pad.castShadow = pad.receiveShadow = true;
+platenGrp.add(pad); hot.pad = pad;
+
+/* 동심원 그루브 — 간격/깊이(/폭)가 텍스처에 실제로 반영된다 (P1·P2·P3 패드가 같은 텍스처를 공유) */
+let grooveGrp = new THREE.Group(); platenGrp.add(grooveGrp);   // (호환용, 비어 있음)
+function buildGrooves(pitchMM, depthMM){
+  const pitch = Math.max(pitchMM, 0.6), depth = Math.max(depthMM, 0.1);
+  const widthUM = (typeof num==="function") ? num("groove_width_um", 600) : 600;
+  const pxPerMM = (PAD_PX/2)/PAD_R_MM;
+  const g = padCanvas.getContext("2d"), b = padBump.getContext("2d");
+  g.drawImage(padBase,0,0);
+  b.fillStyle = "#808080"; b.fillRect(0,0,PAD_PX,PAD_PX);
+  const w = Math.max(1.3, widthUM/1000*pxPerMM);
+  const dark = THREE.MathUtils.clamp(0.30 + depth/1.5*0.45, 0.3, 0.8);
+  g.lineWidth = w; g.strokeStyle = `rgba(28,30,18,${dark})`;
+  b.lineWidth = w; b.strokeStyle = `rgb(${Math.round(128-100*THREE.MathUtils.clamp(depth/1.5,.2,1))},0,0)`;
+  b.strokeStyle = b.strokeStyle.replace(/rgb\((\d+),0,0\)/, (m,v)=>`rgb(${v},${v},${v})`);
+  const cx = PAD_PX/2;
+  for(let r = 25*pxPerMM; r < (PAD_R_MM-6)*pxPerMM; r += pitch*pxPerMM){
+    g.beginPath(); g.arc(cx,cx,r,0,Math.PI*2); g.stroke();
+    b.beginPath(); b.arc(cx,cx,r,0,Math.PI*2); b.stroke();
+  }
+  /* 그루브 하이라이트 엣지(빛 받는 쪽) */
+  g.lineWidth = Math.max(0.6, w*0.4); g.strokeStyle = "rgba(255,255,240,0.10)";
+  for(let r = 25*pxPerMM + w*0.9; r < (PAD_R_MM-6)*pxPerMM; r += pitch*pxPerMM){
+    g.beginPath(); g.arc(cx,cx,r,0,Math.PI*2); g.stroke();
+  }
+  padTex.needsUpdate = true; padBumpTex.needsUpdate = true;
+}
+buildGrooves(3.05, 0.76);
+
+/* ══ 캐리어 헤드 + 리테이너 링 + 웨이퍼 : 플래튼과 **같은 방향**으로 자전 ══ */
+const R_CC = 0.72;                                   // r_cc 180 mm (num("center_offset_m")로 갱신)
+const carrierGrp = new THREE.Group(); carrierGrp.position.set(R_CC, 0, 0); closeup.add(carrierGrp);
+/* 리테이너 링 (PPS, 웨이퍼를 둘러싸고 패드를 미리 누름) — 하단 슬러리 슬롯 */
+const ring = cm(chamferRing(0.595,0.665,0.07,0.008,128), M.pps, 0,PAD_TOP+0.047,0, carrierGrp);
+(function(){ const g = new THREE.BoxGeometry(0.08,0.02,0.006);
+  const im = new THREE.InstancedMesh(g, M.rubber, 36); const o = new THREE.Object3D();
+  for(let i=0;i<36;i++){ const a=i/36*Math.PI*2; o.position.set(Math.cos(a)*0.63, PAD_TOP+0.018, Math.sin(a)*0.63);
+    o.rotation.y=-a; o.updateMatrix(); im.setMatrixAt(i,o.matrix); }
+  carrierGrp.add(im); })();
+void ring;
+/* 멤브레인 베이스(고무) → 하우징(스테인리스, 단차 2단) → 짐벌 캡 → 스핀들 */
+cm(chamferCyl(0.64,0.05,0.006,128), M.rubber, 0,PAD_TOP+0.107,0, carrierGrp);
+const carrier = cm(chamferCyl(0.70,0.30,0.025,128), M.steel, 0,PAD_TOP+0.282,0, carrierGrp);
+hot.tool = carrier;
+cm(chamferRing(0.60,0.70,0.012,0.004,128), M.anod, 0,PAD_TOP+0.438,0, carrierGrp);   // 상면 씰 링
+boltCircle(carrierGrp, 0.645, PAD_TOP+0.445, 16, 0.02);
+cm(chamferCyl(0.55,0.16,0.02,96), M.steelD, 0,PAD_TOP+0.52,0, carrierGrp);       // 상부 단차
+boltCircle(carrierGrp, 0.50, PAD_TOP+0.605, 12, 0.016);
+cm(chamferCyl(0.30,0.12,0.03,64), M.anod, 0,PAD_TOP+0.66,0, carrierGrp);        // 짐벌 하우징
+/* 공압 포트 3개(멀티존 챔버 배관) */
+for(let i=0;i<3;i++){ const a=i/3*Math.PI*2+0.4;
+  cm(new THREE.CylinderGeometry(0.022,0.022,0.09,16), M.tube,
+    Math.cos(a)*0.42, PAD_TOP+0.64, Math.sin(a)*0.42, carrierGrp);
+  pipe(new THREE.Vector3(Math.cos(a)*0.42, PAD_TOP+0.68, Math.sin(a)*0.42),
+       new THREE.Vector3(Math.cos(a)*0.12, PAD_TOP+1.20, Math.sin(a)*0.12), 0.012, M.hose, carrierGrp);
+}
+const shaft = cm(chamferCyl(0.09,1.0,0.01,48), M.steel, 0,PAD_TOP+1.20,0, carrierGrp);  // 스핀들 샤프트
+cm(new THREE.CylinderGeometry(0.11,0.11,0.06,48), M.anod, 0,PAD_TOP+0.75,0, carrierGrp); // 샤프트 칼라
+void shaft;
+
+const wafer = new THREE.Mesh(new THREE.CylinderGeometry(0.59,0.59,0.028,128), waferMat);
+wafer.position.y = PAD_TOP+0.018; wafer.castShadow = true;
+carrierGrp.add(wafer); hot.wafer = wafer;
+
+/* 헤드를 매단 구조(고정, 회전 안 함): 스핀들 모터 + 캐러셀 슬라이드까지의 드라이브 (갠트리 대신 캐러셀 암이 지지) */
+const headMount = new THREE.Group(); headMount.position.set(R_CC,0,0); closeup.add(headMount);
+cm(chamferCyl(0.23,0.42,0.03,64), M.steelD, 0,PAD_TOP+1.86,0, headMount);        // 스핀들 모터/드라이브
+cm(chamferCyl(0.26,0.05,0.01,64), M.anod, 0,PAD_TOP+1.66,0, headMount);
+boltCircle(headMount, 0.20, PAD_TOP+2.075, 8, 0.016);
+cm(chamferCyl(0.12,0.70,0.01,48), M.steel, 0,PAD_TOP+2.42,0, headMount);         // 드라이브 샤프트 → 캐러셀 슬라이드 (Z 1.52→1.69)
+
+/* ══ 컨디셔너 : 플래튼 밖 기둥에 고정된 스윙 암 → 끝에 다이아 디스크 (스윕 + 자전) ══
+   피벗은 플래튼 바깥 모서리(캐러셀 축 반대쪽) — 툴 좌표 ≈ (1.89, 3.28), 플래튼 중심에서 0.53 m */
+const COND_PIVOT = new THREE.Vector3(-2.05, 0, -0.50);
+const COND_L = 2.0;                                   // 피벗→디스크 중심
+const COND_YAW0 = Math.atan2(-(0-COND_PIVOT.z), (0-COND_PIVOT.x)); // 암이 플래튼 중심을 향하는 yaw
+const condPost = new THREE.Group(); condPost.position.copy(COND_PIVOT); closeup.add(condPost);
+cm(chamferCyl(0.20,1.70,0.02,64), M.frame, 0,-0.10,0, condPost);                // 스윙 기둥
+cm(chamferCyl(0.30,0.05,0.01,64), M.steelD, 0,-0.40,0, condPost);
+boltCircle(condPost, 0.255, -0.37, 6, 0.018);
+cm(chamferCyl(0.16,0.22,0.02,64), M.anod, 0,0.86,0, condPost);                  // 스윙 모터
+cm(chamferRing(0.22,0.30,0.20,0.01,64), M.pp, 0.55,-0.30,0.45, condPost);        // 디스크 세척 컵 Ø0.15
+const condGrp = new THREE.Group(); condGrp.position.copy(COND_PIVOT); condGrp.rotation.y = COND_YAW0; closeup.add(condGrp);
+cm(chamferCyl(0.14,0.16,0.015,48), M.steelD, 0,0.66,0, condGrp);                // 암 허브
+cm(new THREE.BoxGeometry(COND_L,0.09,0.16), M.frame, COND_L/2,0.66,0, condGrp);
+cm(new THREE.BoxGeometry(COND_L-0.2,0.02,0.10), M.steelD, COND_L/2-0.05,0.715,0, condGrp);
+pipe(new THREE.Vector3(0.2,0.72,0.05), new THREE.Vector3(COND_L-0.2,0.72,0.05), 0.012, M.hose, condGrp); // 컨디셔너 린스 라인
+/* 디스크 홀더 + 샤프트 + 디스크(자전) */
+const diskGrp = new THREE.Group(); diskGrp.position.set(COND_L,0,0); condGrp.add(diskGrp);
+cm(chamferCyl(0.13,0.20,0.015,48), M.steelD, 0,0.52,0, diskGrp);                // 홀더(다운포스 실린더)
+cm(chamferCyl(0.045,0.30,0.005,32), M.steel, 0,0.27,0, diskGrp);                // 디스크 샤프트
+const diskSpin = new THREE.Group(); diskGrp.add(diskSpin);
+cm(chamferCyl(0.16,0.05,0.008,64), M.steel, 0,0.115,0, diskSpin);               // 짐벌 백플레이트
+const disk = cm(chamferCyl(0.20,0.045,0.006,96), M.steel, 0,PAD_TOP+0.0425,0, diskSpin);
+hot.disk = disk;
+boltCircle(diskSpin, 0.135, PAD_TOP+0.07, 6, 0.012);
+/* 다이아 그릿 — 밀도가 실제로 반영된다 (디스크 하면에 박힘) */
+let gritGrp = new THREE.Group(); diskSpin.add(gritGrp);
+const gritMat = new THREE.MeshStandardMaterial({color:0xffffff, metalness:0.35, roughness:0.04});
+function buildGrits(density){
+  gritGrp.clear();
+  const n = Math.round(THREE.MathUtils.clamp(
+      60*Math.log10(density/2e10+1)/Math.log10(21), 12, 260));
+  const g = new THREE.OctahedronGeometry(0.011);
+  const im = new THREE.InstancedMesh(g, gritMat, n);
+  const o = new THREE.Object3D();
+  for(let i=0;i<n;i++){
+    const a = Math.random()*Math.PI*2, r = Math.sqrt(Math.random())*0.185;
+    o.position.set(Math.cos(a)*r, PAD_TOP+0.018, Math.sin(a)*r);
+    o.rotation.set(Math.random()*.6, Math.random()*Math.PI, Math.random()*.6); o.updateMatrix();
+    im.setMatrixAt(i, o.matrix);
+  }
+  gritGrp.add(im);
+}
+buildGrits(1e11);
+
+/* ══ 슬러리 암 : 플래튼 밖 기둥 → 튜브가 패드 중심 근처까지 뻗어 적하 ══
+   포스트 툴 좌표 ≈ (2.15, 3.85) — 캐러셀 헤드 궤도(축에서 ≤1.0 m) 밖 */
+const SL_POST = new THREE.Vector3(-1.20, 0, 1.80);
+const SL_DROP = new THREE.Vector3(-0.15, 0, -0.32);   // 적하점(패드 중심 근처)
+const armPivot = new THREE.Group(); closeup.add(armPivot);
+cm(chamferCyl(0.13,1.45,0.015,48), M.frame, SL_POST.x,0.30,SL_POST.z, armPivot);
+cm(chamferCyl(0.20,0.05,0.01,48), M.steelD, SL_POST.x,-0.40,SL_POST.z, armPivot);
+cm(chamferCyl(0.10,0.10,0.01,48), M.anod, SL_POST.x,1.07,SL_POST.z, armPivot);
+const slArmA = new THREE.Vector3(SL_POST.x, 1.02, SL_POST.z);
+const slArmB = new THREE.Vector3(SL_DROP.x, 0.98, SL_DROP.z);
+pipe(slArmA, slArmB, 0.035, M.tube, armPivot);
+pipe(new THREE.Vector3(SL_POST.x+0.05,1.02,SL_POST.z+0.05), new THREE.Vector3(SL_DROP.x+0.05,0.98,SL_DROP.z+0.05), 0.012, M.hose, armPivot); // 슬러리 라인
+pipe(new THREE.Vector3(SL_POST.x-0.05,1.02,SL_POST.z-0.05), new THREE.Vector3(SL_DROP.x-0.05,0.98,SL_DROP.z-0.05), 0.012, M.hose, armPivot); // DIW 라인
+const nozzle = cm(chamferCyl(0.05,0.44,0.01,32), M.tube, SL_DROP.x,0.76,SL_DROP.z, armPivot);
+cm(new THREE.CylinderGeometry(0.022,0.030,0.06,24), M.anod, SL_DROP.x,0.52,SL_DROP.z, armPivot); // 노즐 팁
+cm(new THREE.CylinderGeometry(0.065,0.065,0.03,32), M.anod, SL_DROP.x,0.96,SL_DROP.z, armPivot); // 피팅
+hot.sds = nozzle;   /* 노즐 클릭 → ② Slurry (조성 + 공급을 한 탭에) */
+const DROP_Y = 0.49;
+
+/* 슬러리 필름 : 패드 위에 얇게 퍼진 반투명 유백 막 (SFR에 따라 넓이/농도) */
+const filmMat = new THREE.MeshStandardMaterial({color:0xcfefff, transparent:true, opacity:0.20,
+  roughness:0.08, metalness:0.0, depthWrite:false});
+const film = new THREE.Mesh(new THREE.CircleGeometry(1.46,128), filmMat);
+film.rotation.x = -Math.PI/2; film.position.y = PAD_TOP+0.004; film.renderOrder = 2; closeup.add(film);
+const puddle = new THREE.Mesh(new THREE.CircleGeometry(0.16,48),
+  new THREE.MeshStandardMaterial({color:0xe6f7ff, transparent:true, opacity:0.45, roughness:0.05, depthWrite:false}));
+puddle.rotation.x = -Math.PI/2; puddle.position.set(SL_DROP.x, PAD_TOP+0.006, SL_DROP.z); puddle.renderOrder = 3; closeup.add(puddle);
+
+/* 슬러리 입자 — SFR에 비례해 개수·속도가 변한다 (소프트 스프라이트 + additive). Level 1 에서만 갱신/표시 */
+const NP = 1400;
+const spos = new Float32Array(NP*3);
+const svel = new Float32Array(NP);
+const sph  = new Float32Array(NP);
+function seed(i, fresh){
+  if(fresh){ spos[i*3]  = SL_DROP.x+(Math.random()-.5)*0.04;
+             spos[i*3+1]= DROP_Y - Math.random()*0.05;
+             spos[i*3+2]= SL_DROP.z+(Math.random()-.5)*0.04;
+             sph[i]=0; }
+  svel[i] = 0.010+Math.random()*0.011;
+}
+for(let i=0;i<NP;i++){ seed(i,true); sph[i]=Math.random()<0.85?1:0;
+  if(sph[i]===1){ const a=Math.random()*Math.PI*2, r=0.15+Math.random()*1.3;
+    spos[i*3]=Math.cos(a)*r; spos[i*3+1]=PAD_TOP+0.012; spos[i*3+2]=Math.sin(a)*r; } }
+const sgeo = new THREE.BufferGeometry();
+sgeo.setAttribute("position", new THREE.BufferAttribute(spos,3));
+const spriteTex = (function(){
+  const c = document.createElement("canvas"); c.width = c.height = 64;
+  const g = c.getContext("2d"); const grd = g.createRadialGradient(32,32,0,32,32,32);
+  grd.addColorStop(0,"rgba(255,255,255,1)"); grd.addColorStop(0.35,"rgba(220,245,255,0.7)"); grd.addColorStop(1,"rgba(200,240,255,0)");
+  g.fillStyle = grd; g.fillRect(0,0,64,64);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+})();
+const smat = new THREE.PointsMaterial({color:0x9fe3ff, size:0.05*U, map:spriteTex, alphaMap:spriteTex,
+  transparent:true, opacity:0.55, depthWrite:false, blending:THREE.AdditiveBlending, sizeAttenuation:true});
+const slurryPts = new THREE.Points(sgeo, smat); slurryPts.renderOrder = 4; closeup.add(slurryPts);
+
+/* ══════════════════════════════════════════════════════════════
+   Level 0 — 웨이퍼 흐름 안내 (§2). 데이터 시각화가 아니라 공정 흐름 가이드.
+   FOUP → DR → (FI pass-through) → WR → input buffer → load cup → P1 → P2 → P3 → load cup → output buffer
+   → WR → IN(vertical) → MEG → BB1 → BB2 → DRY → OUT → DR → FOUP
+   ══════════════════════════════════════════════════════════════ */
+const FLOW = [ // [X, Y, Z, vertical?, dwell s]
+  [1.06,0.20,1.05,0,1.2], [1.06,0.95,1.05,0,0.4], [2.05,1.40,1.20,0,0.2], [2.05,2.60,1.20,0,0.2],
+  [1.85,2.80,1.10,0,0.5], [0.90,3.50,1.03,0,0.6], [0.59,3.74,1.03,0,0.8],
+  [1.61,3.74,1.02,0,2.5], [1.61,4.76,1.02,0,2.5], [0.59,4.76,1.02,0,2.5], [0.59,3.74,1.03,0,0.8],
+  [0.28,3.50,1.03,0,0.6], [0.30,2.80,1.10,0,0.5], [0.35,2.00,1.45,0,0.2], [0.35,2.00,1.15,1,1.2],
+  [0.65,2.00,0.95,1,1.5], [0.95,2.00,0.95,1,1.5], [1.25,2.00,0.95,1,1.5], [1.55,2.00,0.95,1,1.5],
+  [1.85,2.00,1.15,1,0.6], [1.85,2.00,1.45,0,0.3], [1.85,0.95,1.05,0,0.4], [1.56,0.20,1.05,0,1.2],
+];
+const flow = { tokens:[], seg:[], total:0 };
+(function buildFlow(){
+  const SPEED = 0.7; let T = 0; const pts = [];
+  for(let i=0;i<FLOW.length;i++){
+    const a = FLOW[i], b = FLOW[(i+1)%FLOW.length];
+    const pa = W3(a[0],a[1],a[2]), pb = W3(b[0],b[1],b[2]);
+    const dwell = a[4], travel = pa.distanceTo(pb)/SPEED;
+    flow.seg.push({pa, pb, va:a[3], vb:b[3], t0:T, tDwell:dwell, tTravel:travel});
+    T += dwell + travel; pts.push(pa);
+  }
+  pts.push(pts[0].clone()); flow.total = T;
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.LineDashedMaterial({color:0x4da3ff, dashSize:0.06, gapSize:0.04, transparent:true, opacity:0.35, depthTest:false}));
+  line.computeLineDistances(); line.renderOrder = 9; tool.add(line); flow.line = line;
+  const geo = new THREE.CylinderGeometry(0.11,0.11,0.005,48);
+  for(let k=0;k<7;k++){ const m = new THREE.Mesh(geo, M.token); m.renderOrder = 10; tool.add(m); flow.tokens.push(m); }
+})();
+function flowPose(tau, m){
+  let s = flow.seg[0];
+  for(const sg of flow.seg){ if(tau >= sg.t0) s = sg; }
+  const local = tau - s.t0;
+  let u = local <= s.tDwell ? 0 : Math.min(1, (local - s.tDwell)/Math.max(s.tTravel,1e-6));
+  u = u*u*(3-2*u);
+  m.position.lerpVectors(s.pa, s.pb, u);
+  m.rotation.z = THREE.MathUtils.lerp(s.va, s.vb, u)*Math.PI/2;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Level 0 핫스팟 (프록시 메시: 보통 투명, hover 시 발광 + 아웃라인)
+   ══════════════════════════════════════════════════════════════ */
+const STATION = {
+  TOOL:{label:"Reflexion LK-class 300 mm CMP tool — whole-tool view", crumb:"Whole Tool",
+      desc:"Three blocks in line (2.2 W × 6.0 D × 2.2 H m, estimated): Factory Interface with 3 load ports → Desica-class vertical-wafer cleaner → 3-platen / 4-head carousel polishing module → rear electrical & utility cabinet. Blue tokens trace the wafer path (dry-in / dry-out). Layout per US 5,738,574 / 10,229,842 / 6,575,177."},
+  FI:{label:"Factory Interface — 3 Load Ports (FOUP)", crumb:"Factory Interface",
+      desc:"Front-end: three SEMI E15.1 load ports (pitch 0.505 m) with orange FOUPs, a dry SCARA robot on an X-track and the signal tower. Dry-in / dry-out — wafers leave this block dry. Highest cleanliness, positive pressure."},
+  CL:{label:"Cleaning Station — Desica-class (click to enter)", crumb:"Cleaning Station",
+      desc:"Vertical-wafer in-line cleaner: IN → Megasonic → Brush Box 1 → Brush Box 2 → Marangoni Dryer → OUT at 0.30 m pitch. An overhead gang handler indexes five wafers one pitch at a time (~30 s per module)."},
+  P1:{label:"Polishing Station P1 — bulk polish (click to enter)", crumb:"Polishing Station P1",
+      desc:"Platen 1: bulk removal. Ø0.775 m pad on a Ø0.80 m platen, carrier head Ø0.35 m riding in the carousel slot, conditioner arm + Ø0.10 m diamond disk, slurry arm. Full detail model — click pad / head / wafer / disk / slurry nozzle to open their settings."},
+  P2:{label:"Polishing Station P2 — step 2 (click to enter)", crumb:"Polishing Station P2",
+      desc:"Platen 2: second step (residual / barrier, or 1/3 of the same recipe in in-line mode). Simplified model — shares the P1 pad texture and platen rpm."},
+  P3:{label:"Polishing Station P3 — buff / final (click to enter)", crumb:"Polishing Station P3",
+      desc:"Platen 3: final step / buff on a soft pad. Simplified model — shares the P1 pad texture and platen rpm."},
+  TS:{label:"Transfer Station — load cup + buffers", crumb:"Transfer Station",
+      desc:"Load cup (basin + lift plate + rinse nozzles) where the carousel head picks up and releases the wafer, two 3-pin buffer stations (input / output) and a 2-gripper transfer robot whose axis sits at the centre of the circle through both buffers and the cup."},
+  CAR:{label:"Carousel — 4 heads, 90° indexing (CCW)", crumb:"Carousel",
+      desc:"Cross-shaped support plate (Ø1.85 m, R = 0.72 m) on a central post. Each arm carries one head system: rotation motor, radial slide (±0.10 m sweep in the slot) and the carrier head. Indexes TS → P1 → P2 → P3 → TS counter-clockwise."},
+  SDS:{label:"Slurry Delivery System — blending cabinet (click for slurry settings)", crumb:"Slurry Delivery",
+      desc:"The cabinet that feeds the polisher, standing beside the tool: two drums/IBC → stirred blend tank → diaphragm pump → two filter housings → flow meter → piping across to the POU valve box and on to the arm nozzle. Same order as the P&ID in the ② Slurry panel. Only SFR (flow meter) reaches the engine; the rest is recorded for provenance. Cabinet dimensions are estimated — no primary source held."},
+};
+const proxies = [];
+function proxy(id, geo, pos){
+  const m = new THREE.Mesh(geo, M.hotspot.clone()); m.position.copy(pos); m.renderOrder = 5; tool.add(m);
+  const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({color:0x4da3ff, transparent:true, opacity:0.9}));
+  e.visible = false; m.add(e);
+  m.userData = {id, edges:e, label:STATION[id].label, desc:STATION[id].desc}; proxies.push(m); return m;
+}
+proxy("FI", new THREE.BoxGeometry(2.24,2.12,1.44), W3(1.1, 0.70, 1.16));
+proxy("CL", new THREE.BoxGeometry(2.24,1.60,1.22), W3(1.1, 2.0, 1.40));
+["P1","P2","P3"].forEach(id=>proxy(id, new THREE.CylinderGeometry(0.44,0.44,0.32,48), W3(LAY[id].x, LAY[id].y, 1.06)));
+proxy("TS", new THREE.CylinderGeometry(0.36,0.36,0.30,48), W3(LAY.TS.x, LAY.TS.y-0.10, 1.08));
+proxy("CAR", new THREE.CylinderGeometry(0.34,0.34,0.30,48), W3(LAY.CAR.x, LAY.CAR.y, 1.80));
+/* SDS 캐비닛 — 툴 왼쪽. 클릭하면 ② Slurry 패널이 열린다 */
+proxy("SDS", new THREE.BoxGeometry(1.40,2.05,1.90), W3(-0.85, 4.00, 1.03));
+
+/* ══════════════════════════════════════════════════════════════
+   뷰 레벨 / 카메라 / UI
+   ══════════════════════════════════════════════════════════════ */
+let level = 0, focusId = null, cutaway = false, hoverId = null;
+const camCur = {yaw:0.62, pitch:0.50, dist:8.6, target:new THREE.Vector3(1.1,0.8,-3.0)};
+const camGoal = {yaw:0.62, pitch:0.50, dist:8.6, target:new THREE.Vector3(1.1,0.8,-3.0)};
+let flying = false, lastInteract = 0, drag = false, lx = 0, ly = 0, downX = 0, downY = 0;
+const ZOOM = {0:[3.0,16], 1:[0.5,4.0], 2:[1.2,6.0]};
+let yaw = camCur.yaw, pitch = camCur.pitch, dist = camCur.dist;   // (호환용 별칭 — camCur 가 정본)
+const TARGET = camCur.target;
+function place(){
+  yaw = camCur.yaw; pitch = camCur.pitch; dist = camCur.dist;
+  cam.position.set(TARGET.x+dist*Math.cos(pitch)*Math.sin(yaw), TARGET.y+dist*Math.sin(pitch),
+                   TARGET.z+dist*Math.cos(pitch)*Math.cos(yaw));
+  cam.lookAt(TARGET);
+}
+const crumbEl = document.getElementById("crumb"), crumbTail = document.getElementById("crumbTail");
+const cardEl = document.getElementById("card"), badgeEl = document.getElementById("cleanBadge");
+const cutBtn = document.getElementById("cutBtn"), hintEl = document.getElementById("hint");
+function setCard(id, extra){
+  if(!id){ cardEl.style.display = "none"; return; }
+  const S = STATION[id] || {label:CLEAN_LABEL[id], desc:CLEAN_DESC[id]};
+  if(!S||!S.label){ cardEl.style.display = "none"; return; }
+  cardEl.style.display = "block";
+  const title = level===0 ? S.label : S.label.replace(/ \(click to enter\)/, "");
+  cardEl.innerHTML = `<b>${title}</b><div>${S.desc}</div>${extra?`<div class="x">${extra}</div>`:""}`;
+}
+function updateUI(){
+  let tail = "";
+  if(level===1) tail = `<span class="sep">›</span><span class="cur">${STATION[focusId].crumb}</span>`;
+  else if(level===2) tail = `<span class="sep">›</span><span class="cur">Cleaning Station</span>`;
+  else if(focusId) tail = `<span class="sep">›</span><span class="cur">${STATION[focusId].crumb}</span>`;
+  crumbTail.innerHTML = tail;
+  badgeEl.style.display = level===2 ? "block" : "none";
+  cutBtn.textContent = "Cutaway: " + (cutaway ? "on" : "off");
+  cutBtn.style.display = level===0 ? "inline-block" : "none";
+  hintEl.innerHTML = level===0 ? "Drag = orbit · Wheel = zoom · <b>Click a station to enter</b> · Esc = back"
+                   : level===1 ? (focusId==="P1" ? "Drag = orbit · Wheel = zoom · <b>Click pad / head / wafer / disk / slurry nozzle to open its settings</b> · Esc = whole tool"
+                                                   : "Simplified station model — detail model is at P1 · Esc = whole tool")
+                   : "Hover a module for its name · Esc = whole tool";
+  if(level===1) setCard(focusId, focusId==="P1" ? "Live: platen / head rpm, pressure (head sag), conditioner duty & force, slurry flow, groove pitch/depth, disk grit density, pad temperature tint, wafer MRR glow." : "");
+  else if(level===2) setCard("CL", "Animated: brush rollers, wafer rotation, Marangoni lift, hinge flips and the 5-gripper index move.");
+  else setCard(focusId||"TOOL");
+}
+function goLevel(lv, id){
+  level = lv; focusId = id||null; flying = true; lastInteract = performance.now();
+  if(lv===0){
+    if(id==="FI"){ camGoal.target.copy(W3(1.1,0.7,0.9)); camGoal.dist = 4.2; camGoal.pitch = 0.42; camGoal.yaw = 0.45; }
+    else if(id==="TS"){ camGoal.target.copy(W3(LAY.TS.x, LAY.TS.y-0.1, 1.05)); camGoal.dist = 2.0; camGoal.pitch = 0.6; }
+    else if(id==="CAR"){ camGoal.target.copy(W3(LAY.CAR.x, LAY.CAR.y, 1.4)); camGoal.dist = 3.2; camGoal.pitch = 0.55; }
+    else { camGoal.target.set(1.1,0.8,-3.0); camGoal.dist = 8.6; camGoal.pitch = 0.50; }
+    shadowFocus(new THREE.Vector3(1.1,0.9,-3.0), 4.6);
+  } else if(lv===1){
+    if(id==="P1"){ camGoal.target.copy(closeup.localToWorld(new THREE.Vector3(0.15,0.30,0))); camGoal.dist = 1.45; }
+    else { camGoal.target.copy(pm.platens[id].center).setY(1.05); camGoal.dist = 1.6; }
+    camGoal.pitch = 0.46;
+    shadowFocus(camGoal.target.clone(), 1.3);
+  } else if(lv===2){
+    camGoal.target.copy(W3(1.1, 2.0, 1.15)); camGoal.dist = 2.9; camGoal.pitch = 0.52; camGoal.yaw = 0.30;
+    shadowFocus(camGoal.target.clone(), 2.0);
+  }
+  const z = ZOOM[lv]; camGoal.dist = THREE.MathUtils.clamp(camGoal.dist, z[0], z[1]);
+  setHover(null); updateUI();
+}
+window.goLevel = goLevel;
+/* 스테이션 → 담당 파트 탭. 장비 위치와 입력 위치를 일치시킨다
+   (2026-09-11 사용자 지시: "wafer는 loading unit쪽에서 입력할수있도록"). */
+const STATION_PART = { FI:"wafer", SDS:"sds" };   // FI=웨이퍼 투입구=⑤ Loading Unit · SDS 캐비닛=② Slurry
+function goFocus(id){
+  if(STATION_PART[id]) select(STATION_PART[id]);
+  if(id==="P1"||id==="P2"||id==="P3") goLevel(1, id);
+  else if(id==="CL") goLevel(2, "CL");
+  else goLevel(0, id);
+}
+crumbEl.querySelector("[data-lv='0']").onclick = ()=>goLevel(0);
+cutBtn.onclick = ()=>{ cutaway = !cutaway; updateUI(); };
+addEventListener("keydown", e=>{ if(e.key==="Escape"){ if(level!==0||focusId) goLevel(0); } });
+
+/* 모바일: 패널 접기 — 폰에서 3D가 44vh밖에 안 되니 크게 볼 통로가 필요하다.
+   Esc 키가 없는 기기를 위해 뒤로가기는 crumb의 "Whole Tool"이 담당한다. */
+{
+  const mt = document.getElementById("mtoggle"), mtx = document.getElementById("mtoggleTxt");
+  mt.onclick = ()=>{
+    const on = document.body.classList.toggle("panel-collapsed");
+    mtx.textContent = on ? "Show controls" : "Controls";
+    setTimeout(resize, 260);        // CSS 전환이 끝난 뒤 캔버스 크기를 다시 잡는다
+  };
+  // 설명 카드는 모바일에서 2줄로 접혀 있다 — 탭하면 펼친다
+  cardEl.addEventListener("click", ()=>cardEl.classList.toggle("open"));
+}
+/* 주소창 접힘/회전으로 뷰포트가 바뀌면 캔버스가 늘어난 채 남는다 — 다시 잰다 */
+addEventListener("orientationchange", ()=>setTimeout(resize, 350));
+if(window.visualViewport) visualViewport.addEventListener("resize", ()=>setTimeout(resize, 60));
+
+/* 셸 페이드: 레벨/hover/컷어웨이에 따른 블록별 목표 불투명도 */
+function shellGoals(){
+  const g = {fi:1, cl:1, pm:1, cab:1};
+  if(level===0 && cutaway){ g.fi = g.cl = g.pm = 0.12; g.cab = 0.5; }
+  if(level===0 && hoverId){
+    const map = {FI:"fi", CL:"cl", P1:"pm", P2:"pm", P3:"pm", TS:"pm", CAR:"pm"};
+    if(map[hoverId]) g[map[hoverId]] = Math.min(g[map[hoverId]], 0.22);
+  }
+  if(level===0 && focusId){ const map = {FI:"fi", TS:"pm", CAR:"pm"}; if(map[focusId]) g[map[focusId]] = 0.0; }
+  if(level===1){ g.pm = 0; g.cl = 0.35; g.cab = 0.35; }
+  if(level===2){ g.cl = 0; g.fi = 0; g.pm = 0.35; }
+  for(const k in blocks) blocks[k].goal = g[k];
+}
+
+/* 클릭/hover 픽킹 */
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+const labelEl = document.getElementById("label");
+function pickList(){
+  if(level===1) return focusId==="P1" ? {list:Object.values(hot), kind:"part"} : {list:[], kind:""};
+  if(level===2) return {list:clean.proxies, kind:"proxy"};
+  return {list:proxies, kind:"proxy"};
+}
+function pickAny(e){
+  const r = rend.domElement.getBoundingClientRect();
+  mouse.x = ((e.clientX-r.left)/r.width)*2-1;
+  mouse.y = -((e.clientY-r.top)/r.height)*2+1;
+  ray.setFromCamera(mouse, cam);
+  const {list, kind} = pickList();
+  if(!list.length) return null;
+  const hits = ray.intersectObjects(list, false);
+  if(!hits.length) return null;
+  const fine = hits.find(x=>!/^(FI|CL)$/.test(x.object.userData.id||""));   // 블록 박스보다 스테이션 프록시 우선
+  const o = (kind==="proxy" && fine) ? fine.object : hits[0].object;
+  if(kind==="part") return {part:Object.keys(hot).find(k=>hot[k]===o)||null};
+  return {proxy:o};
+}
+function pick(e){ const p = pickAny(e); return p && p.part ? p.part : null; }   // (호환용)
+function setHover(m){
+  const id = m ? m.userData.id : null;
+  if(id===hoverId) return;
+  for(const p of proxies.concat(clean.proxies)){ p.material.opacity = 0; p.userData.edges.visible = false; }
+  hoverId = id;
+  if(m){ m.material.opacity = 0.10; m.userData.edges.visible = true; }
+}
+rend.domElement.addEventListener("mousedown",e=>{ drag=true; lx=downX=e.clientX; ly=downY=e.clientY; lastInteract = performance.now(); });
+addEventListener("mouseup",()=>drag=false);
+addEventListener("mousemove",e=>{
+  if(!drag) return;
+  camGoal.yaw -= (e.clientX-lx)*0.007;
+  camGoal.pitch = THREE.MathUtils.clamp(camGoal.pitch+(e.clientY-ly)*0.007, 0.06, 1.45);
+  lx=e.clientX; ly=e.clientY; lastInteract = performance.now(); flying = false;
+});
+rend.domElement.addEventListener("wheel",e=>{
+  e.preventDefault(); const z = ZOOM[level];
+  camGoal.dist = THREE.MathUtils.clamp(camGoal.dist+e.deltaY*0.0035*camGoal.dist/4, z[0], z[1]);
+  lastInteract = performance.now(); flying = false;
+},{passive:false});
+rend.domElement.addEventListener("click",e=>{
+  if(Math.hypot(e.clientX-downX, e.clientY-downY) > 4) return;      // 드래그 후 클릭 무시
+  const p = pickAny(e); if(!p) return;
+  if(p.part) select(p.part);
+  else if(p.proxy && level===0) goFocus(p.proxy.userData.id);
+  else if(p.proxy && level===2) setCard(p.proxy.userData.id);
+});
+
+/* ── 터치 조작 ────────────────────────────────────────────────
+   모바일에서 mousedown/wheel은 발생하지 않는다(합성 클릭만 온다). 그래서
+   1손가락 = 궤도 회전, 2손가락 핀치 = 줌, 짧은 탭 = 선택을 따로 붙인다.
+   ⚠ canvas에 touch-action:none이 걸려 있어야 브라우저가 스와이프를 페이지
+   스크롤로 가로채지 않는다(CSS 참조). preventDefault만으로는 부족하다.
+   ⚠ 탭 판정은 이동거리 + 시간을 함께 본다 — 거리만 보면 길게 눌러 회전을
+   시도하다 손이 안 움직인 경우가 선택으로 오인된다. */
+let tDrag=false, tx=0, ty=0, tStartX=0, tStartY=0, tStartT=0, pinchD=0;
+function _td(e){ const a=e.touches[0], b=e.touches[1];
+  return Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY); }
+rend.domElement.addEventListener("touchstart",e=>{
+  if(e.touches.length===1){
+    tDrag=true; const t=e.touches[0];
+    tx=tStartX=t.clientX; ty=tStartY=t.clientY; tStartT=performance.now();
+  } else if(e.touches.length===2){
+    tDrag=false; pinchD=_td(e);
+  }
+  lastInteract = performance.now(); flying=false;
+},{passive:true});
+rend.domElement.addEventListener("touchmove",e=>{
+  if(e.touches.length===2 && pinchD>0){
+    e.preventDefault();
+    const d=_td(e), z=ZOOM[level];
+    camGoal.dist = THREE.MathUtils.clamp(camGoal.dist*(pinchD/d), z[0], z[1]);
+    pinchD=d; lastInteract=performance.now(); flying=false; return;
+  }
+  if(!tDrag || e.touches.length!==1) return;
+  e.preventDefault();
+  const t=e.touches[0];
+  camGoal.yaw -= (t.clientX-tx)*0.007;
+  camGoal.pitch = THREE.MathUtils.clamp(camGoal.pitch+(t.clientY-ty)*0.007, 0.06, 1.45);
+  tx=t.clientX; ty=t.clientY; lastInteract=performance.now(); flying=false;
+},{passive:false});
+rend.domElement.addEventListener("touchend",e=>{
+  const wasDrag=tDrag; tDrag=false; pinchD=0;
+  if(!wasDrag || e.changedTouches.length!==1) return;
+  const t=e.changedTouches[0];
+  const moved=Math.hypot(t.clientX-tStartX, t.clientY-tStartY);
+  const held=performance.now()-tStartT;
+  if(moved>12 || held>600) return;                       // 회전 제스처였다
+  const p = pickAny({clientX:t.clientX, clientY:t.clientY}); if(!p) return;
+  if(p.part) select(p.part);
+  else if(p.proxy && level===0) goFocus(p.proxy.userData.id);
+  else if(p.proxy) setCard(p.proxy.userData.id);
+},{passive:true});
+rend.domElement.addEventListener("mousemove",e=>{
+  if(drag){ labelEl.style.display="none"; return; }
+  const p = pickAny(e);
+  if(p && p.part){ labelEl.style.display="block"; labelEl.textContent = PARTS[p.part].icon+" "+PARTS[p.part].name;
+         labelEl.style.left=e.clientX+"px"; labelEl.style.top=e.clientY+"px";
+         rend.domElement.style.cursor="pointer"; setHover(null); }
+  else if(p && p.proxy){ labelEl.style.display="block"; labelEl.textContent = p.proxy.userData.label;
+         labelEl.style.left=e.clientX+"px"; labelEl.style.top=e.clientY+"px";
+         rend.domElement.style.cursor="pointer"; setHover(p.proxy); if(level===0) setCard(p.proxy.userData.id); }
+  else { labelEl.style.display="none"; rend.domElement.style.cursor="grab"; setHover(null); if(level===0) setCard(focusId||"TOOL"); }
+});
+
+/* ── 실행 결과 → 3D 반영 (render(d)가 호출). null 값은 건드리지 않는다 ── */
+const PAD_COLD = new THREE.Color(0xffffff), PAD_HOT = new THREE.Color(0xff9a7a);
+let tauSpread = 1.0;
+function applyResult(d){
+  if(!d) return;
+  const eq = d.equipment_outputs||{}, fs = d.factors||{};
+  const T = eq.pad_temp_c && eq.pad_temp_c.value;
+  if(typeof T==="number" && isFinite(T)){                     // 22°C 기준 → 120°C 붉게
+    const k = THREE.MathUtils.clamp((T-22)/(120-22), 0, 1);
+    padMat.color.copy(PAD_COLD).lerp(PAD_HOT, k*0.85);
+    padSideMat.color.set(0x8c8c62).lerp(PAD_HOT, k*0.6);
+  }
+  const mr = d.mean_mrr_nm_min;
+  if(typeof mr==="number" && isFinite(mr))
+    waferMat.emissiveIntensity = THREE.MathUtils.clamp(mr/260, .12, 1.1);
+  const tau = fs.tau && fs.tau.value;
+  if(typeof tau==="number" && isFinite(tau) && tau>0)         // τ(슬러리 전달) → 퍼짐 속도 가중
+    tauSpread = THREE.MathUtils.clamp(Math.pow(tau, 0.6), 0.5, 1.8);
+}
+window.applyResult = applyResult;
+
+/* ══════════════════════════════════════════════════════════════
+   애니메이션 — 실제 설정값에 반응한다 (rpm/sfr/duty/pressure/downforce/center_offset)
+   ══════════════════════════════════════════════════════════════ */
+let t=0, condPhi=0.25, headSag=0, diskSag=0;
+/* 캐러셀 인덱싱: dwell → 90° CCW 회전(3 s) → dwell … Level 1 에서는 dwell 에 고정 */
+const CAR_DWELL = 7.0, CAR_ROT = 3.0;
+let carAng = 0, carIdx = 0, carPhase = 0, carT = 0;
+const CLEAN_CYC = 8.0;
+function easeIO(u){ return u<.5 ? 2*u*u : 1-Math.pow(-2*u+2,2)/2; }
+function tick(){
+  requestAnimationFrame(tick);
+  const dt=0.016; t+=dt;
+  const rpmP = num("rpm_platen", 55), rpmW = num("rpm_wafer", 60);
+  const sfr  = num("sfr_ml_min", 150), duty = num("cond_duty_pct", 100);
+  const psi  = num("pressure_psi", 3), lbf = num("cond_downforce_lbf", 6);
+  const rcc  = num("center_offset_m", 0.18);
+  const SLOW = 0.10;                                   // 화면용 감속 배율
+  const wP = rpmP/60*dt*2*Math.PI*SLOW, wW = rpmW/60*dt*2*Math.PI*SLOW;
+
+  /* ── 카메라 이징 + Level 0 자동 오빗 ── */
+  const idle = performance.now() - lastInteract;
+  if(level===0 && !drag && idle > 4000 && !flying) camGoal.yaw += 0.0012;
+  const k = flying ? 0.055 : 0.28;
+  camCur.yaw += (camGoal.yaw-camCur.yaw)*k; camCur.pitch += (camGoal.pitch-camCur.pitch)*k;
+  camCur.dist += (camGoal.dist-camCur.dist)*k; camCur.target.lerp(camGoal.target, k);
+  if(flying && Math.abs(camGoal.dist-camCur.dist)<0.01 && camCur.target.distanceTo(camGoal.target)<0.01) flying = false;
+  place();
+
+  /* ── 셸 페이드 ── */
+  shellGoals();
+  for(const id in blocks){
+    const b = blocks[id]; b.op += (b.goal-b.op)*0.10;
+    b.panel.opacity = b.op; b.band.opacity = b.op; b.trim.opacity = b.op<0.6 ? 0 : b.op; b.glass.opacity = 0.22*b.op;
+    b.grp.visible = b.op > 0.02;
+    b.panel.depthWrite = b.op > 0.95;
+  }
+
+  /* ── 폴리싱: P1 상세 (기존) ── */
+  platenGrp.rotation.y  += wP;                         // 플래튼
+  carrierGrp.rotation.y += wW;                         // 헤드: 플래튼과 **같은 방향** (문헌)
+  const rccU = THREE.MathUtils.clamp(rcc, 0.10, 0.30)/U;
+  carrierGrp.position.x += (rccU-carrierGrp.position.x)*0.1; headMount.position.x = carrierGrp.position.x;
+  /* 하중 → 눌림 변위 (보간). pressure_psi: 헤드 전체가 내려가 링이 패드에 파묻힘. cond_downforce: 디스크 눌림 */
+  const sagT = THREE.MathUtils.clamp((psi-0.5)/7.5, 0, 1)*0.028;        // 0~0.028 unit (패드 압축)
+  const dskT = THREE.MathUtils.clamp(lbf/12, 0, 1)*0.016;
+  headSag += (sagT-headSag)*0.08; diskSag += (dskT-diskSag)*0.08;
+  carrierGrp.position.y = -headSag; headMount.position.y = -headSag;
+  diskSpin.position.y = -diskSag;
+  film.position.y = PAD_TOP+0.004 - headSag*0.2;
+  /* 컨디셔너: duty 0이면 스윕·자전 모두 멈춘다. 암은 플래튼 밖 피벗을 중심으로 중심↔가장자리 왕복 */
+  if(duty>0){
+    condPhi = 0.25 + 0.27*Math.sin(t*0.5);
+    diskSpin.rotation.y += 95/60*dt*2*Math.PI*SLOW;
+  }
+  condGrp.rotation.y = COND_YAW0 + condPhi;
+  /* P2/P3 간략 플래튼·컨디셔너 (같은 rpm/duty) */
+  for(const id of ["P2","P3"]) pm.platens[id].spin.rotation.y += wP;
+  pm.conds.forEach((c,i)=>{ c.carm.rotation.y = c.yaw0 + (duty>0 ? 0.30*Math.sin(t*0.5+i*1.3) : 0.30); if(duty>0) c.dsk.rotation.y += 95/60*dt*2*Math.PI*SLOW; });
+
+  /* ── 캐러셀 인덱싱 (TS→P1→P2→P3, 위에서 반시계) ── */
+  const hold = level===1;
+  carT += dt;
+  if(carPhase===0 && carT>CAR_DWELL && !hold){ carPhase = 1; carT = 0; }
+  if(carPhase===1){
+    const u = Math.min(carT/CAR_ROT, 1); carAng = (carIdx + easeIO(u))*Math.PI/2;
+    if(u>=1){ carIdx++; carPhase = 0; carT = 0; carAng = carIdx*Math.PI/2; }
+  }
+  pm.car.rotation.y = carAng;
+  const dwell = carPhase===0;
+  const iP1 = ((1-carIdx)%4+4)%4;                      // 지금 P1 위에 있는 헤드
+  pm.arms.forEach(a=>{
+    const st = ((a.i+carIdx)%4+4)%4;                   // 0 TS, 1 P1, 2 P2, 3 P3
+    const sweep = (dwell && (st===2||st===3)) ? 0.10*Math.sin(t*Math.PI) : 0;
+    a.slide.position.x = LAY.CAR.R - THREE.MathUtils.clamp(rcc,0.10,0.30) + sweep;
+    a.head.rotation.y += wW;
+    a.head.visible = !(dwell && a.i===iP1);            // P1 dwell 중엔 상세 캐리어가 대신 보인다
+    a.head.position.y = st===0 && dwell ? 0.02 : (dwell ? 0 : 0.006);   // TS 에서 살짝 들림, 이동 중 6 mm
+  });
+  carrierGrp.visible = headMount.visible = dwell;
+  pm.tsArm.rotation.y = 0.6*Math.sin(t*0.4);
+  pm.ts.lift.position.y = LAY.TABLE_Z + 0.05 + 0.02*(0.5+0.5*Math.sin(t*0.8));
+
+  /* ── FI / 웻 로봇 ── */
+  scaraBots.forEach((b,i)=>{ const ph = t*0.35 + i*2.1;
+    b.g.position.x = (i===0 ? LAY.DR.x : LAY.WR.x) + (i===0 ? 0.5 : 0.6)*Math.sin(ph);
+    b.a1.rotation.y = 0.9*Math.sin(ph*1.3); b.a2.rotation.y = -1.4*Math.sin(ph*1.3) ; b.eff.rotation.y = 0.5*Math.sin(ph*1.3); });
+
+  /* ── 클리너 사이클 (8 s): 0–5 공정, 5–7.6 5장 동시 한 피치 인덱스, 7.6–8 복귀 ── */
+  const cph = t % CLEAN_CYC;
+  clean.brushes.forEach(b=>{ b.rotation.y += 300/60*dt*2*Math.PI*SLOW; });
+  let len = 0.10, hx = 0, carry = false, showMod = true;
+  if(cph<5){ /* 공정 */ }
+  else if(cph<5.6){ len = 0.10 + 0.52*easeIO((cph-5)/0.6); }
+  else if(cph<6.2){ len = 0.62 - 0.52*easeIO((cph-5.6)/0.6); carry = true; showMod = false; }
+  else if(cph<7.0){ hx = 0.30*easeIO((cph-6.2)/0.8); carry = true; showMod = false; }
+  else if(cph<7.6){ hx = 0.30; len = 0.10 + 0.52*easeIO((cph-7.0)/0.6); carry = true; showMod = false; }
+  else { hx = 0.30*(1-easeIO((cph-7.6)/0.4)); len = 0.62 - 0.52*easeIO((cph-7.6)/0.4); }
+  clean.hnd.position.x = hx;
+  clean.grippers.forEach((g,k)=>{ g.bar.scale.y = len; g.bar.position.y = -len/2; g.fork.position.y = -len; clean.carried[k].visible = carry; });
+  clean.modules.forEach(m=>{
+    if(!m.wafer) return;
+    if(m.id==="IN"||m.id==="OUT"){
+      /* 힌지 플립: OUT 은 수령 직후(7.6→) 수평으로, 1.5~2.5 s 에 드라이 로봇이 가져감(숨김). IN 은 수평으로 들어와 수직으로 */
+      let ang, vis = true;
+      if(m.id==="OUT"){ const u = THREE.MathUtils.clamp(cph/1.5, 0, 1); ang = easeIO(u); vis = cph<2.5 || cph>=7.6; if(cph>=7.6) ang = 0; }
+      else { const u = THREE.MathUtils.clamp((cph-0.3)/1.5, 0, 1); ang = 1-easeIO(u); vis = cph<5.6 || cph>=7.6; if(cph>=7.6) ang = 1; }
+      m.hinge.rotation.z = m.flipDir*ang*Math.PI/2; m.wafer.visible = vis;
+    } else {
+      m.wafer.visible = showMod;
+      m.wafer.rotation.x += 60/60*dt*2*Math.PI*SLOW*3;                 // 롤러 구동 웨이퍼 회전
+      if(m.id==="DRY"){ const u = THREE.MathUtils.clamp((cph-3.2)/1.8, 0, 1); m.wafer.position.y = 0.95 + 0.40*u; } // Marangoni 수직 인양
+      else m.wafer.position.y = 0.95;
+    }
+  });
+
+  /* ── 웨이퍼 흐름 안내 (Level 0 만) ── */
+  const showFlow = level===0;
+  flow.line.visible = showFlow;
+  flow.tokens.forEach((m,k)=>{ m.visible = showFlow; if(showFlow) flowPose((t*1.6 + k*flow.total/flow.tokens.length) % flow.total, m); });
+
+  /* ── 슬러리 입자: Level 1(P1) 에서만 ── */
+  const partsOn = level===1 && focusId==="P1";
+  slurryPts.visible = partsOn;
+  const fs = THREE.MathUtils.clamp(0.35+sfr/400*0.65, 0.3, 1.0);
+  film.scale.set(fs,fs,1); filmMat.opacity = 0.10+0.16*fs;
+  puddle.scale.setScalar(0.6+sfr/400*0.8);
+  if(partsOn){
+    const active = Math.round(THREE.MathUtils.clamp(NP*sfr/400,60,NP));
+    const spd = 0.55+sfr/260;
+    for(let i=0;i<NP;i++){
+      if(i>=active){ spos[i*3+1] = -99; continue; }
+      if(sph[i]===0){                       // 낙하
+        spos[i*3+1] -= svel[i]*spd*2.6;
+        if(spos[i*3+1] <= PAD_TOP+0.012){ sph[i]=1; spos[i*3+1]=PAD_TOP+0.012; }
+      } else {                              // 패드 위 확산 (플래튼 회전 + 원심)
+        const x=spos[i*3], z=spos[i*3+2];
+        const r=Math.hypot(x,z), a=Math.atan2(z,x)+wP;
+        const nr = r + svel[i]*spd*0.85*tauSpread*(0.4+r/1.5);
+        spos[i*3]=Math.cos(a)*nr; spos[i*3+2]=Math.sin(a)*nr;
+        if(nr>1.5) seed(i,true);
+      }
+    }
+    sgeo.attributes.position.needsUpdate = true;
+  }
+  rend.render(scene,cam);
+}
+function resize(){
+  const w=view.clientWidth,h=view.clientHeight;
+  cam.aspect=w/h; cam.updateProjectionMatrix();
+  rend.setSize(w,h); rend.setPixelRatio(Math.min(devicePixelRatio,2));
+  /* 파트 캔버스는 컨테이너 폭에 맞춰 잡히므로 화면이 바뀌면 반드시 다시 그려야 한다
+     — 안 그리면 회전 후 폭이 어긋나 잘린 그림이 남는다(2026-09-11 모바일 대응).
+     drawViz 는 함수 선언이 아래에 있어 호이스팅되므로 여기서 호출해도 안전하다. */
+  if(typeof drawViz === "function") drawViz();
+}
+addEventListener("resize",resize); resize(); goLevel(0); camCur.target.copy(camGoal.target); camCur.dist = camGoal.dist; place(); tick();
+
+/* 빌드 시각 표시 — 서버가 data-build 에 파일 수정 시각을 넣어준다.
+   폰에서 캐시된 구버전을 보고 있는지 이걸로 판별한다(2026-09-11). */
+(function(){
+  const bt = document.getElementById("buildTag");
+  if(bt && bt.dataset.build) bt.textContent = "· build " + bt.dataset.build;
+})();
+
+/* ─────────────────────────────────────────── 패널 */
+function num(key, dflt){
+  if(state.overrides[key]!==undefined) return state.overrides[key];
+  if(state.base[key]!==undefined) return state.base[key];
+  return dflt;
+}
+function select(p){ current=p; drawTabs(); drawPanel(); }
+
+function drawTabs(){
+  document.getElementById("tabs").innerHTML =
+    Object.entries(PARTS).map(([k,v])=>
+      `<div class="tab ${k===current?'on':''}" data-k="${k}">${v.icon} ${v.name}</div>`).join("");
+  document.querySelectorAll(".tab").forEach(el=>
+    el.onclick=()=>select(el.dataset.k));
+}
+
+function drawPanel(){
+  const P = PARTS[current];
+  let h = `<h3>${P.icon} ${P.name}</h3><div class="sub">${P.sub}</div>`;
+  const deadCount = P.fields.filter(f=>f.dead && !f.section).length;
+  if(deadCount){
+    h += `<div class="banner">⚠ ${deadCount} input(s) in this part are <b>not wired to the engine</b>.
+      Changing them does not change the result — shown anyway rather than pretending. See the orange notes below.</div>`;
+  }
+  for(const f of P.fields){
+    if(f.section){
+      h += `<div class="sec" style="margin-top:14px">${f.section}</div>`;
+      continue;
+    }
+    if(f.special==="data"){
+      h += `
+        <div id="drop" style="border:2px dashed var(--line);border-radius:8px;padding:22px 12px;
+             text-align:center;color:var(--dim);cursor:pointer;margin-bottom:12px">
+          <div style="font-size:22px">📂</div>
+          <div><b>Drop a measurement file here, or click</b></div>
+          <div class="meta">xlsx · csv · json — column names in Korean or English (pressure/psi/downforce, pre/initial, post/remaining…)</div>
+          <input type="file" id="fileIn" accept=".xlsx,.xls,.csv,.json,.tsv,.txt" style="display:none">
+        </div>
+        <div class="fld"><label><span>Pack (film) for this measurement</span></label>
+          <select id="imp-pack">${(state.packGroups&&state.packGroups.length
+            ? state.packGroups
+            : [{family:"", packs:state.packs}]).map(g=>{
+              const inner = g.packs.map(p=>
+                `<option value="${p.id}" ${p.id===state.pack?"selected":""}>${p.short||p.label||p.id}</option>`).join("");
+              return g.family ? `<optgroup label="${g.family}">${inner}</optgroup>` : inner;
+            }).join("")}</select>
+          <div class="meta">Calibration is per pack — ceria measurements must not move the silica Kp.</div></div>
+        <div id="impResult"></div>
+        <div class="sec" style="margin-top:14px">Database</div>
+        <div id="dbStats" class="meta">Loading…</div>
+        <div class="sec" style="margin-top:14px">Measurement → Kp calibration (${(state.packs.find(p=>p.id===state.pack)||{}).short||state.pack})</div>
+        <div id="calib" class="meta">Loading…</div>
+        <div class="sec" style="margin-top:14px">Recent runs</div>
+        <div id="runList" class="meta"></div>`;
+      continue;
+    }
+    if(f.special==="rotation"){
+      /* P/H 한 칸 — 실제 레시피 표기(예: 55/60)와 같은 형태 */
+      const p = num("rpm_platen", 55), hh = num("rpm_wafer", 60);
+      h += `<div class="fld">
+        <label><span>${f.l}</span>
+          <span class="val"><span id="v-rpm_platen">${p}</span> / <span id="v-rpm_wafer">${hh}</span> rpm</span></label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="width:14px;color:var(--dim);font-size:11px">P</span>
+          <input type="range" id="r-rpm_platen" min="${f.min}" max="${f.max}" step="${f.step}" value="${p}" style="flex:1">
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:3px">
+          <span style="width:14px;color:var(--dim);font-size:11px">H</span>
+          <input type="range" id="r-rpm_wafer" min="${f.min}" max="${f.max}" step="${f.step}" value="${hh}" style="flex:1">
+        </div>
+        ${f.hint?`<div class="meta">${f.hint}</div>`:""}
+      </div>`;
+      continue;
+    }
+    if(f.special==="pack"){
+      /* 슬러리 선택 — 막질군(optgroup)으로 묶고 사람이 읽는 이름을 쓴다.
+         사용자 지시(2026-09-11): "sic_ceria_h2o2 이러면 보기도안좋고 너무 국부적이야".
+         내부 ID는 파일명·검증데이터에 묶여 있어 그대로 두고 표시만 바꾼다. */
+      const groups = state.packGroups && state.packGroups.length
+        ? state.packGroups
+        : [{family:"", packs:state.packs}];
+      const opts = groups.map(g=>{
+        const inner = g.packs.map(p=>
+          `<option value="${p.id}" ${p.id===state.pack?"selected":""}>${p.label||p.id}</option>`
+        ).join("");
+        return g.family ? `<optgroup label="${g.family}">${inner}</optgroup>` : inner;
+      }).join("");
+      const cur = state.packs.find(p=>p.id===state.pack) || {};
+      h += `<div class="fld"><label><span>${f.l}</span></label>
+        <select id="sel-pack">${opts}</select>
+        <div class="packcard" id="packCard">
+          ${cur.film_label?`<div class="row"><span class="k">막질</span><span class="v">${cur.film_label}</span></div>`:""}
+          ${cur.mechanism?`<div class="row"><span class="k">제거 기구</span><span class="v">${cur.mechanism}</span></div>`:""}
+          ${cur.chem?`<div class="row"><span class="k">연마입자·케미컬</span><span class="v">${cur.chem}</span></div>`:""}
+          ${cur.note?`<div class="note">${cur.note}</div>`:""}
+          <div class="idline">pack id <code>${cur.id||state.pack}</code></div>
+        </div>
+        <div class="meta">Changing the film swaps <b>one parameter pack</b>. No code changes.</div></div>`;
+      continue;
+    }
+    if(f.special==="npw"){
+      h += `<div class="fld"><label><span>${f.l}</span></label>
+        <div id="npwBox"><div class="meta">Loading NPW catalog…</div></div></div>`;
+      continue;
+    }
+    if(f.special==="select"){
+      state.recorded = state.recorded||{};
+      const cur = state.recorded[f.k] ?? f.options[0][0];
+      h += `<div class="fld"><label><span>${f.l}</span></label>
+        <select id="s-${f.k}" data-k="${f.k}" class="recSel">${f.options.map(([v,l])=>
+          `<option value="${v}" ${v===cur?"selected":""}>${l}</option>`).join("")}</select>
+        ${f.dead?`<div class="meta dead">⚠ not wired: ${f.dead}</div>`:""}
+        ${f.closed?`<div class="meta closed">⏹ closed by evidence ruling: ${f.closed}</div>`:""}
+        ${f.weak?`<div class="meta weak">${f.weak}</div>`:""}
+        ${f.hint?`<div class="meta">${f.hint}</div>`:""}</div>`;
+      continue;
+    }
+    if(f.special==="perf"){
+      h += `<div id="perf-${f.part}"><div class="meta">Loading…</div></div>`;
+      continue;
+    }
+    if(f.special==="additives"){
+      h += `<div id="addBox"><div class="meta">Loading additive catalog…</div></div>`;
+      continue;
+    }
+    /* ── 파트 전용 시각화 (2026-09-11 사용자 지시) ───────────────────
+       캔버스만 심고 그림은 drawViz()가 그린다. 값이 바뀌면 다시 그린다. */
+    if(f.special==="sdsflow"){
+      h += `<div class="viz" id="viz-sds"><div id="pidBox"></div>
+        <div class="cap" id="cap-sds"></div></div>`;
+      continue;
+    }
+    if(f.special==="padsection"){
+      h += `<div class="viz"><canvas id="cv-padsec" data-h="230"></canvas>
+        <div class="cap" id="cap-padsec"></div></div>`;
+      continue;
+    }
+    if(f.special==="padasperity"){
+      h += `<div class="viz"><canvas id="cv-padasp" data-h="250"></canvas>
+        <div class="cap" id="cap-padasp"></div></div>`;
+      continue;
+    }
+    if(f.special==="padlife"){
+      h += `<div class="viz"><canvas id="cv-padlife" data-h="210"></canvas>
+        <div class="cap" id="cap-padlife"></div></div>`;
+      continue;
+    }
+    if(f.special==="diskgrit"){
+      h += `<div class="viz"><canvas id="cv-diskgrit" data-h="300"></canvas>
+        <div class="cap" id="cap-diskgrit"></div></div>`;
+      continue;
+    }
+    if(f.special==="diskpcr"){
+      h += `<div class="viz"><canvas id="cv-diskpcr" data-h="230"></canvas>
+        <div class="cap" id="cap-diskpcr"></div></div>`;
+      continue;
+    }
+    if(f.special==="foup"){
+      h += `<div class="foupbar">
+          <button data-fa="fill-npw">Fill all · NPW</button>
+          <button data-fa="fill-ptw">Fill all · PTW</button>
+          <button data-fa="clear">Clear all but slot 1</button>
+        </div>
+        <div class="foup" id="foupGrid"></div>
+        <div class="cap" id="cap-foup" style="color:var(--dim);font-size:11px"></div>`;
+      continue;
+    }
+    const isTime = f.special==="time", isThick = f.special==="thick";
+    const recorded = f.pk===null;
+    const cur = isTime ? state.time_s
+              : isThick ? state.initial_thickness_nm
+              : recorded ? ((state.recorded||{})[f.k] ?? f.min)
+              : num(f.k, f.min);
+    const fmt = f.fmt || (v=>(+v).toFixed(String(f.step).includes(".")?2:0));
+    h += `<div class="fld">
+      <label><span>${f.l}</span><span class="val" id="v-${f.k}">${fmt(cur)} ${f.u||""}</span></label>
+      <input type="range" id="r-${f.k}" min="${f.min}" max="${f.max}" step="${f.step}" value="${cur}">
+      ${f.dead?`<div class="meta dead">⚠ not wired: ${f.dead}</div>`:""}
+        ${f.closed?`<div class="meta closed">⏹ closed by evidence ruling: ${f.closed}</div>`:""}
+      ${f.weak?`<div class="meta weak">${f.weak}</div>`:""}
+      ${f.hint?`<div class="meta">${f.hint}</div>`:""}
+    </div>`;
+  }
+  h += `<button class="btn" id="reset">Reset to baseline</button>`;
+  document.getElementById("body").innerHTML = h;
+
+  /* P/H 회전 두 슬라이더 — 각각 팩 키로 바인딩 */
+  for(const key of ["rpm_platen","rpm_wafer"]){
+    const el = document.getElementById("r-"+key);
+    if(!el) continue;
+    el.oninput = ()=>{
+      const v = parseFloat(el.value);
+      document.getElementById("v-"+key).textContent = v.toFixed(0);
+      state.overrides[key] = v;
+      run();
+    };
+  }
+  for(const f of P.fields){
+    if(f.section || f.special==="rotation") continue;
+    const el = document.getElementById("r-"+f.k);
+    if(!el) continue;
+    const fmt = f.fmt || (v=>(+v).toFixed(String(f.step).includes(".")?2:0));
+    el.oninput = ()=>{
+      const v = parseFloat(el.value);
+      document.getElementById("v-"+f.k).textContent = fmt(v)+" "+(f.u||"");
+      if(f.special==="time") state.time_s = v;
+      else if(f.special==="thick") state.initial_thickness_nm = v;
+      else if(f.pk===null){ state.recorded[f.k] = v; drawViz(); return; }   /* recorded only — never sent to engine */
+      else state.overrides[f.k] = v;
+      if(f.k==="groove_pitch_mm"||f.k==="groove_depth_mm")
+        buildGrooves(num("groove_pitch_mm",3.05), num("groove_depth_mm",0.76));
+      if(f.k==="asperity_density_per_m2") buildGrits(v);
+      drawViz();      /* 값이 바뀌면 파트 그림도 따라 바뀐다 */
+      run();
+    };
+  }
+  document.querySelectorAll(".recSel").forEach(sel=>{
+    sel.onchange = ()=>{
+      state.recorded[sel.dataset.k] = sel.value;
+      if(sel.dataset.k==="abrasive_type"){
+        /* 입자 종류는 팩을 정한다 — 자유 슬라이더가 아니다 */
+        const map = {ceria:"sti_ceria", colloidal_silica:"oxide_silica", fumed_silica:"oxide_silica"};
+        const target = map[sel.value];
+        if(target && state.packs.some(p=>p.id===target) && target!==state.pack){
+          state.pack = target; state.overrides = {}; boot();
+        }
+      }
+    };
+  });
+  if(document.getElementById("addBox")) drawAdditives();
+  if(document.getElementById("npwBox")) drawNPW();
+  for(const part of ["pad","disk"]) if(document.getElementById("perf-"+part)) drawPerf(part);
+  drawViz();          /* 파트 전용 시각화 — 캔버스가 심긴 파트에서만 그린다 */
+  wireFoup();         /* FOUP 슬롯 클릭·일괄버튼 */
+  const sp=document.getElementById("sel-pack");
+  if(sp) sp.onchange=()=>{ state.pack=sp.value; state.overrides={}; boot(); };
+  const sw=document.getElementById("sel-wafer");
+  if(sw) sw.onchange=()=>{ state.wafer=sw.value; run(); };
+  if(document.getElementById("drop")) wireDataTab();
+  document.getElementById("reset").onclick=()=>{ state.overrides={}; drawPanel(); run(); };
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   파트 전용 시각화 — 2026-09-11 사용자 지시
+     "슬러리 공급장치 만들어서 슬러리 정보입력 ui를 따로만들어.
+      Pad/disk ui도 따로만들어, wafer는 loading unit쪽에서 입력"
+
+   설계 원칙 (다른 UI와 같다): **엔진에 붙지 않은 것은 붙은 척하지 않는다.**
+   그림도 마찬가지다 — dead 파라미터로 그린 형상은 점선/회색으로 그려서
+   "보이지만 결과를 바꾸지 않는다"를 시각적으로 구분한다.
+   ══════════════════════════════════════════════════════════════════════ */
+const VC = {fg:"#e6edf3", dim:"#8b9cb0", line:"#243141", accent:"#4da3ff",
+            warn:"#ffb454", bad:"#ff6b6b", good:"#5ddc9a", panel:"#131a23"};
+
+/* 캔버스를 컨테이너 폭에 맞추고 DPR 로 선명하게 잡는다.
+   ⚠ 왜 필요한가: width=640 고정 캔버스를 CSS width:100% 로 늘리면 폰(360px)에서
+   0.56배로 축소된다 → 9px 글자가 5px이 되어 못 읽는다. 논리 좌표를 CSS px 와
+   일치시켜야 글자 크기가 의도대로 유지된다(2026-09-11 모바일 대응).
+   반환 W/H 는 **CSS px 기준 논리 크기**다. */
+function cv(id, hCss){
+  const c = document.getElementById(id);
+  if(!c) return null;
+  const host = c.parentElement;
+  const cssW = Math.max(Math.floor((host && host.clientWidth ? host.clientWidth : 0) - 18), 280) || 620;
+  const cssH = hCss || Math.round(+c.dataset.h || 230);
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  if(c.width !== Math.round(cssW*dpr) || c.height !== Math.round(cssH*dpr)){
+    c.width = Math.round(cssW*dpr); c.height = Math.round(cssH*dpr);
+  }
+  c.style.width = cssW+"px"; c.style.height = cssH+"px";
+  const g = c.getContext("2d");
+  g.setTransform(dpr,0,0,dpr,0,0);
+  g.clearRect(0,0,cssW,cssH);
+  return {c, g, W:cssW, H:cssH, narrow: cssW < 470};
+}
+function axes(g, x0, y0, x1, y1, xlab, ylab){
+  g.strokeStyle = VC.line; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(x0,y0); g.lineTo(x0,y1); g.lineTo(x1,y1); g.stroke();
+  g.fillStyle = VC.dim; g.font = "10px sans-serif";
+  if(xlab){ g.textAlign="center"; g.fillText(xlab, (x0+x1)/2, y1+26); }
+  if(ylab){ g.save(); g.translate(x0-30,(y0+y1)/2); g.rotate(-Math.PI/2);
+            g.textAlign="center"; g.fillText(ylab,0,0); g.restore(); }
+  g.textAlign="start";
+}
+/* 폭에 맞춰 줄바꿈해 그린다 — 폰에서 한 줄 텍스트는 그냥 잘려 나간다 */
+function wrapText(g, text, x, y, maxW, lh){
+  const words = String(text).split(" ");
+  let line = "", yy = y;
+  for(const w of words){
+    const test = line ? line+" "+w : w;
+    if(g.measureText(test).width > maxW && line){ g.fillText(line, x, yy); line = w; yy += lh; }
+    else line = test;
+  }
+  if(line) g.fillText(line, x, yy);
+  return yy + lh;
+}
+
+/* ── ② Slurry Delivery — P&ID 흐름도 ───────────────────────────────── */
+function drawSDS(){
+  const box = document.getElementById("pidBox");
+  if(!box) return;
+  const rec = state.recorded||{};
+  const sfr  = num("sfr_ml_min", 200);
+  const diw  = rec.diw_flow_ml_min ?? 0;
+  const filt = rec.filter_rating_um ?? 1.0;
+  const pump = rec.pump_type ?? "diaphragm";
+  const d50  = num("abrasive_size_nm", 50);
+  const d99  = num("abrasive_d99_nm", d50*5);
+  const wt   = num("abrasive_wt_pct", 10);
+  /* 희석 후 유효 농도 — dead 이지만 '만약 붙는다면' 값을 보여준다(회색) */
+  const wtEff = diw>0 ? wt*sfr/(sfr+diw) : wt;
+  const N = [
+    {ic:"🛢", l:"Drum / IBC", v:`${wt.toFixed(1)} wt%`, dead:false},
+    {ic:"🌀", l:"Blend Tank", v:`${rec.blend_tank_l??200} L`, dead:true},
+    {ic:"⊚", l:"Pump", v:pump.replace(/_/g," "), dead:true},
+    {ic:"▦", l:"Filter", v:`${(+filt).toFixed(1)} µm abs`, dead:true},
+    {ic:"◈", l:"Flow Meter", v:`${sfr} mL/min`, dead:false},
+    {ic:"💧", l:"Arm Nozzle", v:diw>0?`+${diw} DIW`:"no dilution", dead:diw>0},
+  ];
+  box.innerHTML = `<div class="pid">` + N.map((n,i)=>
+      `${i?'<div class="ar">→</div>':''}<div class="nd ${n.dead?'dead':''}">
+         <span class="ic">${n.ic}</span>${n.l}<div class="vl">${n.v}</div></div>`
+    ).join("") + `</div>`;
+  const cap = document.getElementById("cap-sds");
+  if(cap){
+    const cut = d99 > filt*1000;
+    cap.innerHTML =
+      `Solid boxes are wired to the engine; <b>dashed boxes are recorded only</b> — they draw here but do not move the result.
+       <br>Abrasive as mixed <b>${wt.toFixed(1)} wt%</b>${diw>0?` → after ${diw} mL/min DIW the pad would see <b>${wtEff.toFixed(2)} wt%</b>, but the engine still uses ${wt.toFixed(1)} wt% (dilution not modeled)`:``}.
+       <br>Filter ${(+filt).toFixed(1)} µm vs. slurry tail D99 ${d99.toFixed(0)} nm —
+       ${cut?`<span style="color:var(--warn)">the tail is coarser than the filter rating, so a real POU filter would cut it. Our D99 is derived (D50 × 5.00) and filter-independent, so Δ (Damage) does not see this.</span>`
+            :`<span style="color:var(--good)">tail is finer than the rating; nothing to retain.</span>`}
+       <br>This is the one gap worth closing: <b>Δ consumes D99, and in a fab the filter sets D99.</b>`;
+  }
+}
+
+/* ── ④ Pad ① 그루브 단면도 ────────────────────────────────────────── */
+function drawPadSection(){
+  const o = cv("cv-padsec", 230); if(!o) return;
+  const {g,W,H,narrow} = o;
+  const pitch = num("groove_pitch_mm", 3.05);      // mm
+  const depth = num("groove_depth_mm", 0.76);      // mm
+  const wid   = num("groove_width_um", 600)/1000;  // mm
+  const por   = num("pad_porosity_pct", 30);
+  const padT  = 1.27;                              // mm, IC1000 전형 두께
+  const spanMM = Math.max(pitch*3.2, 8);
+  /* 좁은 화면에서는 η 인셋을 오른쪽에 둘 자리가 없다 → 단면을 전폭으로 쓰고
+     인셋은 아래쪽 절반에 깐다. 겹치면 둘 다 못 읽는다. */
+  const INSET_W = narrow ? 0 : 200;
+  const secW = W - 60 - INSET_W - (narrow?10:16);
+  const sx = secW/spanMM, x0 = narrow ? 34 : 50;
+  const sy = narrow ? 34 : 46;
+  const yTop = narrow ? 56 : 118, yBot = yTop + padT*sy;
+
+  /* 패드 본체 */
+  g.fillStyle = "#2b3a4d"; g.fillRect(x0, yTop, secW, padT*sy);
+  /* 기공 — 기공률에 비례한 개수. 문헌: 평균 직경 ~30 µm(Sikder 2001) */
+  const nPore = Math.round(por*5);
+  g.fillStyle = "rgba(11,15,20,.55)";
+  for(let i=0;i<nPore;i++){
+    const px = x0+4+Math.random()*(secW-8), py = yTop+3+Math.random()*(padT*sy-6);
+    g.beginPath(); g.arc(px,py, 1.1+Math.random()*1.5, 0, 7); g.fill();
+  }
+  /* 그루브 — pitch 간격으로 폭 wid, 깊이 depth */
+  let nG = 0, firstGx = null;
+  for(let mm=pitch/2; mm<spanMM; mm+=pitch){
+    const gx = x0+mm*sx, gw = Math.max(wid*sx, 1.5);
+    if(gx-gw/2 < x0 || gx+gw/2 > x0+secW) continue;
+    g.fillStyle = "#0b0f14"; g.fillRect(gx-gw/2, yTop, gw, depth*sy);
+    g.strokeStyle = "rgba(255,180,84,.75)"; g.lineWidth = 1;
+    g.strokeRect(gx-gw/2, yTop, gw, depth*sy);
+    if(firstGx===null) firstGx = gx;
+    nG++;
+  }
+  /* 치수선 — 폭은 첫 그루브를 지시선으로 정확히 가리킨다 */
+  if(firstGx!==null){
+    const gw = Math.max(wid*sx, 1.5);
+    g.strokeStyle = VC.warn; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(firstGx, yTop-4); g.lineTo(firstGx, yTop-16); g.stroke();
+    g.beginPath(); g.moveTo(firstGx-gw/2, yTop-4); g.lineTo(firstGx-gw/2, yTop-10);
+                   g.moveTo(firstGx+gw/2, yTop-4); g.lineTo(firstGx+gw/2, yTop-10); g.stroke();
+    g.fillStyle = VC.warn; g.font = "10px sans-serif"; g.textAlign="center";
+    g.fillText(`width ${(wid*1000).toFixed(0)} µm`, firstGx, yTop-20);
+  }
+  g.strokeStyle = VC.accent; g.lineWidth = 1; g.setLineDash([3,3]);
+  const a = x0+(pitch/2)*sx, b = a+pitch*sx;
+  g.beginPath(); g.moveTo(a, yBot+12); g.lineTo(b, yBot+12); g.stroke();
+  g.setLineDash([]);
+  g.fillStyle = VC.accent; g.font = "10px sans-serif"; g.textAlign="center";
+  g.fillText(`pitch ${pitch.toFixed(2)} mm`, (a+b)/2, yBot+25);
+  g.textAlign="start";
+  g.fillStyle = VC.dim; g.font = "10px sans-serif";
+  wrapText(g, `depth ${depth.toFixed(2)} mm / pad ${padT} mm · porosity ${por.toFixed(0)}% (pores ~30 µm, Sikder 2001)`,
+           x0, yBot+42, W-x0-8, 12);
+
+  /* η(그루브 폭) 곡선 — Mu 2016 실측 3점. 넓으면 오른쪽, 좁으면 단면 아래 */
+  const capLines = Math.ceil(g.measureText(`depth ${depth.toFixed(2)} mm / pad ${padT} mm · porosity ${por.toFixed(0)}% (pores ~30 µm, Sikder 2001)`).width / (W-x0-8));
+  const ex0 = narrow ? x0 : W-INSET_W-10;
+  const ey0 = narrow ? yBot+42+capLines*12+14 : 34;
+  const ew  = narrow ? secW : INSET_W-24;
+  const eh  = narrow ? Math.max(H-ey0-8, 40) : 92;
+  const EW = [300,600,900], EV = [0.099,0.134,0.128];
+  g.fillStyle = "#0f1620"; g.fillRect(ex0, ey0, ew, eh);
+  g.strokeStyle = VC.line; g.strokeRect(ex0, ey0, ew, eh);
+  g.fillStyle = VC.dim; g.font="9px sans-serif";
+  g.fillText("η slurry utilisation (Mu 2016)", ex0, ey0-6);
+  const px = w => ex0 + (w-200)/(1200-200)*ew;
+  const py = v => ey0+eh-14 - (v-0.08)/(0.15-0.08)*(eh-24);
+  g.strokeStyle = VC.accent; g.lineWidth=1.5; g.beginPath();
+  EW.forEach((w,i)=> i?g.lineTo(px(w),py(EV[i])):g.moveTo(px(w),py(EV[i]))); g.stroke();
+  EW.forEach((w,i)=>{ g.fillStyle=VC.accent; g.beginPath(); g.arc(px(w),py(EV[i]),2.5,0,7); g.fill();
+    g.fillStyle=VC.dim; g.font="8px sans-serif"; g.textAlign="center";
+    g.fillText(String(w), px(w), ey0+eh-3); });
+  g.textAlign="start";
+  const wUm = wid*1000, clamped = wUm<300||wUm>900;
+  const cw = Math.min(Math.max(wUm,300),900);
+  const cvv = cw<=600 ? EV[0]+(cw-300)/300*(EV[1]-EV[0]) : EV[1]+(cw-600)/300*(EV[2]-EV[1]);
+  g.fillStyle = clamped?VC.warn:VC.good;
+  g.beginPath(); g.arc(px(cw), py(cvv), 4, 0, 7); g.fill();
+  g.font="8px sans-serif"; g.fillText("µm", ex0+ew-14, ey0+eh-3);
+
+  const cap = document.getElementById("cap-padsec");
+  if(cap) cap.innerHTML =
+    `${nG} grooves across ${spanMM.toFixed(1)} mm of pad. <b>Width is the only groove dimension wired to τ</b> —
+     depth and pitch redraw this section but do not move MRR (no literature held that quantifies them).
+     <br>η marker: ${clamped?`<span style="color:var(--warn)">${wUm.toFixed(0)} µm is outside the measured 300–900 µm band, so the end value is held (no extrapolation)</span>`
+                            :`<span style="color:var(--good)">η = ${(cvv*100).toFixed(1)}% at ${wUm.toFixed(0)} µm</span>`}.
+     Note the curve <b>turns over at 600 µm</b> — wider grooves are not better.`;
+}
+
+/* ── ④ Pad ② asperity 통계 (GW) — η 500배 오류가 눈에 보이는 자리 ──── */
+function drawPadAsperity(){
+  /* 폰에서는 η 후보 3개를 바 아래 범례로 쌓으므로 그만큼 높인다 */
+  const el0 = document.getElementById("cv-padasp"); if(!el0) return;
+  const nw = ((el0.parentElement && el0.parentElement.clientWidth || 620) - 18) < 470;
+  const o = cv("cv-padasp", nw ? 300 : 250); if(!o) return;
+  const {g,W,H,narrow} = o;
+  const eta = num("asperity_density_per_m2", 1e11);   // 1/m²
+  const R   = num("pad_asperity_radius_m", 5e-6);     // m
+  const spacing = 1/Math.sqrt(eta);                   // m — 평균 asperity 간격
+  const ratio = spacing/(2*R);                        // <1 이면 반구가 겹친다
+  const bad = ratio < 1;
+
+  /* 위: 단면 프로파일 — 실제 비율로 반구를 그린다 */
+  const xs = narrow ? 10 : 40, xw = W - xs*2;
+  const y0 = narrow ? 104 : 96;
+  const viewMM = 0.25;                                 // 250 µm 시야
+  const pxPerM = xw/(viewMM/1000);
+  g.strokeStyle = VC.line; g.beginPath(); g.moveTo(xs,y0); g.lineTo(xs+xw,y0); g.stroke();
+  const rpx = Math.min(R*pxPerM, 60);
+  const spx = Math.max(spacing*pxPerM, 0.8);
+  let n=0;
+  for(let x=xs; x<xs+xw && n<4000; x+=spx, n++){
+    g.beginPath(); g.arc(x, y0, rpx, Math.PI, 0);
+    g.fillStyle = bad ? "rgba(255,107,107,.30)" : "rgba(93,220,154,.30)";
+    g.fill();
+    g.strokeStyle = bad ? "rgba(255,107,107,.75)" : "rgba(93,220,154,.75)";
+    g.lineWidth = 0.7; g.stroke();
+  }
+  g.fillStyle = VC.dim; g.font="10px sans-serif";
+  let ty = 14;
+  ty = wrapText(g, `cross-section over ${(viewMM*1000).toFixed(0)} µm · ${n} asperities · spacing 1/√η = ${(spacing*1e6).toFixed(2)} µm · R = ${(R*1e6).toFixed(1)} µm`,
+                xs, ty, xw, 12);
+  g.fillStyle = bad?VC.bad:VC.good;
+  wrapText(g, bad ? `⚠ spacing / 2R = ${ratio.toFixed(3)} < 1 → hemispheres interpenetrate. Geometrically impossible.`
+                  : `spacing / 2R = ${ratio.toFixed(2)} ≥ 1 → asperities fit side by side.`,
+           xs, ty, xw, 12);
+
+  /* 아래: η 후보 비교 바 */
+  const by = narrow ? 160 : 150, bh = narrow ? 46 : 58;
+  const CANDS = [
+    {v:2.0e8,  l:"2.0e8 — 5 independent sources\n(Bozkaya&Müftü, Sorooshian, Shi&Ring, Suzuki/Ebara)", ok:true},
+    {v:2.938e11, l:"2.938e11 — Ring et al.\n(self-inconsistent per our note §2.7)", ok:false},
+    {v:eta,    l:"current pack value", cur:true},
+  ];
+  const lo = Math.log10(1e7), hi = Math.log10(1e12);
+  const bx = (v)=> xs + (Math.log10(v)-lo)/(hi-lo)*xw;
+  g.strokeStyle = VC.line; g.beginPath(); g.moveTo(xs,by+bh); g.lineTo(xs+xw,by+bh); g.stroke();
+  for(let e=7;e<=12;e++){
+    const x = xs+(e-lo)/(hi-lo)*xw;
+    g.strokeStyle="rgba(36,49,65,.7)"; g.beginPath(); g.moveTo(x,by); g.lineTo(x,by+bh); g.stroke();
+    g.fillStyle=VC.dim; g.font="9px sans-serif"; g.textAlign="center"; g.fillText(`1e${e}`, x, by+bh+12);
+  }
+  g.textAlign="start";
+  /* 라벨 배치. 폰에서는 1e11과 2.9e11이 로그축에서 거의 붙어 어떤 배치로도 겹친다
+     → 좁으면 x를 버리고 바 아래에 범례로 쌓는다(색으로 선과 연결). */
+  const placed = [];
+  const sorted = CANDS.map(c=>({...c, x:bx(c.v)})).sort((a,b)=>a.x-b.x);
+  sorted.forEach((c,i)=>{
+    const x = c.x;
+    const col = c.cur ? VC.accent : c.ok ? VC.good : VC.bad;
+    g.strokeStyle = col; g.lineWidth = c.cur?2.5:1.5;
+    g.setLineDash(c.cur?[]:[4,3]);
+    g.beginPath(); g.moveTo(x,by); g.lineTo(x,by+bh); g.stroke(); g.setLineDash([]);
+    const txt = c.cur ? `current η = ${c.v.toExponential(1)} /m²`
+                      : c.ok ? "2.0e8 — 5 independent sources agree"
+                             : "2.9e11 — Ring 2007 (self-inconsistent)";
+    g.font = c.cur?"bold 10px sans-serif":"10px sans-serif";
+    g.fillStyle = col;
+    if(narrow){
+      /* 범례: 축 아래 고정 위치. 왼쪽에 색 점을 찍어 위 세로선과 연결한다 */
+      const ly = by+bh+30+i*14;
+      g.beginPath(); g.arc(xs+4, ly-3, 3, 0, 7); g.fill();
+      g.textAlign="start"; g.fillText(txt, xs+12, ly);
+    }else{
+      const wTxt = g.measureText(txt).width;
+      const right = x + wTxt + 8 < xs + xw;
+      const lx = right ? x+5 : x-5;
+      const x0t = right ? lx : lx-wTxt, x1t = right ? lx+wTxt : lx;
+      let row = 0;
+      while(placed.some(p => p.row===row && !(x1t < p.x0-6 || x0t > p.x1+6))) row++;
+      placed.push({row, x0:x0t, x1:x1t});
+      g.textAlign = right ? "start" : "end";
+      g.fillText(txt, lx, by+11+row*13);
+    }
+  });
+  g.textAlign="start";
+  g.fillStyle=VC.dim; g.font="10px sans-serif";
+  g.fillText("asperity density η [1/m²] — log scale", xs, by-6);
+
+  const cap = document.getElementById("cap-padasp");
+  if(cap) cap.innerHTML =
+    `η, R and σ are a <b>set</b> — changing one alone breaks the geometry. That is why the 500× correction is not applied yet.
+     <br>Sensitivity measured on our own GW solve: η × 500 moves real contact area A_r only <b>1.21×</b> (insensitive)
+     but contact-point density <b>2.03×</b> (sensitive) — so an η error hides in A_r and surfaces in the contact statistics and Kp decomposition.
+     ${bad?`<br><span style="color:var(--bad)">The current value fails the geometric check above.</span>`:""}`;
+}
+
+/* ── ④ Pad ③ 수명 / 글레이징 곡선 ─────────────────────────────────── */
+function drawPadLife(){
+  const o = cv("cv-padlife", 210); if(!o) return;
+  const {g,W,H,narrow} = o;
+  const t = state.time_s||60;
+  /* Jeong 2024 Fig.9 pooled 로그감쇠 — sim/factors.py _f_stab 와 동일 계수 */
+  const a=1.1478, b=-0.1109;
+  const x0 = narrow?40:50, y0=24, x1=W-(narrow?12:24), y1=H-40;
+  axes(g,x0,y0,x1,y1,"polish time [min]","normalised MRR");
+  const TMIN=0.2, TMAX=30;
+  const px = m => x0 + (Math.log10(m)-Math.log10(TMIN))/(Math.log10(TMAX)-Math.log10(TMIN))*(x1-x0);
+  const py = v => y1 - (v-0.70)/(1.12-0.70)*(y1-y0);
+  /* 관측 범위(1~10분) 밖은 clamp — 회색으로 칠해 외삽 금지를 보여준다 */
+  g.fillStyle="rgba(139,156,176,.13)";
+  g.fillRect(px(TMIN),y0, px(1)-px(TMIN), y1-y0);
+  g.fillRect(px(10),y0, px(TMAX)-px(10), y1-y0);
+  g.fillStyle=VC.dim; g.font="9px sans-serif"; g.textAlign="center";
+  g.fillText("clamped", (px(TMIN)+px(1))/2, y0+12);
+  g.fillText(narrow?"clamped":"clamped (no extrapolation)", (px(10)+px(TMAX))/2, y0+12);
+  g.textAlign="start";
+  /* 곡선 */
+  g.strokeStyle=VC.accent; g.lineWidth=2; g.beginPath();
+  for(let i=0;i<=200;i++){
+    const m = TMIN*Math.pow(TMAX/TMIN, i/200);
+    const mc = Math.min(Math.max(m,1),10);
+    const v = (a+b*Math.log(mc))/a;
+    i?g.lineTo(px(m),py(v)):g.moveTo(px(m),py(v));
+  }
+  g.stroke();
+  [1,10].forEach(m=>{ const v=(a+b*Math.log(m))/a;
+    g.fillStyle=VC.accent; g.beginPath(); g.arc(px(m),py(v),3,0,7); g.fill(); });
+  /* 현재 시간 마커 */
+  const tm = t/60, tc = Math.min(Math.max(tm,1),10), vc=(a+b*Math.log(tc))/a;
+  g.strokeStyle=VC.good; g.lineWidth=1.5; g.setLineDash([4,3]);
+  g.beginPath(); g.moveTo(px(tm),y0); g.lineTo(px(tm),y1); g.stroke(); g.setLineDash([]);
+  g.fillStyle=VC.good; g.beginPath(); g.arc(px(tm),py(vc),4,0,7); g.fill();
+  g.font="10px sans-serif";
+  g.fillText(`${t}s → S = ${vc.toFixed(3)}`, Math.min(px(tm)+6, W-110), py(vc)-8);
+  [0.8,0.9,1.0,1.1].forEach(v=>{ g.fillStyle=VC.dim; g.font="9px sans-serif";
+    g.fillText(v.toFixed(1), x0-26, py(v)+3); });
+  /* x축 눈금 — 로그축이라 1·2·5·10·20 을 찍는다 */
+  g.fillStyle=VC.dim; g.font="9px sans-serif"; g.textAlign="center";
+  [0.2,0.5,1,2,5,10,20].forEach(m=>{
+    const x = px(m); if(x<x0-2||x>x1+2) return;
+    g.strokeStyle="rgba(36,49,65,.8)"; g.beginPath(); g.moveTo(x,y1); g.lineTo(x,y1+4); g.stroke();
+    g.fillText(String(m), x, y1+14);
+  });
+  g.textAlign="start";
+
+  const cap = document.getElementById("cap-padlife");
+  if(cap) cap.innerHTML =
+    `S (time stability) = log decay fitted to Jeong et al. 2024 Fig.9 (IC1000 · colloidal silica · SiO₂ blanket · <b>no conditioning</b>, 1–10 min, R²=0.74).
+     <br>Grey bands are outside the measured window — the model <b>holds the end value instead of extrapolating</b>.
+     <br>⚠ This captures only the initial drift of a single unconditioned polish. Conditioning cycles and tens-of-hours pad life are still unmodeled — that is the pad-life gap, not a solved axis.`;
+}
+
+/* ── ⑤ Disk ① 그릿 맵 ─────────────────────────────────────────────── */
+function drawDiskGrit(){
+  const o = cv("cv-diskgrit", 300); if(!o) return;
+  const {g,W,H,narrow} = o;
+  const rec = state.recorded||{};
+  const eta = num("asperity_density_per_m2", 1e11);
+  const diskD = 0.10;                                  // m — Ø100 mm 디스크
+  /* 좁으면 디스크를 위에 작게, 설명을 아래로. 넓으면 좌우로 나란히. */
+  const rad = narrow ? 78 : 110;
+  const cx  = narrow ? W/2 : 150;
+  const cy  = narrow ? rad+14 : H/2;
+  /* 디스크 본체 */
+  g.fillStyle="#1d2735"; g.beginPath(); g.arc(cx,cy,rad,0,7); g.fill();
+  g.strokeStyle=VC.line; g.lineWidth=1.5; g.stroke();
+  g.fillStyle="#131a23"; g.beginPath(); g.arc(cx,cy,rad*0.22,0,7); g.fill();
+  g.strokeStyle=VC.line; g.stroke();
+  /* 그릿 — 밀도는 asperity 밀도에서 오지 않는다(별개 축)이라 패턴만 보여준다 */
+  const pattern = rec.grit_pattern ?? "random";
+  const nG = 260;
+  g.fillStyle = "rgba(200,235,255,.85)";
+  for(let i=0;i<nG;i++){
+    let a, r;
+    if(pattern==="array"){ const ring=Math.floor(i/26); r=rad*(0.30+ring*0.075); a=(i%26)/26*Math.PI*2 + ring*0.12; }
+    else { a=Math.random()*Math.PI*2; r=rad*(0.24+Math.sqrt(Math.random())*0.72); }
+    if(r>rad*0.96) continue;
+    const x=cx+Math.cos(a)*r, y=cy+Math.sin(a)*r;
+    g.beginPath();
+    for(let k=0;k<3;k++){ const t=a+k*2.094; const s=1.7;
+      k?g.lineTo(x+Math.cos(t)*s, y+Math.sin(t)*s):g.moveTo(x+Math.cos(t)*s, y+Math.sin(t)*s); }
+    g.closePath(); g.fill();
+  }
+  g.fillStyle=VC.dim; g.font="10px sans-serif"; g.textAlign="center";
+  g.fillText(`Ø${(diskD*1000).toFixed(0)} mm disk face · ${pattern} grit layout`, cx, cy+rad+20);
+  g.textAlign="start";
+  /* 설명 — 좁으면 디스크 아래, 넓으면 오른쪽 */
+  const tx = narrow ? 10 : 290;
+  let ty0 = narrow ? cy+rad+34 : 34;
+  const tw = narrow ? W-20 : W-tx-8;
+  g.fillStyle=VC.fg; g.font="bold 11px sans-serif";
+  g.fillText("Two axes never mixed", tx, ty0);
+  g.font="10px sans-serif";
+  const rows = [
+    ["Consumable (κ)", "grit size, density, layout, tip radius", VC.good],
+    ["Tool set-point (Γ)", "downforce, sweep rate, duty — in ① Tool", VC.accent],
+  ];
+  let yy = ty0+20;
+  rows.forEach(([a,b,c])=>{
+    g.fillStyle=c; g.font="10px sans-serif"; g.fillText("● "+a, tx, yy);
+    g.fillStyle=VC.dim; yy = wrapText(g, b, tx+10, yy+13, tw-12, 12) + 4;
+  });
+  g.fillStyle=VC.warn;
+  yy = wrapText(g, "⚠ Grit count/size are recorded only — no literature term maps them to cut rate.",
+                tx, yy+2, tw, 12);
+  g.fillStyle=VC.dim;
+  wrapText(g, `The engine's disk axis today is η = ${eta.toExponential(1)} /m² (the asperity field the disk leaves on the pad).`,
+           tx, yy+2, tw, 12);
+
+  const cap = document.getElementById("cap-diskgrit");
+  if(cap) cap.innerHTML =
+    `The disk is drawn to scale (Ø100 mm). <b>Layout is illustrative</b>: CVD-patterned arrays and randomly scattered grit
+     are visually distinct and they do produce different pad-cut-rate profiles in literature, but we hold no calibrated
+     grit-layout → cut-rate relation, so this picture is documentation, not a model input.`;
+}
+
+/* ── ⑤ Disk ② PCR 반경 프로파일 — 스윕이 패드를 어떻게 깎는가 ──────── */
+function drawDiskPCR(){
+  /* 폰에서는 축 아래에 sweep 설정 한 줄을 더 적으므로 캔버스를 그만큼 높인다 */
+  const el0 = document.getElementById("cv-diskpcr"); if(!el0) return;
+  const narrowFirst = ((el0.parentElement && el0.parentElement.clientWidth || 620) - 18) < 470;
+  const o = cv("cv-diskpcr", narrowFirst ? 250 : 230); if(!o) return;
+  const {g,W,H,narrow} = o;
+  const sweep = num("cond_sweep_cpm", 10);        // cycles/min — 오늘 literature 승격
+  const duty  = num("cond_duty_pct", 100);
+  const force = num("cond_downforce_lbf", 6);
+  const padR  = 0.3875;                            // m — Ø775 mm 패드
+  const diskR = 0.05;                              // m
+  const sweepIn = 0.09, sweepOut = padR-diskR;     // 스윕 반경 구간
+  const x0 = narrow?42:52, y0=22, x1=W-(narrow?10:20), y1=H-42;
+  axes(g,x0,y0,x1,y1,"pad radius [mm]","relative dwell / cut rate");
+  const px = r => x0 + (r/padR)*(x1-x0);
+  /* 스윕 체류시간 — 사인 왕복이면 양 끝(전환점)에서 체류가 길다 = 더 깎인다.
+     이것이 "왜 패드가 특정 반경에서만 닳나"의 1차 답이다. */
+  const prof = [];
+  for(let i=0;i<=240;i++){
+    const r = padR*i/240;
+    let d;
+    if(r<sweepIn || r>sweepOut) d = 0;
+    else{
+      const u = (r-sweepIn)/(sweepOut-sweepIn);       // 0..1
+      d = 1/Math.sqrt(Math.max(u*(1-u),1e-3));        // 사인 왕복의 체류 밀도(양끝 발산)
+    }
+    prof.push([r,d]);
+  }
+  const mx = Math.max(...prof.map(p=>p[1]))||1;
+  const py = v => y1 - (v/mx)*(y1-y0)*0.92;
+  /* 스윕 구간 음영 */
+  g.fillStyle="rgba(77,163,255,.09)";
+  g.fillRect(px(sweepIn), y0, px(sweepOut)-px(sweepIn), y1-y0);
+  /* duty 반영 곡선 */
+  const k = duty/100;
+  g.strokeStyle=VC.accent; g.lineWidth=2; g.beginPath();
+  prof.forEach(([r,d],i)=> i?g.lineTo(px(r),py(d*k)):g.moveTo(px(r),py(d*k)));
+  g.stroke();
+  g.fillStyle="rgba(77,163,255,.16)";
+  g.beginPath(); g.moveTo(px(0),y1);
+  prof.forEach(([r,d])=>g.lineTo(px(r),py(d*k)));
+  g.lineTo(px(padR),y1); g.closePath(); g.fill();
+  /* 웨이퍼 트랙 — 여기가 실제로 연마가 일어나는 띠.
+     웨이퍼 중심이 r_cc에 있고 반경이 wafer_radius_m 이므로 [r_cc−R, r_cc+R]. */
+  const rcc = num("center_offset_m", 0.20), wr = num("wafer_radius_m", 0.15);
+  const wIn = Math.max(rcc-wr, 0), wOut = Math.min(rcc+wr, padR);
+  g.fillStyle="rgba(93,220,154,.13)";
+  g.fillRect(px(wIn), y0, px(wOut)-px(wIn), y1-y0);
+  g.strokeStyle=VC.good; g.lineWidth=1; g.setLineDash([3,3]);
+  [wIn, wOut].forEach(r=>{ if(r>0&&r<padR){ g.beginPath(); g.moveTo(px(r),y0); g.lineTo(px(r),y1); g.stroke(); }});
+  g.setLineDash([]);
+  g.fillStyle=VC.good; g.font="10px sans-serif"; g.textAlign="center";
+  g.fillText(narrow ? "wafer track" : `wafer track (r_cc ${(rcc*1000).toFixed(0)} ± ${(wr*1000).toFixed(0)} mm)`,
+             (px(wIn)+px(wOut))/2, y0+13);
+  g.textAlign="start";
+  g.fillStyle=VC.dim; g.font="9px sans-serif";
+  (narrow?[0,150,300]:[0,100,200,300,387]).forEach(mm=>{
+    g.textAlign="center"; g.fillText(String(mm), px(mm/1000), y1+14); });
+  g.textAlign="start";
+  g.fillStyle=VC.accent; g.font="10px sans-serif";
+  /* 좁은 화면에서는 축 안쪽에 두면 곡선에 묻힌다 → 축 아래 빈 줄에 적는다 */
+  if(narrow) g.fillText(`sweep ${sweep} cpm · duty ${duty}%`, x0, H-4);
+  else g.fillText(`sweep ${sweep} cpm · duty ${duty}% · ${force} lbf`, x0+6, y1-8);
+
+  const cap = document.getElementById("cap-diskpcr");
+  if(cap) cap.innerHTML =
+    `A sinusoidal sweep <b>dwells longest at its turning points</b>, so those radii get cut more — this is the first-order answer
+     to "why does the pad wear in a band". The blue band is the sweep stroke (${(sweepIn*1000).toFixed(0)}–${(sweepOut*1000).toFixed(0)} mm);
+     the green band is where the wafer actually rides (r_cc ± 150 mm).
+     <br><b>Where they overlap is what matters</b> — cut rate outside the wafer track conditions pad the wafer never touches.
+     <br>⚠ Shape is kinematic (dwell time), not a fitted cut-rate model: no paper we hold sweeps sweep-rate as an independent variable
+     and measures PCR, so the <b>vertical scale is relative</b>. Sweep rate is literature-grade (12 commercial recipes, 9–19 cpm, mode 10) but its effect on PCR is not.`;
+}
+
+/* ── ⑥ Loading Unit — FOUP 25슬롯 ─────────────────────────────────── */
+function drawFoup(){
+  const grid = document.getElementById("foupGrid");
+  if(!grid) return;
+  const F = state.foup;
+  grid.innerHTML = F.slots.map((s,i)=>{
+    const on = i===F.sel;
+    const cls = ["sl", on?"on":"", s?(s.wafer==="NPW"?"npw":"ptw"):"empty"].filter(Boolean).join(" ");
+    return `<div class="${cls}" data-slot="${i}" title="${s?`${s.wafer} · ${s.pack} · ${s.thick} nm`:"empty slot — click to load"}">
+      <div class="n">${String(i+1).padStart(2,"0")}</div>
+      <div class="w">${s?s.wafer:"—"}</div></div>`;
+  }).join("");
+  const n = F.slots.filter(Boolean).length;
+  const cap = document.getElementById("cap-foup");
+  if(cap) cap.innerHTML =
+    `<b>${n}/25 slots loaded</b> · slot ${String(F.sel+1).padStart(2,"0")} is selected and its wafer is what the simulation runs.
+     Clicking an empty slot loads a copy of the current wafer settings; clicking a loaded slot selects it.
+     <br>⚠ <b>One wafer per run.</b> The batch exists as data only — sequential 25-wafer execution and wafer-to-wafer
+     uniformity (WTWNU) are not implemented, so nothing here changes the result except which slot is selected.`;
+}
+function wireFoup(){
+  const grid = document.getElementById("foupGrid");
+  if(!grid) return;
+  const F = state.foup;
+  const cur = ()=>({wafer:state.wafer, pack:state.pack,
+                    thick:state.initial_thickness_nm,
+                    ttv:(state.recorded||{}).initial_ttv_nm ?? 0});
+  grid.querySelectorAll(".sl").forEach(el=>{
+    el.onclick = ()=>{
+      const i = +el.dataset.slot;
+      if(!F.slots[i]) F.slots[i] = cur();       /* 빈 슬롯 = 현재 설정 복사해 적재 */
+      F.sel = i;
+      const s = F.slots[i];
+      state.wafer = s.wafer; state.initial_thickness_nm = s.thick;
+      if(s.pack && s.pack!==state.pack){ state.pack = s.pack; state.overrides={}; boot(); return; }
+      drawPanel(); run();
+    };
+  });
+  document.querySelectorAll("[data-fa]").forEach(b=>{
+    b.onclick = ()=>{
+      const a = b.dataset.fa, c = cur();
+      if(a==="fill-npw") F.slots = F.slots.map(()=>({...c, wafer:"NPW"}));
+      else if(a==="fill-ptw") F.slots = F.slots.map(()=>({...c, wafer:"PTW"}));
+      else if(a==="clear"){ F.slots = F.slots.map((s,i)=> i===F.sel?(s||c):null); }
+      drawFoup();
+    };
+  });
+}
+
+/* 파트가 바뀌거나 값이 바뀔 때 호출 — 해당 캔버스가 없으면 조용히 통과 */
+function drawViz(){
+  try{
+    drawSDS(); drawPadSection(); drawPadAsperity(); drawPadLife();
+    drawDiskGrit(); drawDiskPCR(); drawFoup();
+  }catch(e){ console.warn("viz", e); }
+}
+
+/* ─────────────────────────────────────────── Performance factors (pad/disk) */
+async function drawPerf(part){
+  const box = document.getElementById("perf-"+part);
+  let d; try{ d = await (await fetch(API+"/api/performance/"+part)).json(); }catch(e){ box.innerHTML=`<div class="banner">${e.message}</div>`; return; }
+  if(!d.factors||!d.factors.length){ box.innerHTML=`<div class="meta dead">Performance factor study for ${part} not built yet (knowledge/performance/${part}.yaml). Research agent is populating it.</div>`; return; }
+  const arrow = dir => dir==="+"?"▲":dir==="-"?"▼":dir==="peak"?"⋀":"?";
+  const col = dir => dir==="+"?"var(--good)":dir==="-"?"#ff8a5c":"var(--dim)";
+  box.innerHTML = `<div class="meta" style="margin-bottom:4px">${d.factors.length} factors from literature/patents. <b>wired</b> = the engine responds to it; <b>not wired</b> = documented but no model term yet.</div>` +
+    d.factors.map(f=>`
+    <div style="border:1px solid #1b2430;border-radius:6px;padding:5px 8px;margin:4px 0;font-size:11px">
+      <div style="display:flex;align-items:center;gap:6px">
+        <b>${f.label}</b>
+        <span class="tag ${f.status==="wired"?"modeled":"unmodeled"}" style="font-size:9px">${f.status||"?"}</span>
+        <span style="margin-left:auto;color:var(--dim)">${f.range?`${f.range.min}–${f.range.max} ${f.range.unit||""}`:""}${f.typical!=null?` · typ ${f.typical}`:""}</span></div>
+      <div style="margin-top:3px;display:flex;flex-wrap:wrap;gap:6px">
+        ${(f.affects||[]).map(a=>`<span title="${(a.source||"").replace(/"/g,"'")}" style="color:${col(a.direction)}">${arrow(a.direction)} ${a.metric}<span style="opacity:.6;font-size:9px"> ${a.strength||""}</span></span>`).join("")}</div>
+      ${f.range_source?`<div class="meta" style="opacity:.7">${f.range_source.slice(0,110)}</div>`:""}
+    </div>`).join("");
+}
+
+/* ─────────────────────────────────────────── NPW */
+async function drawNPW(){
+  const box = document.getElementById("npwBox");
+  if(!state.npwCat){
+    try{ state.npwCat = await (await fetch(API+"/api/npw")).json(); }
+    catch(e){ box.innerHTML=`<div class="banner">${e.message}</div>`; return; }
+  }
+  const W = state.npwCat.wafers||[];
+  if(!W.length){
+    box.innerHTML = `<div class="meta dead">NPW catalog not built yet (knowledge/wafers/npw_catalog.yaml). Research agent is populating it. Timeline uses a single film layer from the current pack.</div>`;
+    return;
+  }
+  const cur = state.npw || W[0].id;
+  const w = W.find(x=>x.id===cur)||W[0];
+  const stackRows = (w.stack||[]).map(L=>{
+    const packOk = L.pack && state.packs.some(p=>p.id===L.pack);
+    const tag = L.stop ? `<span class="tag" style="font-size:9px">stop</span>`
+              : packOk ? `<span class="tag modeled" style="font-size:9px">${L.pack}</span>`
+              : L.pack ? `<span class="tag unmodeled" style="font-size:9px" title="pack listed but not available">${L.pack}?</span>`
+              : `<span class="tag unmodeled" style="font-size:9px" title="No pack — polished only via previous layer's selectivity, or stops">no model</span>`;
+    return `<div style="display:flex;gap:6px;align-items:center;font-size:11px;padding:2px 0;border-bottom:1px dashed #1b2430">
+      <i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${L.color||'#7fb3ff'}"></i>
+      <b style="width:70px">${L.layer}</b><span style="width:70px;text-align:right">${L.thickness_nm>=100000?(L.thickness_nm/1000).toFixed(0)+" µm":L.thickness_nm+" nm"}</span>${tag}</div>`;
+  }).join("");
+  const init = w.initial||{};
+  const initRow = (k,label,unit)=>{ const v=init[k]; if(!v) return ""; 
+    return `<div class="meta">${label}: typical ${v.typical} ${unit}${v.range?` (${v.range[0]}–${v.range[1]})`:""} <span style="opacity:.6">[${(v.source||"").slice(0,50)}]</span></div>`; };
+  box.innerHTML = `
+    <select id="sel-npw">${W.map(x=>`<option value="${x.id}" ${x.id===w.id?"selected":""}>${x.label}</option>`).join("")}</select>
+    <div class="meta" style="margin:3px 0">${w.purpose||""}</div>
+    <div style="margin:4px 0">${stackRows}</div>
+    ${initRow("ttv_nm","TTV","nm")}${initRow("roughness_ra_nm","Ra","nm")}${initRow("bow_um","Bow","µm")}
+    <div class="meta" style="opacity:.7">[${(w.source||"").slice(0,80)}]</div>`;
+  document.getElementById("sel-npw").onchange = e=>{ state.npw = e.target.value; applyNPW(); };
+  if(!state.npw){ state.npw = w.id; applyNPW(false); }
+}
+
+function applyNPW(redraw=true){
+  /* NPW 선택 → 스택 + 첫 층 팩 + 초기 두께. CMP 퍼포먼스는 이 스택 기준으로 산출된다. */
+  const W = (state.npwCat||{}).wafers||[]; const w = W.find(x=>x.id===state.npw); if(!w) return;
+  const palette = ["#7fb3ff","#c9a86a","#e0906a","#9ad0a0","#b09ae0","#3a3f48"];
+  state.stack = (w.stack||[]).map((L,i)=>({name:L.layer, thickness_nm:L.thickness_nm, pack:L.pack||null, stop:!!L.stop, color:L.color||palette[i%palette.length]}));
+  const top = state.stack[0];
+  if(top){ state.initial_thickness_nm = top.thickness_nm; }
+  const init = w.initial||{};
+  if(init.ttv_nm) state.recorded.initial_ttv_nm = init.ttv_nm.typical;
+  if(init.roughness_ra_nm) state.recorded.initial_roughness_ra_nm = init.roughness_ra_nm.typical;
+  if(init.bow_um) state.recorded.initial_bow_um = init.bow_um.typical;
+  if(top && top.pack && state.packs.some(p=>p.id===top.pack) && top.pack!==state.pack){
+    state.pack = top.pack; state.overrides = {}; boot(); return;
+  }
+  if(redraw){ drawPanel(); run(); }
+}
+
+/* ─────────────────────────────────────────── Additives */
+async function drawAdditives(){
+  const box = document.getElementById("addBox");
+  if(!state.additives){
+    try{ state.additives = await (await fetch(API+"/api/additives")).json(); }
+    catch(e){ box.innerHTML=`<div class="banner">additive catalog: ${e.message}</div>`; return; }
+  }
+  const cat = state.additives;
+  if(!cat.chemicals || !cat.chemicals.length){
+    box.innerHTML = `<div class="meta dead">Additive catalog not built yet (knowledge/additives/catalog.yaml). Research agent is populating it.</div>`;
+    return;
+  }
+  state.formulation = state.formulation||[];   /* [{cat, chem_id, wt}] */
+  const packFilm = ((state.packs.find(p=>p.id===state.pack)||{}).film||"").toLowerCase();
+  const order = ["rr_booster","rr_inhibitor","oxidizer","corrosion_inhibitor","dispersant","defect_reducer","ph_adjuster","chelator","biocide"];
+  let h = "";
+  for(const ck of order){
+    const C = cat.categories[ck]; if(!C) continue;
+    const chems = cat.chemicals.filter(c=>(c.categories||[]).includes(ck));
+    const rows = state.formulation.filter(f=>f.cat===ck);
+    h += `<div style="border:1px solid #1b2430;border-radius:6px;padding:6px 8px;margin:5px 0">
+      <div style="display:flex;align-items:center;gap:6px">
+        <b style="font-size:12px">${C.label}</b>
+        ${C.needs_target_film?`<span class="tag" style="font-size:9px">target film shown</span>`:""}
+        <button class="btn addRow" data-cat="${ck}" style="margin-left:auto;padding:1px 7px;font-size:11px;margin-top:0">+ add</button></div>`;
+    rows.forEach((row,i)=>{
+      const chem = chems.find(c=>c.id===row.chem_id)||chems[0];
+      const rng = chem.typical_range||{};
+      const wired = chem.engine_key ? `<span class="tag modeled" title="engine key: ${chem.engine_key}">wired → ${chem.engine_key}</span>`
+                                    : `<span class="tag unmodeled" title="Recorded in the formulation but no engine term consumes it. Not a bug — no literature model held.">recorded only</span>`;
+      const films = (chem.target_films||[]).map(f=>{
+        const hit = packFilm && f.toLowerCase().includes(packFilm.split("_")[0]);
+        return `<span style="padding:0 4px;border-radius:3px;background:${hit?"#1f4a30":"#1b2430"};color:${hit?"var(--good)":"var(--dim)"}">${f}</span>`;
+      }).join(" ");
+      h += `<div style="margin:5px 0;padding:4px 0;border-top:1px dashed #1b2430;font-size:11px">
+        <div style="display:flex;gap:6px;align-items:center">
+          <select class="chemSel" data-cat="${ck}" data-i="${i}" style="flex:1">${chems.map(c=>
+            `<option value="${c.id}" ${c.id===chem.id?"selected":""}>${c.name}${c.subtype?" ("+c.subtype+")":""}</option>`).join("")}</select>
+          <input type="number" class="chemWt" data-cat="${ck}" data-i="${i}" value="${row.wt ?? (rng.min ?? 0)}" step="${rng.unit==="mM"?0.5:0.05}" min="0"
+            style="width:64px;text-align:right;background:#0a0e14;border:1px solid #1b2430;border-radius:4px;color:var(--fg)">
+          <span style="color:var(--dim);width:32px">${rng.unit||"wt%"}</span>
+          <button class="btn delRow" data-cat="${ck}" data-i="${i}" style="padding:1px 6px;font-size:11px;margin-top:0">×</button></div>
+        <div style="margin-top:3px;display:flex;flex-wrap:wrap;gap:4px;align-items:center">
+          ${C.needs_target_film?`<span style="color:var(--dim)">for:</span> ${films||"—"}`:""}
+          ${wired}
+          ${rng.min!=null?`<span style="color:var(--dim)">typical ${rng.min}–${rng.max} ${rng.unit||""}</span>`:""}</div>
+        <div class="meta" style="margin-top:2px">${chem.mechanism||""} <span style="opacity:.6">[${(chem.source||"").slice(0,60)}]</span></div>
+      </div>`;
+    });
+    h += `</div>`;
+  }
+  box.innerHTML = h;
+  box.querySelectorAll(".addRow").forEach(b=>b.onclick=()=>{
+    const chems = cat.chemicals.filter(c=>(c.categories||[]).includes(b.dataset.cat));
+    if(!chems.length) return;
+    state.formulation.push({cat:b.dataset.cat, chem_id:chems[0].id, wt:(chems[0].typical_range||{}).min ?? 0});
+    drawAdditives(); applyFormulation();
+  });
+  box.querySelectorAll(".delRow").forEach(b=>b.onclick=()=>{
+    const rows = state.formulation.filter(f=>f.cat===b.dataset.cat);
+    state.formulation.splice(state.formulation.indexOf(rows[+b.dataset.i]),1);
+    drawAdditives(); applyFormulation();
+  });
+  box.querySelectorAll(".chemSel").forEach(s=>s.onchange=()=>{
+    const rows = state.formulation.filter(f=>f.cat===s.dataset.cat);
+    rows[+s.dataset.i].chem_id = s.value; drawAdditives(); applyFormulation();
+  });
+  box.querySelectorAll(".chemWt").forEach(w=>w.onchange=()=>{
+    const rows = state.formulation.filter(f=>f.cat===w.dataset.cat);
+    rows[+w.dataset.i].wt = parseFloat(w.value)||0; applyFormulation();
+  });
+}
+
+function applyFormulation(){
+  /* 배합표 → 엔진 override. engine_key 있는 케미컬만 값이 넘어간다.
+     같은 키에 여러 케미컬이면 합산(같은 역할이므로). 나머지는 기록만. */
+  const cat = state.additives; if(!cat) return;
+  const keys = new Set(cat.chemicals.filter(c=>c.engine_key).map(c=>c.engine_key));
+  for(const k of keys) delete state.overrides[k];
+  for(const row of state.formulation){
+    const chem = cat.chemicals.find(c=>c.id===row.chem_id); if(!chem||!chem.engine_key) continue;
+    state.overrides[chem.engine_key] = (state.overrides[chem.engine_key]||0) + (row.wt||0);
+  }
+  run();
+}
+
+/* ─────────────────────────────────────────── 데이터 탭 */
+function wireDataTab(){
+  const drop = document.getElementById("drop"), fin = document.getElementById("fileIn");
+  drop.onclick = ()=>fin.click();
+  drop.ondragover = e=>{ e.preventDefault(); drop.style.borderColor="var(--accent)"; };
+  drop.ondragleave = ()=>{ drop.style.borderColor="var(--line)"; };
+  drop.ondrop = e=>{ e.preventDefault(); drop.style.borderColor="var(--line)";
+                     if(e.dataTransfer.files[0]) uploadFile(e.dataTransfer.files[0]); };
+  fin.onchange = ()=>{ if(fin.files[0]) uploadFile(fin.files[0]); fin.value=""; };
+  refreshDataPanel();
+}
+
+async function uploadFile(file){
+  const out = document.getElementById("impResult");
+  out.innerHTML = `<div class="meta">Uploading ${file.name} …</div>`;
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("pack_hint", document.getElementById("imp-pack").value);
+  fd.append("label", file.name.replace(/\.[^.]+$/,""));
+  try{
+    const r = await fetch(API+"/api/import", {method:"POST", body:fd});
+    const d = await r.json();
+    if(!r.ok){ out.innerHTML = `<div class="banner">Failed: ${d.detail||"unknown"}</div>`; return; }
+    const map = Object.entries(d.column_mapping||{}).map(([k,v])=>`${v}→${k}`).join(", ");
+    out.innerHTML = `
+      <div class="banner" style="background:#14261c;border-color:#1f4a30;color:var(--good)">
+        ✓ ${file.name} 저장됨 — ${d.n_points}포인트
+        ${d.mrr_mean!=null?`, measured mean MRR <b>${d.mrr_mean.toFixed(1)} nm/min</b>`:""}
+      </div>
+      <div class="meta">Conditions: ${JSON.stringify(d.conditions)}</div>
+      <div class="meta">Column mapping: ${map||"—"}</div>
+      ${d.unmapped_columns?.length?`<div class="meta dead">⚠ Unmapped columns (kept, not used): ${d.unmapped_columns.join(", ")}</div>`:""}
+      ${d.blockers?.length?`<div class="meta dead">⛔ ${d.blockers.join(" / ")}</div>`:""}
+      ${d.warnings?.length?`<div class="meta weak">${d.warnings.join(" / ")}</div>`:""}
+      ${!d.comparable?`<div class="meta dead">This measurement lacks conditions and <b>cannot be compared</b> to simulation. It was stored.</div>`:""}`;
+    refreshDataPanel();
+  }catch(e){ out.innerHTML = `<div class="banner">Upload failed: ${e.message}</div>`; }
+}
+
+async function refreshDataPanel(){
+  try{
+    const rr = await (await fetch(API+"/api/runs?limit=8")).json();
+    const s = rr.stats||{};
+    document.getElementById("dbStats").innerHTML =
+      `Runs <b>${s.runs||0}</b> · Measurements <b>${s.measurements||0}</b> · Imports ${s.imports||0}<br>
+       팩별 실측: ${JSON.stringify(s.measurements_by_pack||{})}<br>
+       <span style="opacity:.6">${s.db_path||""}</span>`;
+    document.getElementById("runList").innerHTML = (rr.runs||[]).map(r=>{
+      const t = new Date(r.ts*1000).toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"});
+      const ov = Object.entries(r.inputs?.pack_overrides||{}).map(([k,v])=>`${k}=${v}`).join(" ");
+      return `<div style="padding:2px 0;border-bottom:1px solid #1b2430">
+        ${t} · ${r.pack} · MRR <b>${(r.mrr_mean||0).toFixed(1)}</b>
+        ${ov?`<span style="opacity:.7"> · ${ov}</span>`:""}</div>`;
+    }).join("") || "—";
+    const c = await (await fetch(API+"/api/calibration/"+state.pack)).json();
+    const badge = c.factor===1.0 ? "" : `<b style="color:var(--accent)">Kp ×${c.factor.toFixed(3)}</b> · `;
+    document.getElementById("calib").innerHTML = `${badge}${c.note}`;
+  }catch(e){ /* 패널 갱신 실패는 조용히 */ }
+}
+
+/* ─────────────────────────────────────────── 결과 */
+function bar(v){
+  if(v==null) return `<div class="bar"></div><div class="fval">—</div>`;
+  const pct = THREE.MathUtils.clamp((Math.log10(v)+1)/2*100, 2, 100);
+  const cls = v<0.97?"lo":(v>1.03?"hi":"");
+  return `<div class="bar"><i class="${cls}" style="width:${pct}%"></i></div>
+          <div class="fval">${v.toFixed(3)}</div>`;
+}
+function render(d){
+  const m = d.metrics||{}, eq = d.equipment_outputs||{}, fs = d.factors||{};
+  const cov = d.factor_coverage||{};
+  const F = k => fs[k]||{};
+  const sym = k => (state.symbols&&state.symbols[k]) || (F(k).symbol||"");
+  const eqRow = (k,dec=2)=>{
+    const o = eq[k]; if(!o) return "";
+    const v = o.value==null ? `<b style="color:var(--warn)">not modeled</b>`
+            : `<b>${(+o.value).toFixed(dec)} ${o.unit}</b>`;
+    return `<div class="row" title="${(o.note||"").replace(/"/g,"'")}">
+              <span>${EQ_LABEL[k]||o.label}</span>${v}</div>`;
+  };
+  const fRow = k=>{
+    const f=F(k); if(!f.symbol) return "";
+    return `<div class="fchip" title="${(f.notes||[]).join(' / ').replace(/"/g,"'")}">
+      <span class="fsym">${sym(k)}</span>
+      <span style="width:74px;font-size:11px">${FACTOR_EN[k]||f.name}</span>
+      ${bar(f.value)}
+      <span class="tag ${f.status}">${f.status}</span></div>`;
+  };
+  document.getElementById("out").innerHTML = `
+    <div class="sec">Polish Result</div>
+    <div class="row"><span>Mean MRR</span><b>${(d.mean_mrr_nm_min||0).toFixed(2)} nm/min</b></div>
+    <div class="row"><span>TTV (81pt)</span><b>${m.ttv_nm!=null?m.ttv_nm.toFixed(2)+" nm":"—"}</b></div>
+    <div class="row"><span>CV</span><b>${m.cv_pct!=null?m.cv_pct.toFixed(3)+" %":"—"}</b></div>
+    <div class="row"><span>WIWNU (½range)</span><b>${m.wiwnu_halfrange_pct!=null?m.wiwnu_halfrange_pct.toFixed(3)+" %":"—"}</b></div>
+
+    <div class="sec">In-situ — Polish Timeline
+      <button class="btn" id="tlBtn" style="float:right;padding:2px 8px;font-size:11px;margin:0">▶ Run</button></div>
+    <div id="tl" class="meta">Run the timeline to see thickness vs. time, wafer cross-section by stack, temperature & carrier current traces.</div>
+
+    <div class="sec">Tool Outputs — derived, not set</div>
+    ${eqRow("pad_temp_c",1)}${eqRow("pad_temp_rise_k",2)}${eqRow("cof",4)}
+    ${eqRow("carrier_current_a",3)}${eqRow("platen_torque_nm",2)}${eqRow("friction_power_w",1)}
+
+    <div class="sec">Merged Parameters — Tool axis (never mixed with consumables)</div>
+    ${fRow("lambda")}${fRow("pi")}${fRow("theta")}${fRow("gamma")}
+    <div class="sec">Merged Parameters — Consumable axis (Slurry · Pad · Disk)</div>
+    ${fRow("kappa")}${fRow("chi")}${fRow("psi")}${fRow("tau")}${fRow("delta")}${fRow("stab")}
+    <div class="row" style="margin-top:7px;color:var(--dim);font-size:11px">
+      <span>Model coverage</span><b>${((cov.score||0)*100).toFixed(0)}% — ${(cov.unmodeled||[]).length} axes not wired</b></div>
+    <button class="btn" id="linBtn" style="margin-top:6px">Parameter Lineage — which inputs → which parameter, rename symbols</button>
+    <div id="lineage"></div>
+
+    <div class="sec">Engine-reported limits (${(d.notes||[]).length})</div>
+    <div id="notes">${(d.notes||[]).slice(0,40).map(n=>
+      `<div class="${n.includes("⚠")?"w":""}">${n}</div>`).join("")}</div>`;
+  document.getElementById("tlBtn").onclick = runTimeline;
+  document.getElementById("linBtn").onclick = showLineage;
+  if(state.lineageOpen) showLineage();
+}
+
+/* 전문용어는 영어로 — 사용자 지시 */
+const EQ_LABEL = {pad_temp_c:"Pad Temperature", pad_temp_rise_k:"Pad ΔT", cof:"COF (μ)",
+  carrier_current_a:"Carrier Current", platen_torque_nm:"Platen Torque", friction_power_w:"Friction Power"};
+const FACTOR_EN = {lambda:"Mech. Load", pi:"Load Profile", theta:"Thermal/Flow", gamma:"Conditioning",
+  kappa:"Contact", chi:"Chem. Reactivity", psi:"Passivation", tau:"Slurry Transport",
+  delta:"Damage", stab:"Stability"};
+
+/* ─────────────────────────────────────────── Polish Timeline */
+function currentStack(){
+  /* 웨이퍼 탭의 스택. NPW 카탈로그가 연결되기 전엔 팩 막질 1층 + 기판 */
+  if(state.stack && state.stack.length) return state.stack;
+  const film = (state.packs.find(p=>p.id===state.pack)||{}).film || "film";
+  return [{name:film, thickness_nm:state.initial_thickness_nm||1000, pack:state.pack, color:"#7fb3ff"},
+          {name:"Si substrate", thickness_nm:775000, pack:null, stop:true, color:"#3a3f48"}];
+}
+
+async function runTimeline(){
+  const box = document.getElementById("tl");
+  box.innerHTML = `<div class="meta">Running…</div>`;
+  const body = { layers: currentStack(), total_s: state.time_s||120, dt_s: 2,
+                 pack_overrides: state.overrides };
+  ["pressure_psi","platen_rpm","wafer_rpm","slurry_flow_ml_min"].forEach(k=>{
+    const ov = state.overrides||{};
+    const map = {pressure_psi:"pressure_psi", platen_rpm:"rpm_platen", wafer_rpm:"rpm_wafer", slurry_flow_ml_min:"sfr_ml_min"};
+    if(ov[map[k]]!=null) body[k]=ov[map[k]];
+  });
+  try{
+    const r = await fetch(API+"/api/timeline",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    const d = await r.json();
+    if(!r.ok){ box.innerHTML=`<div class="banner">${d.detail||"timeline failed"}</div>`; return; }
+    state.timeline = d; drawTimeline(d);
+  }catch(e){ box.innerHTML=`<div class="banner">${e.message}</div>`; }
+}
+
+function drawTimeline(d){
+  const box = document.getElementById("tl");
+  const n = d.frames.length;
+  box.innerHTML = `
+    <div class="row" style="font-size:11px"><span>t = <b id="tlT">0</b> s</span>
+      <input type="range" id="tlS" min="0" max="${n-1}" value="0" style="flex:1;margin:0 8px">
+      <button class="btn" id="tlPlay" style="padding:1px 8px;font-size:11px;margin:0">▶</button></div>
+    <div class="meta" style="margin:2px 0 4px">${d.endpoint_s!=null?`Endpoint (all radii clear layer 1): <b>${d.endpoint_s}s</b>, first breakthrough ${d.layer_breakthrough_s[d.layers[0].name]}s`:"No endpoint within run time"}</div>
+    <canvas id="tlX" width="360" height="110" style="width:100%;display:block;border-radius:6px;background:#0a0e14"></canvas>
+    <div class="meta" style="margin:2px 0">Wafer cross-section (center → edge), vertical scale = film only</div>
+    <canvas id="tlG" width="360" height="120" style="width:100%;display:block;border-radius:6px;background:#0a0e14;margin-top:4px"></canvas>
+    <div style="display:flex;gap:10px;font-size:10px;color:var(--dim);margin-top:2px">
+      <span><i style="display:inline-block;width:10px;height:3px;background:#7fb3ff"></i> thickness (center)</span>
+      <span><i style="display:inline-block;width:10px;height:3px;background:#ff8a5c"></i> pad temp</span>
+      <span><i style="display:inline-block;width:10px;height:3px;background:#a0e0a0"></i> MRR</span>
+      <span><i style="display:inline-block;width:10px;height:3px;background:#e0c060"></i> COF</span></div>
+    <div id="tlRow" style="font-size:11px;margin-top:4px"></div>
+    ${d.notes.map(x=>`<div class="meta ${x.includes("⚠")?"dead":""}">${x}</div>`).join("")}`;
+  const S = document.getElementById("tlS"), T = document.getElementById("tlT");
+  const draw = i=>{ T.textContent = d.frames[i].t_s; drawXsec(d,i); drawTraces(d,i); showRow(d,i); };
+  S.oninput = ()=>draw(+S.value);
+  let timer=null;
+  document.getElementById("tlPlay").onclick = function(){
+    if(timer){ clearInterval(timer); timer=null; this.textContent="▶"; return; }
+    this.textContent="❚❚"; let i=+S.value;
+    timer=setInterval(()=>{ i=(i+1)%n; S.value=i; draw(i); if(i===n-1){clearInterval(timer);timer=null;this.textContent="▶";} }, 80);
+  };
+  draw(0);
+}
+
+function drawXsec(d,i){
+  const c = document.getElementById("tlX"), g = c.getContext("2d"), W=c.width, H=c.height;
+  g.clearRect(0,0,W,H);
+  const f = d.frames[i], nr = d.radius_mm.length;
+  const filmLayers = d.layers.filter(L=>!L.stop);
+  const total0 = filmLayers.reduce((s,L)=>s+L.thickness_nm,0);
+  const pad=6, top=10, bot=H-8, sc=(bot-top)/total0;
+  /* 기판 */
+  g.fillStyle = "#2a2f38"; g.fillRect(pad,bot,W-2*pad,6);
+  for(let r=0;r<nr;r++){
+    const x0 = pad + (W-2*pad)*r/nr, x1 = pad + (W-2*pad)*(r+1)/nr + 0.5;
+    let y = bot;
+    for(let k=d.layers.length-1;k>=0;k--){
+      const L=d.layers[k]; if(L.stop) continue;
+      const rem = f.remaining_nm[k][r]; if(rem<=0) continue;
+      const h = rem*sc; g.fillStyle=L.color; g.fillRect(x0,y-h,x1-x0,h); y-=h;
+    }
+  }
+  /* 초기 두께 점선 */
+  g.strokeStyle="rgba(255,255,255,.25)"; g.setLineDash([3,3]); g.beginPath(); g.moveTo(pad,top); g.lineTo(W-pad,top); g.stroke(); g.setLineDash([]);
+  g.fillStyle="rgba(255,255,255,.55)"; g.font="9px sans-serif";
+  g.fillText("center",pad+2,H-12); g.fillText("edge",W-pad-24,H-12);
+  let ly=top+9; d.layers.forEach(L=>{ if(L.stop) return; g.fillStyle=L.color; g.fillRect(W-70,ly-7,8,8); g.fillStyle="#ccc"; g.fillText(`${L.name} ${L.thickness_nm}nm`,W-58,ly); ly+=11; });
+}
+
+function drawTraces(d,i){
+  const c = document.getElementById("tlG"), g = c.getContext("2d"), W=c.width, H=c.height;
+  g.clearRect(0,0,W,H);
+  const n=d.frames.length, pad=6;
+  const series = [
+    {k:f=>f.remaining_nm[0][0], col:"#7fb3ff"},
+    {k:f=>f.outputs.pad_temp_c, col:"#ff8a5c"},
+    {k:f=>f.mean_mrr, col:"#a0e0a0"},
+    {k:f=>f.outputs.cof, col:"#e0c060"},
+  ];
+  series.forEach(s=>{
+    const vals = d.frames.map(s.k); const fin = vals.filter(v=>v!=null);
+    if(!fin.length) return;
+    const lo=Math.min(...fin), hi=Math.max(...fin), rng=(hi-lo)||1;
+    g.strokeStyle=s.col; g.lineWidth=1.5; g.beginPath(); let started=false;
+    vals.forEach((v,j)=>{ if(v==null){started=false;return;} const x=pad+(W-2*pad)*j/(n-1), y=H-pad-(H-2*pad)*(v-lo)/rng;
+      if(!started){g.moveTo(x,y);started=true;} else g.lineTo(x,y); });
+    g.stroke();
+  });
+  const x=pad+(W-2*pad)*i/(n-1); g.strokeStyle="rgba(255,255,255,.5)"; g.beginPath(); g.moveTo(x,0); g.lineTo(x,H); g.stroke();
+  if(d.endpoint_s!=null){ const j=d.frames.findIndex(f=>f.t_s>=d.endpoint_s); if(j>=0){ const xe=pad+(W-2*pad)*j/(n-1); g.strokeStyle="#ff5c5c"; g.setLineDash([2,2]); g.beginPath(); g.moveTo(xe,0); g.lineTo(xe,H); g.stroke(); g.setLineDash([]); } }
+}
+
+function showRow(d,i){
+  const f=d.frames[i], o=f.outputs;
+  const ex = f.exposed_layer; const cnt={}; ex.forEach(k=>cnt[k]=(cnt[k]||0)+1);
+  const exposed = Object.entries(cnt).map(([k,v])=>`${d.layers[k].name} ${(100*v/ex.length).toFixed(0)}%`).join(", ");
+  document.getElementById("tlRow").innerHTML =
+    `<div class="row"><span>Exposed</span><b>${exposed}</b></div>
+     <div class="row"><span>Thickness center / edge</span><b>${f.remaining_nm[0][0].toFixed(0)} / ${f.remaining_nm[0][f.remaining_nm[0].length-1].toFixed(0)} nm</b></div>
+     <div class="row"><span>MRR</span><b>${f.mean_mrr.toFixed(1)} nm/min</b></div>
+     <div class="row"><span>Pad Temp</span><b>${o.pad_temp_c!=null?o.pad_temp_c.toFixed(1)+" °C":"—"}</b></div>
+     <div class="row"><span>COF / Torque</span><b>${o.cof!=null?o.cof.toFixed(3):"—"} / ${o.platen_torque_nm!=null?o.platen_torque_nm.toFixed(1)+" N·m":"—"}</b></div>
+     <div class="row"><span>Carrier Current</span><b>${o.carrier_current_a!=null?o.carrier_current_a.toFixed(2)+" A":'<span style="color:var(--warn)">needs motor K_t</span>'}</b></div>`;
+}
+
+/* ─────────────────────────────────────────── Parameter Lineage */
+async function showLineage(){
+  state.lineageOpen = true;
+  const box = document.getElementById("lineage");
+  box.innerHTML = `<div class="meta">Loading…</div>`;
+  const d = await (await fetch(API+"/api/factors/lineage/"+state.pack)).json();
+  const conf = c=>({verified:"var(--good)",literature:"#8ab4d8",estimated:"var(--warn)"}[c]||"var(--dim)");
+  box.innerHTML = `<div class="meta" style="margin:6px 0">Each merged parameter, what inputs feed it, how each term contributes, and its sources. Click a symbol to rename (1–3 chars, empty = default).</div>` +
+    d.factors.map(f=>`
+    <div style="border:1px solid #1b2430;border-radius:6px;padding:6px 8px;margin:4px 0">
+      <div style="display:flex;align-items:center;gap:8px">
+        <input value="${f.symbol}" data-k="${f.key}" class="symIn" maxlength="3"
+          style="width:34px;text-align:center;font-weight:700;font-size:15px;background:#0a0e14;border:1px solid #1b2430;border-radius:4px;color:var(--accent)">
+        <b>${FACTOR_EN[f.key]||f.name}</b>
+        <span class="tag ${f.status}">${f.status}</span>
+        <span style="margin-left:auto;font-size:10px;color:${conf(f.confidence)}">${f.confidence}</span></div>
+      <div style="font-size:11px;margin-top:4px">
+        <div><span style="color:var(--dim)">Inputs →</span> ${Object.entries(f.drivers).map(([k,v])=>`<code>${k}</code>=${typeof v==="number"?+v.toPrecision(4):v}`).join(" · ")||'<span style="color:var(--warn)">none wired</span>'}</div>
+        <div><span style="color:var(--dim)">Terms</span> ${Object.entries(f.terms).map(([k,v])=>`${k}×${(+v).toFixed(3)}`).join(" · ")||"—"}
+          ${f.value!=null?`<b style="margin-left:6px">= ${f.value.toFixed(3)}</b>`:""}</div>
+        <div><span style="color:var(--dim)">Affects MRR</span> ${f.mrr_coupled?"yes (multiplies)":"no (diagnostic only)"} · <span style="color:var(--dim)">Change via</span> ${f.parts.map(p=>PARTS[p]?PARTS[p].name:p).join(", ")}</div>
+        ${f.sources.length?`<div style="color:var(--dim)">Sources: ${f.sources.map(s=>`<span title="${s}">${s.split("/").pop().slice(0,40)}</span>`).join("; ")}</div>`:""}
+        ${f.status==="unmodeled"?`<div class="dead">${(f.notes||[]).join(" ")||"Not modeled — required parameters missing from pack."}</div>`:""}
+      </div></div>`).join("");
+  box.querySelectorAll(".symIn").forEach(inp=>{
+    inp.onchange = async ()=>{
+      const r = await fetch(API+"/api/factors/symbols",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({symbols:{[inp.dataset.k]:inp.value}})});
+      const res = await r.json();
+      if(!r.ok){ alert(res.detail); return; }
+      state.symbols = state.symbols||{}; 
+      const fresh = await (await fetch(API+"/api/factors")).json();
+      state.symbols = Object.fromEntries(fresh.factors.map(f=>[f.key,f.symbol]));
+      run();
+    };
+  });
+}
+
+async function run(){
+  const body = { pack:state.pack, wafer:state.wafer, time_s:state.time_s,
+                 initial_thickness_nm:state.initial_thickness_nm,
+                 pack_overrides:state.overrides };
+  try{
+    const r = await fetch(API+"/api/simulate/v2",
+      {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    const d = await r.json();
+    if(!r.ok){ document.getElementById("out").innerHTML =
+      `<div class="banner">Engine error: ${d.detail||"unknown"}</div>`; return; }
+    render(d);
+    /* 실행 결과 → 3D 반영 (패드 온도 틴트·웨이퍼 발광·슬러리 퍼짐) */
+    if(typeof applyResult==="function") applyResult(d);
+    else { const mr = d.mean_mrr_nm_min||0;
+           waferMat.emissiveIntensity = THREE.MathUtils.clamp(mr/260, .12, 1.1); }
+    state.lastRunId = d.run_id||null;
+  }catch(e){
+    document.getElementById("out").innerHTML =
+      `<div class="banner">API unreachable (${e.message}). The server was probably restarted — <a href="#" onclick="location.reload();return false" style="color:var(--accent)">reload the page</a>. If it persists, check that the address is http://localhost:8848/3d and the server is running (~/fab-sim/fabsim.command).</div>`;
+  }
+}
+
+async function boot(){
+  try{
+    const cat = await (await fetch(API+"/api/catalog")).json();
+    state.packs = (cat.packs||[]).filter(p=>!p.error);
+    /* 막질군 묶음 — 서버가 준 그룹에서 에러 팩을 걸러낸다 (2026-09-11) */
+    state.packGroups = (cat.pack_groups||[])
+      .map(g=>({family:g.family, packs:(g.packs||[]).filter(p=>state.packs.some(q=>q.id===p.id))
+        .map(p=>Object.assign({}, p, state.packs.find(q=>q.id===p.id)))}))
+      .filter(g=>g.packs.length);
+    try{ const fs = await (await fetch(API+"/api/factors")).json();
+         state.symbols = Object.fromEntries(fs.factors.map(f=>[f.key,f.symbol])); }catch(e){}
+    const pk = state.packs.find(p=>p.id===state.pack);
+    state.base = {};
+    if(pk) for(const p of pk.params) if(typeof p.value==="number") state.base[p.key]=p.value;
+    buildGrooves(num("groove_pitch_mm",3.05), num("groove_depth_mm",0.76));
+    buildGrits(num("asperity_density_per_m2",1e11));
+  }catch(e){ /* 카탈로그 실패해도 시뮬은 돈다 */ }
+  drawTabs(); drawPanel(); run();
+}
+boot();
+</script>
+</body>
+</html>

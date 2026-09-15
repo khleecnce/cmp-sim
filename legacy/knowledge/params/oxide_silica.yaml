@@ -1,0 +1,346 @@
+# 산화막(TEOS/PETEOS) CMP — 실리카 슬러리 기준. 가장 검증된 조건.
+base: base
+description: "Oxide CMP: 실리카 슬러리, STI/ILD 평탄화"
+
+params:
+  film:
+    value: oxide
+    confidence: verified
+  abrasive:
+    value: silica
+    source: knowledge/cmp/slurry-components-overview.md
+    confidence: literature
+
+  # Preston 계수 — 이 팩의 핵심 값. 막질이 바뀌면 여기가 바뀐다.
+  kp_m_per_pa:
+    value: 1.0e-13
+    unit: m^2/N
+    note: >
+      STI 문헌 캘리브레이션점: P=20.7kPa, V=0.8m/s → MRR≈254.05 nm/min.
+      sim/tier1_empirical/preston.py 가 이 값으로 5/5 PASS.
+    source: knowledge/cmp/preston-luo-dornfeld-mrr.md
+    confidence: verified
+
+  slurry_ph:
+    value: 10.5
+    unit: pH
+    note: 실리카 슬러리 염기성 — 표면 실라놀 이온화로 제거 촉진
+    source: knowledge/cmp/colloid-zeta-dlvo-slurry-stability.md
+    confidence: literature
+  abrasive_size_nm:
+    value: 50.0
+    unit: nm
+    source: knowledge/cmp/particle-wafer-interaction-mechanical-chemical-balance.md
+    confidence: literature
+  abrasive_iep_ph:
+    value: 2.5
+    unit: pH
+    note: 실리카 등전점 — pH 10.5에서 강한 음전하 → 정전 안정
+    source: knowledge/cmp/ceria-slurry-ce-redox-selectivity.md
+    confidence: verified
+  hamaker_j:
+    value: 0.85e-20
+    unit: J
+    note: >
+      실리카-물-실리카 Hamaker 상수. 노트 §5: "실리카-물-실리카는 통상 ~0.85×10^-20 J
+      오더로 채택(본 재현값)" — sim/tier2_physics/dlvo_colloid.py self-test가 이 값으로
+      DLVO V_T(h) 정성 형태(장벽 존재/소멸)를 재현한다. 이온세기·zeta potential 실측값은
+      노트에 정량 수치가 없어 팩에 추가하지 않았다(지어내지 않음) — DLVO 정량 곡선을
+      이 팩만으로 그릴 수는 없고, 정성 판정(IEP 거리 기반)만 가능하다.
+    source: knowledge/cmp/colloid-zeta-dlvo-slurry-stability.md §5
+    confidence: literature
+
+  # ══════════════════════════════════════════════════════════
+  # 슬러리 조성 축 (κ·χ·Δ) — ARCHITECTURE-V2.md §1-②
+  #
+  # ⚠ V1의 핵심 결함이 여기였다: 슬러리 인자가 팩에 없어 --sensitivity에서
+  #   pH·입자크기 탄성도가 전부 0.000 '미모델링'으로 나왔다. 소재 개발자용
+  #   도구인데 조성을 바꿔도 결과가 안 변했다는 뜻이다.
+  # ══════════════════════════════════════════════════════════
+
+  abrasive_wt_pct:
+    value: 20.0
+    unit: wt%
+    note: >
+      Li et al. 2021 pH 실험 조건(20 wt% 콜로이달 실리카, K+ 0.25 mol/L).
+      통상 범위는 1~10 wt%(총론)이나 이 논문 계는 20~30 wt%로 높다.
+    source: knowledge/cmp/abrasive-size-concentration-ph-K-additive-mrr-quantitative.md
+    confidence: literature
+  abrasive_ref_wt_pct:
+    value: 20.0
+    unit: wt%
+    note: κ 농도항 기준점 — 위와 같은 조건
+    source: knowledge/cmp/abrasive-size-concentration-ph-K-additive-mrr-quantitative.md
+    confidence: literature
+  abrasive_conc_exponent:
+    value: 0.3333
+    unit: "-"
+    note: >
+      R ∝ C0^(1/3) 표면적 지배 극한. Li 2021 자체는 1/3(표면적)과 4/3(압입) 두 극한을
+      제시만 하고 어느 쪽인지 확정하지 않았으나(E5), 같은 화학계(TEOS/콜로이달실리카)의
+      US9499721B2 E1 직접 실측(TABLE 18, 0.5~3.0wt% 4압력)을 3psi 행에서 로그-로그
+      전역회귀하면 n≈0.30 — 1/3에 근접, 4/3(압입지배)과는 거리가 멀다. EVIDENCE-RULES.md
+      E1>E5로 1/3측 판정 확정(knowledge/cmp/abrasive-concentration-mrr-saturation-
+      contact-probability.md §5).
+      ⚠ 단 이 판정은 "전역 평균 지수"에 한정된다 — 같은 데이터의 국소 지수는
+      0.56(0.5→1wt%)→0.11(2.5→3wt%)로 붕괴해 순수 거듭제곱 자체가 고농도 포화를
+      구조적으로 못 담는다(같은 노트 §3,§5). 즉 지수값 1/3은 literature급이지만
+      함수형(power law) 자체의 한계는 남아있다 — 고농도(≳2wt%) 예측은 과대평가 방향.
+    source: knowledge/cmp/abrasive-concentration-mrr-saturation-contact-probability.md §5
+    confidence: literature
+  abrasive_saturation_wt_pct:
+    value: 7.0
+    unit: wt%
+    note: >
+      Luo-Dornfeld 포화영역 — 퓸드 실리카 12 wt% 계에서 7 wt% 이상 RR 불변 확인.
+      이 위로는 농도항이 과대평가된다(factors.py가 경고를 띄운다).
+    source: knowledge/materials/pad-3dprinted-nonporous-lowdefect-review.md §96
+    confidence: literature
+  abrasive_ref_size_nm:
+    value: 50.0
+    unit: nm
+    note: κ 입경항 기준점 — abrasive_size_nm과 같은 값
+    source: knowledge/cmp/particle-wafer-interaction-mechanical-chemical-balance.md
+    confidence: literature
+  # 2026-09-13: Li et al. 2021 Eq.3-4를 pdfplumber 벡터좌표로 재추출해 지수·부호가
+  # 확정됐다(이전 "OCR 손상"은 추출 방법 문제였음 — knowledge/cmp/abrasive-size-
+  # concentration-ph-K-additive-mrr-quantitative.md §4 2026-09-13 정정 참고).
+  # 40→80nm(압입 지배, φ^(4/3)) → 80→130nm(표면적 지배, φ^(-1/3)) 정점형 곡선을
+  # 배선한다. 이 팩(콜로이달 실리카·SiO2 막)이 원 논문과 동일 화학계라 직접 적용.
+  abrasive_size_peak_nm:
+    value: 80.0
+    unit: nm
+    note: Li et al. 2021 Fig.4 실측 MRR 정점 위치(40/80/130nm 스윕 중 80nm 최대)
+    source: knowledge/cmp/abrasive-size-concentration-ph-K-additive-mrr-quantitative.md §4
+    confidence: literature
+  abrasive_size_exp_below_peak:
+    value: 1.3333333333
+    unit: dimensionless
+    note: >
+      정점 이하(40→80nm) 구간 지수 = Eq.4(압입 지배) φ 지수 4/3.
+      2026-09-13 pdfplumber 벡터좌표 재추출로 확정(이전 버전은 지수·부호 OCR
+      혼선으로 미배선 상태였음).
+    source: knowledge/cmp/abrasive-size-concentration-ph-K-additive-mrr-quantitative.md §4
+    confidence: literature
+  abrasive_size_exp_above_peak:
+    value: -0.3333333333
+    unit: dimensionless
+    note: >
+      정점 이상(80→130nm) 구간 지수 = Eq.3(표면적 지배) φ 지수 -1/3.
+      2026-09-13 pdfplumber 벡터좌표 재추출로 확정.
+    source: knowledge/cmp/abrasive-size-concentration-ph-K-additive-mrr-quantitative.md §4
+    confidence: literature
+
+  # ── pH 정점형 거동 (Li et al. 2021 Fig.1, verify PASS) ──
+  # pH 10.0 → 1551, pH 11.0 → 1727(정점), pH 12.5 → 1407 Å/min
+  # ⚠ 기존 ph_softening_* 는 '단조 선형 연화'라 정점을 표현하지 못한다.
+  #   이 계는 pH 11에서 꺾이므로 단조 모델을 쓰면 pH 12.5를 과대평가한다.
+  ph_peak:
+    value: 11.0
+    unit: pH
+    note: MRR 최대 pH (20 wt% 실리카, K+ 0.25 M, SiO2 막). 정점형 거동
+    source: knowledge/cmp/abrasive-size-concentration-ph-K-additive-mrr-quantitative.md §3
+    confidence: verified
+  ph_ref:
+    value: 10.5
+    unit: pH
+    note: χ pH항 기준점 — 이 팩의 slurry_ph와 같은 값
+    source: knowledge/cmp/colloid-zeta-dlvo-slurry-stability.md
+    confidence: literature
+  ph_mrr_at_peak_rel:
+    value: 1.113
+    unit: "-"
+    note: >
+      pH 10.0 대비 pH 11.0의 MRR 비 (1727/1551 = 1.113, +11.3%).
+      노트 verify 블록이 이 값을 assert한다.
+    source: knowledge/cmp/abrasive-size-concentration-ph-K-additive-mrr-quantitative.md §3
+    confidence: verified
+
+  # ── Δ 손상 유발도 (스크래치 위험) ─────────────────────────
+  # ⚠ Δ는 MRR에 곱해지지 않는 **진단 전용** 팩터다(sim/factors.py MRR_COUPLED에 delta 없음).
+  #   이 값을 바꿔도 MRR 예측은 변하지 않는다.
+  # D99는 US10894906B2(Versum, 실리카 코어 CMP 복합입자) Table 1 실측값 그대로(2026-09-14).
+  #   abrasive_d99_nm == abrasive_ref_d99_nm이므로 기준 조건에서 Δ=1.0이 정확히 성립한다.
+  #   의미 있는 것은 절대값이 아니라 recipe pack_overrides로 D99를 흔들었을 때의 상대 배수다.
+  abrasive_d99_nm:
+    value: 287.5
+    unit: nm
+    note: >
+      [2026-09-14 재승격, estimated→literature] US10894906B2(Versum Materials US, LLC,
+      "Composite particles, method of refining and use thereof") Table 1 "No Treatment"
+      행 실측값을 그대로 채택(Disc Centrifuge, D50=152.3nm/D99=287.5nm). 화학종(실리카
+      코어)·용도(oxide/STI/ILD CMP)가 이 팩(콜로이달 실리카, 산화막 CMP)과 일치 —
+      sti_ceria가 Hitachi Ex.1의 D99=700nm을 baseline으로 그대로 이식한 것과 동일한
+      논거(E2: 화학종+용도 일치 1차 실측, 이 팩 고유 조성은 아님). 옛 값(250nm, D50×
+      일반비 5.00)은 폐기한다 — 실리카 코어의 실측 비율(287.5/152.3=1.887)이 알루미나용
+      일반비(5.00)와 100% 넘게 벌어져(§verify), 화학종 무관 비율을 실리카에 쓸 수
+      없음이 확인됐기 때문이다. 옛 값(250nm)과 신규 값(287.5nm)은 15% 차이로 같은
+      오더 — 갑자기 튄 값이 아니다. ⚠ 세리아 코팅 복합입자의 코어 실측이라 순수
+      콜로이달 실리카와 표면화학은 다르다(분포 폭은 코어 합성 단계에서 대부분
+      결정된다고 보나 분리 실측은 아님).
+      상세: knowledge/cmp/abrasive-particle-size-distribution-d99-tail.md §3, §4.2, §5.
+    source: knowledge/cmp/abrasive-particle-size-distribution-d99-tail.md §3, §4.2
+    confidence: literature
+  abrasive_ref_d99_nm:
+    value: 287.5
+    unit: nm
+    note: >
+      기준 조건(Δ=1.0)의 기준점 — abrasive_d99_nm과 동일값으로 이중 계상 방지.
+      [2026-09-14 재승격] abrasive_d99_nm 250→287.5 값 교체와 같은 편집에서 동반 이동
+      (knowledge/cmp/abrasive-particle-size-distribution-d99-tail.md §4.2).
+    source: knowledge/cmp/abrasive-particle-size-distribution-d99-tail.md §4.2
+    confidence: literature
+  damage_exponent:
+    value: 1.44
+    unit: "-"
+    note: >
+      US8439995B2(Hitachi 세리아) 4점 로그-로그 회귀 n=1.444, R²=0.997. 막질 일치
+      (산화막 CMP)이나 연마입자 불일치(세리아 vs 콜로이달 실리카) — 조건 외삽.
+      교차확증: Remsen 2006(퓸드실리카·산화막) Table V가 선형(n≈1)을 지지해 방향 일치.
+      sim/factors.py 기본값 3.0은 문헌 근거 없는 가정값이므로 반드시 덮어쓴다.
+    source: knowledge/cmp/delta-scratch-damage-d99-oversize-particle-model.md §4.3
+    confidence: literature
+
+  # ── 윤활 레짐 진단 (Sommerfeld/λ) ────────────────────────
+  # 원래 위치: cmp_lubrication_regime.py self-test 전형 조건
+  slurry_viscosity_pa_s:
+    value: 1.0e-3
+    unit: "Pa·s"
+    note: >
+      콜로이달 실리카 CMP 슬러리 **실측** 점도. Lee et al. 2025 (Nanomaterials 15(16) 1248,
+      DOI 10.3390/nano15161248, OA) Brookfield DV-II+Pro: 첨가제 무관 기본 슬러리 ~0.98 cP
+      (§3.2 Fig.3a), HEC 증점제 0.0012→0.0049 wt% 첨가 시 1.01→1.12 cP(§3.3 Fig.7a),
+      TAP+HEC 병용 1.02→1.13 cP(§3.5 Fig.11a). 실측 대역 0.98e-3~1.13e-3의 중심값.
+      측정계 신뢰성 교차검증: Crawford 2013(DOI 10.1016/j.colsurfa.2013.06.003)이 동일 계열
+      대조로 잰 DI water 8.6e-4가 물의 문헌값 8.9e-4(25°C)의 3.4% 이내.
+      희박 슬러리는 뉴턴이라 CMP 전단속도(10³~10⁵/s)에서도 단일 스칼라가 유효하다.
+      ⚠ 예외: 25wt%+0.15M KCl 고고형분·고이온강도 슬러리는 30,000/s에서 5배 증점한다
+      (Crawford 2013) — 그 영역엔 이 스칼라를 쓰면 안 된다.
+      (이전 값도 1.0e-3이었으나 근거가 "노트 정의문의 괄호주석(~1e-3)"이었다. 값은 그대로,
+      근거만 실측으로 교체.)
+    source: knowledge/materials/slurry-viscosity-rheology-literature-values.md §2
+    confidence: literature
+  pad_ra_m:
+    value: 5.0e-6
+    unit: m
+    note: 패드 raised 영역 평균거칠기 — 노트는 "~5µm 전형"으로만 명시
+    source: knowledge/physics/cmp-lubrication-regimes.md §5
+    confidence: estimated
+
+  # ── ψ 표면 흡착 보호 (분산제 경로) ───────────────────────
+  # 산화막/실리카 슬러리엔 금속 부동태 억제제(BTA 등)가 없다 — 대신 폴리머
+  # 분산제 흡착이 MRR을 억제한다. §6에서 PVA/PVP/PAA/PAM 네 종을 실측했다.
+  #
+  # ⚠ 기준값은 "PVA"가 아니라 "NONE"이어야 한다 (2026-09-11 수정): factors.py
+  # 전체의 계약은 "기준 조건에서 모든 팩터가 정확히 1.0"이다(이중 계상 방지,
+  # test_all_factors_are_unity_at_reference_condition). kp_m_per_pa는 이
+  # 팩의 대표 MRR에서 역산된 값이므로, 팩 기본값에 PVA(배수 0.964)를 넣으면
+  # 그 억제가 기준 조건에 이미 섞여 있는데 다시 곱해 이중 계상이 된다.
+  # "NONE"은 임의 선택이 아니라 Li et al. 2021 §6의 MRR=2700 Å/min 기준점
+  # 자체가 무첨가 조건이다 — 즉 이 팩의 기준 조성과 논문의 기준 조성이 일치한다.
+  # PVA/PVP는 레시피 오버라이드로 what-if 스캔할 때만 등장한다.
+  dispersant_type:
+    value: "NONE"
+    unit: "-"
+    note: >
+      Li et al. 2021 §6의 기준 MRR(2700 Å/min, 무첨가)과 이 팩의 기준 조성을
+      일치시킨다 — 팩 기본값에서 ψ=1.0이 되어 이중 계상을 피한다. PVA(-3.6%),
+      PVP(-7.9%)는 같은 논문 실측값이며 레시피 오버라이드로 스캔한다.
+    source: knowledge/cmp/abrasive-size-concentration-ph-K-additive-mrr-quantitative.md §6
+    confidence: literature
+
+  # ── ψ 표면 흡착 보호 — 첨가제 농도축 (2026-09-14, 검증된 영) ──────────
+  # 실리카 슬러리 + 음이온 계면활성제/PEG 는 산화막에 흡착하지 않는다 →
+  # K=0 ⇒ θ≡0 ⇒ ψ≡1.0. "모름"이 아니라 "효과 없음"을 항으로 계상한다
+  # (AGENTS.md: 검증된 null 을 unmodeled 로 남기지 마라).
+  shield_additive_wt_pct:
+    value: 0.0
+    unit: wt%
+    note: >
+      이 팩의 첨가제(음이온 계면활성제·PEG 클래스) 농도. 기본값 0 = 무첨가 —
+      kp_m_per_pa 역산 조건(무첨가 Preston 캘리브레이션점)과 일치. 사용자가 올려도
+      아래 K=0 이라 산화막 MRR 은 변하지 않는다(문헌이 그렇게 말한다).
+    source: knowledge/cmp/psi-adsorption-shield-oxide-systems.md §4
+    confidence: literature
+  shield_ref_wt_pct:
+    value: 0.0
+    unit: wt%
+    note: 기준 농도 = kp 역산 조성(무첨가). shield_additive_wt_pct 와 짝으로 옮길 것.
+    source: knowledge/cmp/psi-adsorption-shield-oxide-systems.md §4
+    confidence: literature
+  shield_langmuir_K:
+    value: 0.0
+    unit: 1/wt%
+    note: >
+      **검증된 영.** Penta, Amanapu, Peethala, Babu 2013 Appl. Surf. Sci. 283, 986–992
+      (doi:10.1016/j.apsusc.2013.07.057) §4.5 원문: "None of the surfactants studied
+      adsorbs on an oxide surface and, hence, does not suppress the oxide RR"
+      (SDS 0.25 wt%·DBSA/DP/SLS 0.15 wt%, 10 wt% 콜로이달 실리카 50 nm, pH 2~10,
+      Fig.2 산화막 RR 유지 또는 소폭 상승). 독립 확증: US10526508B2 (KC Tech) Table 1·2 —
+      PEG 0~1.4 wt% 10수준에서 산화막 RR 30~50 Å/min, Spearman ρ=+0.45(억제 방향 아님).
+      따라서 이 첨가제 클래스의 산화막 흡착상수는 0. 양이온 폴리머(PDADMAC·
+      poly(vinylimidazolium))는 반대로 2 ppm 에서 98% 억제(US9758697B2 Table 1)인
+      스위치형 — 별개 클래스라 이 K 로 다루지 않는다(미모델링, notes 신고).
+    source: knowledge/cmp/psi-adsorption-shield-oxide-systems.md §4
+    confidence: literature
+  shield_hill_n:
+    value: 1.0
+    unit: "-"
+    note: K=0 이라 무효(θ≡0). Langmuir 형식 유지용 형상 파라미터.
+    source: knowledge/cmp/psi-adsorption-shield-oxide-systems.md §4
+    confidence: literature
+  shield_strength_k:
+    value: 1.0
+    unit: "-"
+    note: K=0 이라 무효(exp(0)=1). 형식 유지용.
+    source: knowledge/cmp/psi-adsorption-shield-oxide-systems.md §4
+    confidence: literature
+
+  film_bulk_hardness_pa:
+    value: 9e+09
+    unit: Pa
+    note: >
+      열산화막·TEOS 산화막의 나노압입 경도. 3 psi 조건의 실접촉 압력(약 36 MPa)보다 두 자릿수 크므로 탄성 접촉 레짐을 가리킨다.
+      ⚠ 이것은 **벌크** 경도이지 CMP 가 실제로 깎는 화학 변질층의 경도가 아니다.
+      변질층 경도의 절대값은 공개 문헌에 없다(_knowledge_audit/mechanics.md 의
+      최대 병목). 다만 변질층은 벌크보다 무르므로 H_surface ≤ H_bulk 이고,
+      이 부등식이 한쪽 방향의 판정을 확정해 준다 — 접촉응력이 벌크 경도를
+      넘으면 변질층에서는 더더욱 소성이다. 그 용도로만 쓴다
+      (sim/regime_adapter.py::alpha_from_bulk_bound).
+    source: "Nanoindentation of thermal/TEOS SiO2 films — 표준 보고 범위 8~10 GPa (예: Oliver & Pharr 법 기반 박막 경도 측정 문헌 다수)"
+    confidence: literature
+  oxidizer_wt_pct:
+    value: 0.0
+    unit: "wt%"
+    note: >
+      이 팩의 기준 조성에는 산화제가 없다(산화막 CMP 는 기계·화학 마모가
+      지배하고 산화제를 쓰지 않는 것이 표준이다).
+      WARN 값을 0 으로 **명시**하는 것과 키가 아예 없는 것은 다르다.
+      키가 없으면 검증 데이터가 산화제를 흔들어도 모델이 반응하지 못하고
+      (0/3/6 wt% 에서 전부 142.9863), 그 사실이 조용히 묻힌다.
+      0 으로 선언하면 '이 계는 산화제를 쓰지 않는다'가 모델의 주장이 되고,
+      산화제를 넣은 조건은 기준점 대비 상대값으로 계산된다.
+    source: knowledge/cmp/cu-cmp-ph-mechanism.md
+    confidence: literature
+  oxidizer_ref_wt_pct:
+    value: 0.0
+    unit: "wt%"
+    note: >
+      산화제 항의 기준점. 본값과 같게 둔다.
+      WARN 기준이 0 이면 상대비 C/C_ref 가 정의되지 않는다 — 산화제 항은
+      이 경우 '해당 없음'으로 비활성화되어야 하며, 억지로 나누면 발산한다.
+      산화제를 쓰는 계로 이 팩을 확장하려면 두 값을 함께 옮겨야 한다.
+    source: knowledge/cmp/cu-cmp-ph-mechanism.md
+    confidence: literature
+
+  # ── 연마입자 밀도 (2026-09-15) ────────────────────────────────
+  # 피복률 유도의 입력이다: theta_p = 1.5 * phi * h / d, phi = wt% -> 부피분율.
+  # 피복률이 있어야 입자당 접촉응력이 팩마다 갈리고, 그래야 alpha(탄성/소성)
+  # 판정이 '입력 부재로 인한 기본값'에서 실제 판정으로 바뀐다.
+  # ⚠ 물질의 고유 밀도이지 슬러리 제형 정보가 아니다.
+  abrasive_density_kg_m3:
+    value: 2200.0
+    unit: kg/m^3
+    confidence: literature
+    source: >
+      비정질 실리카(colloidal SiO2) 2.20 g/cm3 — CRC Handbook, amorphous silica. 콜로이달 실리카는 비정질이므로 석영(2.65)이 아니라 이 값을 쓴다.

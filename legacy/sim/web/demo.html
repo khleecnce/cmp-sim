@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FabSim — CMP Process Simulator (private demo)</title>
+<style>
+:root{--bg:#0b0d10;--fg:#e6e8eb;--mut:#8b929c;--acc:#5ec1ff;--card:#14181d;--bd:#242a31;--ok:#5ad38a;--warn:#f0b35a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 -apple-system,Inter,Segoe UI,sans-serif}
+.wrap{max-width:980px;margin:0 auto;padding:48px 24px 80px}
+h1{font-size:34px;margin:0 0 6px;letter-spacing:-.02em}h2{font-size:20px;margin:40px 0 12px;color:var(--acc)}
+.sub{color:var(--mut);font-size:16px;margin-bottom:28px}
+.cta{display:inline-block;background:var(--acc);color:#001522;font-weight:600;padding:12px 20px;border-radius:8px;text-decoration:none;margin-right:12px}
+.cta.sec{background:transparent;color:var(--acc);border:1px solid var(--acc)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:18px 0}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:16px}
+.card b{display:block;font-size:26px;margin-bottom:2px}.card span{color:var(--mut);font-size:13px}
+table{border-collapse:collapse;width:100%;font-size:14px}th,td{border-bottom:1px solid var(--bd);padding:8px 10px;text-align:left;vertical-align:top}th{color:var(--mut);font-weight:500}
+code{background:#1b2027;padding:1px 6px;border-radius:4px;font-size:13px}
+.warn{border-left:3px solid var(--warn);padding:10px 14px;background:#1a1712;border-radius:0 8px 8px 0;margin:14px 0}
+.ok{color:var(--ok)}.mut{color:var(--mut)}
+ul{padding-left:20px}li{margin:4px 0}
+footer{margin-top:60px;color:var(--mut);font-size:13px;border-top:1px solid var(--bd);padding-top:16px}
+</style></head><body><div class="wrap">
+
+<h1>FabSim</h1>
+<div class="sub">A physics-and-chemistry CMP (chemical–mechanical planarization) process simulator, built and validated against published data only. Personal project · private demo.</div>
+
+<a class="cta" href="/3d">Open 3D Simulator →</a>
+<a class="cta sec" href="/basis">Model basis report</a>
+<a class="cta sec" href="/api/factors">Factor API (JSON)</a>
+
+<h2>What it does</h2>
+<p>Given a slurry / pad / conditioner-disk / tool recipe, FabSim predicts removal rate across the wafer radius, within-wafer non-uniformity, pad temperature, friction, endpoint time through a multi-layer film stack, and scratch risk — and shows <em>where every number came from</em>. The 3D view models a full 300 mm polisher (load ports → 3 platens → cleaner) down to the pad grooves and slurry film; recipe changes drive the physics and the scene together.</p>
+
+<div class="grid">
+<div class="card"><b>10</b><span>merged performance factors (Λ Π Θ Γ · κ χ ψ τ Δ S), each a multiplier vs. a literature reference condition</span></div>
+<div class="card"><b>5</b><span>material systems: TEOS/silica, STI ceria, Cu/H₂O₂/BTA, W/Fe-oxidizer, SiC/ceria/H₂O₂</span></div>
+<div class="card"><b>21</b><span>held-out validation datasets digitized from patents &amp; papers (n = 3–50 each)</span></div>
+<div class="card"><b>ρ = +0.95</b><span>mean Spearman rank correlation on the 7 datasets that pass a permutation test (p &lt; 0.05)</span></div>
+</div>
+
+<h2>How the model is built</h2>
+<table>
+<tr><th>Axis</th><th>Factor</th><th>Physics</th><th>Primary basis</th></tr>
+<tr><td rowspan="4">Equipment</td><td>Λ Mechanical load</td><td>Preston P·V with head/platen kinematics, r<sub>cc</sub> offset</td><td>Preston 1927; kinematic derivation</td></tr>
+<tr><td>Π Load profile</td><td>Zone pressure → radial load → WIWNU</td><td>Multi-zone carrier patents</td></tr>
+<tr><td>Θ Thermal / flow</td><td>Friction heating vs. slurry cooling → pad temperature; Stribeck COF</td><td>Sundararajan 1999; Thakurta 2001</td></tr>
+<tr><td>Γ Conditioning</td><td>Disk load × sweep × duty → asperity regeneration; grit aging τ = 27 h</td><td>Kwon 2013; Tsai 2014</td></tr>
+<tr><td rowspan="6">Consumables</td><td>κ Contact</td><td>Abrasive loading C<sup>1/3</sup>, pad Shore D, asperity density</td><td>Surface-area-limited contact models</td></tr>
+<tr><td>χ Chemical reactivity</td><td>pH terms differ by abrasive: silica peak at pH 11; ceria electrostatic window 2.5 &lt; pH &lt; 6.8 (IEP-bounded); Langmuir oxidizer coverage (1 free parameter)</td><td>Li 2021; Dandu 2009; Kaufman 1991</td></tr>
+<tr><td>ψ Adsorption shield</td><td>Generalized from metal passivation (BTA) to surface adsorption: Hill-type anionic surfactant suppression on SiN; verified-zero on oxide with silica slurry</td><td>Kim 2003; Penta 2013</td></tr>
+<tr><td>τ Transport</td><td>Groove width (non-monotonic) and pad porosity → slurry delivery</td><td>Mu 2016; Prasad 2013</td></tr>
+<tr><td>Δ Damage</td><td>(D99/D99<sub>ref</sub>)<sup>n</sup> × agglomeration; scratch threshold 680 nm; Eusner scratch-size bounds</td><td>Hitachi US8439995; Remsen 2006; Eusner 2009</td></tr>
+<tr><td>S Stability</td><td>Steady-state glazing ↔ conditioning balance R<sub>ss</sub> = k<sub>c</sub>G/(k<sub>g</sub>+k<sub>c</sub>G); reproduces real-tool dresser-life vs. MRR trend (PHM 2016, ρ 0.70)</td><td>Jeong 2022/2024; Lawing 2004</td></tr>
+</table>
+
+<h2>Engineering discipline</h2>
+<ul>
+<li><b>No number without a source.</b> Every parameter carries <code>value / unit / source / confidence</code>. A missing parameter raises <code>ParamMissing</code> — there are no silent defaults. Enforced in CI.</li>
+<li><b>Held-out validation.</b> Datasets used to fit a parameter are flagged <code>used_for_calibration</code> and excluded from scoring. Significance is a permutation test, not raw ρ (n = 3 with ρ = 1.0 is p = 0.17 and does not count).</li>
+<li><b>Regression gate.</b> Every model change re-runs all datasets; any significant dataset losing &gt; 0.05 ρ or losing significance blocks the commit. The gate has already rejected one plausible-looking model (a D<sup>−1.5</sup> particle-size term: p 0.0007 → 0.76).</li>
+<li><b>Fake-data audit.</b> Digitized datasets are cross-checked against source full text (patent tables, PMC XML); arithmetic sequences, self-scoring against the calibration source, and “too-perfect” digitizations are quarantined.</li>
+<li><b>Traceable basis.</b> The <a href="/basis">model basis report</a> is generated from code docstrings and parameter files — it cannot drift from what actually runs.</li>
+</ul>
+
+<h2>Honest limits</h2>
+<div class="warn">
+<b>Rank-order, not absolute.</b> Each material system's Preston constant is back-solved from a single literature point, so absolute MRR can be off by large factors when the recipe leaves that regime (e.g. silica slurry calibrated at pH 11, evaluated at pH 4.7: ~40×). The simulator is for <em>comparing recipes</em> and understanding sensitivities. Absolute calibration requires the user's own measurements, which the Data tab ingests (≥ 3 runs → Kp correction; the physics shape is never touched).
+</div>
+<ul>
+<li>Cleaning station is visualization only — no cleaning physics.</li>
+<li>Particle shape (spherical / cocoon / aggregated) and D10/D90 are recorded, not modeled — no quantitative literature model found.</li>
+<li>Carrier motor current needs a motor torque constant that is not public; torque is computed, current is not.</li>
+<li>12 of 50 factor × material cells still carry <code>estimated</code> rather than <code>literature</code> confidence — the model exists but a primary source for the parameter value has not been located.</li>
+</ul>
+
+<h2>Stack</h2>
+<p class="mut">Python 3.11 · NumPy/SciPy engine · FastAPI · three.js (PBR, PMREM) · SQLite run store · pytest (675 tests) · GitHub Actions CI. Literature corpus: 8,960 indexed CMP documents, 1,510 with full text, harvested from OpenAlex / Europe PMC / Google Patents.</p>
+
+<footer>Built with published patents and papers only. No employer data, tools, or processes were used. Demo access is by private link; source is not public.</footer>
+</div></body></html>

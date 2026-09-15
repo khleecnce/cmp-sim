@@ -1,0 +1,180 @@
+# 몰리브덴 기판 양면 CMP — L16 직교배열 (압력 4수준 x pH 4수준 x 첨가제 4수준 x 입도 2수준)
+source: >
+  "Experimental Study on Double-Sided Chemical Mechanical Polishing of Molybdenum
+  Substrates for LED Devices", Micromachines (2026) 17(2):150.
+  doi:10.3390/mi17020150 · PMC12942839 (MDPI 오픈액세스).
+  https://www.ncbi.nlm.nih.gov/pmc/articles/PMC12942839/
+  Table 2(인자수준표)와 Table 3(L16 결과, MRR[nm/min])을 그대로 옮겼다.
+  회전수: 본문 §2.1 "the upper plane and lower plane rotated at 3.3 rpm and 10 rpm".
+
+# ⚠ 2026-09-15 수정 (학습총괄) — 라벨↔전달값 감사가 잡은 결함 2건:
+#   slurry_ph 가 라벨에서 4/7/9/11 로 변하는데 조건에 전달되지 않았고,
+#   oxidizer_wt_pct 도 마찬가지였다. 모델이 못 보는 축은 검증에 쓰일 수 없다.
+#   1차 원문(Europe PMC fullTextXML)에서 Table 2 수준표를 직접 읽어 전달한다:
+#     A 압력 [kPa] : 64 / 77 / 90 / 115
+#     B pH        : 4 / 7 / 9 / 11
+#     C 첨가제     : ① none  ② H2O2  ③ H2O2(0.5%)+Glycine(5 mg/L)  ④ H2O2(1%)+Glycine(5 mg/L)
+#     D 입경 [µm]  : 0.6 / 1.7
+#
+# ⚠ 첨가제 수준 ②("H2O2", 농도 미표기)는 원문이 농도를 적지 않았다 — **확인 못 했다**.
+#   지어내지 않는다. 그렇다고 oxidizer_wt_pct 를 빼면 팩 기본값이 조용히 상속되므로
+#   (부재 서술 ↔ 기본값 상속 함정), 해당 4조건(No.2/5/12/15)은 **제외**하고 아래
+#   excluded_conditions 에 근거와 함께 남긴다. 농도가 확인되면 되살려라.
+#
+# ⚠ 글리신 5 mg/L 은 inhibitor_mM 로 옮기지 않았다. 억제 상수는 (분자 × 기질) 쌍의
+#   성질이고 (glycine × Mo) 쌍이 우리 표에 없다 — 다른 쌍의 값으로 대체 금지.
+#   [[inhibitor-pairs-additional]] 규칙과 같다.
+
+# 재료계: 몰리브덴 금속 기판. 우리 팩은 Si 산화막용이라 범위 밖.
+in_scope: false
+used_for_calibration: false
+pack: oxide_silica
+
+conditions:
+  - label: "No.1: 64kPa, pH4, no additive, 0.6um"
+    pressure_psi: 9.2824
+    rpm_wafer: 3.3
+    rpm_platen: 10
+    mrr_nm_per_min: 11
+    read_method: table
+    overrides:
+      slurry_ph: 4
+      oxidizer_wt_pct: 0
+      abrasive_size_nm: 600
+  - label: "No.3: 64kPa, pH9, H2O2 0.5%+Gly, 1.7um"
+    pressure_psi: 9.2824
+    rpm_wafer: 3.3
+    rpm_platen: 10
+    mrr_nm_per_min: 18
+    read_method: table
+    overrides:
+      slurry_ph: 9
+      oxidizer_wt_pct: 0.5
+      abrasive_size_nm: 1700
+  - label: "No.4: 64kPa, pH11, H2O2 1%+Gly, 1.7um"
+    pressure_psi: 9.2824
+    rpm_wafer: 3.3
+    rpm_platen: 10
+    mrr_nm_per_min: 20
+    read_method: table
+    overrides:
+      slurry_ph: 11
+      oxidizer_wt_pct: 1.0
+      abrasive_size_nm: 1700
+  - label: "No.6: 77kPa, pH7, no additive, 1.7um"
+    pressure_psi: 11.1679
+    rpm_wafer: 3.3
+    rpm_platen: 10
+    mrr_nm_per_min: 43
+    read_method: table
+    overrides:
+      slurry_ph: 7
+      oxidizer_wt_pct: 0
+      abrasive_size_nm: 1700
+  - label: "No.7: 77kPa, pH9, H2O2 1%+Gly, 0.6um"
+    pressure_psi: 11.1679
+    rpm_wafer: 3.3
+    rpm_platen: 10
+    mrr_nm_per_min: 50
+    read_method: table
+    overrides:
+      slurry_ph: 9
+      oxidizer_wt_pct: 1.0
+      abrasive_size_nm: 600
+  - label: "No.8: 77kPa, pH11, H2O2 0.5%+Gly, 0.6um"
+    pressure_psi: 11.1679
+    rpm_wafer: 3.3
+    rpm_platen: 10
+    mrr_nm_per_min: 57
+    read_method: table
+    overrides:
+      slurry_ph: 11
+      oxidizer_wt_pct: 0.5
+      abrasive_size_nm: 600
+  - label: "No.9: 90kPa, pH4, H2O2 0.5%+Gly, 0.6um"
+    pressure_psi: 13.0534
+    rpm_wafer: 3.3
+    rpm_platen: 10
+    mrr_nm_per_min: 41
+    read_method: table
+    overrides:
+      slurry_ph: 4
+      oxidizer_wt_pct: 0.5
+      abrasive_size_nm: 600
+  - label: "No.10: 90kPa, pH7, H2O2 1%+Gly, 0.6um"
+    pressure_psi: 13.0534
+    rpm_wafer: 3.3
+    rpm_platen: 10
+    mrr_nm_per_min: 18
+    read_method: table
+    overrides:
+      slurry_ph: 7
+      oxidizer_wt_pct: 1.0
+      abrasive_size_nm: 600
+  - label: "No.11: 90kPa, pH9, no additive, 1.7um"
+    pressure_psi: 13.0534
+    rpm_wafer: 3.3
+    rpm_platen: 10
+    mrr_nm_per_min: 61
+    read_method: table
+    overrides:
+      slurry_ph: 9
+      oxidizer_wt_pct: 0
+      abrasive_size_nm: 1700
+  - label: "No.13: 115kPa, pH4, H2O2 1%+Gly, 1.7um"
+    pressure_psi: 16.6793
+    rpm_wafer: 3.3
+    rpm_platen: 10
+    mrr_nm_per_min: 131
+    read_method: table
+    overrides:
+      slurry_ph: 4
+      oxidizer_wt_pct: 1.0
+      abrasive_size_nm: 1700
+  - label: "No.14: 115kPa, pH7, H2O2 0.5%+Gly, 1.7um"
+    pressure_psi: 16.6793
+    rpm_wafer: 3.3
+    rpm_platen: 10
+    mrr_nm_per_min: 88
+    read_method: table
+    overrides:
+      slurry_ph: 7
+      oxidizer_wt_pct: 0.5
+      abrasive_size_nm: 1700
+  - label: "No.16: 115kPa, pH11, no additive, 0.6um"
+    pressure_psi: 16.6793
+    rpm_wafer: 3.3
+    rpm_platen: 10
+    mrr_nm_per_min: 51
+    read_method: table
+    overrides:
+      slurry_ph: 11
+      oxidizer_wt_pct: 0
+      abrasive_size_nm: 600
+
+# 제외 조건 — 삭제가 아니라 보류다. 원문이 산화제 농도를 적지 않아 입력을 결정할 수 없다.
+# (수준 ②는 Table 2 에 "H2O2" 로만 적혀 있고 농도가 없다. 확인 못 함.)
+excluded_conditions:
+  - label: "No.2: 64kPa, pH7, H2O2(농도 미표기), 0.6um"
+    mrr_nm_per_min: 94
+    reason: "첨가제 수준②의 H2O2 농도가 원문 Table 2 에 없음 — 입력 미결정"
+  - label: "No.5: 77kPa, pH4, H2O2(농도 미표기), 1.7um"
+    mrr_nm_per_min: 125
+    reason: "동일"
+  - label: "No.12: 90kPa, pH11, H2O2(농도 미표기), 1.7um"
+    mrr_nm_per_min: 144
+    reason: "동일"
+  - label: "No.15: 115kPa, pH9, H2O2(농도 미표기), 0.6um"
+    mrr_nm_per_min: 156
+    reason: "동일"
+
+notes: >
+  피연마재가 Mo(금속)라 전용 팩이 없다. 순위는 Kp 스케일에 불변이므로 oxide_silica 팩의
+  기계 모델만 쓰되, 절대 MRR·MAPE 는 의미 없다(in_scope: false).
+  논문 자신의 분산분석(Table 4)에서 MRR 기여도는 첨가제 57.07% > 압력 28.92% >
+  입경 12.43% > pH 1.58% 순이다. 즉 **지배 인자가 화학(첨가제)** 이고, 산화막용 팩의
+  화학 항은 Mo 계에 성립하지 않으므로 우리 예측의 순위 상한이 구조적으로 낮다.
+  **이것이 이 데이터셋의 핵심 정보다** — Mo 팩이 없는 상태에서 예측이 얼마나 무력한지의 정량치.
+  pH 기여도가 1.58% 로 사실상 null 인 것도 결론이다(이 계에서 pH 는 지배 인자가 아니다).
+  양면 연마기(상/하 정반 3.3/10 rpm)를 회전형 CMP 기구학으로 근사했다 — 모든 조건에서
+  동일하므로 순위에는 영향이 없다.

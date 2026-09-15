@@ -1,0 +1,29 @@
+# Blanket thermal/PETEOS oxide, colloidal-silica slurry, 300 mm rotary tool.
+# Conditions mirror the Mariscal 2020 ECS JSS 9 044008 reference point
+# (3 psi, sliding velocity 1.25 m/s) used in the P1 literature reproduction test.
+model: preston
+
+wafer:
+  film: oxide
+  diameter_mm: 300
+  initial_thickness_nm: 1000
+  n_radial: 81
+
+slurry:
+  pack: oxide_silica
+  ph: 10.5
+  abrasive:
+    kind: silica
+    conc_wt_pct: 12.0
+    d50_nm: 70.0
+
+pad:
+  name: IC1000
+  groove: k-groove
+
+tool:
+  pressure_psi: 3.0
+  rpm_platen: 66.31
+  rpm_head: 66.31
+  flow_ml_min: 200
+  time_s: 60

@@ -1,0 +1,379 @@
+# 세리아 슬러리 STI — oxide:nitride 선택비가 핵심. 실리카 팩과 같은 산화막이지만
+# 연마 메커니즘이 다르다(Si-O-Ce 화학결합 "chemical tooth"). 같은 film, 다른 팩.
+base: oxide_silica
+description: "STI CMP: 세리아 슬러리, oxide:nitride 고선택비"
+
+params:
+  abrasive:
+    value: ceria
+    source: knowledge/cmp/ceria-slurry-ce-redox-selectivity.md
+    confidence: verified
+
+  kp_m_per_pa:
+    value: 2.2e-13
+    unit: m^2/N
+    note: >
+      ⚠ 세리아는 화학결합(Si-O-Ce) 기반이라 실리카보다 산화막 MRR이 높다.
+      Netzband 2020에서 H2O2 첨가 시 Ce3+ 증가로 MRR 5.5배 변화가 보고됐는데,
+      그건 조성 의존이라 단일 상수로 뭉뚱그린 이 값은 대표값일 뿐이다. 미재현.
+    source: knowledge/cmp/ceria-slurry-ce-redox-selectivity.md
+    confidence: estimated
+
+  slurry_ph:
+    value: 5.5
+    unit: pH
+    note: 세리아 IEP 6.8 부근 아래 — 약양전하로 실리카 표면(음전하) 정전인력
+    source: knowledge/cmp/ceria-slurry-ce-redox-selectivity.md
+    confidence: verified
+  abrasive_iep_ph:
+    value: 6.8
+    unit: pH
+    source: knowledge/cmp/ceria-slurry-ce-redox-selectivity.md
+    confidence: verified
+  # ⚠ base(oxide_silica)의 ph_ref=10.5·ph_peak=11.0을 **반드시 덮어쓴다.**
+  #   실리카의 pH 정점 모델은 세리아에 적용하면 부호까지 틀린다(IEP가 2.5 vs 6.8).
+  #   factors.py가 abrasive=='ceria'를 먼저 보고 IEP 창 모델로 분기하지만,
+  #   ph_ref는 그 모델의 기준점으로도 쓰이므로 세리아 작동 pH로 둔다.
+  ph_ref:
+    value: 5.5
+    unit: pH
+    note: 세리아 정전 창(2.5~6.8) 안의 기준점 — slurry_ph와 같은 값
+    source: knowledge/cmp/ceria-slurry-ce-redox-selectivity.md §4
+    confidence: verified
+  wafer_iep_ph:
+    value: 2.5
+    unit: pH
+    note: 실리카 산화막 표면 IEP. 정전 창의 하단. 2차 인용 범위(2~3)
+    source: knowledge/cmp/ceria-slurry-ce-redox-selectivity.md §4
+    confidence: literature
+  abrasive_size_nm:
+    value: 60.0
+    unit: nm
+    note: >
+      Dandu Veera, Peddeti, Babu 2009 (J. Electrochem. Soc. 156(12) H936-H943,
+      doi:10.1149/1.3230624) — Rhodia Inc. 세리아 슬러리, 원문 명시
+      "mean diameter d_mean = 60 nm" (무첨가, pH 4-5.5 — 이 팩의 slurry_ph=5.5·
+      ph_ref=5.5와 조건 일치). 원문 PDF 1차 확보·완독
+      (papers/dandu2009-jes-selective-sio2-sin-ceria-sti.pdf; 상세 재현은
+      knowledge/cmp/sti-cmp-ceria-high-selectivity-nitride-stop-dishing.md §5.1·§8[D]).
+      같은 논문의 Ferro 소성 세리아는 d_mean=180 nm(첨가제 병행 실험용, 더 높은
+      옥사이드 RR). STI 세리아 상용 슬러리는 문헌상 30~230 nm대로 넓게 분포한다
+      (예: Hwang·Lyu·Kim 2026 Polymers 18, 1899, doi:10.3390/polym18151899 —
+      PAA 함유 HNU15 세리아 DLS d50 155→111 nm, 5h 밀링 후, pH~9.1·무억제제,
+      원문 PDF 1차 확보; Urban 2016 Ferro 벤더 슬라이드 D_mean 30-145 nm,
+      미검증) — 이 팩은 무첨가·pH 5.5 조건이 이 값(60 nm)과 가장 가깝다고 판단해
+      채택. 기존 80 nm(estimated)는 이 범위 안에 있었으나 특정 문헌 근거가
+      없었다.
+    source: knowledge/cmp/sti-cmp-ceria-high-selectivity-nitride-stop-dishing.md §5.1
+    confidence: literature
+
+  # ── Δ 손상 유발도(D99-스크래치) ─────────────────────────
+  # ⚠ 이 세 값은 sti_ceria 팩(및 이를 상속하는 sic_ceria_h2o2)의 실제 슬러리
+  # 조성에서 측정된 D99가 아니다 — Hitachi Chemical 세리아 STI/ILD CMP 특허
+  # (US8439995B2)의 Example 1(D99=700nm, 스크래치 20개, 200mm 전면)을
+  # "화학종 일치(세리아, oxide/STI CMP) + 동일 패드계(IC-1000)"라는 근거로
+  # 참조 기준점(baseline)에만 쓴다. 이 팩이 실제로 700nm D99 세리아를
+  # 쓴다는 뜻이 아니다 — confidence=estimated로 명시한다.
+  # abrasive_d99_nm == abrasive_ref_d99_nm(둘 다 700)이므로 기준 조건에서
+  # Δ=1.0 계약은 그대로 유지된다. 이 값을 바꾸는 것은 recipe pack_overrides로
+  # "D99가 이만큼 커지면/작아지면"을 묻는 what-if 축으로 쓰기 위함이다.
+  abrasive_d99_nm:
+    value: 700.0
+    unit: nm
+    note: >
+      Hitachi US8439995B2 Example 1 D99(문헌 실측) — 화학종(세리아,
+      STI/ILD 산화막 CMP) 일치를 근거로 기준점(baseline)에 이식. 팩의
+      실제 조성값 아님, what-if 스캔용 기준.
+      [등급 판정 2026-09-14, EVIDENCE-RULES 판정#16] estimated→literature 상향.
+      사유: 같은 팩의 abrasive_size_nm(60nm, Dandu 2009 실측값을 그대로
+      baseline으로 이식)이 동일한 "타 실측값을 이 팩의 baseline으로 채택"
+      구조로 confidence=literature를 받고 있다 — 이 항목만 estimated로
+      두는 것은 자기모순. 근거 등급도 E2(1차 문헌 실측값, 화학종·용도 일치,
+      단 이 팩 고유 조성의 직접 측정은 아니므로 verified는 아님)로,
+      knowledge/cmp/abrasive-d99-scratch-hitachi-us8439995.md §9(등급
+      판정)의 재현 검증(D99/D50 비 재현 실패)과 대조하면 w_fe_oxidizer 등의
+      "일반비 유도값"(E4/E5)보다 강한 근거임이 확인된다. 상세 계산·verify는
+      해당 노트 §9 참조.
+    source: knowledge/cmp/abrasive-d99-scratch-hitachi-us8439995.md §2.2, §9
+    confidence: literature
+  abrasive_ref_d99_nm:
+    value: 700.0
+    unit: nm
+    note: >
+      기준 조건(Δ=1.0)의 기준점 — abrasive_d99_nm과 동일값으로 이중계상 방지.
+      [2026-09-14] abrasive_d99_nm과 동일 사유로 confidence를 literature로
+      맞춘다(EVIDENCE-RULES 판정#16).
+    source: knowledge/cmp/abrasive-d99-scratch-hitachi-us8439995.md §2.2, §9
+    confidence: literature
+  damage_exponent:
+    value: 1.44
+    unit: "-"
+    note: >
+      US8439995B2 4점 실측 로그-로그 회귀값(n=1.44, R²=0.997) — sim/factors.py
+      기본값(3.0, 문헌 근거 없는 가정값)보다 약 2배 완만. 세리아 화학종
+      한정(텅스텐/알루미나는 별도 검토 필요, egan-kim2019 n_temp=3.73·
+      n_agit=1.73 참조).
+    source: knowledge/cmp/abrasive-d99-scratch-hitachi-us8439995.md §3
+    confidence: literature
+
+  oxide_nitride_selectivity:
+    value: 60.0
+    unit: "-"
+    note: >
+      Hwang 2024 실측 선택비 59~80 범위의 하단. 아미노산/계면활성제 첨가로 제어된다.
+      ⚠ 엔진은 아직 이 값을 쓰지 않는다 — nitride 정지층 모델(film-nitride) 미구현.
+    source: knowledge/cmp/ceria-slurry-ce-redox-selectivity.md
+    confidence: literature
+
+  # ── 화학층 (chemical tooth) ─────────────────────────────
+  # 세리아는 물리흡착이 아니라 Si-O-Ce 화학결합으로 실리카를 뜯어낸다.
+  # 이게 실리카 슬러리와의 근본적 차이라, 화학 항을 빼면 세리아를 모델링한 게 아니다.
+  ce3_fraction:
+    value: 0.15
+    unit: "-"
+    note: >
+      표면 Ce3+ 분율. 산소공공 x에 대해 전하균형 f=2x (노트 verify PASS).
+      H2O2 0.5wt% 첨가 시 최대가 되며, 이때 oxide MRR이 상용 대비 5.5배로
+      보고됐다(Netzband & Dunn 2020). 이 값을 올리면 화학층이 MRR을 올린다.
+    source: knowledge/cmp/ceria-slurry-ce-redox-selectivity.md
+    confidence: literature
+  ce3_fraction_ref:
+    value: 0.15
+    unit: "-"
+    note: 기준 조건(배수 1.0이 되는 지점). 여기서 Kp가 캘리브레이션돼 있다고 본다
+    source: knowledge/cmp/ceria-slurry-ce-redox-selectivity.md
+    confidence: estimated
+  ceria_tooth_gain:
+    value: 1.0
+    unit: "-"
+    note: >
+      Ce3+ 분율 → MRR 배수의 진폭(기준 조건에서 화학 경로가 차지하는 몫의 배율).
+      [2026-09-14 EVIDENCE-RULES 판정#23] 이전 주석은 이 값을 "캘리브레이션 1순위"로
+      지목했으나, 그 방향이 애초에 막다른 길임이 증명됐다: 선형 형태에서는 gain을
+      어떻게 잡아도 슬러리 내부 MRR 비가 theta 비(2.05배)를 넘지 못하는데 실측은
+      2.75배다. 즉 진폭이 아니라 **함수형(지수)** 문제였다. 형상은 아래
+      ceria_tooth_exponent가 담당하므로 gain은 1.0으로 고정한다 — 이건 이제
+      "미검증 잔류값"이 아니라 이중계상을 막기 위한 결정이다.
+      unverified -> literature 승격.
+    source: knowledge/cmp/ceria-tooth-ce3-mrr-exponent-netzband-pair.md §4, §7
+    confidence: literature
+  ceria_tooth_exponent:
+    value: 1.65
+    unit: "-"
+    note: >
+      Ce3+ 활성점 분율에 대한 MRR 멱지수 p. f(theta) = floor + a*(theta/theta_ref)^p.
+      Netzband & Dunn 2019(ECS JSS 8 P629, XPS) Fig.4+Table I의 theta 와
+      2020(ECS JSS 9 044001) 본문의 MRR을 **같은 슬러리·같은 입자(Ce1 58~68nm)·
+      H2O2 단일축**에서 짝지어 역산: theta 2.05배 -> MRR 2.75배 -> p=1.653
+      (현행 기본 floor=1/5.5 기준). floor=0이면 p=1.41, floor=0.3이면 p=1.97로
+      floor 불확실성을 그대로 물려받는다.
+      기준 조건(theta=theta_ref)에서 (theta/theta_ref)^p = 1 이므로 팩터 1.0 계약 불변.
+      ⚠ 2점 할선이다 — 이 theta 구간(12.5~25.7%) 밖으로 외삽하지 마라.
+      ⚠ theta와 MRR이 같은 표에 없고 연속 두 논문에 나뉘어 있어 verified가 아닌
+      literature다(동일 입자 로트는 본문 서술에 의존).
+    source: knowledge/cmp/ceria-tooth-ce3-mrr-exponent-netzband-pair.md §4
+    confidence: literature
+
+  # ── ψ 표면 흡착 보호 (분산제 경로, 교차계 전이) ──────────
+  dispersant_type:
+    value: "NONE"
+    unit: "-"
+    note: >
+      oxide_silica 팩에서 상속된 경로였다. Li et al. 2021은 실리카 슬러리 실측이라
+      세리아(STI/SiC) 화학계로의 전이는 교차계 외삽(EVIDENCE-RULES E4)이고, 값 자체는
+      여전히 전이하지 않는다(아래 참조).
+
+      2026-09-14 EVIDENCE-RULES 판정#15: Kim et al. 2024(doi:10.3390/polym16243593,
+      PMC11679047, CC-BY) §Results가 이 팩과 같은 화학(EAA 공중합제 분산제)·같은 막질
+      (oxide, PETEOS)에서 실측을 제공한다 — 분산제 함량 5→7wt%(D5→D7)에서 oxide MRR이
+      **4224→4712 Å/min(+11.55%)로 오른다.** 실리카/Li 2021의 PVA(−3.6%)·PVP(−7.9%)와
+      **부호가 반대**다. 즉 실리카형 억제 배수를 세리아 팩에 전이하지 않는(=NONE, 배수 1.0)
+      현재 선택은 추측이 아니라 부호 반대의 1차 대상계 실측(E3, 대상계 실측이나 DLS 입경이
+      281.6→227.2nm로 동시에 변해 교란)으로 뒷받침된다.
+
+      ⚠ 그래도 **값은 바꾸지 않는다.** Kim 2024의 +11.55%도 입경 교란과 뒤섞여 있어(이 팩의
+      abrasive_size_peak_nm=163 정점 모델로 역산하면 입경만으로 +7.42%가 설명되고 잔차
+      +3.85%는 방향(양수)은 알아도 ψ 단독 귀속은 불가) 정량 ψ 배수를 추출할 근거가 못 된다.
+      실리카용 PVA 수치를 그대로 쓰면 (1) 근거 없는 수치를 도입하고 (2) 이 팩의 kp가
+      분산제 무관 문헌 MRR에서 역산됐으므로 기준 조건에서 ψ≠1.0이 되어 이중 계상한다
+      (2026-09-11 사고). 세리아 전용 저해 정량치가 나오면 그것으로 교체한다.
+
+      confidence를 estimated→literature로 올린다 — "NONE의 정량값이 문헌에서 나왔다"는
+      뜻이 아니라, **"이 경로를 실리카형으로 쓰지 않는다는 결정 자체가 이제 1차 대상계
+      실측으로 뒷받침된다"**는 뜻이다(EVIDENCE-RULES §4 null도 결론이다).
+    source: knowledge/cmp/ceria-dispersant-eaa-oxide-mrr-direction-vs-silica.md (EVIDENCE-RULES 판정#15)
+    confidence: literature
+
+  # ── ψ 표면 흡착 보호 — 첨가제 농도축 (2026-09-14, Park 2003 역산) ──────────
+  # 세리아 슬러리 + 음이온 계면활성제: 산화막·질화막에 협동(Hill) 흡착.
+  # 두 막질의 K 비(10.8배)가 STI 선택비 창을 만든다. 부모(oxide_silica)의 K=0 은
+  # 실리카 슬러리 값이므로 **반드시 덮어쓴다**(자기선언, has_own 게이트).
+  shield_additive_wt_pct:
+    value: 0.0
+    unit: wt%
+    note: >
+      음이온 계면활성제 농도. 기본값 0 = 무첨가 — 이 팩의 kp·abrasive_size(Dandu 2009
+      무첨가 60 nm 세리아)와 조건 일치. 관측 창 0~0.8 wt%(Park 2003). 0.08 wt% 이상에서
+      질화막이 정지(임계농도), 0.4 wt%부터 산화막도 떨어지기 시작한다.
+    source: knowledge/cmp/psi-adsorption-shield-oxide-systems.md §3
+    confidence: literature
+  shield_ref_wt_pct:
+    value: 0.0
+    unit: wt%
+    note: 기준 농도 = kp 역산 조성(무첨가). shield_additive_wt_pct 와 짝으로 옮길 것.
+    source: knowledge/cmp/psi-adsorption-shield-oxide-systems.md §3
+    confidence: literature
+  shield_langmuir_K:
+    value: 1.2949
+    unit: 1/wt%
+    note: >
+      산화막(SiO₂) 협동 흡착 역-임계농도(C₅₀=0.772 wt%). Park, Katoh, Lee, Jeon, Paik 2003
+      JJAP 42(9A) 5420 (DOI: 10.1143/JJAP.42.5420) Fig.3(a) 9점 상대오차 가중 회귀(최대 오차
+      6.6%); 텍스트 정박점 "0.8 wt%에서 무첨가의 1/5" 재현(잔여율 0.198). ⚠ (K, n, k)는 한
+      묶음 — K는 n과 강하게 얽혀 있다(n=4→K≈0.97, n=20→K≈2.21, 독립 재현 확인).
+      그림 판독 + 비식별 → estimated.
+      [2026-09-15 1차 출처 재대조] `papers/kim2003-jjap-surfactant-oxide-nitride-selectivity-ceria.pdf`
+      가 실제로 이 문헌임을 원문 텍스트에서 확인, Fig.3 9점을 독립 재판독해 기존 값과
+      전 구간 일치 확인. 등급은 estimated 유지(승격 근거 없음) — 상세:
+      knowledge/cmp/psi-shield-hill-constants-ceria-primary-source.md §2·§3·§5.
+    source: knowledge/cmp/psi-surface-adsorption-shield-oxide-ceria.md §5.4
+    confidence: estimated
+  shield_hill_n:
+    value: 4.62
+    unit: "-"
+    note: >
+      Hill 협동성 지수(hemimicelle 문턱). Park 2003 Fig.3 회귀.
+      ⚠ [2026-09-15 반증 시도] 이 값은 산화막 단독 데이터로는 식별되지 않는다 — 산화막
+      SSE 프로파일이 n=4~20 구간에서 15% 이내로 평평하다(비식별). 실제로 n≈4.6에 진짜
+      최소를 갖는 쪽은 질화막(shield_nitride_hill_n) 데이터이고, 이 값은 공유-n 결합회귀에서
+      질화막에 이끌려 나온 것이다(결합회귀 총 SSE의 90% 이상이 질화막 몫). "산화막·질화막이
+      독립적으로 같은 n에 도달 = 같은 흡착 기구"라는 해석은 반증됨 — n은 곡선-형태
+      파라미터로만 취급할 것(물리적 의미 부여 금지). confidence는 estimated 유지(승격도
+      추가 하향도 없음). 상세: knowledge/cmp/psi-shield-hill-constants-ceria-primary-source.md §4·§5·§6.
+    source: knowledge/cmp/psi-surface-adsorption-shield-oxide-ceria.md §5.4
+    confidence: estimated
+  shield_strength_k:
+    value: 3.0
+    unit: "-"
+    note: >
+      피복→잔여율 지수감쇠 강도(exp(−k·θ)). 하한 k≥1.62(0.8 wt% 잔여율 1/5 제약).
+      3.0 선택 근거: θ_max=0.54 로 포화 구간을 피해 고농도 구분이 살아 있다(노트 §5.5).
+      [2026-09-15 독립 재현] 산화막 SSE 프로파일이 평평하다는 비식별 자백을 독립
+      재현(k 하한만 확인 가능, 점추정 불가) — confidence estimated 유지가 정당함을 재확인.
+      상세: knowledge/cmp/psi-shield-hill-constants-ceria-primary-source.md §4·§5.
+    source: knowledge/cmp/psi-surface-adsorption-shield-oxide-ceria.md §5.5
+    confidence: estimated
+  shield_nitride_langmuir_K:
+    value: 14.02
+    unit: 1/wt%
+    note: >
+      질화막(Si₃N₄) 협동 흡착 역-임계농도 C₅₀=0.0713 wt% — 원문 본문 임계농도 0.08 wt%
+      와 독립 일치(회귀는 Fig.3(b) 마커만 사용). 산화막 K 의 10.8배 = 선택비 창의 기원.
+      진단 출력 전용(엔진 MRR 에는 산화막 배수만 곱한다).
+    source: knowledge/cmp/psi-surface-adsorption-shield-oxide-ceria.md §5.4
+    confidence: estimated
+  shield_nitride_hill_n:
+    value: 4.62
+    unit: "-"
+    source: knowledge/cmp/psi-surface-adsorption-shield-oxide-ceria.md §5.4
+    confidence: estimated
+  shield_nitride_strength_k:
+    value: 3.4
+    unit: "-"
+    note: 질화막 쪽 k 는 SSE 곡률이 있어 식별된다(k=2 SSE 26.2 / 3.4 → 0.46 / 6 → 1.70).
+    source: knowledge/cmp/psi-surface-adsorption-shield-oxide-ceria.md §5.5
+    confidence: estimated
+
+  # -- tau slurry transport (viscosity) ------------------------
+  slurry_viscosity_pa_s:
+    value: 1.4e-3
+    unit: "Pa·s"
+    note: >
+      세리아 CMP 슬러리 **실제** 점도. Kim et al. 2024 (Polymers 16(24) 3593,
+      DOI 10.3390/polym16243593) §3.3 Fig.17d: 상용 세리아 슬러리 초기 실제 **1.41 cP**
+      (25°C, Brookfield cone/plate; 3개월 보관 후 1.16 cP로 감소).
+      교차확인: 동일 그룹 Kim 2024 (Polymers 16(6) 844, DOI 10.3390/polym16060844)
+      Table 3 세리아+SMA-1000 분산제 1.34~1.35 cP, Table 4 세리아+소포제 1.31~1.33 cP,
+      자제제조 세리아(D5/D6/D7) 1.62/1.47/1.44 cP. 실제 대역 1.31e-3~1.62e-3 중
+      **상용품 값**을 대표로 추출. 콜로이달 실리카계(1.0e-3)보다 1.40배 높다 —
+      그러므로 base 공통이 아니라 팩별로 나눈다.
+      원문이 상용 세리아 분산제를 "Newtonian behavior"로 명시 → 단일 스칼라 정당.
+    source: knowledge/materials/slurry-viscosity-rheology-literature-values.md §2
+    confidence: literature
+
+  abrasive_ref_size_nm:
+    source: "이 팩의 abrasive_size_nm 과 같은 출처 — 기준점은 독립 측정값이 아니라 '어느 조건에서 Kp 를 역산했는가'의 선언이다"
+    value: 60.0
+    unit: nm
+    note: >
+      κ 입경항 기준점 — 이 팩의 abrasive_size_nm(60 nm)과 일치시킨다.
+      키가 없어 실리카 부모의 50 nm 를 상속해 기준조건 κ=1.275 였다
+      (2026-09-13 model_hygiene 극한검사가 검출). 값이 아니라 기준점만
+      옮기므로 예측 형상은 불변이고 배수만 1.0 으로 복원된다.
+    confidence: literature
+
+  # ── κ 입경 정점형 곡선 — 세리아 실측으로 재선언 (2026-09-13) ──────────
+  # ⚠ 이 세 키는 부모(oxide_silica)에서 상속되고 있었다. 부모 값은 Li et al. 2021
+  #   **콜로이달 실리카** 슬러리에서 나온 정점 80 nm 이고, 세리아 계 실측과 방향이
+  #   어긋난다(세리아는 60~163 nm 구간에서 MRR이 계속 증가). 상속을 끊고 이 팩의
+  #   재료계(세리아)에 맞는 값을 명시 선언한다.
+  #   근거: knowledge/cmp/ceria-abrasive-size-mrr-peak-shift-vs-silica.md §2·§3
+  abrasive_size_peak_nm:
+    value: 163.0
+    unit: nm
+    note: >
+      세리아 산화막 CMP 입경-MRR 정점. Oh, Singh, Gupta, Cho 2010
+      (Microelectronic Engineering, DOI 10.1016/j.mee.2010.07.040) — 수열합성
+      단결정 세리아 62/116/163/232 nm 4점 1축 스윕에서 163 nm가 최대
+      (oxide RR 2369 Å/min, nitride RR 52.4 Å/min).
+      ⚠ 원문은 Elsevier 페이월이고 미러 사이트 미러 4곳이 전부 봇검증/502를 반환해
+      **1차 전문 미확보**다. 정점 위치 163 nm 는 Wang et al. 2020
+      (DOI 10.1177/0036850420982451, SAGE 오픈액세스, 전문 확보)의 2차 인용으로
+      확인했다 — 즉 이 값은 E5(2차 인용) 등급이다. 스윕 설계(n=4·1축)는 출판사
+      초록에서 직접 확인(E3 수준).
+      방향(입경↑ → 산화막 MRR↑)은 독립 3편이 더 지지: Oh et al. 2011 Powder Tech.
+      (DOI 10.1016/j.powtec.2010.09.025, flux법 84/166/295/417 nm 단조 증가),
+      Kang et al. 2004 JJAP 43 L365 (DOI 10.1143/jjap.43.l365, 입경·grain size
+      독립 제어에서 oxide RR 증가·nitride RR 무관).
+      ⚠ 네 번째 방향 확증 문헌(세리아 5/20/68 nm)은 이 팩의 held-out 검증
+      데이터셋(netzband2020_thermal_oxide_ceria_ph)과 같은 원문이라, 여기에
+      DOI를 적으면 qa_loop 감사가 '교정에 쓴 문헌'으로 보고 그 데이터셋을
+      격리한다. 값 근거가 아니라 방향 확증일 뿐이므로 팩에는 적지 않는다
+      — 근거 노트 §2 표 D 행에만 남긴다.
+      ⚠ B·C 문헌은 232~417 nm 까지도 증가를 보고하므로 163 nm 는 **하한**일 수
+      있다(과소추정 방향). 배수는 확보 못 해 넣지 않았다.
+    source: knowledge/cmp/ceria-abrasive-size-mrr-peak-shift-vs-silica.md §2
+    confidence: literature
+  abrasive_size_exp_below_peak:
+    value: 1.3333333333
+    unit: dimensionless
+    note: >
+      정점 이하 구간 지수 = 압입 지배 d^(4/3). 값 자체는 부모(oxide_silica)와 같지만
+      **상속이 아니라 이 계에 대한 판단으로 재선언**한다 — 재료 특이 키를 상속시키면
+      부모가 바뀔 때 세리아 팩이 조용히 끌려간다(같은 결함이 wafer_iep_ph 에서도
+      발생했다). 지수의 폐형식 근거는 Bellahsene et al. 2025 리뷰
+      (DOI 10.3390/nano15171366, MDPI OA, 전문 확보) §2.1 Eq.(1) — 재료 무관
+      메커니즘 식이라 세리아에도 형식은 유효하다고 본다.
+      ⚠ 세리아 실측으로 이 지수를 재추정한 적은 없다 — **형식 전용, 미검증.**
+    source: knowledge/cmp/ceria-abrasive-size-mrr-peak-shift-vs-silica.md §3
+    confidence: literature
+  abrasive_size_exp_above_peak:
+    value: -0.3333333333
+    unit: dimensionless
+    note: >
+      정점 이상 구간 지수. 근거·한계는 abrasive_size_exp_below_peak 와 동일
+      (Bellahsene 2025 §2.1 표면적 지배 가지). 세리아 재추정 없음 — 미검증.
+    source: knowledge/cmp/ceria-abrasive-size-mrr-peak-shift-vs-silica.md §3
+    confidence: literature
+
+  # ── 연마입자 밀도 (2026-09-15) ────────────────────────────────
+  # 피복률 유도의 입력이다: theta_p = 1.5 * phi * h / d, phi = wt% -> 부피분율.
+  # 피복률이 있어야 입자당 접촉응력이 팩마다 갈리고, 그래야 alpha(탄성/소성)
+  # 판정이 '입력 부재로 인한 기본값'에서 실제 판정으로 바뀐다.
+  # ⚠ 물질의 고유 밀도이지 슬러리 제형 정보가 아니다.
+  abrasive_density_kg_m3:
+    value: 7220.0
+    unit: kg/m^3
+    confidence: literature
+    source: >
+      산화세륨 CeO2 7.22 g/cm3 — CRC Handbook, cerium(IV) oxide.

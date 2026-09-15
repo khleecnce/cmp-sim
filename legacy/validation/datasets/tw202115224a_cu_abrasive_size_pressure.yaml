@@ -1,0 +1,152 @@
+# Cu CMP 특허 실시예 — 연마입자 크기 9종 × 다운포스 2수준의 구리 제거율(전면 Cu 웨이퍼)
+source: >
+  TW202115224A, "Low dishing copper chemical mechanical planarization",
+  Versum Materials US LLC (慧盛材料), 2019 출원 / 2021 공개.
+  실시예 1 표2(표1의 연마입자 목록과 짝지음)에서 옮김. 원 단위 Å/min → ÷10으로 nm/min 환산.
+  https://patents.google.com/patent/TW202115224A/en
+in_scope: true
+used_for_calibration: false
+pack: cu_h2o2_bta
+calibration_contact:
+  - param: abrasive_size_exponent
+    pack: cu_h2o2_bta
+    what: >
+      knowledge/params/cu_h2o2_bta.yaml의 abrasive_size_exponent(0.0) note —
+      "TW202115224A 실측 n=18"에서 순수 구형 부분집합(15/27/50/160nm, n=6/압력)만
+      골라 Spearman을 돌려 rho≈0.03~0.15(비유의)로 "입경이 지배인자가 아니다"는
+      영(null) 판정을 내렸다. 이 데이터셋(TW202115224A 표2, n=18 전체)이 그 실측
+      원천이다.
+    axis: abrasive_size_nm
+
+# 공정조건(특허 명시): Reflexion LK, VP9280 패드, 정반 93 RPM, 슬러리 300 mL/min,
+#   1단계 2.5 psi / 2단계 1.5 psi. 전면 전해도금 Cu 웨이퍼(제거율용).
+# 조성(모든 실시예 공통): 콜로이달 실리카 833 ppm(=0.0833 wt%), H2O2 1 wt%,
+#   글리신 5.5 wt%, 알라닌 9.5 wt%, 1,2,4-트리아졸 416 ppm, pH 7.20~7.30.
+# 변하는 것은 **연마입자 종류·평균입경(MPS)** 과 **다운포스** 둘뿐이다.
+conditions:
+  - label: "배합1 Nalco 15nm 구형, 2.5 psi"
+    pressure_psi: 2.5
+    rpm_platen: 93
+    mrr_nm_per_min: 620.4
+    read_method: table
+    overrides: {abrasive_size_nm: 15.0, abrasive_wt_pct: 0.0833, abrasive_ref_wt_pct: 0.0833, oxidizer_wt_pct: 1.0, sfr_ml_min: 300.0, rpm_platen: 93.0, slurry_ph: 7.2}
+  - label: "배합1 Nalco 15nm 구형, 1.5 psi"
+    pressure_psi: 1.5
+    rpm_platen: 93
+    mrr_nm_per_min: 408.4
+    read_method: table
+    overrides: {abrasive_size_nm: 15.0, abrasive_wt_pct: 0.0833, abrasive_ref_wt_pct: 0.0833, oxidizer_wt_pct: 1.0, sfr_ml_min: 300.0, rpm_platen: 93.0, slurry_ph: 7.2}
+  - label: "배합2 Fuso 15nm 구형, 2.5 psi"
+    pressure_psi: 2.5
+    rpm_platen: 93
+    mrr_nm_per_min: 549.2
+    read_method: table
+    overrides: {abrasive_size_nm: 15.0, abrasive_wt_pct: 0.0833, abrasive_ref_wt_pct: 0.0833, oxidizer_wt_pct: 1.0, sfr_ml_min: 300.0, rpm_platen: 93.0, slurry_ph: 7.2}
+  - label: "배합2 Fuso 15nm 구형, 1.5 psi"
+    pressure_psi: 1.5
+    rpm_platen: 93
+    mrr_nm_per_min: 345.1
+    read_method: table
+    overrides: {abrasive_size_nm: 15.0, abrasive_wt_pct: 0.0833, abrasive_ref_wt_pct: 0.0833, oxidizer_wt_pct: 1.0, sfr_ml_min: 300.0, rpm_platen: 93.0, slurry_ph: 7.2}
+  - label: "배합3 Nalco 27nm 구형, 2.5 psi"
+    pressure_psi: 2.5
+    rpm_platen: 93
+    mrr_nm_per_min: 514.0
+    read_method: table
+    overrides: {abrasive_size_nm: 27.0, abrasive_wt_pct: 0.0833, abrasive_ref_wt_pct: 0.0833, oxidizer_wt_pct: 1.0, sfr_ml_min: 300.0, rpm_platen: 93.0, slurry_ph: 7.2}
+  - label: "배합3 Nalco 27nm 구형, 1.5 psi"
+    pressure_psi: 1.5
+    rpm_platen: 93
+    mrr_nm_per_min: 371.2
+    read_method: table
+    overrides: {abrasive_size_nm: 27.0, abrasive_wt_pct: 0.0833, abrasive_ref_wt_pct: 0.0833, oxidizer_wt_pct: 1.0, sfr_ml_min: 300.0, rpm_platen: 93.0, slurry_ph: 7.2}
+  - label: "배합4 Fuso 27nm 구형, 2.5 psi"
+    pressure_psi: 2.5
+    rpm_platen: 93
+    mrr_nm_per_min: 562.9
+    read_method: table
+    overrides: {abrasive_size_nm: 27.0, abrasive_wt_pct: 0.0833, abrasive_ref_wt_pct: 0.0833, oxidizer_wt_pct: 1.0, sfr_ml_min: 300.0, rpm_platen: 93.0, slurry_ph: 7.2}
+  - label: "배합4 Fuso 27nm 구형, 1.5 psi"
+    pressure_psi: 1.5
+    rpm_platen: 93
+    mrr_nm_per_min: 351.9
+    read_method: table
+    overrides: {abrasive_size_nm: 27.0, abrasive_wt_pct: 0.0833, abrasive_ref_wt_pct: 0.0833, oxidizer_wt_pct: 1.0, sfr_ml_min: 300.0, rpm_platen: 93.0, slurry_ph: 7.2}
+  - label: "배합5 Nalco 50nm 구형, 2.5 psi"
+    pressure_psi: 2.5
+    rpm_platen: 93
+    mrr_nm_per_min: 441.4
+    read_method: table
+    overrides: {abrasive_size_nm: 50.0, abrasive_wt_pct: 0.0833, abrasive_ref_wt_pct: 0.0833, oxidizer_wt_pct: 1.0, sfr_ml_min: 300.0, rpm_platen: 93.0, slurry_ph: 7.2}
+  - label: "배합5 Nalco 50nm 구형, 1.5 psi"
+    pressure_psi: 1.5
+    rpm_platen: 93
+    mrr_nm_per_min: 310.9
+    read_method: table
+    overrides: {abrasive_size_nm: 50.0, abrasive_wt_pct: 0.0833, abrasive_ref_wt_pct: 0.0833, oxidizer_wt_pct: 1.0, sfr_ml_min: 300.0, rpm_platen: 93.0, slurry_ph: 7.2}
+  - label: "배합6 Fuso 50nm 누에고치형, 2.5 psi"
+    pressure_psi: 2.5
+    rpm_platen: 93
+    mrr_nm_per_min: 845.3
+    read_method: table
+    overrides: {abrasive_size_nm: 50.0, abrasive_wt_pct: 0.0833, abrasive_ref_wt_pct: 0.0833, oxidizer_wt_pct: 1.0, sfr_ml_min: 300.0, rpm_platen: 93.0, slurry_ph: 7.2}
+  - label: "배합6 Fuso 50nm 누에고치형, 1.5 psi"
+    pressure_psi: 1.5
+    rpm_platen: 93
+    mrr_nm_per_min: 569.5
+    read_method: table
+    overrides: {abrasive_size_nm: 50.0, abrasive_wt_pct: 0.0833, abrasive_ref_wt_pct: 0.0833, oxidizer_wt_pct: 1.0, sfr_ml_min: 300.0, rpm_platen: 93.0, slurry_ph: 7.2}
+  - label: "배합7 Fuso 125nm 누에고치형, 2.5 psi"
+    pressure_psi: 2.5
+    rpm_platen: 93
+    mrr_nm_per_min: 761.8
+    read_method: table
+    overrides: {abrasive_size_nm: 125.0, abrasive_wt_pct: 0.0833, abrasive_ref_wt_pct: 0.0833, oxidizer_wt_pct: 1.0, sfr_ml_min: 300.0, rpm_platen: 93.0, slurry_ph: 7.2}
+  - label: "배합7 Fuso 125nm 누에고치형, 1.5 psi"
+    pressure_psi: 1.5
+    rpm_platen: 93
+    mrr_nm_per_min: 487.4
+    read_method: table
+    overrides: {abrasive_size_nm: 125.0, abrasive_wt_pct: 0.0833, abrasive_ref_wt_pct: 0.0833, oxidizer_wt_pct: 1.0, sfr_ml_min: 300.0, rpm_platen: 93.0, slurry_ph: 7.2}
+  - label: "배합8 Fuso 140nm 응집체, 2.5 psi"
+    pressure_psi: 2.5
+    rpm_platen: 93
+    mrr_nm_per_min: 849.3
+    read_method: table
+    overrides: {abrasive_size_nm: 140.0, abrasive_wt_pct: 0.0833, abrasive_ref_wt_pct: 0.0833, oxidizer_wt_pct: 1.0, sfr_ml_min: 300.0, rpm_platen: 93.0, slurry_ph: 7.2}
+  - label: "배합8 Fuso 140nm 응집체, 1.5 psi"
+    pressure_psi: 1.5
+    rpm_platen: 93
+    mrr_nm_per_min: 482.4
+    read_method: table
+    overrides: {abrasive_size_nm: 140.0, abrasive_wt_pct: 0.0833, abrasive_ref_wt_pct: 0.0833, oxidizer_wt_pct: 1.0, sfr_ml_min: 300.0, rpm_platen: 93.0, slurry_ph: 7.2}
+  - label: "배합9 JGC 160nm 구형, 2.5 psi"
+    pressure_psi: 2.5
+    rpm_platen: 93
+    mrr_nm_per_min: 775.7
+    read_method: table
+    overrides: {abrasive_size_nm: 160.0, abrasive_wt_pct: 0.0833, abrasive_ref_wt_pct: 0.0833, oxidizer_wt_pct: 1.0, sfr_ml_min: 300.0, rpm_platen: 93.0, slurry_ph: 7.2}
+  - label: "배합9 JGC 160nm 구형, 1.5 psi"
+    pressure_psi: 1.5
+    rpm_platen: 93
+    mrr_nm_per_min: 457.4
+    read_method: table
+    overrides: {abrasive_size_nm: 160.0, abrasive_wt_pct: 0.0833, abrasive_ref_wt_pct: 0.0833, oxidizer_wt_pct: 1.0, sfr_ml_min: 300.0, rpm_platen: 93.0, slurry_ph: 7.2}
+
+notes: >
+  변수는 두 개다: (1) 연마입자 종류/평균입경 15~160 nm, (2) 다운포스 2.5 / 1.5 psi.
+  조성(실리카 833 ppm, H2O2 1 wt%, 글리신 5.5 wt%, 알라닌 9.5 wt%, 1,2,4-트리아졸 416 ppm,
+  pH 7.2~7.3)과 정반 93 rpm, 유량 300 mL/min은 전 실시예 동일 — 특허 본문에 인쇄된 값이다.
+
+  ⚠ 모델이 실제로 구분하는 것은 압력뿐이다. 팩에 abrasive_size_exponent가 없어
+  κ의 입경 항이 적용되지 않으므로(sim/factors.py `_f_kappa`가 지수를 지어내지 않는다),
+  같은 압력의 9개 배합은 예측값이 모두 같다. 즉 이 데이터셋은
+  **"압력 순위를 맞히는가"만 검증하고, 입경 순위는 검증하지 않는다.**
+  실측은 같은 압력 안에서 4414~8493 Å/min으로 2배 가까이 갈리므로,
+  Spearman이 1보다 낮게 나오는 몫의 상당 부분이 미모델링된 입경/입자형상 효과다.
+
+  ⚠ 억제제는 BTA가 아니라 1,2,4-트리아졸 416 ppm이다. 팩의 BTA 흡착상수를 그대로
+  쓰면 잘못된 화학을 적용하는 것이라 inhibitor_mM은 건드리지 않았다(전 조건 동일하므로
+  순위에는 영향 없음). 절대값 비교에는 부적합하다.
+
+  ⚠ pH는 7.2~7.3이지만 cu_h2o2_bta 팩에는 pH 항이 연결돼 있지 않아 override하지 않았다.

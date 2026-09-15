@@ -1,0 +1,91 @@
+# Entegris/UF -- SiC CMP, oxide nanoparticle concentration-removal rate series (patent example, printed table)
+#
+# source: US20220315802A1 "Suspension for chemical mechanical planarization (CMP) and
+#       method employing same" (Entegris Inc / University of Florida Research
+#       Foundation), Table 1 (Google Patents full text, confirmed 2026-09-09)
+# patent status: published application, free full text, no copyright issue
+#
+# WARNING scope note: this pack's (sic_ceria_h2o2) chemistry pH term (_ph_softening_term)
+#   only activates when abrasive=='ceria' (sim/chemistry.py:199). The abrasive here is
+#   alumina/zirconia, not ceria, so the chemistry pH term is NOT tested by this data.
+#   However the mechanical kappa factor's abrasive_wt_pct concentration term
+#   (sim/factors.py:324) is a general mechanical contact model independent of abrasive
+#   chemistry (indentation depth ~ 1/R, MRR ~ kappa), so this data CAN test the
+#   direction of kappa's ranking response to concentration. Marked in_scope: true,
+#   with this boundary noted in scope_note. Measured trend: concentration increase ->
+#   MRR DECREASES (temperature also decreases) -- consistent with indentation-limited
+#   regime (delta_p ~ 1/R, more particles -> lower load per particle), but the pack's
+#   current abrasive_conc_exponent default (+1/3, surface-area limit, MRR increases
+#   with concentration) predicts the OPPOSITE direction. This dataset exposes that mismatch.
+#
+# unit conversion: original micrometer/hr -> nm/min: x1000/60 = x16.667
+doi: "US20220315802A1 (Google Patents, Table 1 alumina series)"
+source: "Entegris Inc / U. Florida, US20220315802A1, Table 1 -- SiC CMP, alumina nanoparticle conc. vs removal rate, 4 wt% KMnO4 + 0.5 wt% nitrate salts, pH 2.3"
+read_method: table
+pack: sic_ceria_h2o2
+in_scope: true
+scope_note: "Chemistry mismatch (alumina vs pack's ceria) -- tests kappa mechanical concentration term only, not chi (pH) chemistry term. See header above."
+used_for_calibration: false
+# ⚠ 2026-09-11: 이 데이터셋이 sic_ceria_h2o2의 abrasive_conc_exponent(-0.406) 출처이기도 하다
+#   (knowledge/cmp/sic-alumina-concentration-negative-exponent-entegris.md §3,§6).
+#   qa_loop.py F4 감사가 "used_for_calibration 누락" ⚠를 띄우지만, 다른 팩도 같은 패턴
+#   (tw202115224a_cu_abrasive_size_pressure → cu_h2o2_bta, us8070843b2_w_h2o2_series →
+#   w_fe_oxidizer)에서 동일하게 false로 유지 중이다 — 이 저장소의 기존 관행과 일치시켜
+#   false를 유지한다. F4는 경고(⚠)이고 F1/F3처럼 격리를 강제하지 않는다. 세 팩 모두의
+#   캘리브레이션-검증 분리를 일관되게 다시 정리하는 것은 별도 과제로 남긴다(미검증).
+calibration_contact:
+  - param: abrasive_conc_exponent
+    pack: sic_ceria_h2o2
+    what: >
+      knowledge/params/sic_ceria_h2o2.yaml의 abrasive_conc_exponent(-0.406) note —
+      "SiC+알루미나 직접 실측(US20220315802A1 Table 1, n=5, 0.1~5wt%)에서 로그-로그
+      회귀로 지수 -0.406 확인" — 이 데이터셋(Table 1)에서 그대로 도출했다(위
+      2026-09-11 주석과 동일 사실).
+    axis: abrasive_wt_pct
+
+conditions:
+  - label: "Table1-1: Al2O3 0.1wt%"
+    mrr_nm_per_min: 96.67
+    measured_mrr_um_per_hour: 5.8
+    pressure_psi: 1.0
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 0.1
+      slurry_ph: 2.3
+  - label: "Table1-2: Al2O3 0.2wt%"
+    mrr_nm_per_min: 86.67
+    measured_mrr_um_per_hour: 5.2
+    pressure_psi: 1.0
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 0.2
+      slurry_ph: 2.3
+  - label: "Table1-3: Al2O3 0.5wt%"
+    mrr_nm_per_min: 75.0
+    measured_mrr_um_per_hour: 4.5
+    pressure_psi: 1.0
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 0.5
+      slurry_ph: 2.3
+  - label: "Table1-4: Al2O3 1wt%"
+    mrr_nm_per_min: 51.67
+    measured_mrr_um_per_hour: 3.1
+    pressure_psi: 1.0
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 1.0
+      slurry_ph: 2.3
+  - label: "Table1-5: Al2O3 5wt%"
+    mrr_nm_per_min: 20.0
+    measured_mrr_um_per_hour: 1.2
+    pressure_psi: 1.0
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 5.0
+      slurry_ph: 2.3

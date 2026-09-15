@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cmp-sim"
+version = "0.1.0"
+description = "Physics-based Chemical Mechanical Planarization (CMP) process simulator"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=1.24,<3",
+    "scipy>=1.10,<2",
+    "PyYAML>=6.0,<7",
+    "pint>=0.22",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4,<9"]
+
+[project.scripts]
+cmp-sim = "cmp_sim.cli:main"
+
+[tool.setuptools]
+packages = [
+    "cmp_sim", "cmp_sim.core", "cmp_sim.slurry", "cmp_sim.pad",
+    "cmp_sim.disk", "cmp_sim.tool", "cmp_sim.wafer", "cmp_sim.models",
+]
+
+[tool.setuptools.package-data]
+cmp_sim = ["data/params/*.yaml", "data/validation/*.csv"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

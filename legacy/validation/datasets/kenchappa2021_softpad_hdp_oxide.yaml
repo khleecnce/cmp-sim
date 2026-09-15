@@ -1,0 +1,61 @@
+# HDP 산화막 블랭킷 CMP — 패드 경도(Shore D) 3수준, 나머지 공정조건 고정
+source: >
+  N. B. Kenchappa, R. Popuri, A. Chockkalingam, P. Jawali, S. Jayanath, D. Redfield, R. Bajaj,
+  "Soft Chemical Mechanical Polishing Pad for Oxide CMP Applications",
+  ECS J. Solid State Sci. Technol. 10(1), 014008, 2021. doi:10.1149/2162-8777/abdc40
+  (IOP/ECS 오픈액세스 CC BY-NC-ND, PDF 확보: papers/kenchappa2021-soft-pad-oxide-cmp-jss.pdf)
+  패드 물성은 Table I(인쇄된 표: Shore Hardness 58-60D / 60D / 40D)에서,
+  블랭킷 산화막 RR은 "Blanket oxide removal rate" 절 본문에서 옮겼다.
+  본문은 Fig. 4의 값을 "~1700 / ~1200 / ~3250 Å min^-1"로 근사 서술하므로
+  read_method는 digitized로 표기한다(그래프 유래 근사값).
+
+# 피연마재: 실리콘 웨이퍼 위 HDP(High-Density Plasma) 증착 SiO2 블랭킷 막.
+# 슬러리: 세리아 기반(본문 결론 "current challenges using ceria-based slurries").
+# → sti_ceria 팩의 재료계 안이다.
+in_scope: true
+used_for_calibration: false
+pack: sti_ceria
+
+conditions:
+  - label: "Commercial pad (baseline, hard, 58-60 Shore D)"
+    pressure_psi: 2.5
+    rpm_wafer: 87
+    rpm_platen: 93
+    mrr_nm_per_min: 170.0
+    read_method: digitized
+    overrides:
+      pad_hardness_shore_d: 59.0
+      sfr_ml_min: 100.0
+
+  - label: "Pad-1 (hard, 60 Shore D, concentric groove)"
+    pressure_psi: 2.5
+    rpm_wafer: 87
+    rpm_platen: 93
+    mrr_nm_per_min: 120.0
+    read_method: digitized
+    overrides:
+      pad_hardness_shore_d: 60.0
+      sfr_ml_min: 100.0
+
+  - label: "Pad-2 (soft, 40 Shore D, spiral groove)"
+    pressure_psi: 2.5
+    rpm_wafer: 87
+    rpm_platen: 93
+    mrr_nm_per_min: 325.0
+    read_method: digitized
+    overrides:
+      pad_hardness_shore_d: 40.0
+      sfr_ml_min: 100.0
+
+notes: >
+  변수는 패드(경도·그루브·제조법)뿐이고 공정조건은 전 조건 고정이다:
+  웨이퍼 2.5 psi / 리테이너 3.5 psi, 캐리어 87 rpm / 플래튼 93 rpm,
+  슬러리 100 ml/min, 60 s 폴리시 + 15 s in-situ 컨디셔닝, 200 mm 웨이퍼.
+  MRR 원 단위는 Å/min이며 10으로 나눠 nm/min으로 환산했다
+  (1700 → 170.0, 1200 → 120.0, 3250 → 325.0 nm/min).
+  ⚠ 모델에 전달되는 패드 변수는 pad_hardness_shore_d 하나뿐이다.
+  논문이 강조하는 실제 원인(기공 배치의 균일성, asperity 높이 분포 폭 8 µm vs 130 µm,
+  스파이럴 vs 동심원 그루브)은 우리 팩에 입력 통로가 없다. 특히 Commercial(58-60D)과
+  Pad-1(60D)은 경도가 거의 같은데 실측 RR은 170 vs 120 nm/min으로 42% 차이가 난다 —
+  이 쌍은 모델이 원리적으로 구분할 수 없다. 즉 이 데이터셋은 "경도-MRR 순위"만
+  검증하며, 3개 중 1쌍은 모델 범위 밖 요인이 지배한다는 점을 감안해 읽어야 한다.

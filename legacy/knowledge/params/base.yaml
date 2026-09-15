@@ -1,0 +1,619 @@
+# 공통 베이스 — 장비·패드·접촉역학. 막질/슬러리와 무관한 것만 여기 둔다.
+#
+# 이 파일이 존재하는 이유: 이 값들은 원래 sim/tier2_physics/*.py 에 하드코딩돼 있었다
+# (_E_STAR=1e9, _R=5e-6, _BETA=1/0.3e-6, _ETA=1e11 ...). 코드를 고쳐야만 다른 조건을
+# 돌릴 수 있었다는 뜻이다. 이제 팩을 바꾸면 된다.
+#
+# confidence 표기:
+#   verified   — 코드로 재현·검증 완료 (지식노트 verify 블록 PASS)
+#   literature — 논문/표준 인용값, 우리가 재현하진 않음
+#   estimated  — 문헌 범위에서 고른 대표값. 실제 툴마다 다르다
+#   unverified — 출처 불충분. 결과에 경고로 딸려 나간다
+
+description: "공통 베이스 — 300mm 로터리 CMP 툴, IC1000류 PU 패드, 산화막 기준"
+
+params:
+  # ── 웨이퍼/툴 기하 ──────────────────────────────────────
+  wafer_radius_m:
+    value: 0.150
+    unit: m
+    source: SEMI M1 (300mm 표준)
+    confidence: literature
+  center_offset_m:
+    value: 0.200
+    unit: m
+    note: >
+      r_cc 웨이퍼중심-플래튼중심 거리. Zhao, Wang, He, Lu (2012) IEEE Trans. Semicond. Manuf.
+      25(3), 502-510, DOI 10.1109/TSM.2012.2190432 §IV 본문 명시: "All below calculations are
+      based on the following dimensional parameters for 12 in CMP platform: Δe₀ = 25 mm,
+      e₀ = 200 mm." 같은 논문 Eq.(1)이 e를 "the center distance between the platen and the
+      wafer carrier"로 정의 — 우리 r_cc와 동일량이고, 논문이 "ω_p·e가 상대속도 크기의 지배항"
+      이라 명시해 FabSim의 Preston 속도항 용도와 맥락이 일치한다.
+      운전 범위(sweep 포함): 0.175~0.225 m (= e₀ ± Δe₀, Eq.11-12).
+      교차 참고(미채택): Kim & Jeong 2004 JEM 33(1) 53-60 Fig.6/7 캡션 D=150mm는 200mm
+      웨이퍼 툴이고, Ye & Yao 2025 Micromachines 16(4) 450 Table 1의 e=277.89mm는 5인치
+      단면 폴리셔다 — 기하 폐합 검증에만 사용했다.
+      ⚠ 논문 설계치수이지 AMAT/Ebara 양산기 도면 실측이 아니다(그쪽은 Google Patents 503으로
+      확보 실패) — 그래서 measured가 아니라 literature다.
+      (이전 값 0.180 m은 근거 없는 추정이었다. 다만 위 sweep 범위 안에는 있었다.)
+    source: knowledge/physics/cmp-platen-wafer-center-distance-rcc.md
+    confidence: literature
+
+  # ── 패드 표면 통계 (GW 접촉역학) ────────────────────────
+  # 원래 위치: sim/tier2_physics/gw_preston_link.py 의 _E_STAR/_R/_BETA/_ETA/_A_N
+  pad_E_star_pa:
+    value: 1.0e9
+    unit: Pa
+    note: 등가 탄성계수 E*. PU 패드 ~1 GPa 오더
+    source: knowledge/materials/hertz-gw-contact-mechanics.md
+    confidence: estimated
+  pad_asperity_radius_m:
+    value: 5.0e-6
+    unit: m
+    note: asperity 곡률반경 R
+    source: knowledge/materials/hertz-gw-contact-mechanics.md
+    confidence: estimated
+  pad_height_beta_inv_m:
+    value: 0.3e-6
+    unit: m
+    note: asperity 높이 지수분포 스케일 1/beta (= 표면조도 척도)
+    source: knowledge/materials/hertz-gw-contact-mechanics.md
+    confidence: estimated
+  pad_asperity_density_m2:
+    value: 2.0e8
+    unit: 1/m^2
+    note: >
+      단위면적당 asperity 수 eta. pad-asperity-density-gw-literature-values.md
+      §2·§5, 독립 5문헌(Bozkaya&Muftu 2009 JES 156(12) H890, Bozkaya&Muftu 2010
+      JES 157(3) H287, Sorooshian 2005 학위논문, Shi&Ring 2010, Suzuki et al. 2017
+      CIRP Annals DOI 10.1016/j.cirp.2017.04.088) 수렴값 2.0e8 /m^2로 500배 하향.
+    source: knowledge/materials/pad-asperity-density-gw-literature-values.md
+    confidence: literature
+  pad_nominal_area_m2:
+    value: 1.0e-4
+    unit: m^2
+    note: 명목 접촉면적 A_n (1 cm^2 기준 셀)
+    source: knowledge/materials/gw-nominal-vs-local-pressure.md
+    confidence: literature
+
+  # ── 패드 마모/컨디셔닝 ──────────────────────────────────
+  # 원래 위치: conditioner_pcr_decay.py / conditioner_asperity_distribution.py
+  pad_pcr_anchor_hours:
+    value: 50.0
+    unit: h
+    source: Entegris 기술자료 (PCR 감쇠 앵커점)
+    confidence: literature
+  pad_pcr_anchor_ratio:
+    value: 0.16
+    unit: "-"
+    note: 50h 후 PCR/PCR0
+    source: Entegris 기술자료
+    confidence: literature
+  pad_sigma0_m:
+    value: 8.112e-6
+    unit: m
+    note: 초기 asperity 높이 표준편차. Lv3-1 노트 Table1 실측
+    source: knowledge/equipment/conditioner-disk-pad-cutting-model.md
+    confidence: literature
+  pad_wear_half_life_h:
+    value: 48.0
+    unit: h
+    source: knowledge/materials/pad-wear-glazing-mrr-decay.md
+    confidence: estimated
+
+  # ── 윤활/마찰 (Stribeck) ────────────────────────────────
+  # 원래 위치: cmp_lubrication_regime.py 의 cof_stribeck 기본인자
+  cof_boundary:
+    value: 0.30
+    unit: "-"
+    note: 경계윤활 영역 마찰계수 mu_bl
+    source: knowledge/physics/tribology-friction-wear-stribeck.md
+    confidence: literature
+  cof_hydro_coeff:
+    value: 8.0
+    unit: "-"
+    source: knowledge/physics/cmp-lubrication-regimes.md
+    confidence: estimated
+  cof_transition_alpha:
+    value: 40.0
+    unit: "-"
+    source: knowledge/physics/cmp-lubrication-regimes.md
+    confidence: estimated
+
+  # ── 공정 기본 조건 ──────────────────────────────────────
+  pressure_psi:
+    value: 3.0
+    unit: psi
+    note: 대표 다운포스. 20.7 kPa
+    source: knowledge/cmp/cmp-tool-architecture.md
+    confidence: literature
+  rpm_wafer:
+    value: 60.0
+    unit: rpm
+    source: knowledge/cmp/cmp-tool-architecture.md
+    confidence: literature
+  rpm_platen:
+    value: 55.0
+    unit: rpm
+    source: knowledge/cmp/cmp-tool-architecture.md
+    confidence: literature
+  relative_velocity_ref_mps:
+    value: 0.75
+    unit: m/s
+    note: 0.5~1 m/s 대표값
+    source: knowledge/physics/cmp-kinematics-rotary.md
+    confidence: literature
+
+  # ── 계측 ────────────────────────────────────────────────
+  n_points:
+    value: 81
+    unit: "-"
+    note: 웨이퍼 전체 81포인트 측정 (사용자 실무 기준)
+    source: knowledge/cmp/uniformity-metrics-definitions-standards.md
+    confidence: verified
+  edge_exclusion_m:
+    value: 0.003
+    unit: m
+    source: knowledge/cmp/wafer-metrology-thickness-methods.md
+    confidence: literature
+
+  # ══════════════════════════════════════════════════════════
+  # 병합 파라미터 기준점 (ARCHITECTURE-V2.md §2 · sim/factors.py)
+  #
+  # ⚠ 왜 '_ref' 값이 반드시 필요한가:
+  #   모든 팩터는 **기준 조건 대비 배수**여야 한다. Kp가 이미 특정 조성·조건에서
+  #   역산된 값이므로, 팩터를 절대값으로 곱하면 같은 효과를 두 번 센다
+  #   (2026-09-06 Cu MRR 20배 붕괴가 정확히 이 사고였다).
+  #   기준값이 없으면 factors.py는 '기준=현재값'으로 폴백하는데, 그러면 배수가
+  #   영원히 1.0이라 **인자를 바꿔도 결과가 안 변한다.** 그래서 여기 명시한다.
+  # ══════════════════════════════════════════════════════════
+
+  # ── Λ 기계 부하 강도 기준 ────────────────────────────────
+  lambda_ref_pressure_psi:
+    value: 3.0
+    unit: psi
+    note: 위 pressure_psi와 같은 기준 조건. Kp가 이 근방에서 역산됐다
+    source: knowledge/cmp/cmp-tool-architecture.md
+    confidence: literature
+  lambda_ref_rpm_platen:
+    value: 55.0
+    unit: rpm
+    source: knowledge/cmp/cmp-tool-architecture.md
+    confidence: literature
+  lambda_ref_center_offset_m:
+    value: 0.200
+    unit: m
+    note: >
+      Λ 기준점 — center_offset_m과 같은 값·같은 근거(Zhao 2012 12인치 플랫폼 e₀=200mm).
+      ⚠ 반드시 center_offset_m과 함께 움직여야 Λ=1.0 기준 계약이 유지된다. 서브에이전트가
+      "바꾸면 λ 의미가 변한다"며 제외를 권고했지만, 오히려 한쪽만 두면 기준에서 Λ≠1.0이 되어
+      Kp 이중계상이 된다 — 동반 이동이 정답이다(factors.py 설계계약 §1).
+    source: knowledge/physics/cmp-platen-wafer-center-distance-rcc.md
+    confidence: literature
+
+  # ── Θ 정상상태 열저항 네트워크 (진단 전용, MRR 경로에 곱하지 않음) ──
+  # knowledge/physics/frictional-heating-temperature-arrhenius-coupling.md §8
+  # (White 2003 doi:10.1149/1.1560642 원문 Eq.4-10 이식). 두 값이 없으면 engine.py
+  # theta_steady_state_* 진단은 조용히 None.
+  pad_thickness_m:
+    value: 1.27e-3
+    unit: m
+    note: >
+      IC1000 데이터시트 50 mil(Pureon 2024). White 2003 Eq.5도 1.27e-3 m 사용. ⚠ 열이 실제로
+      흐르는 유효 길이(그루브 바닥·다공층)는 이보다 짧을 수 있음 — 노트 §8.5 미검증. IC1010은 2.03e-3.
+    source: knowledge/materials/pad-structure-groove-subpad.md
+    confidence: literature
+  pad_thermal_conductivity_w_mk:
+    value: 0.02
+    unit: W/(m·K)
+    note: 다공성 PU 패드. Shin 2025(≈0.02)와 White 2003 Eq.5(0.02) 일치.
+    source: knowledge/physics/frictional-heating-temperature-arrhenius-coupling.md
+    confidence: literature
+
+  # ── Θ 열·유동 부하 (SFR) ────────────────────────────────
+  sfr_ml_min:
+    value: 150.0
+    unit: mL/min
+    note: >
+      ILD 레시피 실측 조건. Yim 2018은 200, Cu 3-step은 조건별 상이.
+      실제 툴에서 가장 자주 만지는 손잡이 중 하나다.
+    source: knowledge/cmp/product-wafer-proxy-metrics-virtual-metrology.md
+    confidence: literature
+  sfr_ref_ml_min:
+    value: 150.0
+    unit: mL/min
+    note: Θ 기준점 — sfr_ml_min과 같은 조건
+    source: knowledge/cmp/product-wafer-proxy-metrics-virtual-metrology.md
+    confidence: literature
+
+  # ── Θ 열·유동 부하 (플래튼 냉각수 온도, SFR과 독립 냉각채널) ──────
+  # Shin et al. 2025(Materials 18(19):4461, doi:10.3390/ma18194461) 실측:
+  # 미제어 정상상태 계면온도 36C, 보텍스튜브 1단 냉각 시 30C가 균형점.
+  # Yuh et al. 2015(doi:10.1007/s40684-015-0041-8) 실측: 냉각수온도 10-30C
+  # 스윕에서 MRR_avg 단조증가(방향만, 함수형 미제시).
+  platen_coolant_temp_c:
+    value: 30.0
+    unit: "°C"
+    note: 이번 런의 플래튼 냉각수 설정온도. Shin 2025 균형점(30C)을 기본값으로 둔다.
+    source: knowledge/equipment/cmp-theta-platen-coolant-temperature-driver.md
+    confidence: literature
+  platen_coolant_ref_c:
+    value: 30.0
+    unit: "°C"
+    note: Θ 기준점 — platen_coolant_temp_c와 같은 조건(Shin 2025 균형점)
+    source: knowledge/equipment/cmp-theta-platen-coolant-temperature-driver.md
+    confidence: literature
+  platen_hot_side_ref_c:
+    value: 36.0
+    unit: "°C"
+    note: >
+      ⚠ Shin 2025의 특정 장비(POLI-500, 배리어 슬러리) 미제어 정상상태 계면온도.
+      전 팩 공통 근사로 쓴다 — 막질별 실제 발열온도는 다를 수 있음(미검증, §4 참조).
+    source: knowledge/equipment/cmp-theta-platen-coolant-temperature-driver.md
+    confidence: estimated
+
+  # ── Θ 열·유동 부하 (리테이닝 링 압력, 웨이퍼-패드와 독립인 마찰 발열원) ──
+  # Lee, Guo, Jeong (2012), Int. J. Precis. Eng. Manuf. 13(1) 25-31, doi:10.1007/s12541-012-0004-8.
+  # Table 1: RR압력 2-6psi 스윕, 총 마찰력(F_wafer+F_ring) 선형회귀 R²>0.99 (E1 대상계 직접실측).
+  retaining_ring_pressure_psi:
+    value: 5.0
+    unit: psi
+    note: >
+      이번 런의 리테이닝 링 공압. 문헌 실험(80rpm, 웨이퍼 4psi 고정) 다수 조건(5psi)을 기본값으로 둔다.
+    source: knowledge/physics/cmp-theta-retaining-ring-pressure-heat-channel.md
+    confidence: literature
+  retaining_ring_ref_psi:
+    value: 5.0
+    unit: psi
+    note: Θ 기준점 — retaining_ring_pressure_psi와 같은 조건(Lee/Guo/Jeong 2012 Table 1 다수조건)
+    source: knowledge/physics/cmp-theta-retaining-ring-pressure-heat-channel.md
+    confidence: literature
+
+  # ── Γ 컨디셔닝 부하 ─────────────────────────────────────
+  cond_downforce_lbf:
+    value: 4.0
+    unit: lbf
+    note: ≈17.8 N. PCR 실험 표준 조건 (패드 100 RPM, 디스크 73 RPM)
+    source: knowledge/equipment/disk-rpm-load-radius-pcr.md
+    confidence: literature
+  cond_ref_downforce_lbf:
+    value: 4.0
+    unit: lbf
+    source: knowledge/equipment/disk-rpm-load-radius-pcr.md
+    confidence: literature
+  cond_sweep_cpm:
+    value: 10.0
+    unit: cpm
+    note: >
+      상용 CMP 레시피 12건의 실측 최빈값(4/12)이자 중앙값(10.5) 근처 정수 — 추정치가 아니다.
+      papers/ 코퍼스 190편 전수 스캔으로 "분당 스윕 왕복수"가 숫자로 명시된 300/200mm
+      레시피를 수집: 19(Menk 2010 MRS Proc.1249 E02-02, AMAT, "sweep rate was 19 sweeps
+      per minute"), 19(Zheng 2023 Micromachines 14(9) 1683 Table 1), 15(Kim & Kang 2011
+      IJMTM 51:565), 13x2(McAllister 2019 Micromachines 10(4) 258), 11(McAllister 2019
+      학위논문 3M PB32A), 10x4(Shinhan CVD / Liao 2014 / Mariscal 2020 JSS / MEE 2016),
+      9x2(Son & Lee 2021 Appl.Sci. 11(8) 3521 / ASPEN 2022). 분포: 범위 9~19, 중앙값 10.5,
+      최빈값 10(33%), 평균 12.3. 독립 연구그룹 5곳(AMAT·Tsinghua·한양대·Arizona·한국).
+      ⚠ 표기 혼선 해소: Zheng의 "sweep speed 19 RPM"은 같은 논문 Eq.(4) 사인파 정의상
+      Menk의 "19 sweeps per minute"와 동일 물리량이다(주기 3.158s, 오차<1e-12로 검증) —
+      디스크 자전으로 오독하면 안 된다.
+      ⚠ 한계: 스윕 왕복수를 독립변수로 스윕해 PCR/MRR을 측정한 논문은 없다(전부 고정 조건으로만
+      기재). 범위가 9~19(2.1배)로 넓으므로 PCR 프로파일이 민감한 해석에는 민감도 스캔을 병행하라.
+      Sorooshian 2005의 20/30 cpm은 100mm 랩 폴리셔라 모집단에서 분리했다.
+    source: knowledge/equipment/conditioner-sweep-rate-literature-values.md
+    confidence: literature
+  cond_ref_sweep_cpm:
+    value: 10.0
+    unit: cpm
+    note: >
+      Γ 기준점 — cond_sweep_cpm과 같은 값·같은 근거(상용 레시피 12건 최빈값).
+      ⚠ 반드시 cond_sweep_cpm과 함께 움직여야 Γ=1.0 기준 계약이 유지된다.
+    source: knowledge/equipment/conditioner-sweep-rate-literature-values.md
+    confidence: literature
+  cond_duty_pct:
+    value: 100.0
+    unit: "%"
+    note: in-situ 연속 컨디셔닝 = 100%. ex-situ면 낮아진다
+    source: knowledge/equipment/disk-insitu-exsitu-conditioning-mrr-stability.md
+    confidence: literature
+  cond_ref_duty_pct:
+    value: 100.0
+    unit: "%"
+    source: knowledge/equipment/disk-insitu-exsitu-conditioning-mrr-stability.md
+    confidence: literature
+  cond_disk_usage_hours:
+    value: 0.0
+    unit: hours
+    note: >
+      컨디셔너 디스크 누적 사용시간. 0 = 신품 디스크(기준 조건, Γ의 PCR aging 배수=1.0).
+      0시간(신품) 자체는 임의 추정이 아니라 명시적 기준점이므로 literature로 표기한다 —
+      단, 0이 아닌 값에 적용되는 감쇠 모델(tau=27.4h, Entegris 2차인용 앵커)의 신뢰도는
+      별개다(sim/tier2_physics/conditioner_pcr_decay.py, TAU_AGING_HOURS 참조).
+    source: knowledge/equipment/conditioner-disk-pad-cutting-model.md
+    confidence: literature
+  cond_ref_disk_usage_hours:
+    value: 0.0
+    unit: hours
+    note: Γ 기준점 — cond_disk_usage_hours=0(신품)과 동일 조건, pcr_decay(0,...)=1.0.
+    source: knowledge/equipment/conditioner-disk-pad-cutting-model.md
+    confidence: literature
+
+  # ── S 안정성: 글레이징-컨디셔닝 균형 정상상태 (패드 재질 공통) ──────────
+  # dR/dt = −k_g·R + k_c·G·(1−R),  G = duty/100 · exp(−t_disk/τ_aging)
+  # R_ss = k_c G/(k_g + k_c G).  S = R_ss/R_ss,ref (G>0) | exp(−k_g(t−t_ref)) (G=0)
+  # 기준점은 Γ과 공유한다(cond_ref_duty_pct, cond_ref_disk_usage_hours) — 같은 물리 조건.
+  stab_glaze_rate_per_min:
+    value: 0.0279599276
+    unit: 1/min
+    note: >
+      글레이징률 k_g. Jeong et al. 2024 (doi:10.3390/ma17081817) Fig.9 정규화 MRR pooled(2+5 psi)
+      로그회귀 a=1.1478, b=−0.1109 의 10 min 손실 22.25% 를 지수형으로 이식: k_g=−ln(0.7775)/9.
+      압력별 개별 적합은 2 psi 0.0223 / 5 psi 0.0392 /min (±40% 밴드, 2점이라 압력 항은 미도입).
+      ⚠ 실리카/IC1000 단일계 값 — 다른 연마입자계의 k_g 는 코퍼스에 없다(EVIDENCE-RULES 판정#9 종결).
+      그 불확실성(Lawing 2004 fumed/colloidal 5배)이 S 에 미치는 폭은 _f_stab 이 운전점마다 계산해
+      등급을 정한다(stab_glaze_rate_uncertainty_x).
+    source: knowledge/materials/pad-steady-state-glazing-conditioning-balance.md §2
+    confidence: literature
+  stab_cond_recovery_rate_per_min:
+    value: 4.08
+    unit: 1/min
+    note: >
+      절삭재생률 k_c (신품 디스크·duty 100% 기준). Jeong et al. 2022 ASPEN
+      (ISBN 978-981-18-6021-8 paper OR-12-0224, 1차 원문 확보 — 이 프로시딩 DOI 는 Crossref
+      미등록이니 인용에 쓰지 마라) §2.2: 3 psi·10 min 연마 후 30 s 컨디셔닝으로
+      완전 회복 → 잔여 결손 ε=exp(−k_c·0.5 min). ε 는 Jeong 2024 Table 1 컨디셔닝 복원 허용폭 ±13%
+      (N_cond/N_0=0.91~1.13) → k_c=ln(1/0.13)/0.5. 독립 하한(Jeong 2024, 1 min 컨디셔닝으로 N 0.51→1.0)
+      1.33 /min 위. 자릿수(1.3~6 /min)는 확실, 4.08 은 그 안의 한 점(ε 가 접촉수 기준이라는 추정 요소).
+      IC1000류 PU 패드·디스크 0.7 psi·101 rpm·9 cpm 조건. 하중·속도 환산 지수 없음 → G 에 F·v 미포함.
+      ⚠ [2026-09-14] 1차 원문 확보 결과 **k_c 는 상수가 아니다**. 원문은 네 압력의 회복시간을
+      보고한다(2/3/4/5 psi → 10/30/60/180 s). 같은 변환을 네 점에 적용하면 k_c 가 12.24~0.68 /min
+      으로 18배, 글레이징 깊이 보정 후에도 7.3배 퍼진다 → 압력(직전 글레이징 깊이)의 함수다.
+      이 값 4.08 은 **3 psi 좌표**다. 압력 의존은 미모델링 — 원문이 회복 곡선이 아니라 "충분한가"의
+      이산 판정만 주어 형상을 적합하면 관측이 지지하지 않는 창작이 된다. 해소 조건: 시간 연속
+      회복 곡선 문헌 1건. 근거·verify: pad-steady-state-glazing-conditioning-balance.md §6-2.
+    source: knowledge/materials/pad-steady-state-glazing-conditioning-balance.md §2
+    confidence: literature
+  stab_glaze_rate_uncertainty_x:
+    value: 5.0
+    unit: "-"
+    note: >
+      k_g 의 슬러리 의존 불확실 배율. Lawing 2004 (NCCAVS CMPUG) ex-situ 감쇠: fumed −35% vs colloidal −7%
+      (4.7배). _f_stab 이 k_g×이 배율로 S 를 재계산해 |ΔS|<0.03 이면 k_g 는 약한 고리가 아니라고 판정한다.
+    source: knowledge/materials/pad-glazing-mechanism-mrr-decay.md §4(E)
+    confidence: literature
+  stab_ref_time_s:
+    value: 60.0
+    unit: s
+    note: 무컨디셔닝(G=0) 분기의 기준 시각 — Jeong 2024 Fig.9 첫 측정점 1 min(기존 S 기준 계약 그대로).
+    source: knowledge/materials/pad-glazing-mechanism-mrr-decay.md §2.3
+    confidence: literature
+
+  # ── κ 접촉 강도 (패드·디스크 몫) ─────────────────────────
+  pad_hardness_shore_d:
+    value: 60.0
+    unit: Shore D
+    note: >
+      IC1000/IC1010 실측. 둘은 같은 경도(Shore D 60)이고 두께만 다르다(50 vs 80 mils).
+      ⚠ Shore C 90과 직접 비교 금지 — 스케일이 다르다(노트 §1 명시).
+    source: knowledge/materials/pad-hardness-porosity-measurement-methods.md
+    confidence: verified
+  pad_ref_hardness_shore_d:
+    value: 60.0
+    unit: Shore D
+    note: κ 기준점 — IC1000 표준 경질 패드
+    source: knowledge/materials/pad-hardness-porosity-measurement-methods.md
+    confidence: verified
+  asperity_density_per_m2:
+    value: 2.0e8
+    unit: 1/m^2
+    note: >
+      pad_asperity_density_m2와 같은 값 — κ가 읽는 별칭. pad-asperity-density-gw-
+      literature-values.md §2·§5, 독립 5문헌(Bozkaya&Muftu 2009 JES 156(12) H890,
+      Bozkaya&Muftu 2010 JES 157(3) H287, Sorooshian 2005 학위논문, Shi&Ring 2010,
+      Suzuki et al. 2017 CIRP Annals DOI 10.1016/j.cirp.2017.04.088) 수렴값
+      2.0e8 /m^2로 500배 하향.
+    source: knowledge/materials/pad-asperity-density-gw-literature-values.md
+    confidence: literature
+  asperity_ref_density_per_m2:
+    value: 2.0e8
+    unit: 1/m^2
+    note: >
+      κ 기준점 — asperity_density_per_m2와 self-consistent해야 하는 기준값.
+      pad-asperity-density-gw-literature-values.md §2·§5 수렴값 2.0e8 /m^2로
+      500배 하향(asperity_density_per_m2와 세트로 변경).
+    source: knowledge/materials/pad-asperity-density-gw-literature-values.md
+    confidence: literature
+
+  # ── τ 슬러리 전달 (미연결 — 입력만 존재) ─────────────────
+  # ⚠ 이 값들은 팩에 있지만 엔진 물리에 연결돼 있지 않다.
+  #   factors.py의 τ가 '입력은 있으나 미연결'로 신고하는 근거다.
+  #   조용히 두면 "그루브를 반영했다"는 거짓말이 되므로 명시적으로 둔다.
+  groove_depth_mm:
+    value: 0.76
+    unit: mm
+    note: K-groove 계열 전형 깊이 (30 mil)
+    source: knowledge/materials/pad-structure-groove-subpad.md
+    confidence: literature
+  groove_pitch_mm:
+    value: 3.05
+    unit: mm
+    note: 120 mil 피치
+    source: knowledge/materials/pad-groove-geometry-contact-area-flow-resistance.md
+    confidence: literature
+  groove_width_um:
+    value: 600.0
+    unit: um
+    note: >
+      Mu 2016 패드 B. 슬러리 이용효율 η이 이 폭 부근에서 최대(13.4% @3PSI)이고
+      900 µm로 더 넓히면 오히려 정체·감소한다(12.8%).
+    source: knowledge/materials/pad-groove-geometry-contact-area-flow-resistance.md §2
+    confidence: literature
+  groove_ref_width_um:
+    value: 600.0
+    unit: um
+    note: τ 기준점 — 위와 같은 조건
+    source: knowledge/materials/pad-groove-geometry-contact-area-flow-resistance.md §2
+    confidence: literature
+  pad_porosity_pct:
+    value: 30.0
+    unit: "%"
+    note: >
+      IC1000 캐스트 PU 패드의 문헌 명시 기공률. Sikder et al. 2001 (MRS Proc. 697, P9.3,
+      DOI 10.1557/proc-697-p9.3) §III 원문: "Typical polyurethane pads, either perforated
+      or grooved IC 1000, consist of pores or voids of an average diameter of about 30 µm;
+      voids account for approximately 30% of the volume of the pad." SEM 단면(Fig.2) 근거의
+      서술값 — 오차막대·측정법 명시는 없다.
+      교차확인: Yang 2010(DOI 10.1016/j.ijmachtools.2010.06.007) IC-1010 밀도 역산 ≈37.1%,
+      Prasad 2013 Table III 상용 D100 행 14%.
+      ⚠ 상용 패드 산포가 23%p(D100 14 ↔ IC1000 30 ↔ IC1010 37)로 크다 — 30.0%는
+      "IC1000의 값"으로만 유효하고 모든 상용 패드의 평균이 아니다. 다른 패드면 교체하라.
+      (이전 값 35.0%는 Prasad 2013의 연구용 발포 시편 스윕 15~45% 중앙값 추정이었다.)
+    source: knowledge/materials/commercial-cmp-pad-porosity-literature-values.md
+    confidence: literature
+  pad_ref_porosity_pct:
+    value: 30.0
+    unit: "%"
+    note: >
+      τ 기준점 — pad_porosity_pct와 같은 값·같은 근거(Sikder 2001 IC1000 30%).
+      ⚠ 반드시 함께 움직여야 τ=(P/P_ref)^0.07=1.000이 유지된다. 값만 바꾸면 MRR이 1.1% 내려간다.
+    source: knowledge/materials/commercial-cmp-pad-porosity-literature-values.md
+    confidence: literature
+  # ── τ turnover 채널 (2026-09-14 신설) ──
+  # 근거: knowledge/cmp/slurry-turnover-ratio-mrt-preston-constant.md
+  tr_preston_slope:
+    value: 0.2301
+    unit: "1/TR"
+    note: >
+      f_TR = 1 − a·TR 의 a. Philipossian & Mitchell 2004(DOI 10.1149/1.1731539) 본문
+      앵커 2점에서 닫힌 형태로 유도: TR=1.13에서 370 Å vs TR=0(린스 제거 조건)에서 500 Å
+      = 26% 감소 ⟹ a = (1 − 370/500)/1.13 = 0.2301.
+      ⚠ 2점 유도라 **곡률은 미검증** — 논문은 Fig.12에서 "decreases steadily"라고만 적는다.
+      실측 TR 범위는 0.28~1.13이며 그 밖 외삽은 하지 않는다(코드가 하한 0.05로 클램프).
+      논문 명시 오차: TR·Preston 상수 양축 상대표준편차 약 10%.
+    source: knowledge/cmp/slurry-turnover-ratio-mrt-preston-constant.md §2
+    confidence: literature
+  tau_ref_polish_time_s:
+    value: 60.0
+    unit: s
+    note: >
+      τ turnover 항의 **정규화 기준 폴리시 시간**. 물리 상수가 아니라 앵커다 —
+      엔진 기본 레시피(Recipe.time_s=60)와 맞춰 두어야 기준 조건에서 τ=1.0이 되고,
+      Kp가 이 시간에서 캘리브레이션됐다는 뜻이 된다. 값 자체를 문헌이 지정하지 않으므로
+      confidence는 estimated다. ⚠ 이 값을 바꾸면 τ 전체가 상수배로 움직이고 Kp와 상쇄된다 —
+      **예측의 상대 비교(시간을 바꿨을 때의 변화)는 앵커 선택과 무관**하다.
+    source: knowledge/cmp/slurry-turnover-ratio-mrt-preston-constant.md §5
+    confidence: estimated
+  tau_ref_pressure_psi:
+    value: 3.0
+    unit: psi
+    note: >
+      같은 앵커의 압력 축. Mu 2016 MRT 실측이 3·5 PSI 두 점이고 pressure_psi 기본값이
+      3.0이라 3.0으로 둔다. 3~5 PSI 밖은 코드가 끝값 고정(외삽 금지).
+    source: knowledge/cmp/slurry-turnover-ratio-mrt-preston-constant.md §3
+    confidence: literature
+
+  tau_mrr_exponent:
+    value: 0.07
+    unit: "-"
+    note: >
+      슬러리 전달 → MRR 결합 지수. Prasad 2013 III.D.3에서 역산:
+      기공률 15→45%(보유용량 3배)에 평균 RR은 8%만 증가 ⟹ ln(1.08)/ln(3) ≈ 0.07.
+      ⚠ "슬러리를 더 나르면 MRR이 비례해 오른다"는 직관은 이 실측으로 기각됐다.
+      ⚠ 기공률 실험에서 뽑아 그루브 축에 교차 대입한 값이라 미검증 —
+      순위만 신뢰하고 크기는 캘리브레이션 대상이다.
+      ⚠⚠ **2026-09-14부로 τ 코드에서 사용하지 않는다(사장).** 이 지수가 곱하던 η(이용효율)
+      항은 MRT와 종속(η·MRT = V_total/q_total, 실측 6점 2% 이내 일치)이라 TR 항과 함께 쓰면
+      이중 계상이었고, 등급도 E4(교차대입) < E2(TR, 대상계 실측)라 TR 항으로 교체됐다.
+      근거: knowledge/cmp/slurry-turnover-ratio-mrt-preston-constant.md §4.
+      키는 이력 보존용으로 남긴다.
+    source: knowledge/materials/pad-porosity-slurry-transport-mrr.md §5
+    confidence: unverified
+
+  # ── Δ 손상 유발도 결합 지수 (기본값 — 화학종별 팩이 실측 있으면 덮어씀) ──
+  damage_exponent:
+    value: 1.44
+    unit: "-"
+    note: >
+      (D99/D99_ref)^n 의 n. 이전 코드 리터럴 기본값 3.0은 출처 없는 가정값(E6,
+      EVIDENCE-RULES 판정 표 #12)이었다. US8439995B2(Hitachi, 세리아 D99-스크래치
+      4점 실측, D99 500/700/2500 nm ↔ 스크래치 10/20/100)를 원점통과 로그-로그
+      회귀하면 n=1.444, R²=0.997
+      (knowledge/cmp/abrasive-d99-scratch-hitachi-us8439995.md §3). 교차확증:
+      Remsen et al. 2006(J. Electrochem. Soc. 153(5) G453, doi:10.1149/1.2184036,
+      퓸드실리카) Table V가 스크래치-LPC 관계를 선형(n≈1 근방)으로 보고해 같은
+      방향(n=3.0보다 훨씬 완만)에 수렴한다
+      (knowledge/cmp/lpc-scratch-density-tail-correlation.md §2.2). 이 base 값은
+      화학종 미상일 때의 대표값이며, cu_h2o2_bta/oxide_silica/sti_ceria/
+      w_fe_oxidizer 4팩은 각자 화학종에 맞춘 값(1.44 또는 2.54, Egan & Kim 2019
+      기하평균)으로 이 값을 덮어쓴다.
+    source: knowledge/cmp/abrasive-d99-scratch-hitachi-us8439995.md §3
+    confidence: literature
+  # ── Δ 진단 전용 상수 (드라이버 아님 — 기준 대비 배수를 만들지 않고 notes로만 나간다) ──
+  scratch_threshold_nm:
+    value: 680.0
+    unit: nm
+    note: >
+      스크래치 임계 직경(실리카 등가). Remsen et al. 2006(J. Electrochem. Soc. 153(5)
+      G453, doi:10.1149/1.2184036) LPC-스크래치 선형상관의 Y절편을 0으로 만드는 최소
+      직경 0.68 µm. 독립 교차: Kwon 2023 세리아 0.7 µm, Eusner 2009 Cu를 긁은 응집체
+      역산 직경 610/762 nm — 3출처·3화학종이 0.6~0.8 µm에 수렴
+      (knowledge/cmp/delta-damage-model-synthesis.md §2 ③, §5-D). 배수 항이 아니라
+      "D99가 임계의 어느 쪽에 있는가" 위치 진단에만 쓴다 — 임계 아래에서도 스크래치는
+      0이 아니고 5팩 중 다수가 임계 아래라 계단 항은 기준 1.0 계약과 충돌한다.
+      ⚠ 실리카 등가 직경이라 세리아·알루미나는 밀도·형상 보정이 필요할 수 있다(오더 수준
+      공통값, 추정).
+    source: knowledge/cmp/delta-damage-model-synthesis.md §2, knowledge/cmp/lpc-scratch-density-tail-correlation.md §2.2
+    confidence: literature
+  pad_asperity_hardness_max_pa:
+    value: 3.1e+8
+    unit: Pa
+    note: >
+      패드 애스퍼리티 국소 경도의 **최대값**(IC1000 습윤, Berkovich 압입 36회: 평균 0.05 GPa·
+      표준편차 0.06·최대 0.31 GPa — Eusner et al. 2009 J. Electrochem. Soc. 156(7) H528,
+      doi:10.1149/1.3121964 Fig.15). 스크래치 치수 상한 a_c/R ≤ √(H_p,max/H_film),
+      δ_c/R ≤ H_p,max/H_film (Saka 2008 식(14)(15) / Eusner 2009 식(10)(11))은 압력·패드
+      토포그래피에 무관하고 **최대** 경도가 정한다 — pad_hardness_shore_d(벌크 Shore D)와
+      다른 물성이다. Δ에서 film_bulk_hardness_pa와 함께 팩별 2a_max·δ_max 진단 출력에만
+      쓴다(knowledge/cmp/delta-damage-model-synthesis.md §2 ④, §5-E).
+      ⚠ 단일 패드 1종 측정 — 다른 패드로의 이식은 추정.
+    source: knowledge/cmp/scratch-physics-source-signatures.md §2.1, §3
+    confidence: literature
+
+  # ── 레짐 판정 물성 (sim/regime_adapter.py) ──────────────────────
+  # 이 값들은 특정 슬러리의 성질이 아니라 **패드-웨이퍼 접촉계의 성질**이다.
+  # 그래서 base 에 둔다. 이것들이 있으면 농도·입경 지수를 팩마다 적어넣지 않고
+  # 이론에서 유도할 수 있다(3인자 분해: n_C = p(1-αχ)).
+  asperity_height_distribution:
+    value: exponential
+    unit: "-"
+    note: >
+      돌기 높이 분포의 형태. 지수분포면 실접촉면적이 하중에 **정확히 선형**이고
+      분리거리와 무관하다 — GW 모델의 해석적 결과이고, sim/tier2_physics/gw_contact.py
+      수치적분으로 A_r ∝ P^1.0000 을 재현해 확인했다(2026-09-13).
+      이 선형성이 χ(하중 분배 분율)=1 을 준다: 압력을 올리면 접촉 자리가 비례해
+      늘어나므로 하중이 입자들에게 재분배된다는 뜻이다.
+      가우시안 분포를 쓰는 계는 팩에서 덮어쓰면 된다(그 경우 지수가 1보다 약간 작다).
+    source: "Greenwood & Williamson 1966 Proc.R.Soc.A 295 300-319 (doi:10.1098/rspa.1966.0242) + Lubricants/MDPI 2022 'Rough Surface Contact Modelling—A Review' 선형 A_r-W 관계"
+    confidence: literature
+  real_contact_area_ratio:
+    value: 5.8e-4
+    unit: "-"
+    note: >
+      실접촉면적 / 명목면적. 명목 압력을 입자가 실제로 받는 응력으로 환산할 때
+      쓴다 — 실접촉은 명목의 극히 일부라 이 비가 응력을 수천 배로 키운다.
+      GW 수치적분(E*=100 MPa, 돌기반경 5 µm, 돌기밀도 2.0e8 /m², 거칠기 2 µm)에서
+      3 psi 조건의 값이다. 이때 실접촉 압력은 35.7 MPa 로, 산화막 벌크 경도(~9 GPa)
+      보다 두 자릿수 작아 **탄성 접촉 레짐**임을 가리킨다(α=2/3).
+      ⚠ 압력에 따라 변하는 값이므로 3 psi 부근에서만 유효하다. 압력 의존성을
+      정식으로 넣으려면 GW 를 런타임에 풀어야 한다 — 현재는 대표값이다.
+    source: "sim/tier2_physics/gw_contact.py 수치적분 (GW 지수분포), 입력 물성은 pad_asperity_radius_m·asperity_density_per_m2 와 일관"
+    confidence: estimated
+  active_particle_density_per_m2:
+    value: 1.845e7
+    unit: "m^-2"
+    note: >
+      접촉에 실제로 참여하는 입자의 면밀도. GW 수치적분이 준 3 psi 에서의
+      **접촉 자리 수**를 쓴다 — 자리 하나에 입자 하나가 들어간다는 단층 가정이다.
+      ⚠ 이 가정은 간극/입경 비가 1 부근일 때만 성립한다. 간극이 입자보다 훨씬
+      크면 여러 겹이 들어가 유효 참여 분율이 낮아진다(regime_adapter 가 판정).
+    source: "sim/tier2_physics/gw_contact.py 수치적분 n_contacts @ 3 psi"
+    confidence: estimated

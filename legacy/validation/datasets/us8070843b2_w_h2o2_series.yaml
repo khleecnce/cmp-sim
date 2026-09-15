@@ -1,0 +1,83 @@
+# W 플러그 CMP — H2O2 농도 5수준(0~6.1 wt%), Fe(III)계 금속이온 활성제 공존. 특허 실시예 인쇄표.
+source: >
+  US8070843B2 (3M Innovative Properties Co), "Polishing fluids and methods for CMP",
+  2011. https://patents.google.com/patent/US8070843B2
+  옮긴 곳: TABLE 1 "Polishing Solution Parameters and Tungsten Removal Results"
+  — Examples 1~4 및 Comparative Example CE-5 행 (Removal Rate 열, Å/min).
+  공정조건 출처: 명세서 "General Polishing Procedure" — Mirra 3400, MWR66 패드,
+  membrane pressure 27.6 kPa (4.0 psi), platen 79 rpm, carrier 101 rpm,
+  용액 유량 150 mL/min, 60 s/웨이퍼, 블랭킷 텅스텐 웨이퍼.
+  (CE-1~CE-6 및 Example 1~6이 모두 이 Mirra 3400 조건으로 연마되었다고 명시)
+in_scope: true
+used_for_calibration: false
+pack: w_fe_oxidizer
+conditions:
+  - label: "H2O2 0 wt% (CE-5, Fe 1180 ppm)"
+    pressure_psi: 4.0
+    rpm_wafer: 101
+    rpm_platen: 79
+    mrr_nm_per_min: 9.6
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      oxidizer_wt_pct: 0.0
+  - label: "H2O2 2.03 wt% (Example 3, Fe 60 ppm)"
+    pressure_psi: 4.0
+    rpm_wafer: 101
+    rpm_platen: 79
+    mrr_nm_per_min: 150.8
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      oxidizer_wt_pct: 2.03
+  - label: "H2O2 4.06 wt% (Example 2, Fe 5 ppm)"
+    pressure_psi: 4.0
+    rpm_wafer: 101
+    rpm_platen: 79
+    mrr_nm_per_min: 239.6
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      oxidizer_wt_pct: 4.06
+  - label: "H2O2 4.07 wt% (Example 1, Fe 1180 ppm)"
+    pressure_psi: 4.0
+    rpm_wafer: 101
+    rpm_platen: 79
+    mrr_nm_per_min: 241.0
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      oxidizer_wt_pct: 4.07
+  - label: "H2O2 6.10 wt% (Example 4, Fe 60 ppm)"
+    pressure_psi: 4.0
+    rpm_wafer: 101
+    rpm_platen: 79
+    mrr_nm_per_min: 296.5
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      oxidizer_wt_pct: 6.10
+notes: >
+  변수 = H2O2 농도(0 → 2.03 → 4.06 → 4.07 → 6.10 wt%). 압력·회전수·패드·시간은 전부 동일.
+  단위 환산: 원문 Å/min → nm/min (÷10). 96 / 1,508 / 2,396 / 2,410 / 2,965 Å/min.
+  압력 환산: 원문 27.6 kPa ÷ 6.895 = 4.0 psi (특허 본문도 4.0 psi로 병기).
+  ── 산화제 정점을 지나는가: 아니다 ──
+  이 5점은 **0→6.1 wt% 전 구간 단조 증가**다. Kaufman 정점은 이 구간 안에 나타나지
+  않으며, 정점은 6.1 wt%보다 오른쪽이거나 이 Fe(III)-H2O2 혼합계에서는 훨씬 높은 곳에
+  있다. 따라서 이 데이터셋은 정점 위치를 검증하지 못하고 **상승 가지만** 검증한다.
+  ⚠ overrides의 oxidizer_peak_wt_pct = 3.0은 **원문에 없는 값**이다. w_fe_oxidizer 팩에는
+  산화제 곡선 파라미터가 아예 없어(oxidizer_wt_pct / peak / ref 전부 부재) 화학층이
+  비활성화되고 전 조건 예측이 동일해진다. 그래서 자매 팩 cu_h2o2_bta의 H2O2 정점값
+  3.0 wt%를 그대로 빌려 넣었다. 이 가정 때문에 모델은 3 wt% 이후 감소를 예측하는데
+  실측은 계속 증가한다 — 이 불일치는 **데이터에 맞춰 정점을 조정하지 않은 결과**이며,
+  W 팩의 산화제 정점을 실측으로 정해야 한다는 작업 지시로 읽어야 한다.
+  oxidizer_ref_wt_pct = 4.06은 이 표의 최빈 조건(기준 배합)이며 상대 배수의 기준점일 뿐
+  순위에 영향이 없다.
+  ── 미모델링 교란요인 ──
+  금속이온(Fe) 농도가 5~1180 ppm으로 함께 변한다. 다만 H2O2 ≈ 4.06 wt% 고정에서
+  Fe 5 ppm(2,396 Å/min)과 1180 ppm(2,410 Å/min)의 차이가 0.6%에 불과해, 이 범위에서
+  Fe 농도는 지배 변수가 아니다. 그래도 완전한 단일변수 DOE는 아니다.
+  Fe 농도·착화제(methylmalonic acid 등) 종류는 모델에 전달할 통로가 없어 생략했다.
+  본 특허는 **고정 연마입자(fixed abrasive) 패드 + 무연마입자 용액** 방식이라
+  팩의 알루미나 슬러리 가정과 다르다 — 절대 MRR은 신뢰하지 말고 순위만 볼 것.
+  피연마재는 실리콘 웨이퍼 위 블랭킷 W 박막이므로 in_scope: true.

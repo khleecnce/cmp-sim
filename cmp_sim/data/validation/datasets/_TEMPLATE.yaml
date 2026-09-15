@@ -1,0 +1,33 @@
+# Validation dataset template — one published source per file.
+#
+# HARD RULES
+#  * Every number must come from the publication. No interpolation, no invention.
+#  * read_method: "table"     -> copied from a printed table / patent example (preferred)
+#                 "digitized" -> read off a figure; say how, and cross-check against any
+#                                value printed in the text.
+#  * If the paper gives sliding velocity [m/s] instead of rpm, convert with
+#      rpm = v * 60 / (2*pi*r_cc)   using the r_cc stated below, and set
+#    rpm_wafer == rpm_platen so the wafer-wide relative speed equals v.
+#  * used_for_calibration: true  -> excluded from scoring (held-out discipline).
+
+source: >
+  Full citation: authors, title, journal/patent number, year, DOI/URL.
+  Which table or figure the numbers come from.
+  Whether the full text is open access.
+
+film: oxide            # oxide | cu | w | poly_si | si | sic | snag | other
+pack: oxide_silica     # parameter pack used when simulating this dataset
+in_scope: true         # false = not a semiconductor CMP film stack (still useful for ranking)
+used_for_calibration: false
+
+wafer_radius_m: 0.150     # from the paper if stated; else the tool default
+center_offset_m: 0.200    # r_cc; state the source
+
+conditions:
+  - label: "P=2 psi, 60 rpm"
+    pressure_psi: 2.0
+    rpm_platen: 60.0
+    rpm_wafer: 60.0
+    mrr_nm_per_min: 100.0
+    read_method: table
+    overrides: {}          # chemistry that differs between conditions (groups the fit)

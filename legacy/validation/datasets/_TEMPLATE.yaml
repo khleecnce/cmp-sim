@@ -1,0 +1,49 @@
+# 백테스트 데이터셋 템플릿 — 논문 1편의 1개 DOE = 파일 1개
+#
+# ⚠ 이 파일은 템플릿이라 백테스트에서 제외된다(_로 시작). 복사해서 쓴다.
+#
+# 규약:
+#  1. source에 DOI 또는 URL이 없으면 등록하지 않는다. 출처 없는 숫자는 검증을 오염시킨다.
+#  2. 표에 인쇄된 값과 그래프에서 읽은 값을 반드시 구분한다(read_method).
+#  3. 우리 팩 파라미터를 이 논문에서 뽑았다면 used_for_calibration: true.
+#     그러면 검증이 아니라 참고용으로만 집계된다 — 자기 답안지로 채점하면 안 된다.
+
+source: >
+  저자, "논문 제목", 저널 권(호), 페이지, 연도. doi:10.xxxx/yyyy
+  (오픈액세스 여부 / PDF 확보 여부를 함께 적는다)
+
+# 이 데이터가 우리 팩 파라미터의 출처인가?
+used_for_calibration: false
+
+# 어떤 물성 팩으로 돌릴 것인가 (knowledge/params/*.yaml)
+pack: oxide_silica
+
+# 논문의 실험 조건. 최소 3개 이상이어야 순위 지표가 나온다.
+# 조건마다 다른 pack을 쓰려면 각 항목에 pack: 을 넣어 덮어쓸 수 있다.
+conditions:
+  - label: "P=2psi, 60rpm"
+    pressure_psi: 2.0
+    rpm_wafer: 60
+    rpm_platen: 60
+    mrr_nm_per_min: 120.0        # ← 논문 실측값
+    read_method: table           # table(인쇄된 표) | digitized(그래프 판독)
+
+  - label: "P=4psi, 60rpm"
+    pressure_psi: 4.0
+    rpm_wafer: 60
+    rpm_platen: 60
+    mrr_nm_per_min: 235.0
+    read_method: table
+
+  - label: "P=6psi, 60rpm"
+    pressure_psi: 6.0
+    rpm_wafer: 60
+    rpm_platen: 60
+    mrr_nm_per_min: 340.0
+    read_method: table
+
+# 남길 말: 이 DOE에서 무엇이 변수이고 무엇이 고정인지, 우리 모델이 다루지 못하는
+# 조건이 섞여 있다면 그것도 적는다.
+notes: >
+  압력만 변화, 나머지 고정. 슬러리 조성은 논문에 조성비까지 나와 있지 않아
+  팩 기본값을 썼다 — 절대값 비교에는 부적합하고 순위 비교용이다.

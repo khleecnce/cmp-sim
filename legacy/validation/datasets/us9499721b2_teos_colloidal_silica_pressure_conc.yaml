@@ -1,0 +1,274 @@
+# Blanket SiO2(TEOS) CMP — 콜로이달 실리카(아미노실란 내장 코어-쉘, 54 nm) 0.5~3.0 wt% × 다운포스 1.5/3/4/5 psi.
+# 특허 실시예 인쇄표(Table 18). oxide_silica 팩의 압력·입자농도 2축 held-out 데이터셋.
+#
+# li2021(팩 캘리브레이션 출처, 20 wt% 실리카·pH 10~12.5)과 문헌·조성·pH 영역이 전부 다르다.
+
+source: >
+  US9499721B2 (Cabot Microelectronics Corp), "Colloidal silica chemical-mechanical
+  polishing composition", 2016. https://patents.google.com/patent/US9499721B2
+  옮긴 곳: Example 18, TABLE 18 "TEOS Polishing Rate (Å/min)" — 조성 18A~18F 행 ×
+  1.5/3/4/5 psi 열 (빈 칸 2개: 18A@5psi, 18F@4psi 는 원문도 공란이라 제외).
+  Semisperse SS25 Control(흄드 실리카 12.5 wt%) 행은 콜로이달 실리카가 아니라 제외.
+  단위 환산: Å/min ÷ 10 = nm/min.
+  조성 출처: Example 18 본문 — 15 wt% 농축액(pH 4.7, 아세트산 완충, 0.5 wt% Pluriol 300,
+  아세트산 600 ppm, Kathon LX 12 ppm)을 DI수로 희석해 0.5/1.0/1.5/2.0/2.5/3.0 wt%
+  고형분(18A~18F). 입자 = 아미노프로필 트리알콕시실란이 쉘에 내장된 코어-쉘 콜로이달
+  실리카, 평균 입경 54 nm (Example 13 절차).
+  공정조건 출처: Example 18 본문 — 200 mm TEOS 블랭킷 웨이퍼, Mirra CMP 툴, IC1010 패드,
+  다운포스 1.5/3.0/4.0/5.0 psi, 플래튼 100 rpm, 슬러리 유량 150 mL/min.
+  papers/US9499721B2.txt 에 Google Patents 본문 캐시 저장(urllib).
+
+in_scope: true
+used_for_calibration: false
+pack: oxide_silica
+calibration_contact:
+  - param: abrasive_conc_exponent
+    pack: oxide_silica
+    what: >
+      knowledge/params/oxide_silica.yaml의 abrasive_conc_exponent(0.3333) note —
+      "US9499721B2 E1 직접 실측(TABLE 18, 0.5~3.0wt% 4압력)을 3psi 행에서 로그-로그
+      전역회귀하면 n≈0.30" — 이 데이터셋(Example 18 TABLE 18)의 3psi 행을 그대로
+      회귀해 지수를 도출했다. 나머지 축(압력)과 다른 wt% 행들은 회귀에 안 썼다.
+    axis: abrasive_wt_pct
+
+# rpm_wafer(헤드 회전수)는 원문 미기재 → 필드 생략, 팩 기본값 사용.
+conditions:
+  - label: "18A silica 0.5 wt%, 1.5 psi"
+    pressure_psi: 1.5
+    rpm_platen: 100
+    mrr_nm_per_min: 94
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      abrasive_wt_pct: 0.5
+      abrasive_size_nm: 54.0
+      slurry_ph: 4.7
+  - label: "18A silica 0.5 wt%, 3 psi"
+    pressure_psi: 3.0
+    rpm_platen: 100
+    mrr_nm_per_min: 140
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      abrasive_wt_pct: 0.5
+      abrasive_size_nm: 54.0
+      slurry_ph: 4.7
+  - label: "18A silica 0.5 wt%, 4 psi"
+    pressure_psi: 4.0
+    rpm_platen: 100
+    mrr_nm_per_min: 135
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      abrasive_wt_pct: 0.5
+      abrasive_size_nm: 54.0
+      slurry_ph: 4.7
+  - label: "18B silica 1.0 wt%, 1.5 psi"
+    pressure_psi: 1.5
+    rpm_platen: 100
+    mrr_nm_per_min: 110
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      abrasive_wt_pct: 1.0
+      abrasive_size_nm: 54.0
+      slurry_ph: 4.7
+  - label: "18B silica 1.0 wt%, 3 psi"
+    pressure_psi: 3.0
+    rpm_platen: 100
+    mrr_nm_per_min: 207
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      abrasive_wt_pct: 1.0
+      abrasive_size_nm: 54.0
+      slurry_ph: 4.7
+  - label: "18B silica 1.0 wt%, 4 psi"
+    pressure_psi: 4.0
+    rpm_platen: 100
+    mrr_nm_per_min: 256
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      abrasive_wt_pct: 1.0
+      abrasive_size_nm: 54.0
+      slurry_ph: 4.7
+  - label: "18B silica 1.0 wt%, 5 psi"
+    pressure_psi: 5.0
+    rpm_platen: 100
+    mrr_nm_per_min: 269
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      abrasive_wt_pct: 1.0
+      abrasive_size_nm: 54.0
+      slurry_ph: 4.7
+  - label: "18C silica 1.5 wt%, 1.5 psi"
+    pressure_psi: 1.5
+    rpm_platen: 100
+    mrr_nm_per_min: 113
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      abrasive_wt_pct: 1.5
+      abrasive_size_nm: 54.0
+      slurry_ph: 4.7
+  - label: "18C silica 1.5 wt%, 3 psi"
+    pressure_psi: 3.0
+    rpm_platen: 100
+    mrr_nm_per_min: 226
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      abrasive_wt_pct: 1.5
+      abrasive_size_nm: 54.0
+      slurry_ph: 4.7
+  - label: "18C silica 1.5 wt%, 4 psi"
+    pressure_psi: 4.0
+    rpm_platen: 100
+    mrr_nm_per_min: 294
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      abrasive_wt_pct: 1.5
+      abrasive_size_nm: 54.0
+      slurry_ph: 4.7
+  - label: "18C silica 1.5 wt%, 5 psi"
+    pressure_psi: 5.0
+    rpm_platen: 100
+    mrr_nm_per_min: 348
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      abrasive_wt_pct: 1.5
+      abrasive_size_nm: 54.0
+      slurry_ph: 4.7
+  - label: "18D silica 2.0 wt%, 1.5 psi"
+    pressure_psi: 1.5
+    rpm_platen: 100
+    mrr_nm_per_min: 117
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      abrasive_wt_pct: 2.0
+      abrasive_size_nm: 54.0
+      slurry_ph: 4.7
+  - label: "18D silica 2.0 wt%, 3 psi"
+    pressure_psi: 3.0
+    rpm_platen: 100
+    mrr_nm_per_min: 229
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      abrasive_wt_pct: 2.0
+      abrasive_size_nm: 54.0
+      slurry_ph: 4.7
+  - label: "18D silica 2.0 wt%, 4 psi"
+    pressure_psi: 4.0
+    rpm_platen: 100
+    mrr_nm_per_min: 314
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      abrasive_wt_pct: 2.0
+      abrasive_size_nm: 54.0
+      slurry_ph: 4.7
+  - label: "18D silica 2.0 wt%, 5 psi"
+    pressure_psi: 5.0
+    rpm_platen: 100
+    mrr_nm_per_min: 363
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      abrasive_wt_pct: 2.0
+      abrasive_size_nm: 54.0
+      slurry_ph: 4.7
+  - label: "18E silica 2.5 wt%, 1.5 psi"
+    pressure_psi: 1.5
+    rpm_platen: 100
+    mrr_nm_per_min: 120
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      abrasive_wt_pct: 2.5
+      abrasive_size_nm: 54.0
+      slurry_ph: 4.7
+  - label: "18E silica 2.5 wt%, 3 psi"
+    pressure_psi: 3.0
+    rpm_platen: 100
+    mrr_nm_per_min: 243
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      abrasive_wt_pct: 2.5
+      abrasive_size_nm: 54.0
+      slurry_ph: 4.7
+  - label: "18E silica 2.5 wt%, 4 psi"
+    pressure_psi: 4.0
+    rpm_platen: 100
+    mrr_nm_per_min: 319
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      abrasive_wt_pct: 2.5
+      abrasive_size_nm: 54.0
+      slurry_ph: 4.7
+  - label: "18E silica 2.5 wt%, 5 psi"
+    pressure_psi: 5.0
+    rpm_platen: 100
+    mrr_nm_per_min: 386
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      abrasive_wt_pct: 2.5
+      abrasive_size_nm: 54.0
+      slurry_ph: 4.7
+  - label: "18F silica 3.0 wt%, 1.5 psi"
+    pressure_psi: 1.5
+    rpm_platen: 100
+    mrr_nm_per_min: 124
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      abrasive_wt_pct: 3.0
+      abrasive_size_nm: 54.0
+      slurry_ph: 4.7
+  - label: "18F silica 3.0 wt%, 3 psi"
+    pressure_psi: 3.0
+    rpm_platen: 100
+    mrr_nm_per_min: 248
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      abrasive_wt_pct: 3.0
+      abrasive_size_nm: 54.0
+      slurry_ph: 4.7
+  - label: "18F silica 3.0 wt%, 5 psi"
+    pressure_psi: 5.0
+    rpm_platen: 100
+    mrr_nm_per_min: 403
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      abrasive_wt_pct: 3.0
+      abrasive_size_nm: 54.0
+      slurry_ph: 4.7
+
+notes: >
+  변수 2축 = 다운포스(1.5→3→4→5 psi) × 콜로이달 실리카 농도(0.5→3.0 wt%). 총 22점.
+  패드·플래튼 rpm·유량·pH·입경은 전 조건 동일. rpm_wafer(헤드)는 원문 미기재라 필드를
+  빼고 팩 기본값을 쓴다 — 전 조건 공통 상수배라 순위 지표에는 영향 없음.
+  단위 환산: 원문 Å/min → nm/min (÷10). 예: 18D 4 psi 3,140 Å/min → 314 nm/min.
+  ── 원문 표 그대로(Å/min) ──
+  18A(0.5wt%): 940 / 1400 / 1350 / —     18B(1.0): 1100 / 2070 / 2560 / 2690
+  18C(1.5):    1130 / 2260 / 2940 / 3480  18D(2.0): 1170 / 2290 / 3140 / 3630
+  18E(2.5):    1200 / 2430 / 3190 / 3860  18F(3.0): 1240 / 2480 / — / 4030
+  (열 순서 1.5 / 3 / 4 / 5 psi)
+  ── 팩과 다른 점(절대값 비교 주의) ──
+  · 입자가 아미노실란 내장 **양전하(cationic)** 콜로이달 실리카, pH 4.7 산성. 팩 기본은
+    음전하 실리카 pH 10.5 염기성이다. slurry_ph 4.7은 농축액 pH이며 희석 후 pH는
+    원문에 없다(아세트산 완충이라 크게 안 변한다고 보지만 확인 불가).
+  · 농도 0.5~3 wt%는 팩 기준(20 wt%)보다 훨씬 낮다 — 농도 외삽 구간.
+  · 압력 1.5→3 psi 구간은 거의 선형(Preston), 3→5 psi는 약간 포화. 18A(0.5 wt%)는
+    4 psi에서 3 psi보다 낮다(1400→1350) — 저농도에서 입자 고갈(starvation) 신호.
+  절대 MRR은 신뢰하지 말고 순위(압력·농도 단조성)만 볼 것.

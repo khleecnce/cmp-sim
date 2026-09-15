@@ -1,0 +1,61 @@
+# 구리 CMP — H2O2 스윕 (산성 pH 3 × 옥살산 착화제 레짐)
+source: >
+  C. Jani, R. Venkataswamy, J. Seo, S. Krishnan,
+  "Revisiting the Roles of Chelator, Inhibitor, Oxidant, and Abrasive in High-Rate Copper CMP",
+  ECS Journal of Solid State Science and Technology 14(4) 044003, 2025.
+  doi:10.1149/2162-8777/adc59e (CC-BY 오픈액세스, 전문 확보: papers/jani2025-revisiting-roles-cu-cmp.html)
+  옮긴 곳: Table I(조성) × Table II(Cu RR), Experiments 30 / 31 / 32 —
+  H2O2 만 3 → 4 → 6 wt% 로 바뀌고 나머지가 전부 같은 3조.
+  고정 조성: 콜로이달 실리카 6 wt%(Z-평균 33 nm), 옥살산 0.08 M, 글리신 0 M,
+  DOSS 0.001 M, pH 3.0. **BTA 없음.**
+  고정 공정: CETR-CP-4 벤치탑, IK4250H 패드, 3.0 psi, platen 90 rpm,
+  슬러리 150 mL/min, 2인치 Cu 디스크, 질량감량법(8.96 g/cm3, 20.27 cm2).
+
+# ── 이 데이터셋이 존재하는 이유 ─────────────────────────────
+# 판정#29(2회차)의 근거다. Cu 산화제 항의 **부호가 레짐에 따라 뒤집힌다**는 것을
+# 보여주는 유일한 산성×착화제 계열이다:
+#   알칼리·무착화제  : H2O2 ↑ → MRR ↓ (US20110165777A1, US9200180B2)
+#   산성·착화제(여기): H2O2 ↑ → MRR ↑ (2282 → 2578 nm/min)
+# 노트: knowledge/cmp/chi-cu-h2o2-regime-reversal-jani2025.md
+#
+# ⚠ in_scope: false — 팩 'cu_h2o2_bta' 의 산화제 항은 피복-억제형(단조 감소)이라
+#   이 레짐을 **구조적으로** 표현할 수 없다(어떤 K 를 골라도 증가가 안 나온다,
+#   위 노트 §6 블록3이 assert 로 고정). 이건 모델이 못 맞히는 게 아니라
+#   **적용 범위 밖**이다. 게이트를 넓혀 삼키지 않고 범위로 표시한다
+#   (lee2021_cu_nicotinic_inhibitor 와 같은 처리).
+#   범위 안으로 들이려면 팩을 레짐별로 분리해야 한다(노트 §7 구현요청).
+#
+# ⚠ 절대값: 이 조건 엔진 예측 ~10284 nm/min vs 실측 2282 (4.5배 과대).
+#   순위 전용이며 절대 MRR 주장에 쓰지 마라.
+in_scope: false
+used_for_calibration: false
+pack: cu_h2o2_bta
+
+conditions:
+  - label: "H2O2 3 wt% (Expt 30)"
+    pressure_psi: 3.0
+    rpm_wafer: 90
+    rpm_platen: 90
+    mrr_nm_per_min: 2282.0
+    read_method: table
+    overrides: {slurry_ph: 3.0, abrasive_wt_pct: 6.0, abrasive_ref_wt_pct: 3.0, oxidizer_wt_pct: 3.0, inhibitor_mM: 0.0, sfr_ml_min: 150.0}
+  - label: "H2O2 4 wt% (Expt 31)"
+    pressure_psi: 3.0
+    rpm_wafer: 90
+    rpm_platen: 90
+    mrr_nm_per_min: 2533.0
+    read_method: table
+    overrides: {slurry_ph: 3.0, abrasive_wt_pct: 6.0, abrasive_ref_wt_pct: 3.0, oxidizer_wt_pct: 4.0, inhibitor_mM: 0.0, sfr_ml_min: 150.0}
+  - label: "H2O2 6 wt% (Expt 32)"
+    pressure_psi: 3.0
+    rpm_wafer: 90
+    rpm_platen: 90
+    mrr_nm_per_min: 2578.0
+    read_method: table
+    overrides: {slurry_ph: 3.0, abrasive_wt_pct: 6.0, abrasive_ref_wt_pct: 3.0, oxidizer_wt_pct: 6.0, inhibitor_mM: 0.0, sfr_ml_min: 150.0}
+
+notes: >
+  H2O2 1축만 변화(3/4/6 wt%), 나머지 조성·공정 전부 고정. n=3 이라 p 는 구조적으로
+  최소 0.167 — 유의성은 나올 수 없고, 이 데이터셋의 역할은 통계가 아니라
+  **부호 반증**이다. 현행 모델은 이 3점에서 순위가 완전히 뒤집힌다(ρ=-1.0 예상).
+  그것이 곧 in_scope: false 의 근거다.

@@ -1,0 +1,122 @@
+# Blanket SiO2(TEOS) CMP — 아니온성(음전하) 콜로이달 실리카 1 wt%, pH 스윕 7수준
+#
+# oxide_silica 팩의 첫 독립 held-out 데이터셋. li2021(팩 캘리브레이션 출처, pH 10~12.5
+# 염기성 영역)과 겹치지 않는 산성 영역(pH 2~6)이라 캘리브레이션 오염이 없다.
+
+source: >
+  CN109609035B, "Polishing composition comprising charged abrasive",
+  Fujifilm Electronic Materials USA Inc (US 출원 기반 patent family).
+  https://patents.google.com/patent/CN109609035B
+  실시예1(Example 1, 아니온성 실리카) 표1(Table 1) 인쇄값. 표가 Google Patents에서
+  스캔 이미지로 렌더링되어 papers/patents/CN109609035B.html 캐시에서 표1 이미지
+  (https://patentimages.storage.googleapis.com/0f/68/a3/83adfefe52c850/BDA0001627408970000221.png)
+  를 직접 판독했다 — 이미지 안의 숫자는 인쇄된 표이므로 read_method: table.
+
+in_scope: true
+used_for_calibration: false
+pack: oxide_silica
+
+# ── 고정 조건 (본문 서술) ───────────────────────────────────────────────
+# 아니온성 실리카(Fuso Chemical 제) 1 wt%, 산/염기 pH 조정제, 물.
+# Applied Materials Mirra CMP 폴리셔, 다운포스 2 psi, 슬러리 유량 175 mL/min,
+# 8인치 SiN/SiO2(TEOS) 클래드 블랭킷 웨이퍼. rpm(헤드/플래튼)은 본문에 없다 —
+# dandu2009와 동일하게 60/60(동일)으로 두었다. pH만 변하는 DOE라 rpm 절대값은
+# 순위 지표에 영향을 주지 않는다(전 조건에 같은 상수배로 작용). 절대값 대조 부적합.
+
+conditions:
+  - label: "pH 2.0 (1wt% 아니온성 실리카)"
+    pressure_psi: 2.0
+    rpm_wafer: 60
+    rpm_platen: 60
+    mrr_nm_per_min: 10.9
+    read_method: table
+    overrides:
+      sfr_ml_min: 175
+      slurry_ph: 2.0
+      abrasive_wt_pct: 1.0
+  - label: "pH 2.5"
+    pressure_psi: 2.0
+    rpm_wafer: 60
+    rpm_platen: 60
+    mrr_nm_per_min: 3.2
+    read_method: table
+    overrides:
+      sfr_ml_min: 175
+      slurry_ph: 2.5
+      abrasive_wt_pct: 1.0
+  - label: "pH 3.0"
+    pressure_psi: 2.0
+    rpm_wafer: 60
+    rpm_platen: 60
+    mrr_nm_per_min: 1.6
+    read_method: table
+    overrides:
+      sfr_ml_min: 175
+      slurry_ph: 3.0
+      abrasive_wt_pct: 1.0
+  - label: "pH 3.5"
+    pressure_psi: 2.0
+    rpm_wafer: 60
+    rpm_platen: 60
+    mrr_nm_per_min: 1.5
+    read_method: table
+    overrides:
+      sfr_ml_min: 175
+      slurry_ph: 3.5
+      abrasive_wt_pct: 1.0
+  - label: "pH 4.0"
+    pressure_psi: 2.0
+    rpm_wafer: 60
+    rpm_platen: 60
+    mrr_nm_per_min: 1.1
+    read_method: table
+    overrides:
+      sfr_ml_min: 175
+      slurry_ph: 4.0
+      abrasive_wt_pct: 1.0
+  - label: "pH 5.0"
+    pressure_psi: 2.0
+    rpm_wafer: 60
+    rpm_platen: 60
+    mrr_nm_per_min: 0.5
+    read_method: table
+    overrides:
+      sfr_ml_min: 175
+      slurry_ph: 5.0
+      abrasive_wt_pct: 1.0
+  - label: "pH 6.0 (소폭 반등)"
+    pressure_psi: 2.0
+    rpm_wafer: 60
+    rpm_platen: 60
+    mrr_nm_per_min: 1.2
+    read_method: table
+    overrides:
+      sfr_ml_min: 175
+      slurry_ph: 6.0
+      abrasive_wt_pct: 1.0
+
+notes: >
+  변수: pH 하나(2.0→6.0, 0.5 간격 위주). 다운포스(2 psi)·아니온성 실리카 농도
+  (1 wt%)는 전 조건 고정.
+
+  원 단위는 Å/min(A/min)이고 10으로 나눠 nm/min으로 환산했다:
+  109→10.9, 32→3.2, 16→1.6, 15→1.5, 11→1.1, 5→0.5, 12→1.2.
+
+  ⭐ 이 데이터셋이 시험하는 물리: 특허 본문은 아니온성 실리카(음전하)가 SiO2(TEOS,
+  음전하 막)와 정전 반발해 pH가 오를수록(반발이 약해지는 저pH 쪽일수록) SiO2 RR이
+  높다고 설명한다 — 실제로 pH 2에서 10.9 nm/min로 최댓값, pH 5까지 단조 감소,
+  pH 6에서 소폭(0.5→1.2) 반등한다. li2021(같은 팩의 캘리브레이션 출처)은 반대로
+  염기성 영역(pH 10~12.5)에서 정점형 거동을 보고했다 — 두 데이터셋은 서로 다른 pH
+  구간(산성 vs 염기성)을 다루므로 모순이 아니라 보완 관계다.
+
+  ⚠ oxide_silica 팩의 χ(pH)항은 ph_peak=11.0 중심의 정점형 함수로, li2021의
+  염기성 데이터에 맞춰 캘리브레이션됐다. 이 산성 영역(pH 2~6)에서 팩이 단조
+  감소를 올바르게 예측하는지, 아니면 산성 쪽에서 죽은 구간(dandu2009가 sti_ceria
+  팩에서 발견한 것과 유사한 결함)을 갖는지는 백테스트가 확인해야 한다 — 그것이
+  바로 이 데이터셋을 등록하는 이유다.
+
+  ⚠ 입자 크기(abrasive_size_nm)는 본문에 수치가 없어(Fuso Chemical 제 아니온성
+  실리카라고만 명시) overrides에 넣지 않았다 — 팩 기본값(50 nm)이 그대로 쓰인다.
+  ⚠ 슬러리 유량(175 mL/min)에 대응하는 팩 파라미터(sfr_ml_min 등)가 있다면
+  전달을 고려할 수 있으나, 이번 등록에서는 pH·농도 두 축만 옮겼다 — 조건마다
+  일정하므로 순위 지표에는 영향이 없다.

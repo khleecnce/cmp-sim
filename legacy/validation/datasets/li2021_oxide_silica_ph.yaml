@@ -1,0 +1,70 @@
+# SiO2(열산화막) 블랭킷 CMP — 콜로이달 실리카 슬러리 pH 3수준
+source: >
+  Y. Li, C. Wang, J. Zhou, C. Xu, Y. Cheng, Y. Tian, Z. Cui, H. Li, Q. Liu,
+  "Role of Slurry Additives on Chemical Mechanical Planarization of Silicon Dioxide Film
+  in Colloidal Silica Based Slurry", ECS J. Solid State Sci. Technol. 10(12), 123008, 2021.
+  doi:10.1149/2162-8777/ac3e44
+  (IOP/ECS 오픈액세스 CC BY-NC-ND, PDF 확보: papers/slurry-additives-cmp-oxide-ac3e44.pdf)
+  Fig. 1(RR vs pH)의 값을 본문이 숫자로 명시한 것을 옮겼다:
+  "increased from 1551 Å min^-1 to 1727 Å min^-1 as pH increased from 10.0 to 11.0,
+  and then decreased to 1407 Å min^-1 as pH increased to 12.5".
+  인쇄된 표가 아니라 그래프 + 본문 서술이므로 read_method: digitized.
+
+# 피연마재: 열산화 SiO2 막(1.3 µm, 300 mm 웨이퍼, SKW). 콜로이달 실리카 슬러리.
+# → oxide_silica 팩의 재료계 정중앙.
+in_scope: true
+
+# ⚠ 이 논문이 oxide_silica 팩의 ph_peak(11.0)·ph_mrr_at_peak_rel(1.113)·
+#   abrasive_wt_pct(20.0)의 출처다. 자기 답안지로 채점하는 셈이므로 검증이 아니다.
+#   백테스트는 이 플래그를 보고 held-out 집계에서 제외하고 "참고용"으로만 표시한다.
+used_for_calibration: true
+pack: oxide_silica
+
+conditions:
+  - label: "pH 10.0 (20 wt% 콜로이달 실리카, K+ 0.25 mol/L)"
+    pressure_psi: 3.0
+    rpm_wafer: 108
+    rpm_platen: 110
+    mrr_nm_per_min: 155.1
+    read_method: digitized
+    overrides:
+      slurry_ph: 10.0
+      abrasive_wt_pct: 20.0
+      abrasive_size_nm: 80.0
+      sfr_ml_min: 300.0
+
+  - label: "pH 11.0 (정점)"
+    pressure_psi: 3.0
+    rpm_wafer: 108
+    rpm_platen: 110
+    mrr_nm_per_min: 172.7
+    read_method: digitized
+    overrides:
+      slurry_ph: 11.0
+      abrasive_wt_pct: 20.0
+      abrasive_size_nm: 80.0
+      sfr_ml_min: 300.0
+
+  - label: "pH 12.5"
+    pressure_psi: 3.0
+    rpm_wafer: 108
+    rpm_platen: 110
+    mrr_nm_per_min: 140.7
+    read_method: digitized
+    overrides:
+      slurry_ph: 12.5
+      abrasive_wt_pct: 20.0
+      abrasive_size_nm: 80.0
+      sfr_ml_min: 300.0
+
+notes: >
+  변수는 pH 하나이고 나머지는 고정이다: universal-300B 폴리셔, IC1010 패드,
+  헤드/플래튼 108/110 rpm, 3.0 psi, 1 min, 슬러리 300 ml/min,
+  20 wt% 콜로이달 실리카(D50 ~80 nm) + K+ 0.25 mol/L.
+  단위 환산 — 원 단위는 Å/min이며 10으로 나눠 nm/min으로 바꿨다
+  (1551 → 155.1, 1727 → 172.7, 1407 → 140.7).
+  ⚠ K+ 농도(0.25 mol/L)는 우리 팩에 대응 파라미터가 없어 전달되지 않는다.
+  이 DOE에서는 K+가 고정이므로 순위 비교에는 영향이 없다.
+  ⚠⚠ used_for_calibration: true — 팩의 pH 정점(11.0)과 정점비(1.113)가 바로 이
+  세 점에서 나왔다. 따라서 여기서 순위가 맞는 것은 성능 증거가 아니라
+  "캘리브레이션이 제대로 반영됐다"는 회귀 테스트 이상의 의미가 없다.

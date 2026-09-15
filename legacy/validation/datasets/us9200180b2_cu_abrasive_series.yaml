@@ -1,0 +1,72 @@
+# Cu 배선 CMP — 실리카 연마입자 함량 4수준 (H2O2·첨가제 고정). 특허 실시예 인쇄표.
+source: >
+  US9200180B2 (Air Products and Chemicals / 현 Versum·Merck), "Chemical-mechanical
+  planarization composition having benzenesulfonic acid and per-compound oxidizing
+  agents, and associated method for use", 2015. https://patents.google.com/patent/US9200180B2
+  옮긴 곳: TABLE 3 (Examples 11~14) — "Controlling Tunability of Copper, PETEOS,
+  Tantalum Nitride, and Black Diamond Blanket Wafer Removal Rates ... Using different
+  Concentrations of Abrasive with Fixed Amount of Benzenesulfonic acid (1 weight %)
+  and Hydrogen Peroxide (1 weight %)".
+  공정조건 출처: 명세서 실험 절차 — Mirra 3400, Politex 패드, platen 90 rpm,
+  head 84 rpm, membrane pressure 2.0 psi, slurry 200 mL/min, 60 s, ECD 구리 블랭킷 웨이퍼.
+in_scope: true
+used_for_calibration: false
+pack: cu_h2o2_bta
+conditions:
+  - label: "silica 0.5wt%, H2O2 1wt% (Example 11)"
+    pressure_psi: 2.0
+    rpm_wafer: 84
+    rpm_platen: 90
+    mrr_nm_per_min: 6.4
+    read_method: table
+    overrides:
+      abrasive_wt_pct: 0.5
+      abrasive_ref_wt_pct: 3.0
+      oxidizer_wt_pct: 1.0
+  - label: "silica 1.5wt%, H2O2 1wt% (Example 12)"
+    pressure_psi: 2.0
+    rpm_wafer: 84
+    rpm_platen: 90
+    mrr_nm_per_min: 8.4
+    read_method: table
+    overrides:
+      abrasive_wt_pct: 1.5
+      abrasive_ref_wt_pct: 3.0
+      oxidizer_wt_pct: 1.0
+  - label: "silica 10wt%, H2O2 1wt% (Example 13)"
+    pressure_psi: 2.0
+    rpm_wafer: 84
+    rpm_platen: 90
+    mrr_nm_per_min: 21.0
+    read_method: table
+    overrides:
+      abrasive_wt_pct: 10.0
+      abrasive_ref_wt_pct: 3.0
+      oxidizer_wt_pct: 1.0
+  - label: "silica 20wt%, H2O2 1wt% (Example 14)"
+    pressure_psi: 2.0
+    rpm_wafer: 84
+    rpm_platen: 90
+    mrr_nm_per_min: 38.4
+    read_method: table
+    overrides:
+      abrasive_wt_pct: 20.0
+      abrasive_ref_wt_pct: 3.0
+      oxidizer_wt_pct: 1.0
+notes: >
+  변수 = 실리카 연마입자 함량(0.5→20 wt%) 단 하나. 고정 = 벤젠술폰산 1 wt%,
+  H2O2 1 wt%, 압력 2.0 psi, platen/head 90/84 rpm, 폴리시 60 s.
+  단위 환산: 원문 Å/min → nm/min (÷10). 64/84/210/384 Å/min = 6.4/8.4/21.0/38.4 nm/min.
+  ── 억제제·산화제 해석 주의 ──
+  이 DOE는 억제제(BTA) 변화가 아니다. 억제제 축과 섞어 읽지 마라.
+  산화제도 전 조건 1 wt% 고정이므로 이 표는 산화제 정점 곡선을 전혀 검증하지 않는다
+  (정점 통과 여부 판단 불가). 순수 기계항(입자 함량) 단독 검증이다.
+  ── 팩과의 조성 차이(정직성) ──
+  이 슬러리는 pH 9~10 알칼리 + 벤젠술폰산계이고, 팩 cu_h2o2_bta는 pH 4 산성 + BTA다.
+  피연마재는 실리콘 웨이퍼 위 ECD Cu 박막이므로 in_scope: true지만,
+  화학 조성 자체는 팩 기준 조성과 다르다. 절대 MRR이 크게 어긋나는 것은 예상된 결과이며
+  (원문 MRR이 6~38 nm/min로 팩 기준 400 nm/min대보다 한 자릿수 낮다) 순위만 볼 것.
+  벤젠술폰산·KOH 농도는 모델에 전달할 통로가 없어 생략했다 — 미모델링 교란요인이다.
+  abrasive_ref_wt_pct는 원문에 없다. 팩에 abrasive_wt_pct 자체가 없어 기준값이
+  필요했고, 같은 특허의 다른 표에서 표준으로 쓰인 3.0 wt%를 전 조건 공통 상수로 넣었다.
+  전 조건 동일 상수이므로 순위에는 영향이 없고 절대 배수만 이동시킨다.

@@ -1,0 +1,84 @@
+# 구리 CMP — pH × 실리카 농도 완전교차 (US20080090500A1 TABLE 4)
+source: >
+  US20080090500A1 (PPG Industries Ohio; S. Hellring, Y. Li, R. Auger),
+  "Process for reducing dishing and erosion during chemical mechanical
+  planarization", 우선일 2002-08-05, 공개 2008-04-17. TABLE 4.
+  전문 HTML: papers/patents/US20080090500A1.html
+  인쇄된 표의 숫자를 그대로 옮겼다(read_method: table, 판독오차 0).
+
+  왜 이 데이터인가: 같은 실험군에서 글리신 1 wt% · BTA 1 mM · H2O2 3 wt% ·
+  장비(Struers LabPol-V) · 하중 30 N · 회전 60/60 rpm · 유량 60 mL/min ·
+  연마시간 1 min 을 전부 고정한 채 H2SO4/KOH 로 **pH 만** 3/4/5/6 으로 바꿨고,
+  실리카 농도 0/1/2/3/4 wt% 로 완전교차했다. pH 효과가 기계항과 분리된다.
+
+# ⚠ 이 데이터셋은 cu_ph_acid_k 를 역산한 바로 그 표다.
+#   따라서 **검증이 아니라 캘리브레이션 재현 확인**이다. held-out 집계에서 빠진다.
+#   (계수를 뽑은 데이터로 성능을 주장하면 그것은 자기 채점이다.)
+used_for_calibration: true
+in_scope: true
+pack: cu_h2o2_bta
+
+# ⚠ 0 / 1 wt% 행은 제외한다 — 모델이 스스로 선언한 적용 게이트 밖이다.
+#   0 wt% 행(259/106/176/151)은 비단조이고 1 wt% 는 R^2=0.594 로 설명력이 낮다.
+#   pH 는 부동태막 성질을 바꿀 뿐, 그 막을 벗길 기계 경로가 없으면 MRR 로
+#   번역되지 않는다. 게이트 밖 데이터를 넣고 "안 맞는다"고 하는 것은
+#   모델이 하지 않겠다고 선언한 일을 시키는 것이다.
+#   (게이트 자체의 타당성은 별도 검증 대상이며, 그 근거가 위 비단조성이다.)
+
+conditions:
+  # ── 실리카 2 wt% ──────────────────────────────────────────
+  - label: "2 wt% 실리카, pH 3"
+    overrides: {slurry_ph: 3.0, abrasive_wt_pct: 2.0, oxidizer_wt_pct: 3.0, inhibitor_mM: 1.0, sfr_ml_min: 60}
+    mrr_nm_per_min: 59.7
+    read_method: table
+  - label: "2 wt% 실리카, pH 4 (기준점)"
+    overrides: {slurry_ph: 4.0, abrasive_wt_pct: 2.0, oxidizer_wt_pct: 3.0, inhibitor_mM: 1.0, sfr_ml_min: 60}
+    mrr_nm_per_min: 53.7
+    read_method: table
+  - label: "2 wt% 실리카, pH 5"
+    overrides: {slurry_ph: 5.0, abrasive_wt_pct: 2.0, oxidizer_wt_pct: 3.0, inhibitor_mM: 1.0, sfr_ml_min: 60}
+    mrr_nm_per_min: 48.3
+    read_method: table
+  - label: "2 wt% 실리카, pH 6"
+    overrides: {slurry_ph: 6.0, abrasive_wt_pct: 2.0, oxidizer_wt_pct: 3.0, inhibitor_mM: 1.0, sfr_ml_min: 60}
+    mrr_nm_per_min: 39.3
+    read_method: table
+
+  # ── 실리카 3 wt% ──────────────────────────────────────────
+  - label: "3 wt% 실리카, pH 3"
+    overrides: {slurry_ph: 3.0, abrasive_wt_pct: 3.0, oxidizer_wt_pct: 3.0, inhibitor_mM: 1.0, sfr_ml_min: 60}
+    mrr_nm_per_min: 70.5
+    read_method: table
+  - label: "3 wt% 실리카, pH 4"
+    overrides: {slurry_ph: 4.0, abrasive_wt_pct: 3.0, oxidizer_wt_pct: 3.0, inhibitor_mM: 1.0, sfr_ml_min: 60}
+    mrr_nm_per_min: 61.7
+    read_method: table
+  - label: "3 wt% 실리카, pH 5"
+    overrides: {slurry_ph: 5.0, abrasive_wt_pct: 3.0, oxidizer_wt_pct: 3.0, inhibitor_mM: 1.0, sfr_ml_min: 60}
+    mrr_nm_per_min: 52.8
+    read_method: table
+  - label: "3 wt% 실리카, pH 6"
+    overrides: {slurry_ph: 6.0, abrasive_wt_pct: 3.0, oxidizer_wt_pct: 3.0, inhibitor_mM: 1.0, sfr_ml_min: 60}
+    mrr_nm_per_min: 45.1
+    read_method: table
+
+  # ── 실리카 4 wt% ──────────────────────────────────────────
+  - label: "4 wt% 실리카, pH 3"
+    overrides: {slurry_ph: 3.0, abrasive_wt_pct: 4.0, oxidizer_wt_pct: 3.0, inhibitor_mM: 1.0, sfr_ml_min: 60}
+    mrr_nm_per_min: 80.1
+    read_method: table
+  - label: "4 wt% 실리카, pH 4"
+    overrides: {slurry_ph: 4.0, abrasive_wt_pct: 4.0, oxidizer_wt_pct: 3.0, inhibitor_mM: 1.0, sfr_ml_min: 60}
+    mrr_nm_per_min: 64.4
+    read_method: table
+  - label: "4 wt% 실리카, pH 5"
+    overrides: {slurry_ph: 5.0, abrasive_wt_pct: 4.0, oxidizer_wt_pct: 3.0, inhibitor_mM: 1.0, sfr_ml_min: 60}
+    mrr_nm_per_min: 56.5
+    read_method: table
+  - label: "4 wt% 실리카, pH 6"
+    overrides: {slurry_ph: 6.0, abrasive_wt_pct: 4.0, oxidizer_wt_pct: 3.0, inhibitor_mM: 1.0, sfr_ml_min: 60}
+    mrr_nm_per_min: 52.0
+    read_method: table
+
+# 단위 메모: 원문은 Å/min 이다. 10 으로 나눠 nm/min 으로 옮겼다.
+#   예: 597 Å/min = 59.7 nm/min
