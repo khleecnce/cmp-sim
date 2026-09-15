@@ -609,3 +609,40 @@ This matters because the usual way to present a sweep — one smooth curve — i
 exactly the way to hide the result above. Points in a different regime are
 marked on the chart rather than dropped, so a trend is never drawn through
 physics that changed underneath it.
+
+---
+
+## Why SiC fails the Preston gate — measured, not asserted
+
+"Chemically rate-limited" is a convenient phrase that could excuse any bad fit,
+so it is tested numerically against the 50-run DOE rather than asserted.
+
+If removal were mechanically limited, Preston would predict **one** rate at a
+given P and V regardless of chemistry. The DOE holds P and V fixed while varying
+pH (9/10/11), oxidiser (4/6 wt%) and abrasive loading, so the spread inside such
+a group measures directly how much of the process a P*V law cannot see:
+
+| P (psi), rpm | n | min | max | max/min |
+|---|---:|---:|---:|---:|
+| 4.5, 60 | 13 | 1.24 | 6.00 | 4.8x |
+| 5.0, 60 | 10 | 2.49 | 13.01 | 5.2x |
+| 5.0, 80 | 5 | 2.00 | 8.03 | 4.0x |
+| 5.5, 60 | 15 | 1.81 | 15.00 | 8.3x |
+| 5.5, 80 | 5 | 2.00 | 16.00 | 8.0x |
+
+Preston predicts 1.0x in every row. The median observed spread at identical
+pressure and velocity is **5.2x**, and across the whole DOE P*V explains only
+**R^2 = 0.09** of the variance in removal rate.
+
+Because Kp is a single multiplicative constant it cannot change the *shape* of
+the prediction at all: the best possible least-squares Kp still leaves a
+residual far outside the 15% gate. The failure is structural, not a calibration
+error, and no amount of fitting will remove it.
+
+This is why the `chemically_limited` profile switches the pad contact layer off
+and the chemical path on for these systems, and why its caveat says the absolute
+rate is not trustworthy while rankings are.
+
+Locked by `tests/test_chemically_limited_limit.py`, which also fails if the
+exemption ever goes stale — if P*V starts explaining the variance, the test
+demands the exemption be reconsidered rather than kept as a standing excuse.
