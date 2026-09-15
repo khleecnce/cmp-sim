@@ -1,0 +1,401 @@
+# STI CMP — ceria slurry, oxide:nitride selectivity.
+#
+# OVERRIDE of the inherited legacy/knowledge/params/sti_ceria.yaml.
+# `base: sti_ceria` resolves to the NEXT tier, so the inherited ceria pack (Kp,
+# Ce3+ tooth exponent, Hill shield constants, ceria size peak, viscosity) is
+# kept intact. This file adds only the dielectric/STI gaps.
+#
+# Why this pack is separate from oxide_silica and must stay that way
+# ------------------------------------------------------------------
+# Ceria does not polish silica by pressing on it. Cook 1990
+# (doi:10.1016/0022-3093(90)90200-6) computed nearly IDENTICAL single-particle
+# contact pressures for the two abrasives on silica -- 2627 kg/cm^2 (silica) vs
+# 2684 kg/cm^2 (CeO2) -- yet measured 1 SiO2 molecule removed per 5e8 collisions
+# for silica against 1 per 24 collisions for CeO2. Seven orders of magnitude at
+# the same mechanical stress: the difference is a real Si-O-Ce chemical bond,
+# not contact mechanics. That is why the two packs must never share a
+# concentration or pH law.
+#
+# Nothing here feeds the Preston core, so the mariscal2020 PETEOS/ceria
+# back-test (12.9% MAPE, PASS) is untouched; re-run and confirmed unchanged.
+
+base: sti_ceria
+description: "STI / ceria: chemical-tooth evidence, selectivity, pattern and thermal terms"
+
+params:
+
+  # ══════════════════════════════════════════════════════════════════
+  # 1. Single-particle contact
+  # ══════════════════════════════════════════════════════════════════
+
+  particle_contact_stress_pa:
+    value: 2.63e+08
+    unit: Pa
+    note: >
+      Mean Hertzian contact pressure P0 under one CeO2 particle on silica.
+      Cook 1990, J. Non-Cryst. Solids 120, 152-171,
+      doi:10.1016/0022-3093(90)90200-6, Appendix 2 ("polishing of silica by
+      CeO2"): pressure 0.4 kg/cm^2, speed 5 cm/s, particle diameter 1.2 um ->
+      contact area 337 nm^2, **P0 = 2684 kg/cm^2**, friction coefficient 0.27,
+      max surface tensile stress 270 MPa, dwell time 0.4 us, water diffusion
+      depth 1.1 nm. Conversion at 98066.5 Pa per kgf/cm^2: 2.632e8 Pa.
+      **The whole point of this number is that it is the SAME as silica's**
+      (2627 kg/cm^2, 2.58e8 Pa, in the oxide_silica pack) while the removal
+      efficiency differs by 2e7x -- see this file's header. Any model that
+      explains the ceria/silica gap through contact mechanics is contradicted by
+      Cook's own arithmetic.
+      ⚠ Cook's particle here is 1.2 um, far larger than this pack's 60 nm
+      abrasive_size_nm, and P0 depends on particle size through eq. 6. Treat as
+      an order-of-magnitude reference stress for the chemistry argument, not as
+      a per-recipe contact stress for 60 nm ceria.
+    source: "doi:10.1016/0022-3093(90)90200-6 (Cook 1990) Appendix 2, CeO2-on-silica case"
+    confidence: literature
+
+  film_surface_hardness_pa:
+    value: null
+    unit: Pa
+    note: >
+      **NOT SOURCED — deliberately null.** TODO(materials-agent). Same gap as in
+      the oxide_silica pack (see that file for the full bracketing argument:
+      Cook 1990 states surface material constants "are not available";
+      Tadjiev & Hand 2010 doi:10.1016/j.jnoncrysol.2009.10.004 show the hydrated
+      layer on DURABLE silicate glass is ~5 nm, below nanoindentation
+      resolution, and measure 0.24-0.52x softening only on LOW-durability
+      compositions; Zhang 2024 doi:10.1038/s41529-024-00431-3 measure 0.85x on a
+      corroded boroaluminosilicate).
+      The ceria case is WORSE, not better: the layer ceria leaves behind is not
+      a simple hydration layer. Suratwala et al. 2015, J. Am. Ceram. Soc. 98(8)
+      2371-2379, doi:10.1111/jace.13659, measured by SIMS that Ce penetrates
+      20-100 nm and K 500-900 nm into the polished silica surface, and attributed
+      the Ce profile to interfacial-temperature-driven reaction rather than
+      diffusion. So the "softened layer" under a ceria slurry is a chemically
+      distinct, Ce-bearing Beilby layer ~50 nm thick whose hardness nobody has
+      published at all.
+    source: "null result; layer chemistry from doi:10.1111/jace.13659 (Suratwala 2015)"
+    confidence: unverified
+
+  beilby_layer_depth_nm:
+    value: 50.0
+    unit: nm
+    note: >
+      Thickness of the modified (Beilby) layer left on fused silica by ceria
+      polishing, defined by the Ce penetration depth against a SIMS noise floor
+      of ~1e16 atoms/cm^3. Suratwala, Steele, Wong, Feit, Miller, Dylla-Spears,
+      Shen & Desjardin 2015, J. Am. Ceram. Soc. 98(8) 2371-2379,
+      doi:10.1111/jace.13659 (author manuscript LLNL-JRNL-666384, OSTI 1234587,
+      obtained and read). Same paper: surface H concentration 1-3e20 atoms/cm^3
+      against a silica Si concentration of 2e22, i.e. ~1 H per 100 Si — the first
+      direct experimental confirmation of H2O penetration during polishing, which
+      is what Cook 1990 had only hypothesised.
+      ⚠ An order of magnitude thicker than Cook's diffusion prediction for water
+      (0.5-12 nm) — recorded as a DISAGREEMENT, not reconciled. Suratwala
+      explains Ce transport by reaction kinetics (best-fit E ~ 10 kcal/mol
+      ~ 42 kJ/mol), not Fickian diffusion, so the two numbers may not describe
+      the same physical layer.
+      ⚠ Fused silica optics, not a CMP dielectric film. Diagnostic only.
+    source: "doi:10.1111/jace.13659 (Suratwala 2015)"
+    confidence: literature
+
+  # ══════════════════════════════════════════════════════════════════
+  # 2. Arrhenius
+  # ══════════════════════════════════════════════════════════════════
+
+  chem_activation_energy_kj_per_mol:
+    value: 135.1
+    unit: kJ/mol
+    note: >
+      Apparent activation energy for SiO2 removal with a COLLOIDAL CERIA slurry.
+      Mariscal, McAllister, Sampurno, Sierra Suarez, O'Neill, Zhou, Grief, Slutz
+      & Philipossian 2020, ECS J. Solid State Sci. Technol. 9, 044008,
+      doi:10.1149/2162-8777/ab89bc, Table I: **SiO2 Ea = 1.40 eV**, A = 9.77e-4
+      mol m^-2 s^-1, RMS 98 A/min (4.6%); Si3N4 Ea = 1.47 eV, RMS 4 A/min
+      (11.9%). Conversion at 96.485 kJ/mol per eV: 1.40 eV = 135.1 kJ/mol,
+      1.47 eV = 141.8 kJ/mol. Same 200 mm PETEOS blanket wafers and same
+      2/3/4 psi x 0.75/1.25/1.75 m/s matrix as the mariscal2020 validation
+      dataset this pack is scored against.
+      **AUTHORS' OWN CAVEAT, carried verbatim because it is load-bearing:** their
+      Arrhenius abscissa is the mean PAD surface temperature Tp (25.1-33.3 C on
+      SiO2, 24.8-29.1 C on Si3N4), not the true wafer reaction temperature Tw,
+      and they write that "the actual activation energies for our SiO2 and Si3N4
+      processes will be markedly different from the extracted values reported
+      here". This is therefore an apparent Ea against a proxy temperature.
+      **DISAGREEMENT WITH THE SILICA PACK, recorded not averaged:** the
+      oxide_silica pack carries Shin et al. 2025 (doi:10.3390/ma18194461)
+      Ea = 8.75 kJ/mol for SiO2, 15x lower. The two are not reconcilable as
+      stated: different abrasive, different slurry, different temperature proxy,
+      different fitting model (raw Arrhenius vs modified Langmuir-Hinshelwood).
+      Cook 1990's mechanistic expectation for the hydrolysis step is ~40 kJ/mol
+      below 550 C — between the two. Both are kept in their own packs so the
+      spread stays visible instead of being split.
+    source: "doi:10.1149/2162-8777/ab89bc (Mariscal 2020) Table I"
+    confidence: literature
+
+  chem_temp_ref_c:
+    value: null
+    unit: C
+    note: >
+      **NOT SOURCED — deliberately null.** TODO(calibration-owner). Same
+      reasoning as in oxide_silica: the Arrhenius term only activates when a
+      reference temperature exists, and that reference must be the temperature
+      at which THIS pack's kp_m_per_pa was back-calculated, which the inherited
+      pack does not report (its Kp is flagged `estimated` and described as a
+      representative value). Mariscal's own pad temperatures (25.1-33.3 C for
+      SiO2) are the right order but belong to their tool, not to this pack's Kp
+      anchor; adopting one would silently re-scale every predicted rate.
+      The engine therefore reports thermal response as UNMODELLED, with a
+      warning, which is the honest state.
+    source: "TODO(calibration-owner) — Kp anchor temperature unreported"
+    confidence: unverified
+
+  # ══════════════════════════════════════════════════════════════════
+  # 3. Selectivity and the mechanism that controls it
+  # ══════════════════════════════════════════════════════════════════
+  # The inherited pack declares oxide_nitride_selectivity = 60 (Hwang 2024
+  # range 59-80). Kept. What was missing is the FULL published hierarchy and
+  # the absolute nitride rate, which is what actually makes a stop layer work.
+
+  pattern_selectivity:
+    value: 101.0
+    unit: "-"
+    note: >
+      Blanket SiO2:Si3N4 removal-rate selectivity, colloidal ceria, best
+      published operating point of the same study this pack is validated
+      against. Mariscal et al. 2020, doi:10.1149/2162-8777/ab89bc: selectivity
+      ranges **32:1 to 44:1 at the lowest sliding velocity, 75:1 to 91:1 at the
+      highest, and peaks at 101:1 at 3 psi / 1.25 m s^-1**, which is the
+      condition they then used for the MIT 864 patterned wafers. Silica slurries
+      in the same paper: "a mere 4:1".
+      **THE SELECTIVITY IS NOT A SLURRY CONSTANT — it is a three-level hierarchy
+      set by the ADDITIVE, and the spread is two orders of magnitude:**
+        L1  bare ceria, no additive:        **4.4:1**
+            (Dandu Veera, Peddeti & Babu 2009, JES 156(12) H936-H943,
+             doi:10.1149/1.3230624, Fig. 3: 60 nm Rhodia ceria 0.25 wt%,
+             pH 4-5.5, 4 psi, 75/75 rpm, IC1000 -> oxide 350 nm/min,
+             nitride 80 nm/min.)
+        L2  dispersant only, site-NON-specific (PAA): **4.7:1 to 8.0:1**
+            (Hwang, Lyu & Kim 2026, Polymers 18, 1899,
+             doi:10.3390/polym18151899, Fig. 13: self-made HNU15 ceria
+             114.4 / 14.3 A/min -> 8.0; commercial HC10 57.5 / 12.3 -> 4.7.)
+        L3  site-SPECIFIC adsorbate (cyclic amine / amino acid): **117:1 to 290:1**
+            (Dandu 2009 again: 0.05 wt% pyridine-HCl, piperazine or imidazole
+             drops nitride to 2-3 nm/min with oxide unchanged at 350 nm/min;
+             with 180 nm calcined ceria at 1 wt% oxide rises to 580 nm/min while
+             nitride stays at 2 nm/min -> 290:1.)
+      **WHY the additive works — the asymmetry is adsorption SATURATION, not
+      affinity.** Dandu 2009 Figs. 11-12: raising pyridine-HCl from 0.05% to 1%
+      (20x) takes silica uptake from 1.3 to 8.2 mg/g and STILL does not saturate,
+      while nitride uptake pins at 2.4 mg/g from 0.1% upward — already saturated.
+      So a concentration exists (~0.05 wt%) that fully covers nitride and only
+      sparsely covers oxide. Contact angle confirms it: nitride stays ~65 deg
+      independent of concentration, oxide climbs 35 -> 90 deg with it (Table II).
+      Time series (Fig. 14): nitride loses only its ~3 nm native oxide in the
+      first 30 s and then nothing out to 200 s — a genuine stop, not a slow rate.
+      The bond is also asymmetric in reversibility: additive is polished off
+      oxide in 30-60 s of additive-free slurry, but not off nitride.
+      Anionic surfactants act by the same Hill/hemimicelle route with a 10.8x
+      difference in the two films' adsorption constants — already parameterised
+      in the inherited shield_langmuir_K / shield_nitride_langmuir_K pair from
+      Park, Katoh, Lee, Jeon & Paik 2003, JJAP 42(9A) 5420,
+      doi:10.1143/JJAP.42.5420.
+      **Redox tuning is a DIFFERENT and much weaker lever:** Netzband & Dunn
+      2020, ECS JSS 9, 044002, doi:10.1149/2162-8777/ab8393, optimised surface
+      Ce3+ with 0.5 wt% H2O2 and raised oxide 5.5x but nitride 2.25x too, moving
+      selectivity only from ~1:1 to ~3:1. Ce3+ is a gain knob on both films; the
+      adsorbate is a switch on one. Do not model them with the same term.
+      ⚠ Blanket values. Lee 2002 (hdl:1721.1/29907) Table 2.4 found s varying
+      2.7-38 with pressure and speed on one slurry, and patterned-wafer
+      selectivity is lower than blanket.
+    source: "doi:10.1149/2162-8777/ab89bc (Mariscal 2020); hierarchy from doi:10.1149/1.3230624 (Dandu 2009), doi:10.3390/polym18151899 (Hwang 2026), doi:10.1149/2162-8777/ab8393 (Netzband 2020)"
+    confidence: literature
+
+  stop_layer_rate_m_per_s:
+    value: 1.333e-09
+    unit: m/s
+    note: >
+      Blanket Si3N4 removal rate for BARE ceria with NO nitride inhibitor —
+      the un-suppressed baseline. Dandu Veera, Peddeti & Babu 2009, JES 156(12)
+      H936-H943, doi:10.1149/1.3230624, Fig. 3: **80 nm/min** at 4 psi,
+      75/75 rpm, IC1000, 0.25 wt% 60 nm Rhodia ceria, pH 4-5.5, no additive —
+      the same slurry and conditions as this pack's inherited abrasive_size_nm
+      (60 nm, Dandu 2009) and slurry_ph (5.5), so the condition match is exact.
+      80 nm/min = 80e-9/60 m/s = 1.333e-9 m/s. Paired oxide rate 350 nm/min
+      gives the 4.375:1 baseline selectivity above.
+      **This is deliberately the UNINHIBITED rate**, because this pack's
+      shield_additive_wt_pct = 0 (no additive) — putting an inhibited rate here
+      would double-count the suppression the shield term already models.
+      For the inhibited case the same paper gives **2-3 nm/min** with 0.05 wt%
+      pyridine-HCl / piperazine / imidazole (= 3.3e-11 to 5.0e-11 m/s), and the
+      review Srinivasan, Dandu & Babu 2015, ECS JSS 4(11) P5029,
+      doi:10.1149/2.0071511jss, sets the industry stop-layer criterion at
+      **< 1 nm/min**. Vendor data (Urban 2016, Ferro, AVS CMP Users Group, slides
+      — unverifiable vendor deck, trend only) quote < 20 A/min = < 2 nm/min
+      across five slurry generations.
+      ⚠ Condition-specific: 4 psi, 75/75 rpm. Nitride removal is non-Prestonian
+      (Mariscal 2020 found Si3N4 "much more non-Prestonian than SiO2", with a
+      chemical/mechanical rate-constant ratio k1/k2 of 2.5e-5 to 9.9e-5 against
+      6.3-142 for SiO2), so do NOT scale this with P*V.
+      ⚠ READ THE ENGINE'S `selectivity` OUTPUT WITH CARE. The pattern layer
+      computes selectivity = (simulated blanket oxide rate at YOUR conditions) /
+      (this fixed measured nitride rate at 4 psi, 75/75 rpm). Because the
+      numerator moves with P*V and the denominator does not, that ratio is NOT
+      the published selectivity and will drift far from it away from Dandu's
+      conditions — e.g. the shipped examples/sti_ceria.yaml recipe yields ~1.75,
+      against the 4.4 Dandu measured, purely because the simulated oxide rate
+      there (~140 nm/min) is well below Dandu's 350 nm/min. Use
+      pattern_selectivity (a measured ratio, both films at one condition) when
+      you want the slurry's selectivity; use the engine's number only as an
+      internal consistency check, and only when the recipe's pressure and speed
+      are close to 4 psi / 75-75 rpm. Fixing this properly needs a nitride film
+      model with its own kinetics, which does not exist yet.
+    source: "doi:10.1149/1.3230624 (Dandu 2009) Fig. 3, no-additive baseline"
+    confidence: literature
+
+  nitride_removal_mechanism:
+    value: "hydrolysis_then_abrasion"
+    unit: "-"
+    note: >
+      Si3N4 is not abraded directly — ceria is SOFTER than nitride. The surface
+      hydrolyses first, Si3N4 + 6H2O -> 3SiO2 + 4NH3, and only that soft oxide
+      product is removed. Srinivasan, Dandu & Babu 2015, ECS JSS 4(11) P5029,
+      doi:10.1149/2.0071511jss: "silicon nitride is harder than silicon dioxide
+      or ceria" and "the ceria particles are softer than the nitride film".
+      This single fact explains the entire selectivity toolbox: anything that
+      blocks water reaching the nitride surface (cyclic amines, amino acids,
+      anionic surfactants) stops nitride removal outright rather than slowing it,
+      which is exactly what Dandu 2009 Fig. 14 shows (removal ceases after the
+      native oxide is gone). It also explains why selectivity is so fragile —
+      the denominator is a near-zero rate.
+      ⚠ A declared mechanism string, not a number. The engine has no nitride film
+      model; this is provenance for the selectivity keys above.
+    source: "doi:10.1149/2.0071511jss (Srinivasan 2015) 'Silicon nitride removal mechanism'"
+    confidence: literature
+
+  stop_layer_hardness_pa:
+    value: 1.36e+10
+    unit: Pa
+    note: >
+      PECVD SiNx nanoindentation hardness — Mariscal 2020 polished PECVD Si3N4,
+      so this is the matching deposition type. Gan et al. 2018, Surfaces 1(1)
+      59-72, doi:10.3390/surfaces1010006, Table 2: 13.6 +/- 2.9 GPa
+      (E = 153.0 +/- 14.9 GPa) at 16 sccm silane; 10.2 +/- 3.0 GPa
+      (E = 108.5 +/- 10.6) at 50 sccm, i.e. more Si-rich is softer.
+      LPCVD low-stress SiN is much harder, ~22.5 GPa / E ~ 224 GPa (Zheng et al.
+      2013, doi:10.1155/2013/835942 — full text not obtained, SECONDARY).
+      Ordering: LPCVD Si3N4 ~22.5 > PECVD SiNx ~13.6 > SiO2 ~8-9 GPa > CeO2
+      particle. Diagnostic only.
+    source: "doi:10.3390/surfaces1010006 (Gan 2018) Table 2"
+    confidence: literature
+
+  # ══════════════════════════════════════════════════════════════════
+  # 4. Pattern / STI planarization
+  # ══════════════════════════════════════════════════════════════════
+
+  planarization_length_m:
+    value: 4.70e-03
+    unit: m
+    note: >
+      Planarization length for the PHASE-2 (nitride overpolish) regime of a
+      high-selectivity CERIA STI process. Lee, "Modeling of Chemical Mechanical
+      Polishing for Shallow Trench Isolation", Ph.D. thesis, MIT EECS 2002,
+      hdl:1721.1/29907, §3.7.9 ceria HSS case study (IC1400, 7 psi / 30 rpm):
+      **PL = 1.6 mm for Phase 1 (oxide overburden) and 4.7 mm for Phase 2**.
+      Phase 2 is the regime that sets dishing and erosion, so it is the value
+      taken here; the silica pack carries the oxide-phase value (3.75 mm, Ouma
+      1999) instead.
+      **Published spread, recorded:** the same thesis's Table 2.4 extracts
+      PL_nit = 3.0-19.9 mm across ten silica-slurry processes, and notes the two
+      19.9 mm entries are unreliable because RMSE is insensitive to PL there.
+      PL is governed by subpad stiffness (Ouma 1999 Table 7.2; Xie et al. 2003
+      MRS, PL proportional to E), not by slurry chemistry — so the ceria/silica
+      difference here reflects the pad and the regime, not the abrasive.
+      ⚠ MIT's tool and pad stack. Transferred, not measured on the target tool.
+      ⚠ The same ceria case study found a **28 s activation delay** before any
+      removal began on the patterned wafer (Lee 2002 eq. 3.45) — not modelled.
+    source: "Lee 2002 MIT PhD thesis hdl:1721.1/29907 §3.7.9; spread from Table 2.4"
+    confidence: literature
+
+  pattern_planarization_length_mm:
+    value: 4.70
+    unit: mm
+    note: >
+      Alias of planarization_length_m in mm. Same measurement, same source — not
+      an independent value.
+    source: "Lee 2002 MIT PhD thesis hdl:1721.1/29907 §3.7.9"
+    confidence: literature
+
+  initial_step_height_m:
+    value: 4.65e-07
+    unit: m
+    note: >
+      Initial step height for the ceria STI stack measured in the study this
+      pack is validated against. Mariscal et al. 2020,
+      doi:10.1149/2162-8777/ab89bc, Fig. 2: Si trench 2850 A plus thermal oxide
+      gives a **4650 A** trench, filled with 6000 A of HDP oxide -> 1350 A
+      overfill, z1 = 4650 A = 465 nm. MIT 864 patterned wafers, densities
+      swept with a 100 um line pitch.
+      Alternative stack, recorded not averaged: Lee 2002 (hdl:1721.1/29907)
+      §2.12 uses pad oxide 100 A + nitride 1500 A + trench 5000 A -> z1 = 6600 A,
+      which is what the oxide_silica pack carries.
+      ⚠ Layout/integration property, not slurry. Override per recipe.
+    source: "doi:10.1149/2162-8777/ab89bc (Mariscal 2020) Fig. 2"
+    confidence: literature
+
+  pattern_step_height_nm:
+    value: 465.0
+    unit: nm
+    note: >
+      Alias of initial_step_height_m in nm. Same measurement, same source.
+    source: "doi:10.1149/2162-8777/ab89bc (Mariscal 2020) Fig. 2"
+    confidence: literature
+
+  pattern_dishing_rate_ratio:
+    value: null
+    unit: "-"
+    note: >
+      **NOT SOURCED — null.** TODO(pattern-agent). In Lee 2002's closed-form STI
+      model (hdl:1721.1/29907 eqs. 2.34-2.35) the active-area and field removal
+      rates depend on the instantaneous step height H, the nitride pattern
+      density rho, the selectivity s and the maximum dishing d_max — their ratio
+      is not a constant and the thesis never publishes one.
+      What the model DOES give, and what should be computed instead of stored:
+      D_ss = d_max * rho * (s-1) / (rho*(s-1) + 1) (eq. 2.32) and
+      K_ss = K / (rho*(s-1) + 1) (eq. 2.33). The consequence worth recording is
+      counter-intuitive and is the reason this key is tempting: **higher
+      selectivity makes dishing WORSE**, because D_ss rises monotonically with s
+      toward d_max. Lee's measured ceria HSS case (Table 3.9) bears it out —
+      D_ss = 2021 / 1873 / 1532 A at rho = 0.5 / 0.7 / 0.9, and the thesis
+      concludes ceria HSS gives "erosion and dishing similar to a conventional
+      STI process". High selectivity buys OVERPOLISH WINDOW, not flatness.
+    source: "TODO(pattern-agent) — H- and rho-dependent in Lee 2002 eqs. 2.32-2.35"
+    confidence: unverified
+
+  pattern_contact_exponent:
+    value: null
+    unit: "-"
+    note: >
+      **NOT SOURCED — null.** TODO(pattern-agent). The MIT unified step-height
+      model uses an exponential contact height h1 = a1 + a2 exp(-rho/a3) (Boning
+      et al., MRS Spring 1999), not a power law, so there is no published
+      "contact exponent" in this framework. Lee 2002's Phase-2 fits expose
+      (PL_nit, s, tau2) per process instead; those are per-process fitted values,
+      not transferable constants.
+    source: "TODO(pattern-agent) — exponential contact-height form, no power-law exponent published"
+    confidence: unverified
+
+  dishing_max_m:
+    value: null
+    unit: m
+    note: >
+      **NOT SOURCED — null.** TODO(pattern-agent). d_max appears in Lee 2002 only
+      as the derived group d_max = K*tau2/(s*rho) (eq. 2.47), never as a direct
+      measurement, and it depends on this process's own K, s and rho.
+    source: "TODO(pattern-agent) — derived group in Lee 2002 eq. 2.47"
+    confidence: unverified
+
+  oxide_dishing_sensitivity_b:
+    value: null
+    unit: 1/m
+    note: >
+      **NOT SOURCED — null.** TODO(pattern-agent). Pairs with dishing_max_m.
+    source: "TODO(pattern-agent)"
+    confidence: unverified

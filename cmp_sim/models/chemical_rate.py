@@ -2,6 +2,17 @@
 
 The coupling channel
 --------------------
+.. warning::
+   The name "softening" is inherited and is not always literal. An oxidiser can
+   make the surface HARDER than the underlying metal — in Cu/H2O2 chemistry it
+   grows Cu2O/CuO, and bulk cuprite indents at 17.0-17.5 GPa against ~1.2 GPa
+   for electroplated copper (Ihnfeldt & Talbot 2008, doi:10.1149/1.2903293).
+   What matters for removal is that the modified layer is *mechanically
+   different* and is continuously regenerated, not that it is soft. Do not
+   introduce a constraint anywhere that the modified surface hardness must be
+   at or below the bulk value: the only direct measurement in this exact
+   chemistry violates it.
+
 Chemistry does not remove material in CMP; it *softens* the top few
 nanometres so the abrasive can. From P3's single-particle derivation the
 groove cross-section goes as `H^(-3/2)`, so the entire chemical layer reaches

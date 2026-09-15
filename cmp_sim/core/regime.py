@@ -218,15 +218,45 @@ def detect(resolved, contact_state=None, supply_state=None) -> Situation:
 
     # ── single-particle contact branch ───────────────────────────────
     stress = resolved.p_or("particle_contact_stress_pa", None)
-    s.contact_branch = classify_contact_branch(stress, h_surf or h_bulk)
-    if stress and (h_surf or h_bulk):
-        s.metrics["contact_stress_over_hardness"] = float(stress) / float(h_surf or h_bulk)
-    else:
+    if stress and h_surf:
+        s.contact_branch = classify_contact_branch(stress, h_surf)
+        s.metrics["contact_stress_over_hardness"] = float(stress) / float(h_surf)
+    elif stress and h_bulk:
+        # Falling back to BULK hardness is not a neutral substitution, and the
+        # error does not even have a known sign. It is tempting to assume the
+        # chemically modified surface is SOFTER than the bulk, but the only
+        # direct measurement in Cu/H2O2/BTA chemistry contradicts that: an
+        # oxidiser grows Cu2O/CuO, which is HARDER than copper (Ihnfeldt &
+        # Talbot 2008 measured 3.24 GPa on a film whose bulk is ~1.2 GPa, and
+        # bulk cuprite at 17.0-17.5 GPa), while alkaline glycine+H2O2 softens
+        # the same metal to 0.28 GPa. Across that study the surface hardness of
+        # one metal spans 0.05-20 GPa purely by chemistry and pH. So the bulk
+        # ratio is reported as provisional with the direction of its error
+        # explicitly unknown.
+        s.contact_branch = "unknown"
+        s.metrics["contact_stress_over_bulk_hardness"] = float(stress) / float(h_bulk)
+        provisional = classify_contact_branch(stress, h_bulk)
         s.undetermined.append(
-            "contact_branch: needs particle_contact_stress_pa and the softened "
-            "film_surface_hardness_pa. The softened hardness is rarely published; "
-            "without it P3 assumes the elastic branch, which sets the sign of the "
-            "particle-size exponent")
+            "contact_branch: film_surface_hardness_pa (the chemically modified "
+            f"surface) is absent, so only a bulk-hardness ratio of "
+            f"{float(stress) / float(h_bulk):.3f} could be formed, suggesting "
+            f"'{provisional}'. Treat that as provisional and note that the error "
+            "has no known sign: an oxidiser can make the surface HARDER than the "
+            "bulk (metal oxides) or softer (hydroxides/complexes), and the same "
+            "metal has been measured across two orders of magnitude depending on "
+            "chemistry and pH. This axis sets the sign of the particle-size "
+            "exponent in P3")
+    else:
+        missing = [k for k, v in (("particle_contact_stress_pa", stress),
+                                  ("film_surface_hardness_pa", h_surf)) if not v]
+        _ = missing
+        s.undetermined.append(
+            "contact_branch: missing " + " and ".join(missing) +
+            ". Note that in the Luo-Dornfeld formulation the particle contact "
+            "stress is SET EQUAL to the film hardness by assumption, so sourcing "
+            "it independently is circular unless it comes from a direct "
+            "measurement. Without this axis P3 uses the elastic branch, which "
+            "fixes the sign of the particle-size exponent")
 
     # ── pad asperities ───────────────────────────────────────────────
     if contact_state is not None and h_bulk:

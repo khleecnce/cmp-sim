@@ -43,3 +43,462 @@ params:
       over-predicted W removal by ~4x.
     source: "US2011/0186542A1 Table + US8070843B2 Table (least-squares Kp fit)"
     confidence: literature
+
+  # ══════════════════════════════════════════════════════════════════════
+  # 2026-09-15 gap fill — mechanics, pattern, Arrhenius, passivation kinetics.
+  # Every value below carries a primary citation. Where no primary source
+  # exists the key is present with `value: null` and a TODO(owner) note:
+  # an honest null is a result, a plausible guess is a silent corruption.
+  # ══════════════════════════════════════════════════════════════════════
+
+  # ── contact mechanics: the softened (oxidised) surface ────────────────
+  film_surface_hardness_pa:
+    value: null
+    unit: Pa
+    note: >
+      NOT FOUND — left null deliberately. This is the hardness of the
+      hydrated/porous tungsten-oxide passivation film that CMP actually abrades,
+      and it decides the elastic-vs-plastic contact branch (cmp_sim/core/regime.py
+      classify_contact_branch), hence the SIGN of the particle-size exponent.
+
+      What the literature does and does not give:
+      (a) QUALITATIVE ONLY, but unanimous and from the target system: the W CMP
+          passivation film is softer than metallic W. Lim/Park 2013
+          (Appl. Surf. Sci. 282, 512-517, DOI:10.1016/j.apsusc.2013.06.003):
+          "The WO3 layer is easily removed by abrasion because its mechanical
+          hardness is lower than that of metallic W"; and WOx (0<x<3), formed by
+          H2O2 alone, "has a higher mechanical hardness than WO3" — i.e. the
+          oxidiser sets not only the film's thickness but its hardness. Xu, Wang,
+          Chen & Wang 2022 (Micromachines 13(5) 762, DOI:10.3390/mi13050762,
+          chemically enhanced shear dilatancy polishing of W) restates
+          the same ordering: "the hardness of tungsten oxides tends to decrease
+          as the oxidation state increases". Neither paper reports a number.
+      (b) The only measured WO3 nanoindentation hardness found is NOT usable
+          here and is recorded so the next reader does not re-adopt it by
+          mistake: Mamun, Zhang, Baumgart & Elmustafa 2015 (ECS J. Solid State
+          Sci. Technol. 4(9) P398, DOI:10.1149/2.0241509jss, ALD WO3, 2000
+          cycles at 300 C on Si(100)) measures H = 14 GPa as-deposited and
+          10 GPa after 500-700 C anneal. That is HARDER than this pack's
+          film_bulk_hardness_pa (12 GPa CVD W), i.e. the opposite sign to every
+          CMP observation above — because a dense dry-ALD WO3 ceramic is not the
+          hydrated, Pilling-Bedworth-expanded (PBR ~3.4), slurry-grown film. Using
+          it would invert the contact-branch decision. Rejected on system mismatch.
+      (c) Bozkaya & Muftu 2009 (J. Electrochem. Soc. 156(12) H890,
+          DOI:10.1149/1.3231691) uses a bilayer hardness model with passivated-layer
+          hardness Hpw = 1000 MPa against bulk Hbw = 4000 MPa — but that is a
+          MODEL INPUT chosen for a parametric study, not a measurement of any
+          W film, so it is not adopted as data.
+      Bound that IS safe and is already exploited elsewhere in this pack:
+      H_surface < H_bulk = 1.2e10 Pa (see film_bulk_hardness_pa note and
+      sim/regime_adapter.py::alpha_from_bulk_bound).
+      TODO(owner): needs nanoindentation (or AFM scratch) of a W surface after
+      dipping in an Fe(III)/H2O2 acidic slurry, at indentation depths below the
+      ~1-2 nm film thickness measured by Kaufman 1991 (see
+      passivation_film_thickness_nm) — which is itself why nobody has published
+      it: the film is thinner than a routine indentation.
+    source: >
+      Searched and rejected: DOI:10.1149/2.0241509jss (dense ALD WO3, 10-14 GPa,
+      system mismatch); DOI:10.1149/1.3231691 (Hpw=1 GPa is a model input, not a
+      measurement). Qualitative support only: DOI:10.1016/j.apsusc.2013.06.003,
+      DOI:10.3390/mi13050762.
+    confidence: unverified
+
+  particle_contact_stress_pa:
+    value: null
+    unit: Pa
+    note: >
+      NOT FOUND as a measured quantity, and NOT computed here. Left null.
+      No W CMP paper in the corpus reports a per-particle contact stress. It can
+      only be reached by a model chain — pressure -> pad real contact area ->
+      fraction of load carried by particles -> particles per unit contact area —
+      and every link needs an assumption this pack cannot source. Stojadinovic,
+      Bouvet & Mischler 2016 (J Bio Tribo Corros 2:8,
+      DOI:10.1007/s40735-016-0041-4) shows exactly how badly that chain fails
+      when assumed: taking full particle coverage (fp = 1) they over-predict the
+      W removal rate by "one order of magnitude" vs their own CMP measurement,
+      and name fp as the culprit. Fabricating a stress here would quietly pick
+      the contact branch that film_surface_hardness_pa cannot yet decide.
+      The measurable inputs that ARE in this pack (abrasive_size_nm,
+      abrasive_wt_pct, abrasive_density_kg_m3) are the honest raw material for a
+      future derivation; the derivation itself needs a sourced coverage fraction.
+      TODO(owner): source a particle coverage fraction fp (or a direct
+      per-particle load) for an alumina/W pad contact before filling this.
+    source: "DOI:10.1007/s40735-016-0041-4 (documents the 10x error from assuming coverage)"
+    confidence: unverified
+
+  # ── Arrhenius / temperature ──────────────────────────────────────────
+  chem_activation_energy_kj_per_mol:
+    value: 26.4
+    unit: kJ/mol
+    note: >
+      Activation energy for W DISSOLUTION in an H2O2-containing acidic solution,
+      from Seo, You, Moon, Kim & Paik 2017, "Corrosion Behavior of Tungsten Metal
+      Gate in the Presence of Hydrogen Peroxide at Acidic Medium", ECS J. Solid
+      State Sci. Technol. 6(4) P169-P171, DOI:10.1149/2.0311704jss — they vary
+      dipping time, temperature and H2O2 concentration and take Ea from an
+      Arrhenius plot.
+      SOURCES DISAGREE BY DESIGN, and the disagreement is the physics, so both
+      numbers are recorded rather than averaged:
+        Ea = 46.2 kJ/mol  in water (no oxidiser)
+        Ea = 26.4 kJ/mol  in H2O2-containing solution   <- adopted
+      This pack is an H2O2 + Fe(III) slurry, so the oxidiser-present branch is
+      the right one; the 46.2 value is the no-oxidiser limit and would
+      over-predict the temperature sensitivity of this slurry by ~1.75x in the
+      exponent.
+      THREE HONEST LIMITS:
+      (1) SECONDARY CITATION. The two numbers were read from the review Y. Lee
+          et al., Materials & Design 263 (2026) 115650 (§5, ref.[145]), which
+          cites Seo 2017 for them; the Seo 2017 full text is paywalled
+          (iopscience returns an HTML interstitial, not the PDF) and was NOT
+          read here. The DOI and the attribution are verified; the numbers are
+          one hop removed.
+      (2) It is a STATIC DISSOLUTION Ea, not a CMP removal-rate Ea. In the
+          Kaufman two-step picture, temperature enters CMP mainly through the
+          oxide-growth step, and Wang, Peng, Xia, Kitajima & Tsai 2012
+          (ECS Trans. 41(43) 103-111, DOI:10.1149/1.4717508, Applied Materials
+          Reflexion GT, 300 mm W wafers) derive exactly that: RR ratio =
+          exp(Ea(Ta-Tb)/R TaTb), i.e. removal rate rises linearly with process
+          temperature over a small window, and they confirm it experimentally
+          ("strong linear relationship with the process temperature"). They do
+          NOT publish a fitted Ea, so their data cannot replace this value —
+          they only confirm the functional form this key is used in.
+      (3) It is a W-metal-gate corrosion study, not this pack's Fe(III)-catalysed
+          Fenton slurry. Same metal, same oxidiser family, different catalyst.
+      Graded `estimated` for those three reasons even though the number itself is
+      a published measurement.
+    source: "DOI:10.1149/2.0311704jss (via review DOI:10.1016/j.matdes.2026.115650 §5 ref.145); functional form confirmed by DOI:10.1149/1.4717508"
+    confidence: estimated
+
+  chem_activation_energy_no_oxidizer_kj_per_mol:
+    value: 46.2
+    unit: kJ/mol
+    note: >
+      The other half of the Seo 2017 pair — W dissolution in water with no H2O2.
+      Not used by the solver (which reads chem_activation_energy_kj_per_mol);
+      stored so the recorded disagreement is not lost to a future reader, and so
+      the oxidiser's kinetic effect (46.2 -> 26.4 kJ/mol) stays visible.
+      Same secondary-citation caveat as above.
+    source: "DOI:10.1149/2.0311704jss (via review DOI:10.1016/j.matdes.2026.115650 §5 ref.145)"
+    confidence: estimated
+
+  chem_temp_ref_c:
+    value: 25.0
+    unit: C
+    note: >
+      CONVENTION, not a measurement — the reference point at which the Arrhenius
+      factor is exactly 1.0. 25 C is chosen because Seo 2017's Arrhenius fit and
+      the Nernst relation already used by this pack (w_ph_acid_k note,
+      E_rev = -0.119 - 0.059*pH) are both quoted at 25 C.
+      WARNING: neither Kp source (US2011/0186542A1, US8070843B2) reports its
+      slurry or platen temperature, so kp_m_per_pa is NOT anchored at 25 C. The
+      temperature term is therefore only trustworthy as a RELATIVE scaling
+      between two simulated temperatures, not as an absolute correction of the
+      calibrated rate.
+    source: "definition (reference point); 25 C matches DOI:10.1149/2.0311704jss and the Nernst 25 C convention"
+    confidence: estimated
+
+  # ── passivation kinetics: how the WO3 film grows and saturates ────────
+  passivation_film_thickness_nm:
+    value: 0.55
+    unit: nm
+    note: >
+      Thickness of the WO3 top layer on a polished CVD W surface, measured by
+      XPS and Auger: Kaufman, Thompson, Broadie, Jaso, Guthrie, Pearson & Small
+      1991, J. Electrochem. Soc. 138(11) 3460-3465, DOI:10.1149/1.2085434 —
+      "the oxide consists of 5-6 A of WO3 over 3-10 A of some other lower oxide
+      that forms a transitional region between the WO3 and the bulk W".
+      5-6 A -> 0.5-0.6 nm; 0.55 nm is the midpoint of that stated range.
+      Use passivation_total_oxide_thickness_nm if the whole altered layer
+      (WO3 + sub-stoichiometric transition) is wanted.
+      Conditions: ferricyanide/phosphate/ethylenediamine slurry (K3Fe(CN)6, NOT
+      Fe(NO3)3/H2O2), 125 mm wafers, Strasbaugh 6CA/6DQ, post-polish surface.
+      Different oxidiser from this pack — adopted because it is the only direct
+      thickness measurement of a polished W surface in the corpus, and because
+      Lim 2013 (same mechanism, Fe(III)/H2O2) reports only XPS PEAK RATIOS, not
+      a thickness. Independent support that the film is thin and fast-forming:
+      Wang 2012 (DOI:10.1149/1.4717508) infers a CONSTANT oxide thickness across
+      an abrasive-concentration sweep and concludes "the time constant of the
+      surface reaction should be short compared to the time interval between two
+      adjacent collisions" (collision frequency estimated at 50-500 Hz).
+    source: "DOI:10.1149/1.2085434 (XPS/Auger, 5-6 A WO3)"
+    confidence: literature
+
+  passivation_total_oxide_thickness_nm:
+    value: 1.15
+    unit: nm
+    note: >
+      Whole chemically altered layer = 5-6 A WO3 + 3-10 A lower oxide
+      (Kaufman 1991, same sentence as above): 0.8-1.6 nm total, midpoint 1.15 nm.
+      Reported as a range in the source; the spread is real (the transition layer
+      is 3-10 A) and is not narrowed here.
+      This is the length scale an indenter must stay below to measure
+      film_surface_hardness_pa — see that key's TODO.
+    source: "DOI:10.1149/1.2085434"
+    confidence: literature
+
+  oxidizer_catalyst:
+    value: Fe(NO3)3
+    note: >
+      Named explicitly for the saturation keys below: in this chemistry H2O2 is
+      the oxidant and Fe(III) is the catalyst/electron shuttle (Lim 2013 Eq.4-8),
+      so "saturation concentration" has two different meanings and two different
+      keys. Duplicates the inherited `oxidizer` key on purpose — the inherited
+      one names the redox couple, this one labels the saturating species.
+    source: "DOI:10.1016/j.apsusc.2013.06.003"
+    confidence: literature
+
+  catalyst_saturation_wt_pct:
+    value: 0.1
+    unit: "wt%"
+    note: >
+      Fe(NO3)3 concentration at which W removal stops responding strongly — the
+      region I / region II knee. Lim, Park & Park 2013 (Appl. Surf. Sci. 282,
+      512-517, DOI:10.1016/j.apsusc.2013.06.003), Fig.1: at fixed 1.0 wt% H2O2,
+      pH 2.3, 6 psi, 70 rpm carrier/table, IC1000/SubaIV, 4 wt% colloidal silica
+      (Fuso PL-7), 60 s, CVD W:
+        0      wt% Fe(NO3)3 ->   56 A/min
+        0.01   wt%          ->  923 A/min
+        0.05   wt%          -> 1177 A/min
+        >0.1   wt%          -> "increased only slightly" up to 1.0 wt%
+      The authors put the boundary at 0.10 wt% and attribute the plateau to
+      excess Fe(3+) being supplied to the W surface faster than it is consumed,
+      so the WO3 layer re-forms as fast as it is abraded. XPS in the same paper
+      shows the WO3 peak itself saturating at the same concentration — the
+      saturation is in the FILM, not in the rate law, which is why this key
+      belongs to passivation kinetics and not to the oxidiser curve.
+      SOURCES DISAGREE on where saturation starts, and both are kept:
+      Stojadinovic 2016 (DOI:10.1007/s40735-016-0041-4, 3% 12 nm silica + 5%
+      H2O2, pH 2.5-3, 5 psi) sees the open-circuit potential saturate already at
+      0.02 wt% Fe(NO3)3 — a factor of 5 lower. Different abrasive, different
+      H2O2 loading, and OCP is not removal rate; the discrepancy is recorded, not
+      averaged. Treat 0.02-0.1 wt% as the honest knee band.
+    source: "DOI:10.1016/j.apsusc.2013.06.003 Fig.1 + Fig.5 (XPS); cross-check DOI:10.1007/s40735-016-0041-4 Table 1"
+    confidence: literature
+
+  oxidizer_saturation_wt_pct:
+    value: null
+    unit: "wt%"
+    note: >
+      H2O2 concentration at which W removal saturates — NOT FOUND, left null.
+      Every H2O2 series located either holds H2O2 fixed while sweeping the Fe(III)
+      catalyst (Lim 2013: 1.0 wt% fixed; Stojadinovic 2016: 5 wt% fixed), or stops
+      below any turnover: US2011/0186542A1 sweeps 0/1/3 wt% H2O2 and is still
+      monotonically increasing at 3 wt% (see oxidizer_peak_wt_pct note, where this
+      pack already records that the peak is UNOBSERVED and that (n, C_peak) is
+      formally unidentifiable from sub-peak data alone).
+      Filling this key would therefore contradict ruling #19 already recorded in
+      this pack. The identifiable surrogate that IS fitted is
+      oxidizer_langmuir_K = 0.5496 /wt%, whose half-coverage point is
+      1/K = 1.82 wt% H2O2 — that is a fitted shape parameter, not a measured
+      saturation, and is deliberately not copied into this key.
+      TODO(owner): one W removal-rate measurement at >= 2x the suspected peak
+      H2O2 concentration (i.e. >= 6 wt%) at otherwise fixed conditions breaks the
+      degeneracy and fills this key.
+    source: "searched: papers/US20110186542A1.txt (0/1/3 wt%, monotonic), DOI:10.1016/j.apsusc.2013.06.003 (H2O2 fixed), DOI:10.1007/s40735-016-0041-4 (H2O2 fixed)"
+    confidence: unverified
+
+  static_etch_rate_nm_per_min:
+    value: 1.93
+    unit: nm/min
+    note: >
+      Static (no-pressure, no-abrasion) etch rate of CVD W, at the region I/II
+      knee that catalyst_saturation_wt_pct names: 19.3 A/min = 1.93 nm/min at
+      0.1 wt% Fe(NO3)3 + 1.0 wt% H2O2, pH 2.3. Lim 2013
+      (DOI:10.1016/j.apsusc.2013.06.003) Fig.2 — 2x2 cm CVD W coupons dipped
+      10 min at 35 C, rinsed, N2-dried, thickness by 4-point probe.
+      FULL SERIES (it is non-monotonic, and the non-monotonicity matters — SER
+      runs OPPOSITE to removal rate, which is the paper's central result):
+        0     wt% Fe(NO3)3 -> 37.8 A/min
+        0.01  wt%          -> 85.9 A/min   <- maximum: thin, porous WOx, strong dissolution
+        0.05  wt%          -> 31.1 A/min
+        0.1   wt%          -> 19.3 A/min   <- adopted
+        0.5   wt%          -> 15.8 A/min
+        1.0   wt%          -> 12.3 A/min   <- dense WO3, dissolution suppressed
+      Why this key matters operationally: a high static etch rate is what turns
+      plug recess into keyhole/coring, because a CVD seam is a capillary channel
+      that keeps re-exposing bare W instead of self-limiting like a flat surface
+      (see knowledge note w-cmp-plug-recess-coring-keyhole-overpolish-window).
+      SOURCES DISAGREE ENORMOUSLY ACROSS CHEMISTRIES — do not read 1.93 nm/min as
+      "the" W static etch rate: Kaufman 1991 (DOI:10.1149/1.2085434) Table I
+      measures 8 nm/SECOND at pH 5 and 43 nm/s at pH 10.5 in ferricyanide
+      formulations — ~250x higher per minute, a different oxidiser and a
+      different passivation window (WO3 stable below pH 4, extended to pH 6.5 by
+      the oxidiser + weak base). The inhibited case is also already in this pack:
+      Lee & Seo 2022 (DOI:10.3390/app12031227) reports 90 -> 11 A/min on adding
+      1.5 wt% picolinic acid (see inhibitor_strength_k).
+    source: "DOI:10.1016/j.apsusc.2013.06.003 Fig.2 (35 C, 10 min dip); contrast DOI:10.1149/1.2085434 Table I"
+    confidence: literature
+
+  static_etch_temp_c:
+    value: 35.0
+    unit: C
+    note: Dip temperature for static_etch_rate_nm_per_min (Lim 2013 experimental section).
+    source: "DOI:10.1016/j.apsusc.2013.06.003"
+    confidence: literature
+
+  # ── pattern effects: W plug vs oxide ─────────────────────────────────
+  pattern_selectivity:
+    value: 240.0
+    unit: "-, W removal rate / SiO2 removal rate"
+    note: >
+      W:oxide removal-rate selectivity. Avanzino, Woo, Schonauer & Burke
+      (Advanced Micro Devices), US Patent 5,916,855, "Chemical-Mechanical
+      Polishing Slurry Formulation and Method for Tungsten and Titanium Thin
+      Films", filed 1997-03-26, issued 1999-06-29 — text: "Using the best mode LI
+      slurry as described above, the polish rate selectivity of tungsten to
+      titanium is 4.4:1, and the selectivity of tungsten to SiO2 is approximately
+      240:1."
+      INDEPENDENTLY RECOMPUTED from the same patent's Table III, slurry 8
+      (phthalate-coated alumina + EVERFLO + Fe(NO3)3 5% + (NH4)2S2O8 1%):
+      W 6872 A/min / SiO2 29 A/min = 237.0:1 — 1.3% from the stated 240:1.
+      Chemistry matches this pack (ferric nitrate W oxidiser + alumina abrasive).
+      RANGE IS LARGE AND REAL, do not treat 240 as universal: the same patent
+      reports selectivity moving "from 140:1 to over 400:1 depending on the
+      mixing sequence" alone (Fig.2, Batches A/B/C, identical ingredient ratios),
+      and cites prior art (Scherber & Neville, Semicon Southwest 1994, p.36-60)
+      teaching W:TEOS selectivity below 180. Table III slurry 10 (uncoated
+      abrasive, no suspension agent) gives 8100/129 = 62.8:1.
+      So: 60-400 observed, ~240 for the patent's best mode.
+    source: "US5916855 (Avanzino et al., AMD, 1999), specification text + Table III slurry 8"
+    confidence: literature
+
+  stop_layer_rate_m_per_s:
+    value: 4.83e-11
+    unit: m/s
+    note: >
+      Oxide (SiO2) removal rate in the same W slurry — the "stop layer" rate the
+      pattern model needs to compute dishing. 29 A/min (US5916855 Table III,
+      slurry 8) = 2.9 nm/min = 4.83e-11 m/s.
+      Taken from the SAME table row as the W rate that gives pattern_selectivity
+      (6872 A/min), so the pair is internally consistent — no cross-paper mixing.
+      Conditions: phthalate-coated alumina, EVERFLO suspension agent, 3 wt%
+      Fe(NO3)3.9H2O + 1 wt% (NH4)2S2O8 + 0.036 wt% cupric nitrate.
+      NOTE the persulfate: that row's slurry is the Ti-capable "LI" formulation,
+      not a plain plug slurry. Persulfate strongly accelerates Ti (408 -> 2002
+      A/min, Table I) but only mildly W (4400 -> 6300 A/min), and the patent does
+      not report its effect on the SiO2 rate, so the oxide rate is assumed
+      transferable to a persulfate-free plug slurry. That assumption is untested.
+    source: "US5916855 Table III slurry 8 (SiO2 rate 29 A/min)"
+    confidence: literature
+
+  dishing_max_m:
+    value: 1.6e-07
+    unit: m
+    note: >
+      W line dishing at a 10 um feature, from Damascene test structures:
+      US5916855 Table V, slurry 18 (Fe(3+) 2%, S2O8(2-) 2%, Cl- 0.7%, pH 1.4)
+      -> 1600 A = 1.6e-7 m, with erosion at 50% density = 2000 A.
+      WHY THIS ROW: Table V sweeps W:Ti selectivity and shows dishing is
+      NON-MONOTONIC in it, so there is no single "the" dishing value —
+        slurry 16: W 5800 / Ti 300  = 19.3:1  -> dishing 2900 A (erosion n/r)
+        slurry 17: W 5902 / Ti 1488 =  4.0:1  -> erosion 1700 / dishing 2200 A
+        slurry 18: W 7539 / Ti 2010 =  3.75:1 -> erosion 2000 / dishing 1600 A
+        slurry 19: W 1322 / Ti 1434 =  0.92:1 -> erosion 3499 / dishing 3000 A
+      Both extremes are bad (patent: "dishing and erosion are severe for slurry
+      16 where the last-removed film is polished at a slow rate", and again for
+      slurry 19 where "long polish times are required to remove all film
+      residues"); the minimum of erosion+dishing sits at slurry 18. Row 18 is
+      adopted as the best-case anchor and the full 1600-3000 A span is recorded
+      here rather than averaged away.
+      Independent order-of-magnitude cross-check from a different fab: Yu, Wang,
+      Sheng, Lu & Zhou 2009 (J. Electrochem. Soc. 156(1) H64-H67,
+      DOI:10.1149/1.3009224, Chartered Semiconductor 300 mm) states post-CMP W
+      plug dishing of 200-300 A — an order of magnitude LESS than the patent's
+      10 um damascene lines, which is expected: a sub-micron plug dishes far less
+      than a 10 um line. Yu 2009 attributes that number to C. K. Wang et al.,
+      Jpn. J. Appl. Phys. 41, 5120 (2002), which was NOT read here (secondary).
+      So: ~20-30 nm for contact/via plugs, ~160-300 nm for 10 um lines. This key
+      carries the LINE value because the pattern model is fed a feature scale.
+    source: "US5916855 Table V slurry 18; cross-check DOI:10.1149/1.3009224 (plug dishing 200-300 A, itself secondary to Wang 2002)"
+    confidence: literature
+
+  pattern_dishing_rate_ratio:
+    value: null
+    unit: "-"
+    note: >
+      NOT FOUND as a ratio, left null. The published W pattern data is
+      steady-state GEOMETRY (dishing/erosion in Angstroms after a fixed polish,
+      US5916855 Table V; Yu 2009 Fig.9 regression in relative units), never a
+      dishing RATE divided by a blanket rate. Converting geometry to a rate ratio
+      needs the overpolish time each number was measured at, which neither source
+      reports (US5916855 gives no polish time for Table V; Yu 2009's constants
+      m=2.64, n=2.58, E_i=3.6, R=1.54 are explicitly in relative units with no
+      absolute nm scale).
+      Use dishing_max_m + pattern_selectivity instead, which is what the pattern
+      model actually consumes.
+      TODO(owner): needs a dishing-vs-overpolish-time series on W.
+    source: "searched: US5916855 Table V (no polish time), DOI:10.1149/1.3009224 Fig.9 (relative units only)"
+    confidence: unverified
+
+  pattern_step_height_nm:
+    value: null
+    unit: nm
+    note: >
+      NOT FOUND for W, left null. The step height that enters CMP is the
+      post-deposition topography over the filled features, and it is a DEPOSITION
+      output, not a CMP one — none of the W CMP papers in the corpus report it.
+      Closest available, all rejected as substitutes:
+        - Kaufman 1991: blanket CVD W 500 nm initial thickness (a blanket film
+          thickness, not a step over a pattern).
+        - Kim, Kim, Jeon & Park 2005 (Microelectron. Reliab. 45(9) 1455-1458,
+          DOI:10.1016/j.microrel.2005.07.048): 0.18 um vias through 0.65 um ILD
+          (aspect ratio 3.6) — a via geometry, not a surface step.
+        - Yu 2009: works entirely in relative units.
+      Substituting any of these would put a deposition-stack number into a
+      topography slot and the pattern model would silently run on it.
+      KEY-NAME MAPPING: the solver reads `initial_step_height_m` (metres). This
+      key is the documented slot; filling it also requires adding
+      `initial_step_height_m` for the pattern layer to activate.
+      TODO(owner): pull the post-W-fill step height from a profilometry/AFM
+      scan, or make it a recipe input rather than a pack constant — it is
+      layout-and-deposition specific, arguably not a slurry-pack property at all.
+    source: "searched: DOI:10.1149/1.2085434, DOI:10.1016/j.microrel.2005.07.048, DOI:10.1149/1.3009224 — none report a pattern step height"
+    confidence: unverified
+
+  pattern_planarization_length_mm:
+    value: null
+    unit: mm
+    note: >
+      NOT FOUND for tungsten, left null. The planarization length is a
+      pad/process property extracted from a characterisation mask, and the
+      corpus contains extractions for oxide and for copper but NOT for W:
+        - OXIDE: 3-5 mm for conventional processes (Ouma/Boning, cited in
+          boning-electrical-characterization-cu-cmp: "In oxide CMP, the
+          interaction distance is found to be between 3mm and 5mm for most
+          conventional polish processes and pads"); Lee 2002 MIT thesis tabulates
+          1.9-13.7 mm across eight oxide processes.
+        - COPPER: 50-100 um, i.e. 0.05-0.1 mm — Park, Tugbawa, Boning et al.
+          1998 (VMIC), "significantly shorter than that observed for conventional
+          oxide polish".
+      W plausibly sits between a metal-removal and an oxide-stop regime, but a
+      50x bracket is not a value. Interpolating inside it would be invention.
+      KEY-NAME MAPPING: the solver reads `planarization_length_m` (metres), not
+      this key. This key is the documented, unit-labelled slot; whoever fills it
+      must ALSO add `planarization_length_m: <mm>/1000` or the pattern layer will
+      stay off.
+      Consequence (accepted): cmp_sim/core/solver.py::_pattern_diagnostic
+      refuses to compute pattern effects without planarization_length_m and
+      emits a warning saying so. That refusal is the correct behaviour here.
+      TODO(owner): extract PL from a W characterisation mask, or adopt an
+      oxide-buff PL if the modelled step is the post-W oxide buff rather than the
+      W bulk step.
+    source: "bracketing values only: oxide 3-5 mm (Ouma/Boning, MIT); Cu 50-100 um (Park et al. VMIC 1998) — no W value found"
+    confidence: unverified
+
+  pattern_contact_exponent:
+    value: null
+    unit: "-"
+    note: >
+      NOT FOUND, left null. No W-specific pattern/contact exponent exists in the
+      corpus. Two nearby exponents were found and BOTH are for something else:
+        - Bozkaya & Muftu 2009 (DOI:10.1149/1.3231691) fit R = c*P^n with
+          n = 0.94 (hard pad) down to 0.88 (soft, porous pad) — that is a
+          BLANKET pressure exponent from a pad-contact model, not a pattern
+          density exponent, and it is a simulation result.
+        - Stojadinovic 2016 (DOI:10.1007/s40735-016-0041-4) derives a
+          tribocorrosion model with P^0.5 for W — again blanket, and its absolute
+          prediction is off by 10x by the authors' own admission.
+      Using either as a pattern contact exponent would be a category error.
+      TODO(owner): needs a W dishing/erosion-vs-pattern-density series.
+    source: "searched: DOI:10.1149/1.3231691 (blanket pressure exponent 0.88-0.94), DOI:10.1007/s40735-016-0041-4 (blanket P^0.5) — neither is a pattern exponent"
+    confidence: unverified

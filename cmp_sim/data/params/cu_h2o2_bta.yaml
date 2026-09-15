@@ -1,0 +1,440 @@
+# Copper damascene CMP — H2O2 oxidiser + BTA inhibitor.
+#
+# OVERRIDE of the inherited legacy/knowledge/params/cu_h2o2_bta.yaml.
+# `base: cu_h2o2_bta` resolves to the NEXT tier (legacy), so everything the
+# legacy pack declares is inherited; this file only ADDS the keys the engine
+# consumes but no tier declared, plus two keys where a better citation exists.
+#
+# Why this file exists
+# -------------------
+# regime.detect() could not classify the single-particle contact branch, the
+# pattern model could not run at all (no planarization length, no step height),
+# and the Arrhenius term in chemical_rate was silently inert. Those were data
+# gaps, not code gaps. Every number below carries its primary source; keys that
+# could not be sourced are left `value: null` with `confidence: unverified`
+# rather than guessed, because a guessed hardness silently flips the sign of
+# the particle-size exponent in the Luo-Dornfeld branch.
+#
+# Sources used (all read in full text, not from abstracts)
+# -------------------------------------------------------
+#  [IH08]  Ihnfeldt & Talbot, "Effect of CMP Slurry Chemistry on Copper
+#          Nanohardness", J. Electrochem. Soc. 155(6) H412 (2008),
+#          doi:10.1149/1.2903293; full data in Ihnfeldt, PhD dissertation,
+#          UC San Diego 2008, escholarship.org/uc/item/0qc211z8, Ch.5 Table 5.4
+#          and Ch.6 Table 6.1. Nanoindentation (Hysitron Berkovich) of 1000 nm
+#          sputtered Cu after 10 min immersion in CMP slurry chemistries.
+#  [TUG02] Gbondo-Tugbawa, "Chip-Scale Modeling of Pattern Dependencies in
+#          Copper CMP Processes", PhD thesis, MIT 2002. Tables 5.13/5.15/5.17,
+#          6.2-6.4: model parameters extracted from a 3-step Cu CMP experiment.
+#  [LEN00] Len, McNeill & Gamble, "An Evaluation of the Effects of Benzotriazole
+#          in NH4OH Slurry for Copper CMP", MRS Proc. 613 E7.4.1 (2000),
+#          doi:10.1557/proc-613-e7.4.1. BTA sweep 0-0.75 wt.%, damascene
+#          dishing vs pattern density, 1.2 um deep oxide trenches.
+#  [SJ25]  Shin & Jeong, "Process Temperature Control for Low Dishing in CMP",
+#          Materials 18(19) 4461 (2025), doi:10.3390/ma18194461. Arrhenius fit
+#          of Cu / Ta / SiO2 blanket removal on a 200 mm barrier-step slurry.
+#  [GT07]  Gopal & Talbot, "Use of Slurry Colloidal Behavior in Modeling of
+#          Material Removal Rates for Copper CMP", J. Electrochem. Soc. 154(6)
+#          H507 (2007), doi:10.1149/1.2718474.
+#  [PARK98] Park et al., "Pattern and Process Dependencies in Copper Damascene
+#          CMP", VMIC 1998 (local copy park1998-vmic-cu-damascene.pdf).
+
+base: cu_h2o2_bta
+description: "Cu/H2O2/BTA: softened-surface hardness, damascene pattern terms and Arrhenius Ea, each sourced"
+
+params:
+
+  # ── 1. softened (chemically modified) surface hardness ──────────────
+  film_surface_hardness_pa:
+    value: 3.24e9
+    unit: Pa
+    note: >
+      Nanohardness of a Cu film AFTER 10 min exposure to the closest published
+      match to this pack's chemistry: [IH08] solution (e) = 1 mM KNO3 +
+      0.1 M glycine + 0.1 wt% H2O2 + 0.01 wt% BTA + 0.1 mM SDS at pH 3.0.
+      Dissertation Table 6.1 gives H_W = 3.24 +/- 0.3 GPa (average of the
+      lowest-load indents, 50-100 uN, the shallowest depth at which fully
+      developed plastic deformation is obtained). Table 5.4 for the same
+      sample gives 1.2-3.3 GPa over 22-50 nm indentation depth and 2.7 GPa at
+      71 nm, so 3.24 GPa sits at the top of that spread, closest to the surface.
+
+      ** THREE HONEST WARNINGS - read before trusting the contact branch **
+
+      (a) DIRECTION. This value is NOT "softened": it is HARDER than the
+          `film_bulk_hardness_pa` = 1.2 GPa this pack inherits for electroplated
+          Cu, and harder than [IH08]'s own bare sputtered Cu film (2.2-2.8 GPa,
+          consistent with Beegan 2.5 +/- 0.3 GPa and Chang ~2.3 GPa). The
+          inherited note asserts H_surface <= H_bulk as a safe inequality; the
+          only direct measurement in this exact chemistry CONTRADICTS that
+          assumption, because H2O2 grows Cu2O/CuO (harder than Cu; [IH08]
+          measured bulk cuprite at 17.0-17.5 GPa) rather than a soft hydroxide.
+          The inequality is unsafe for acidic H2O2 chemistries - do not restore it.
+
+      (b) SPREAD. Across the six chemistries x three pH values in [IH08]
+          Table 6.1 the measured surface hardness ranges 0.28-15.6 GPa, a factor
+          of 56. The strongest softening is alkaline glycine+2 wt% H2O2
+          (0.28 GPa at pH 8.3); the strongest hardening is glycine alone at
+          pH 10 (15.6 GPa). Hardness is NOT a property of "Cu in CMP", it is a
+          property of the specific chemistry AND pH. This value is only valid
+          at pH ~3-4 with glycine + low H2O2 + BTA. At this pack's declared
+          3.0 wt% H2O2 (vs the source's 0.1 wt%) it is an extrapolation.
+
+      (c) THE SOURCE ITSELF REPORTS A DISAGREEMENT. Same table, column H_N =
+          the hardness the Luo-Dornfeld model needs in order to reproduce the
+          measured MRR for that same slurry: for solution (e) at pH 3.0 it is
+          > 12 GPa, i.e. ~4x the measured 3.24 GPa. [IH08] attributes the gap to
+          a very thin (<5 nm) passivation layer the indenter cannot resolve, and
+          to the measurements being quiescent while CMP is under flowing slurry.
+          The abrasive indents < 1 nm; this instrument cannot measure below 5 nm.
+          So: use this number to CLASSIFY the contact branch, not to compute MRR.
+    source: "doi:10.1149/1.2903293 (Ihnfeldt & Talbot JES 155(6) H412 2008); full table: escholarship.org/uc/item/0qc211z8 Table 6.1, solution e, pH 3.0"
+    confidence: literature
+
+  # ── 2. single-particle contact stress ───────────────────────────────
+  particle_contact_stress_pa:
+    value: null
+    unit: Pa
+    note: >
+      TODO(film-cu): NOT FILLED - and it cannot be filled from the Luo-Dornfeld
+      literature without circularity. In that model the mean contact pressure
+      an abrasive applies to the wafer is SET EQUAL to the wafer hardness by
+      construction (fully plastic assumption; [IH08] Eq. 2.16, F = pi a_W^2 H_W
+      = pi a_P^2 H_P). Reading a "measured particle contact stress" out of it
+      and then comparing it to H_surf would always return ratio = 1.0 and
+      declare the contact plastic no matter what the inputs are. That is a
+      tautology, not a classification.
+
+      What IS available, for whoever fills this honestly later:
+        - base.yaml `real_contact_area_ratio` = 5.8e-4 at 3 psi, with its own
+          note giving the resulting real ASPERITY contact pressure of 35.7 MPa.
+          That is the pad-asperity stress, two orders below H_surf - it is a
+          lower bound on the particle stress, not the particle stress.
+        - base.yaml `active_particle_density_per_m2` = 1.845e7 and
+          `abrasive_size_nm` = 100 in the legacy Cu pack are the two inputs a
+          non-circular force-partition calculation would need.
+      Until a measurement (or an explicitly non-Luo-Dornfeld derivation) exists,
+      regime.detect() correctly reports contact_branch = unknown and says so.
+    source: "TODO - no non-circular primary source located"
+    confidence: unverified
+
+  # ── 3. damascene pattern terms ──────────────────────────────────────
+  planarization_length_m:
+    value: 2.456e-3
+    unit: m
+    note: >
+      Planarization length L23 extracted for the step-two (barrier-clear) polish
+      of a three-step Cu CMP process, [TUG02] Table 5.15 / Table 6.3: 2456 um.
+      Companion extractions in the same thesis: L11 = 2758 um (step one,
+      integrated contact-mechanics model; the density-step-height model gave
+      4893 um and the thesis itself calls that "unexpectedly large" and the fit
+      "unacceptable"), L33 = 4500 um (step three overpolish).
+
+      ** SOURCES DISAGREE BY ~30x - RECORDED, NOT AVERAGED. ** [PARK98] infers
+      from the width of the erosion transition region on a 50%-density,
+      20 um-pitch block that "the planarization length or the interaction
+      distance for copper polish ... seems to be in the order of 50 um to
+      100 um, compared to on the order of 3 mm to 5 mm for conventional oxide
+      polish." That is a different observable (profile transition width read
+      off a scan) than [TUG02]'s quantity (the kernel width that minimises a
+      least-squares fit across a full die), and the two are not required to
+      agree, but the gap is real and unresolved. The value adopted here is the
+      model-extracted one, because that is what this engine's kernel consumes.
+      Treat any predicted die-scale uniformity as order-of-magnitude only.
+    source: "Gbondo-Tugbawa, MIT PhD thesis 2002, Table 5.15 / Table 6.3 (L23 = 2456 um); contradicted by Park VMIC 1998 (50-100 um)"
+    confidence: literature
+
+  pattern_planarization_length_mm:
+    value: 2.456
+    unit: mm
+    note: >
+      Alias of `planarization_length_m` in mm, provided because the gap list
+      named this key. THE ENGINE READS `planarization_length_m` - this key is
+      documentation only. Same source, same caveats; keep the two in step.
+    source: "Gbondo-Tugbawa, MIT PhD thesis 2002, Table 5.15 (2456 um)"
+    confidence: literature
+
+  initial_step_height_m:
+    value: 1.2e-6
+    unit: m
+    note: >
+      Pre-CMP step height over a damascene trench, taken as the trench depth of
+      the test structures in [LEN00]: "Trenches of different line widths were
+      produced by RIE of the SiO2 to a depth of 1.2 um", then overfilled with
+      30-50 nm Ti + 1.3-1.5 um Cu. For an overfilled damascene array the
+      electroplated topography above a trench is the trench depth to first
+      order, so 1.2 um is the step the pad first sees. This is a STATED number
+      in the source, not a value read off a figure.
+      Cross-check, weaker: [TUG02] Fig. 5.11 plots the measured step height of a
+      100 um line / 100 um space array falling linearly to zero over ~45 s of
+      step-one polish, from a first point near 6000 A (0.6 um) - a factor of two
+      lower, on a different mask and a different plating recipe. If you simulate
+      that mask, use 6.0e-7 instead. The step height is a LAYOUT+PLATING
+      property, not a slurry property: override it per structure.
+    source: "Len, McNeill & Gamble, MRS Proc. 613 E7.4.1 (2000), Experimental Details (1.2 um RIE trench depth)"
+    confidence: literature
+
+  pattern_step_height_nm:
+    value: 1200.0
+    unit: nm
+    note: >
+      Alias of `initial_step_height_m` in nm, provided because the gap list
+      named this key. THE ENGINE READS `initial_step_height_m`.
+    source: "Len, McNeill & Gamble, MRS Proc. 613 E7.4.1 (2000)"
+    confidence: literature
+
+  dishing_max_m:
+    value: 1.5e-7
+    unit: m
+    note: >
+      d_max is defined in this engine (and in [TUG02] §3.4.1) as the dishing at
+      which the pad no longer loads the recessed Cu, i.e. the depth at which
+      dishing stops growing. It is therefore read off the measured SATURATION
+      of dishing, not off a single overpolish point.
+      [LEN00] Fig. 3 and text, damascene arrays of 10/33/50/67/83% density,
+      1.75 psi, 5 vol% NH4OH + 2 wt% alumina:
+        no BTA,        10% overpolish : 400-600 nm  (still growing; 700-850 nm
+                                         at 20% overpolish - no saturation)
+        0.1 wt% BTA,   10% overpolish : < 150 nm ; 20% overpolish : 100-200 nm
+        0.25 wt% BTA,  10% overpolish : < 30 nm
+        0.75 wt% BTA,  20% overpolish : ~100 nm
+      With BTA present the dishing stops tracking overpolish time and settles in
+      the 100-200 nm band across densities - that plateau is what 1.5e-7 m
+      encodes. WITHOUT BTA there is no plateau in the data at all and this
+      parameter is meaningless; do not reuse it for an inhibitor-free slurry.
+      ⚠ confidence=estimated: this is an interpretation of a measured saturation
+      in an ALKALINE NH4OH/alumina slurry, not a published d_max for an acidic
+      H2O2/BTA slurry. It sets the scale (hundreds of nm, not microns and not
+      nanometres), and nothing finer than that should be read from it.
+    source: "Len, McNeill & Gamble, MRS Proc. 613 E7.4.1 (2000), dishing vs BTA vs pattern density"
+    confidence: estimated
+
+  stop_layer_rate_m_per_s:
+    value: 8.33e-10
+    unit: m/s
+    note: >
+      Barrier (Ta) blanket removal rate at the balance-point process temperature
+      of 30 C, [SJ25] §3.2: "the removal rates of approximately 400-500 A/min
+      for all three materials" and "the Arrhenius plots of the three materials
+      intersected at around 30 C, where the removal rates converged to
+      approximately 500 A/min, resulting in a nearly 1:1:1 selectivity ratio."
+      500 A/min = 50 nm/min = 8.33e-10 m/s. Measured by 4-point probe on 200 mm
+      blanket Ta, POLI-500 tool, commercial barrier slurry.
+      ⚠ This is a BARRIER-STEP slurry deliberately formulated for ~1:1:1
+      selectivity. A bulk-Cu-removal slurry has a completely different balance -
+      see `pattern_selectivity` below.
+    source: "doi:10.3390/ma18194461 (Shin & Jeong, Materials 18(19) 4461, 2025) §3.2"
+    confidence: literature
+
+  pattern_selectivity:
+    value: 1.0
+    unit: "-"
+    note: >
+      Cu : barrier : oxide removal-rate ratio. Two measured regimes, RECORDED
+      SEPARATELY because they are not the same process step:
+
+      (1) BARRIER STEP, temperature-controlled. [SJ25]: at 30 C, Cu : Ta : SiO2
+          = ~1 : 1 : 1, all near 500 A/min. This is the value adopted, because
+          it is the step in which dishing is actually set. Note it is FRAGILE:
+          the same paper measures Ea(Cu) = 151.7 vs Ea(Ta) = 29.9 vs
+          Ea(SiO2) = 8.75 kJ/mol, so selectivity is only 1:1:1 AT 30 C and runs
+          away toward Cu at higher pad temperature - which is precisely why
+          uncontrolled runs in that paper dished 12-16 nm and controlled runs
+          dished 4 nm / <1 nm.
+      (2) BULK Cu STEP. [TUG02] Table 5.15 (step two): r_Cu = 44 A/s,
+          r_barrier = 7.58 A/s, r_oxide = 2.36 A/s, i.e. Cu:barrier = 5.8 and
+          Cu:oxide = 18.6. Table 5.17 (step three, buff) inverts it:
+          r_Cu = 9.0, r_oxide = 20.0, r_barrier = 4.0 A/s, i.e. Cu:oxide = 0.45.
+      A single number cannot cover both. If you simulate bulk Cu removal,
+      override this with 5.8 (vs barrier) or 18.6 (vs oxide) and say which.
+    source: "doi:10.3390/ma18194461 §3.2 (1:1:1 at 30 C); contrasting bulk-step values from Gbondo-Tugbawa MIT thesis 2002 Tables 5.15/5.17"
+    confidence: literature
+
+  pattern_dishing_rate_ratio:
+    value: null
+    unit: "-"
+    note: >
+      TODO(film-cu): NOT FILLED. The published damascene data give dishing DEPTH
+      versus feature width, density and overpolish time ([LEN00] Fig. 3,
+      [TUG02] Figs. 5.18-5.19, Ruan 2009 J. Semicond. 30(4) 046001 Figs. 5-12),
+      but none of them reports a dishing RATE ratio as a separate constant, and
+      the quantity is definition-dependent (dish rate vs blanket Cu rate? vs
+      oxide rate? during which of the three steps?). Differentiating a digitised
+      depth-vs-time curve would produce a number with no stated uncertainty, so
+      it is left null rather than manufactured.
+    source: "TODO - no primary source reports this quantity directly"
+    confidence: unverified
+
+  pattern_contact_exponent:
+    value: null
+    unit: "-"
+    note: >
+      TODO(film-cu): NOT FILLED. [TUG02]'s integrated model does carry a contact
+      factor k_c (2758 um step one: k_c1 = 9.95 1/kPa; step two k_c2 = 2.3e3;
+      step three k_c3 = 2.5e3 1/kPa), but that is a linear compliance in 1/kPa,
+      NOT a dimensionless exponent, and the OCR column alignment of those thesis
+      tables is ambiguous enough that transcribing them as an exponent would be
+      a guess. Ruan 2009 reports the qualitative saturation instead (dishing and
+      erosion level off above ~0.7 pattern density; dishing rises with line
+      width and line space and then saturates) without fitting an exponent.
+    source: "TODO - Gbondo-Tugbawa 2002 reports a compliance k_c in 1/kPa, not an exponent"
+    confidence: unverified
+
+  oxide_dishing_sensitivity_b:
+    value: null
+    unit: "1/m"
+    note: >
+      TODO(film-cu): NOT FILLED. The overpolish steady-state model in
+      cmp_sim/models/pattern_density.py needs b in r_oxide(d) = RR_ox/(1-rho)
+      *(1 + b*d). No source consulted reports the oxide rate rising linearly
+      with the dishing depth with a fitted slope; [TUG02] instead handles the
+      same physics through the pressure-vs-pre-dishing relation and d_max.
+      With this null the solver still reports dishing_max-based diagnostics and
+      declares the steady-state branch unavailable, which is the correct
+      behaviour.
+    source: "TODO"
+    confidence: unverified
+
+  # ── 4. temperature dependence ───────────────────────────────────────
+  E_a_kj_per_mol:
+    value: 151.7
+    unit: kJ/mol
+    note: >
+      MEASURED, SOURCED, AND DELIBERATELY NOT WIRED INTO THE ENGINE.
+      (This key is documentation; the engine reads
+      `chem_activation_energy_kj_per_mol`, which is null below.)
+
+      The number: apparent Arrhenius activation energy of Cu REMOVAL RATE (not
+      of a single reaction), [SJ25] §3.2 Eq. 2 and Fig. 6, ln RR = -(Ea/R)(1/T)
+      + ln A fitted to blanket 200 mm Cu removal versus measured pad
+      temperature: Ea = 151.7 kJ/mol, ln A = 66.3. Same fit, same tool:
+      29.9 kJ/mol for Ta, 8.75 kJ/mol for SiO2. Independent qualitative
+      support that Cu CMP sits high: Sorooshian et al., JES 151(2) G85 (2004),
+      doi:10.1149/1.1635388, define a "combined activation energy" and find Cu
+      CMP above ILD CMP (that paper's own number was not read here).
+
+      Why it is not activated - this was tested, not assumed:
+      (a) DOUBLE COUNTING. This pack's `kp_m_per_pa` was back-calculated from
+          a literature Cu MRR range (400-800 nm/min at 2-3 psi) measured on
+          real, frictionally heated tools at unstated temperature. Multiplying
+          that Kp by an Arrhenius factor referenced to 30 C counts temperature
+          twice.
+      (b) IT FAILS THE SIMULATOR'S OWN PLAUSIBILITY GATE. At 151.7 kJ/mol a
+          mere +5 C (the 35 C of examples/cu_damascene.yaml vs the 30 C
+          reference) multiplies the chemical term by 2.66x and drives that
+          example to ~15,600 A/min, above the 1,000-12,000 A/min published Cu
+          envelope in cmp_sim/core/sanity.py. A 10 C rise would give ~8x.
+      (c) REGIME TRANSFER. [SJ25] used a commercial BARRIER-step slurry
+          (formulated for ~1:1:1 Cu:Ta:SiO2), not this pack's acidic glycine/
+          H2O2/BTA bulk-Cu chemistry, and used removal rate as a surrogate for
+          reaction rate so pad/contact-area changes are folded in.
+      To activate it, Kp must first be recalibrated at a KNOWN temperature so
+      the two terms stop overlapping. Until then the engine correctly reports
+      temperature as not modelled rather than applying a 2.7x factor nobody
+      measured in this chemistry.
+    source: "doi:10.3390/ma18194461 (Shin & Jeong, Materials 18(19) 4461, 2025) §3.2, Fig. 6"
+    confidence: literature
+
+  chem_activation_energy_kj_per_mol:
+    value: null
+    unit: kJ/mol
+    note: >
+      TODO(film-cu): intentionally null. The literature value IS available and
+      is recorded in `E_a_kj_per_mol` above (151.7 kJ/mol, [SJ25]); it is left
+      unwired because this pack's Kp already absorbs temperature implicitly, so
+      applying it would double-count and, as measured, pushes the Cu example
+      1.3x past the simulator's own published-rate envelope. Fill this only
+      together with a Kp recalibrated at a stated temperature.
+    source: "value exists (doi:10.3390/ma18194461) but is not applicable until Kp is temperature-anchored"
+    confidence: unverified
+
+  chem_temp_ref_c:
+    value: 30.0
+    unit: C
+    note: >
+      Reference temperature at which an Arrhenius multiplier would be exactly
+      1.0. Pinned to the balance point of the activation-energy source: [SJ25]
+      finds the Cu/Ta/SiO2 Arrhenius lines intersect "at around 30 C, where the
+      removal rates converged to approximately 500 A/min". Declared now so that
+      whoever wires up `chem_activation_energy_kj_per_mol` inherits the correct
+      anchor instead of inventing one; inert on its own.
+    source: "doi:10.3390/ma18194461 §3.2"
+    confidence: literature
+
+  # ── 5. BTA adsorption ───────────────────────────────────────────────
+  inhibitor_K_ads_L_per_mol:
+    value: null
+    unit: L/mol
+    note: >
+      TODO(slurry-chemist): DELIBERATELY NULL. Three candidate numbers exist and
+      none of them is defensible for THIS pack:
+        - K_eq = 28676 L/mol, the equilibrium constant implied by the inherited
+          `inhibitor_dG_ads_kJ` = -35.4 kJ/mol. Already falsified as a
+          steady-state constant: at that K, theta is 0.996 at 0.1 wt% BTA and
+          0.998 at 0.25 wt% BTA, so the model predicts a 0.7% rate change where
+          [LEN00] measures 35.4% (65 -> 42 nm/min). Quantitative refutation,
+          recorded as EVIDENCE-RULES ruling #17 in the inherited pack.
+        - K_eff = 183 L/mol (back-solved from the 0.1 wt% point at fixed k=3.0)
+          and K_eff = 249.7 L/mol (two-point fit, which also moves k to 2.684).
+          Both come from [LEN00], an ALKALINE NH4OH + alumina slurry. BTA
+          protonation and the stability window of the Cu(I)-BTA complex are both
+          pH-dependent, so transferring an absolute K from pH ~11 to this pack's
+          pH 4.0 is not justified.
+      The honest state is therefore: the equilibrium path is refuted, the
+      effective path is measured only in the wrong pH regime, and no acidic
+      H2O2/BTA adsorption constant was located. Filling this needs a direct
+      BTA-concentration sweep of Cu removal at pH 3-4 with H2O2.
+      Note also that neither Langmuir + exp(-k*theta) solution reproduces the
+      measured 0.5/0.75 wt% PLATEAU (~42 nm/min, flat): the functional form has
+      no mechanical floor, so it predicts continued decay. That is a structural
+      limitation of the model, not a bad constant.
+    source: "TODO - refutation and back-solved alkaline values from Len/McNeill/Gamble MRS 613 E7.4.1 (2000), doi:10.1557/proc-613-e7.4.1"
+    confidence: unverified
+
+  inhibitor_saturation_mM:
+    value: 21.0
+    unit: mM
+    note: >
+      BTA concentration above which passivation saturates and Cu removal stops
+      responding. [LEN00], 5 vol% NH4OH + 2 wt% alumina (300 nm), 1.75 psi,
+      60/60 rpm: "Copper polish rate plunges from 400 nm/min to 65 nm/min with
+      the addition of 0.1 wt.% BTA ... At 0.25 wt.% BTA the polish rate has
+      fallen to 42 nm/min, but further increase in BTA concentration has little
+      effect." 0.25 wt% BTA / MW 119.12 g/mol at rho ~ 1 g/mL = 20.99 mM.
+      The dishing data saturate at the same point (dishing < 30 nm at 0.25 wt%,
+      and the paper notes 0.5-0.7 wt% may even worsen dishing slightly).
+      Mechanistic reading given by the source: above 0.25 wt% the Cu-BTA polymer
+      layer is continuous, chemical dissolution is shut off, and "the polish
+      process becomes almost entirely mechanical".
+      ⚠ Measured in an ALKALINE NH4OH system, not this pack's acidic H2O2
+      system. Adopted because it is the only quantitative BTA saturation sweep
+      located (n=5, 40x concentration range) and because the saturation
+      THRESHOLD is a film-continuity property that transfers better than an
+      absolute adsorption constant - but it is still a cross-regime transfer.
+      This pack runs at `inhibitor_mM` = 1.0 mM, i.e. a factor of 21 BELOW
+      saturation, so the pack's operating point is on the steep part of the
+      curve where the inhibitor term matters most.
+    source: "Len, McNeill & Gamble, MRS Proc. 613 E7.4.1 (2000), doi:10.1557/proc-613-e7.4.1, Polish Rate section"
+    confidence: literature
+
+  # ── 6. oxidiser peak — same value, better citation ──────────────────
+  oxidizer_peak_wt_pct:
+    value: 3.0
+    unit: "wt%"
+    note: >
+      Value UNCHANGED from the inherited pack (3.0 wt%); this override only
+      attaches a primary citation, because the inherited entry pointed at an
+      internal overview note. [GT07] abstract and Figs. 1-2: the model
+      reproduces "the highest MRR for an alumina slurry with H2O2 in the range
+      of 2-3.6 wt % and 0.1 M glycine", i.e. the non-monotonic Cu removal peak
+      sits at 2-3.6 wt% H2O2 for exactly the alumina/glycine/H2O2 family this
+      pack describes; 3.0 wt% is inside that band. Independent mechanistic
+      support for the fall-off above the peak: Ein-Eli, Abelev & Starosvetsky,
+      Electrochim. Acta 49, 1499-1503 (2004), doi:10.1016/j.electacta.2003.11.010
+      (high H2O2 -> Cu passivation -> reduced dissolution).
+      ⚠ The inherited pack notes that when `oxidizer_passivation_K` is present
+      this legacy unimodal path is INACTIVE, and that the passivation K itself
+      was fitted in an alkaline, complexant-free regime whose sign is reversed
+      in acidic complexant systems. Nothing here fixes that; this entry only
+      makes the peak location citable.
+    source: "doi:10.1149/1.2718474 (Gopal & Talbot, JES 154(6) H507, 2007), abstract and Figs. 1-2"
+    confidence: literature

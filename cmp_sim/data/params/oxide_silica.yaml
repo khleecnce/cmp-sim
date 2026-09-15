@@ -1,0 +1,446 @@
+# Oxide (TEOS/PETEOS/thermal SiO2) CMP with a colloidal-silica slurry.
+#
+# OVERRIDE of the inherited legacy/knowledge/params/oxide_silica.yaml.
+# `base: oxide_silica` resolves to the NEXT tier down the search path, so every
+# value the legacy pack already sources (Kp, pH peak, abrasive size/conc laws,
+# dispersant shield, viscosity, bulk hardness ...) is inherited untouched. This
+# file ONLY adds the dielectric-CMP gaps that were previously absent.
+#
+# Scope discipline
+# ----------------
+# Oxide removal is hydrolysis-driven (Cook 1990): water diffuses into the silica
+# network, Si-O-Si bonds are hydrolysed to silanol, and the softened layer is
+# abraded. Silica abrasive has NO Si-O-Ce "chemical tooth" — ceria-specific
+# concentration/redox laws live in sti_ceria.yaml and must not leak in here.
+#
+# Nothing below feeds the Preston P*V core, so the validation back-test
+# (us9499721b2 TEOS/colloidal silica, 1.9% MAPE) is unaffected by construction;
+# it was re-run after this file was written and is unchanged.
+
+base: oxide_silica
+description: "Oxide / colloidal silica: hydrolysis mechanism, contact stress, pattern and thermal terms"
+
+params:
+
+  # ══════════════════════════════════════════════════════════════════
+  # 1. Single-particle contact — stress and the softened surface
+  # ══════════════════════════════════════════════════════════════════
+  # cmp_sim/core/regime.py::classify_contact_branch needs BOTH
+  # particle_contact_stress_pa and a hardness. Only the first is publishable.
+
+  particle_contact_stress_pa:
+    value: 2.58e+08
+    unit: Pa
+    note: >
+      MEAN HERTZIAN CONTACT PRESSURE P0 under ONE abrasive particle during
+      silica-on-silica polishing. Cook 1990, "Chemical processes in glass
+      polishing", J. Non-Cryst. Solids 120, 152-171, doi:10.1016/0022-3093(90)90200-6,
+      Appendix 2 ("Interaction during the polishing of silica by silica"):
+      part pressure 0.4 kg/cm^2, speed 5 cm/s, particle diameter 0.015 um ->
+      contact area a_c = 0.054 nm^2, **P0 = 2627 kg/cm^2**, friction coefficient
+      0.28, max surface tensile stress 268 MPa, dwell time 0.005 us.
+      Unit conversion (1 kgf/cm^2 = 98066.5 Pa): 2627 * 98066.5 = 2.576e8 Pa.
+      Cross-check inside the same paper: Appendix 1 (3 um particles, 0.07 kg/cm^2
+      part pressure) gives P0 = 1.5e3 kg/cm^2 = 1.47e8 Pa, and Appendix 2's CeO2
+      case gives 2684 kg/cm^2 = 2.63e8 Pa. So the published band for a single
+      CMP-scale particle on silica is **1.5e8 - 2.6e8 Pa**, and this pack takes
+      the silica-abrasive-on-silica end of it, which is the chemistry of this pack.
+      ⚠ These are Cook's own Hertzian calculations from measured polishing
+      conditions, not a direct stress measurement — no one can put a gauge under
+      a 15 nm particle. They are, however, computed from the particle size,
+      load-per-grain and elastic constants of exactly this system.
+      ⚠ Cook's conditions (0.4 kg/cm^2 = 5.7 psi, 5 cm/s) are optical-polishing,
+      not a 300 mm CMP tool; P0 scales weakly (as P^(1/3) per his eq. 6), so a
+      3 psi CMP run sits within ~20% of this value, but the number is a
+      REFERENCE-CONDITION stress, not a per-recipe one.
+      Consequence: P0/H_bulk = 2.58e8 / 9e9 = 0.029 << 0.5, so the inherited
+      bulk hardness alone already puts this system firmly on the ELASTIC branch
+      (regime.py ELASTIC_STRESS_RATIO = 0.5). The softened layer would have to be
+      ~29x softer than bulk (i.e. below ~0.3 GPa) to flip the branch to plastic.
+    source: "doi:10.1016/0022-3093(90)90200-6 (Cook 1990) Appendix 2, silica-on-silica case"
+    confidence: literature
+
+  film_surface_hardness_pa:
+    value: null
+    unit: Pa
+    note: >
+      **NOT SOURCED — deliberately null.** TODO(materials-agent): the hardness of
+      the hydrated/softened silica surface that CMP actually abrades has no
+      published direct measurement, and the reason is physical, not clerical.
+      What the literature actually says, in order of how close it gets:
+      (a) Cook 1990 (doi:10.1016/0022-3093(90)90200-6) states plainly that
+          "material constants for the surface itself are not available", and
+          that the bulk elastic constants of hydrated silicate glasses are "not
+          appreciably different from their anhydrous analogs [17,18]". He defines
+          microhardness as average bond energy per unit volume and says it "may
+          be reduced by hydration and corrosion" — a direction, not a number.
+      (b) The softened layer on PURE silica is 0.5-12 nm thick (Cook's Fick
+          calculation) against 1-20 nm measured; Tadjiev & Hand 2010
+          (J. Non-Cryst. Solids 356(2) 102-108,
+          doi:10.1016/j.jnoncrysol.2009.10.004) report that for durable glasses
+          the hydrated layer is "of the order of 5 nm which is too small to be
+          detected by nanoindentation due to indenter bluntness". So the
+          measurement this key wants is BELOW the resolution of the standard
+          technique for exactly the composition we care about.
+      (c) Bracketing evidence from less durable glasses, same paper, Table 2
+          (bulk H -> hydrated-layer H, GPa): SKMB1 5.1 -> 1.6; SKMB2 4.8 -> 2.5;
+          SS 6.2 -> 1.9 (5 min) / 1.5 (10 min). Softening factor 0.24-0.52.
+          Their high-durability soda-lime compositions showed NO measurable
+          change at all. Pure SiO2 is the most durable of the family, so
+          transferring the 0.24-0.52 factor to it would be an extrapolation
+          across the exact variable (chemical durability) that controls the
+          effect — that is a guess, and this project does not ship guesses.
+      (d) Milder, closer-to-durable evidence: Zhang et al. 2024, npj Mater.
+          Degrad. (doi:10.1038/s41529-024-00431-3) measure a boroaluminosilicate
+          surface going from ~7.5 to ~6.4 GPa nanohardness (Vickers 6.5 -> 5.8)
+          after 90 min aqueous corrosion — a factor of only 0.85.
+      So the honest bracket for a hydrated silica surface is somewhere between
+      0.85x and 0.24x of bulk, i.e. 2.2-7.7 GPa against the inherited
+      film_bulk_hardness_pa = 9e9 — a 3.5x spread that changes no decision here
+      (see particle_contact_stress_pa: the elastic branch survives down to
+      ~0.3 GPa), so a point value would add false precision without adding a
+      single correct prediction.
+      What would close this: nanoindentation with a sharp Berkovich at <5 nm
+      contact depth on a freshly polished, never-dried SiO2 CMP surface, or a
+      modulus-mapping AFM section through the Beilby layer (Suratwala et al.
+      2015, doi:10.1111/jace.13659, measured that layer's CHEMISTRY by SIMS but
+      published no hardness for it).
+    source: "null result; bracket from doi:10.1016/j.jnoncrysol.2009.10.004 Table 2 and doi:10.1038/s41529-024-00431-3"
+    confidence: unverified
+
+  hydration_layer_depth_nm:
+    value: 1.2
+    unit: nm
+    note: >
+      Depth of water penetration into the silica surface during ONE particle
+      pass — the thickness of the layer that CMP actually removes. Cook 1990
+      Appendix 1 worked example (0.07 kg/cm^2, 5 cm/s, 3 um particles, glass
+      surface 465 K): D_eff = 2.4e-9 cm^2/s under the travelling-indenter tensile
+      stress, t_eff = 2.9 us -> depth = (2 D_eff t_eff)^0.5 = **1.2 nm**.
+      Appendix 2's silica-abrasive case gives 0.1 nm and its CeO2 case 1.1 nm.
+      Cook's full Fig. 8 span over particle size and pressure is 0.5-12 nm
+      against measured polishing-layer thicknesses of 1-20 nm.
+      ⚠ Diagnostic only — no layer in this engine consumes it yet. It is recorded
+      because it is the quantity Cook's model actually predicts, and because
+      film_surface_hardness_pa cannot be measured until someone indents this
+      thickness (see that key's note).
+      ⚠ NOT the Beilby layer: Suratwala et al. 2015 (doi:10.1111/jace.13659)
+      measured ~50 nm of Ce penetration by SIMS, an order thicker, but by a
+      reactive rather than diffusive mechanism — different physical object.
+    source: "doi:10.1016/0022-3093(90)90200-6 (Cook 1990) Appendix 1 + Fig. 8"
+    confidence: literature
+
+  # ══════════════════════════════════════════════════════════════════
+  # 2. Arrhenius / activation energy — the sources DISAGREE by 15x
+  # ══════════════════════════════════════════════════════════════════
+
+  chem_activation_energy_kj_per_mol:
+    value: 8.75
+    unit: kJ/mol
+    note: >
+      APPARENT activation energy for SiO2 removal, from an Arrhenius plot of
+      blanket-wafer removal rate against mean process temperature.
+      Shin et al. 2025, Materials 18(19) 4461, doi:10.3390/ma18194461 (MDPI
+      CC-BY, PMC12525981): "The calculated activation energies were 8.75 kJ/mol
+      for SiO2, 29.9 kJ/mol for Ta, and 151.7 kJ/mol for Cu", ln A = 9.7 / 18.1 /
+      66.3 respectively; 200 mm blanket wafers, G&P POLI-500, IR-monitored pad
+      temperature, barrier-removal slurry. The paper's own reading: SiO2's low Ea
+      means "the reaction can proceed even without elevated temperatures, as the
+      hydrated layer forms under typical CMP process temperatures" — i.e. oxide
+      removal is nearly temperature-independent (30 -> 50 C gives only ~1.24x).
+      **THE LITERATURE DISAGREES HERE AND THE DISAGREEMENT IS RECORDED, NOT
+      AVERAGED:**
+        - Shin 2025 (this value): SiO2, 8.75 kJ/mol. Directly measured on SiO2,
+          but with a barrier slurry, not a colloidal-silica oxide slurry.
+        - Mariscal et al. 2020, ECS JSS 9 044008, doi:10.1149/2162-8777/ab89bc,
+          Table I: SiO2 Ea = **1.40 eV = 135.1 kJ/mol** (Si3N4 1.47 eV =
+          141.8 kJ/mol), ceria slurry, fitted inside a modified
+          Langmuir-Hinshelwood model. The authors themselves caveat it: their
+          Arrhenius abscissa is the PAD temperature Tp, not the true wafer
+          reaction temperature Tw, and they write that "the actual activation
+          energies for our SiO2 and Si3N4 processes will be markedly different
+          from the extracted values reported here". That value is carried in
+          sti_ceria.yaml, which is the pack its chemistry belongs to.
+        - Cook 1990's mechanistic expectation, the one this pack's physics is
+          built on: water diffusion into silica has **~40 kJ/mol below 550 C**
+          and ~80 kJ/mol above (Wakabayashi & Tomozawa data, Cook 1990 Fig. 6,
+          secondary citation within Cook). If oxide CMP were rate-limited by the
+          hydrolysis diffusion step, ~40 kJ/mol is what one should see.
+      Shin's 8.75 is FAR below Cook's 40, i.e. the measured oxide CMP response is
+      even less thermally activated than pure hydrolysis diffusion — consistent
+      with a mechanically-limited regime where the chemistry is never the
+      bottleneck, which is also what Mariscal's k1/k2 = 6.3-142 for SiO2 says.
+      Use for RANKING thermal sensitivity (oxide << barrier << Cu), not for
+      absolute rate.
+    source: "doi:10.3390/ma18194461 (Shin 2025) Fig. 5; disagreement vs doi:10.1149/2162-8777/ab89bc Table I and Cook 1990 Fig. 6"
+    confidence: literature
+
+  chem_temp_ref_c:
+    value: null
+    unit: C
+    note: >
+      **NOT SOURCED — deliberately null, and this null is load-bearing.**
+      TODO(calibration-owner): the Arrhenius term in
+      cmp_sim/models/chemical_rate.py only switches on when BOTH
+      chem_activation_energy_kj_per_mol and chem_temp_ref_c exist. The reference
+      temperature is not a literature constant — it is "the temperature at which
+      this pack's kp_m_per_pa was back-calculated", and the inherited Kp comes
+      from a STI calibration point (P = 20.7 kPa, V = 0.8 m/s -> 254.05 nm/min)
+      whose wafer/pad temperature is not reported. Declaring a number here would
+      silently re-scale every rate this pack predicts, and would double-count
+      whatever temperature is already baked into Kp.
+      Leaving it null keeps the thermal response reported as UNMODELLED (the
+      engine emits an explicit warning when a temperature is supplied), which is
+      the correct state: Ea is known, the anchor is not.
+      To close it: re-run this pack's Kp calibration with the pad surface
+      temperature logged, then set this key to that temperature.
+    source: "TODO(calibration-owner) — reference temperature of the Kp back-calculation is unreported"
+    confidence: unverified
+
+  # ══════════════════════════════════════════════════════════════════
+  # 3. Pattern / planarization (MIT Stine-Ouma-Lee framework)
+  # ══════════════════════════════════════════════════════════════════
+  # Engine keys consumed by cmp_sim/core/solver.py::_pattern_diagnostic are
+  # planarization_length_m / initial_step_height_m / stop_layer_rate_m_per_s /
+  # dishing_max_m / oxide_dishing_sensitivity_b / die_size_m. The
+  # pattern_*-prefixed keys named in the data-gap list are declared alongside
+  # them with identical values and sources so the gap list closes literally;
+  # they are aliases, not independent measurements.
+
+  planarization_length_m:
+    value: 3.75e-03
+    unit: m
+    note: >
+      Pad planarization length PL for oxide CMP — the length over which the pad
+      averages the layout (rho_eff = layout (*) w, Ouma eq. 5.4).
+      Ouma, "Modeling of Chemical Mechanical Polishing for Dielectric
+      Planarization", Ph.D. thesis, MIT EECS 1999, hdl:1721.1/9704, Table 5.2:
+      PL measured on a characterisation mask at four process corners —
+      **A (low P, low V) 3.75 mm; B (low P, high V) 4.50 mm; C (high P, low V)
+      3.60 mm; D (high P, high V) 2.90 mm.** This pack takes corner A, the
+      low-pressure/low-speed corner closest to the inherited Kp calibration
+      point (20.7 kPa = 3 psi).
+      PL is formally defined as the width at which the elliptic pad-bending
+      weight falls to 2/pi of its peak (Ouma Fig. 5.11); the engine approximates
+      that kernel with a Gaussian and declares the approximation.
+      **Reported range, not a single truth.** Independent confirmation on a
+      different tool: Lee, "Modeling of CMP for Shallow Trench Isolation",
+      Ph.D. thesis, MIT EECS 2002, hdl:1721.1/29907, Table 2.3 extracts
+      PL_ox = 2.3-4.1 mm on a stacked IC1400 pad and 5.3-7.5 mm on IC1000 solo
+      over 10 processes. Ouma Fig. 7.5 separately reports 3.0 mm (conventional)
+      vs 9.5 mm (high-speed, subpad removed) — "about three times".
+      So the published span is ~2.3-9.5 mm and it is dominated by SUBPAD
+      STIFFNESS, not by slurry: PL is a consumable-set property, and Ouma
+      p.149 finds it insensitive to pad wear and conditioning.
+      ⚠ This is the MIT tool's PL, not this pack's tool's. Without a
+      characterisation-mask run on the target tool the absolute value is
+      transferred, not measured (Ouma's own caution, §7.2.5).
+    source: "Ouma 1999 MIT PhD thesis hdl:1721.1/9704 Table 5.2 (p.146); range cross-checked against Lee 2002 hdl:1721.1/29907 Table 2.3"
+    confidence: literature
+
+  pattern_planarization_length_mm:
+    value: 3.75
+    unit: mm
+    note: >
+      Alias of planarization_length_m in the units the gap list asked for.
+      Same measurement, same source — NOT an independent value. Keep the two in
+      step if either is edited.
+    source: "Ouma 1999 MIT PhD thesis hdl:1721.1/9704 Table 5.2 (p.146)"
+    confidence: literature
+
+  initial_step_height_m:
+    value: 6.60e-07
+    unit: m
+    note: >
+      Initial local step height z1 presented to the polish. Lee 2002
+      (hdl:1721.1/29907) §2.12 experimental stack: pad oxide 100 A + nitride
+      1500 A + trench depth 5000 A -> **z1 = 6600 A = 660 nm**, with 9000 A of
+      oxide overburden deposited. Lee's Table 2.4 processes use a
+      SILICA-based slurry, which is why this stack is quoted in this pack rather
+      than only in the ceria one.
+      Alternative published stack, recorded rather than averaged: Mariscal et al.
+      2020 (doi:10.1149/2162-8777/ab89bc) Fig. 2 — Si trench 2850 A plus thermal
+      oxide gives a 4650 A trench, HDP fill 6000 A, so z1 = 4650 A = 465 nm.
+      ⚠ Step height is a LAYOUT/integration property, not a slurry property. It
+      is a legitimate default for an STI-like stack and a wrong number for any
+      other integration scheme; override it per recipe.
+    source: "Lee 2002 MIT PhD thesis hdl:1721.1/29907 §2.12 (p.65, p.75)"
+    confidence: literature
+
+  pattern_step_height_nm:
+    value: 660.0
+    unit: nm
+    note: >
+      Alias of initial_step_height_m in nm. Same measurement, same source — not
+      an independent value.
+    source: "Lee 2002 MIT PhD thesis hdl:1721.1/29907 §2.12"
+    confidence: literature
+
+  pattern_selectivity:
+    value: 4.0
+    unit: "-"
+    note: >
+      Blanket SiO2:Si3N4 removal-rate selectivity for a SILICA-based slurry.
+      Mariscal et al. 2020, ECS JSS 9 044008, doi:10.1149/2162-8777/ab89bc,
+      states it directly while contrasting their ceria results: "silica-based
+      slurries reach values of RR selectivity that are a mere 4:1".
+      This is the headline difference between the two abrasives and the reason
+      ceria exists for STI: ceria in the SAME study reached 32:1-101:1.
+      **Honest spread.** Lee 2002 (hdl:1721.1/29907) Table 2.4 extracted
+      s = 2.7, 2.8, 3.1, 4.2, 4.4, 7.2, 8.6, 8.9, 10.3, 38 from ten silica-slurry
+      STI processes, and the thesis remarks that "selectivity also appears to
+      change with process conditions". So 4:1 is the representative low value and
+      a single blanket selectivity must NOT be treated as a slurry constant: it
+      moves by an order of magnitude with pressure and speed on the same slurry.
+      ⚠ Diagnostic only. The engine's pattern layer consumes
+      stop_layer_rate_m_per_s, not this ratio, and no nitride film model exists.
+    source: "doi:10.1149/2162-8777/ab89bc (Mariscal 2020), silica-slurry comparison statement; spread from Lee 2002 hdl:1721.1/29907 Table 2.4"
+    confidence: literature
+
+  oxide_nitride_selectivity:
+    value: 4.0
+    unit: "-"
+    note: >
+      Same quantity as pattern_selectivity, under the key name the ceria pack
+      already uses, so that the two packs can be compared on one axis. Silica
+      slurry ~4:1 vs ceria's tens-to-hundreds. Source and caveats as above.
+    source: "doi:10.1149/2162-8777/ab89bc (Mariscal 2020)"
+    confidence: literature
+
+  stop_layer_rate_m_per_s:
+    value: null
+    unit: m/s
+    note: >
+      **NOT SOURCED — null.** TODO(materials-agent): no paper found that reports
+      an absolute Si3N4 removal rate for a colloidal-SILICA oxide slurry under a
+      stated pressure/speed. Mariscal 2020 gives the silica selectivity (4:1) but
+      its measured nitride rates are for the CERIA slurry; Lee 2002 extracts
+      selectivity s from patterned-wafer fitting, never a blanket nitride rate.
+      Deriving one as (this pack's oxide rate)/4 would manufacture a number from
+      a ratio measured on a different tool and slurry, so it is not done.
+      Consequence: cmp_sim's pattern layer reports selectivity and dishing as
+      NOT COMPUTED for this pack, which is correct.
+    source: "TODO(materials-agent) — no blanket SiN rate published for a colloidal-silica oxide slurry"
+    confidence: unverified
+
+  pattern_dishing_rate_ratio:
+    value: null
+    unit: "-"
+    note: >
+      **NOT SOURCED — null.** TODO(pattern-agent). Lee 2002 (hdl:1721.1/29907)
+      eqs. 2.34-2.35 define the overpolish rate pair
+      r_active = (K/s)(1/d_max)((1-rho)/rho) H + K/s and
+      r_field = -(K/d_max) H + K, i.e. the ratio this key wants is not a
+      constant: it is a function of step height H, pattern density rho,
+      selectivity s and the maximum dishing d_max. The thesis publishes the
+      FORM and the fitted per-process constants (Table 2.4: s, tau2, PL_nit for
+      ten processes), never a dimensionless "dishing rate ratio".
+      Recording a single scalar here would assert a constant the model itself
+      says does not exist.
+    source: "TODO(pattern-agent) — quantity is H- and rho-dependent in Lee 2002 eqs. 2.34-2.35, not a published constant"
+    confidence: unverified
+
+  pattern_contact_exponent:
+    value: null
+    unit: "-"
+    note: >
+      **NOT SOURCED — null.** TODO(pattern-agent). The MIT unified step-height
+      model (Smith; Boning et al., MRS Spring 1999) parameterises pad contact
+      with an EXPONENTIAL contact height h1 = a1 + a2 exp(-rho/a3), not a power
+      law, so there is no "contact exponent" to source in that framework. If a
+      power-law contact term is wanted, the pack must first declare which model
+      it belongs to; until then a1/a2/a3 are the honest parameters and they are
+      layout- and pad-specific, published only as fitted per-process values.
+    source: "TODO(pattern-agent) — MIT unified model uses an exponential contact height, not a power-law exponent"
+    confidence: unverified
+
+  dishing_max_m:
+    value: null
+    unit: m
+    note: >
+      **NOT SOURCED — null.** TODO(pattern-agent). d_max (the step at which the
+      pad stops touching the trench oxide) appears in Lee 2002 only as the
+      derived group d_max = K*tau2/(s*rho) (eq. 2.47); it is never measured
+      directly, and its value depends on Kp, s and rho of the specific process.
+      Without it the engine skips the steady-state dishing calculation, which is
+      the right behaviour.
+    source: "TODO(pattern-agent) — derived group in Lee 2002 eq. 2.47, no direct measurement"
+    confidence: unverified
+
+  oxide_dishing_sensitivity_b:
+    value: null
+    unit: 1/m
+    note: >
+      **NOT SOURCED — null.** TODO(pattern-agent). Pairs with dishing_max_m in
+      the steady-state dishing solve; same reason.
+    source: "TODO(pattern-agent)"
+    confidence: unverified
+
+  # ══════════════════════════════════════════════════════════════════
+  # 4. pH / surface charge of the OXIDE FILM (not the abrasive)
+  # ══════════════════════════════════════════════════════════════════
+
+  wafer_iep_ph:
+    value: 2.5
+    unit: pH
+    note: >
+      Isoelectric point of the silica FILM surface (the wafer side). The
+      inherited pack declares abrasive_iep_ph = 2.5 for the colloidal-silica
+      PARTICLE but never the film, so a silica-on-silica system had only half
+      its electrostatics declared.
+      Published range 2-3. Dandu Veera, Peddeti & Babu 2009, J. Electrochem.
+      Soc. 156(12) H936-H943, doi:10.1149/1.3230624, measured silica as
+      **negatively charged across pH 2-12** on their own instrument, i.e. IEP at
+      or below 2. Cook 1990 (doi:10.1016/0022-3093(90)90200-6) §3.1 gives the
+      underlying surface chemistry: Si-OH2+ <-> Si-OH <-> Si-O-, with pK1 ~ -2
+      and the two charged species at equal concentration at pH 9.8, and only 9%
+      of silanols ionised at pH 7.
+      Mechanistic consequence for THIS pack, and the reason Cook says
+      silica-on-silica polishes badly: particle and film are the same material,
+      so at the operating pH 10.5 both are strongly negative. Cook §4 is explicit
+      — "if both the glass and the polishing particle are the same material ...
+      contact bonding is inefficient because of the lack of difference in surface
+      charge ... consequently polishing rates are very low". That is precisely
+      the absence of a chemical tooth, and it is why the ceria pack must own a
+      different concentration/redox law rather than inheriting this one.
+      Quantified in the same paper: 1 SiO2 molecule removed per 5e8 collisions
+      for silica abrasive vs 1 per 24 collisions for CeO2 — a 2e7x difference in
+      per-impact efficiency at nearly identical contact pressure (2627 vs
+      2684 kg/cm^2).
+    source: "doi:10.1149/1.3230624 (Dandu 2009) zeta data; mechanism doi:10.1016/0022-3093(90)90200-6 (Cook 1990) §3.1, §4"
+    confidence: literature
+
+  # ══════════════════════════════════════════════════════════════════
+  # 5. Stop-layer (Si3N4) material constants — diagnostic
+  # ══════════════════════════════════════════════════════════════════
+
+  stop_layer_hardness_pa:
+    value: 1.36e+10
+    unit: Pa
+    note: >
+      Nanoindentation hardness of the PECVD SiNx stop layer — the deposition
+      type used in the blanket nitride work this project validates against
+      (Mariscal 2020 polished PECVD Si3N4).
+      Gan et al. 2018, "Mechanical Properties of Silicon Nitride and Oxynitride
+      Thin Films Deposited by PECVD", Surfaces 1(1) 59-72,
+      doi:10.3390/surfaces1010006 (MDPI CC-BY), Table 2:
+      **silane 16 sccm: E = 153.0 +/- 14.9 GPa, H = 13.6 +/- 2.9 GPa**;
+      silane 50 sccm (more Si-rich): E = 108.5 +/- 10.6, H = 10.2 +/- 3.0.
+      Si excess and hydrogen soften the network, so PECVD SiNx spans ~10-14 GPa.
+      **Disagreeing deposition method, recorded not averaged:** LPCVD low-stress
+      SiN is reported at E ~ 224 GPa, H ~ 22.5 GPa (Zheng et al., Adv. Mater.
+      Sci. Eng. 2013, 835942, doi:10.1155/2013/835942 — full text not obtained,
+      secondary). LPCVD is the harder, better stop layer; which number applies
+      depends entirely on how the nitride was deposited.
+      Hardness ordering that matters for CMP:
+      LPCVD Si3N4 ~22.5 > PECVD SiNx ~13.6 > SiO2 ~8-9 GPa. The review
+      Srinivasan, Dandu & Babu 2015, ECS JSS 4(11) P5029,
+      doi:10.1149/2.0071511jss, states the operative consequence: "silicon
+      nitride is harder than silicon dioxide or ceria" and "the ceria particles
+      are softer than the nitride film" — so nitride is not removed mechanically
+      at all. It is hydrolysed to SiO2/Si(OH)4 first
+      (Si3N4 + 6H2O -> 3SiO2 + 4NH3) and only that soft product is abraded,
+      which is why blocking the hydrolysis blocks the nitride removal outright.
+      ⚠ Diagnostic only — no nitride film model exists in the engine.
+    source: "doi:10.3390/surfaces1010006 (Gan 2018) Table 2; mechanism doi:10.1149/2.0071511jss (Srinivasan 2015)"
+    confidence: literature

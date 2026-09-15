@@ -184,9 +184,12 @@ class PatternResult:
         out: Dict[str, Any] = {
             "effective_density": {"min": round(float(np.min(self.rho_eff)), 4),
                                    "max": round(float(np.max(self.rho_eff)), 4)},
+            # up_rate is in m/s: metres -> angstrom (1e10) and seconds -> minutes
+            # (60). Multiplying by 10 instead silently reported 0.0 A/min for
+            # every real rate, contradicting this object's own notes.
             "up_area_rate_A_per_min": {
-                "min": round(float(np.min(self.up_rate)) * 10.0, 1),
-                "max": round(float(np.max(self.up_rate)) * 10.0, 1)},
+                "min": round(float(np.min(self.up_rate)) * 1e10 * 60.0, 1),
+                "max": round(float(np.max(self.up_rate)) * 1e10 * 60.0, 1)},
             "step_height_nm": {"min": round(float(np.min(self.step_m)) * 1e9, 2),
                                 "max": round(float(np.max(self.step_m)) * 1e9, 2)},
             "notes": self.notes, "warnings": self.warnings,
