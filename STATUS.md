@@ -19,7 +19,7 @@
   zero-dependency web UI + API, `CMP-Sim.command` launcher
 - Films: Cu, W, oxide, STI-ceria, poly-Si, Si substrate, SiC, SnAg
 - Data: 55 additives × 9 films, 11 abrasives × 9 films
-- **450 tests**; verified from a clean clone including `pip install -e .`
+- **456 tests**; verified from a clean clone including `pip install -e .`
 
 ## NEXT
 Owner review of the physics. No implementation is queued — every P1–P8 gate,

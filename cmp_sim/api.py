@@ -172,7 +172,12 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:                    # noqa: N802
         route = self.path.split("?", 1)[0]
         if route not in ("/api/simulate", "/api/sweep"):
-            return self._json(404, {"error": "no such path"})
+            # Name the valid routes: a bare "no such path" sends the caller
+            # reading source to find out what they should have posted to.
+            return self._json(404, {
+                "error": f"no such path: {route}",
+                "valid_post_paths": ["/api/simulate", "/api/sweep"],
+                "valid_get_paths": ["/", "/api/meta"]})
         try:
             n = int(self.headers.get("Content-Length") or 0)
             payload = json.loads(self.rfile.read(n) or b"{}")

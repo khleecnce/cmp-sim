@@ -42,7 +42,11 @@ python3 -m venv .venv
 # interactive web UI (standard library only, no web framework)
 .venv/bin/python -m cmp_sim.api          # -> http://127.0.0.1:8765
 
-# 450 tests
+# the same engine over HTTP, standard library only:
+#   POST /api/simulate   one run           GET /api/meta   films, packs, profiles
+#   POST /api/sweep      vary one input    GET /           the web UI
+
+# 456 tests
 .venv/bin/python -m pytest -q
 ```
 
