@@ -82,6 +82,59 @@ def _cmd_run(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_sweep(args: argparse.Namespace) -> int:
+    """Vary one parameter across a range, from the same YAML config."""
+    import yaml
+
+    from cmp_sim.api import SWEEPABLE, run_sweep
+
+    if args.parameter not in SWEEPABLE:
+        print(f"cannot sweep '{args.parameter}'. available: {sorted(SWEEPABLE)}",
+              file=sys.stderr)
+        return 2
+    if args.steps < 2:
+        print("--steps must be at least 2", file=sys.stderr)
+        return 2
+
+    # The sweep overrides the raw config dict, so the YAML is loaded directly
+    # rather than round-tripped through Recipe and back.
+    cfg = yaml.safe_load(Path(args.config).read_text(encoding="utf-8")) or {}
+    load_config(args.config)              # validate it before sweeping
+    span = args.to_value - args.from_value
+    values = [round(args.from_value + span * i / (args.steps - 1), 6)
+              for i in range(args.steps)]
+    out = run_sweep({"parameter": args.parameter, "values": values,
+                     "recipe": cfg})
+
+    if args.json:
+        Path(args.json).write_text(
+            json.dumps(out, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        print(f"wrote {args.json}")
+
+    for w in out["warnings"]:
+        print(f"!! {w}", file=sys.stderr)
+    print(f"{args.parameter:>16} {'RR (A/min)':>12} {'WIWNU %':>9}  "
+          f"{'lubrication':<11} {'pad load':<12} profile")
+    for pt in out["points"]:
+        if "error" in pt:
+            print(f"{pt['value']:>16} {'-':>12} {'-':>9}  {pt['error']}")
+        else:
+            print(f"{pt['value']:>16} {pt['removal_rate_A_per_min']:>12} "
+                  f"{pt['wiwnu_percent']:>9}  {pt.get('lubrication', '?'):<11} "
+                  f"{pt.get('load_regime', '?'):<12} {pt.get('profile', '')}")
+    return 0 if out["n_ok"] else 1
+
+
+def _cmd_validate(args: argparse.Namespace) -> int:
+    """Run the literature backtest (same gate as validate_cli)."""
+    from cmp_sim.validate_cli import main as validate_main
+
+    argv = ["--gate", str(args.gate)]
+    if args.all_groups:
+        argv.append("--all-groups")
+    return validate_main(argv)
+
+
 def _cmd_packs(_args: argparse.Namespace) -> int:
     for name in available_packs():
         print(name)
@@ -116,6 +169,21 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("packs", help="list available parameter packs").set_defaults(func=_cmd_packs)
     sub.add_parser("models", help="list models/profiles").set_defaults(func=_cmd_models)
     sub.add_parser("profiles", help="alias for 'models'").set_defaults(func=_cmd_models)
+
+    sw = sub.add_parser("sweep", help="vary one parameter across a range")
+    sw.add_argument("config", help="YAML config, as for 'run'")
+    sw.add_argument("parameter", help="parameter to vary (see --help of 'models')")
+    sw.add_argument("from_value", type=float, metavar="FROM")
+    sw.add_argument("to_value", type=float, metavar="TO")
+    sw.add_argument("--steps", type=int, default=7)
+    sw.add_argument("--json", help="also write the full result here")
+    sw.set_defaults(func=_cmd_sweep)
+
+    va = sub.add_parser("validate", help="run the literature backtest")
+    va.add_argument("--gate", type=float, default=15.0,
+                    help="require >=3 in-scope datasets within this MAPE %%")
+    va.add_argument("--all-groups", action="store_true")
+    va.set_defaults(func=_cmd_validate)
     return ap
 
 

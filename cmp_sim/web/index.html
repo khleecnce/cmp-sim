@@ -384,8 +384,11 @@ function sweepChart(points, param){
   let d="", dots="";
   ok.forEach((p,i)=>{
     d += (i?" L":"M")+X(p.value).toFixed(1)+" "+Y(p.removal_rate_A_per_min).toFixed(1);
-    // a point in a different lubrication regime is marked, not hidden
-    const odd = p.lubrication && p.lubrication !== ok[0].lubrication;
+    // a point in ANY different regime is marked, not hidden: marking only
+    // the lubrication change once hid a summit-saturation transition that
+    // was the real reason the sweep warned.
+    const odd = (p.lubrication && p.lubrication !== ok[0].lubrication) ||
+                (p.load_regime && p.load_regime !== ok[0].load_regime);
     dots += `<circle cx="${X(p.value).toFixed(1)}" cy="${Y(p.removal_rate_A_per_min).toFixed(1)}"
              r="${odd?5:3.2}" fill="${odd?"#ffb454":"#4da3ff"}"><title>${p.value}: ${p.removal_rate_A_per_min} A/min (${p.lubrication||"?"})</title></circle>`;
   });
@@ -410,12 +413,12 @@ function renderSweep(j){
   (j.warnings||[]).forEach(w => h += `<div class="err">${w}</div>`);
   h += sweepChart(j.points, j.parameter);
   h += `<table><tr><th>${j.parameter}</th><th>RR (A/min)</th><th>WIWNU %</th>
-        <th>lubrication</th><th>profile</th></tr>` +
+        <th>lubrication</th><th>pad load</th><th>profile</th></tr>` +
     j.points.map(p => p.error
-      ? `<tr><td class="num">${p.value}</td><td colspan="4" class="n">${p.error}</td></tr>`
+      ? `<tr><td class="num">${p.value}</td><td colspan="5" class="n">${p.error}</td></tr>`
       : `<tr><td class="num">${p.value}</td><td class="num">${p.removal_rate_A_per_min}</td>
          <td class="num">${p.wiwnu_percent}</td><td>${p.lubrication||"?"}</td>
-         <td>${p.profile||""}</td></tr>`).join("") + `</table>`;
+         <td>${p.load_regime||"?"}</td><td>${p.profile||""}</td></tr>`).join("") + `</table>`;
   if(j.n_failed) h += `<div class="hint">${j.n_failed} of ${j.points.length} points failed.</div>`;
   o.innerHTML = h;
 }

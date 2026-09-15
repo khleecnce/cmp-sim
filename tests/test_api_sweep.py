@@ -43,11 +43,25 @@ def test_a_sweep_within_one_regime_is_not_warned_about():
     assert not any("regime boundary" in w for w in out["warnings"])
 
 
+def test_the_reason_for_a_regime_warning_is_always_visible():
+    """A sweep once warned about a boundary while every displayed column read
+    the same, because the transition was in an axis that was not reported.
+    Whatever triggers the warning must be present in the points."""
+    out = run_sweep({"parameter": "pressure_psi", "values": [1, 2, 3, 4],
+                     "recipe": BASE})
+    if any("regime boundary" in w for w in out["warnings"]):
+        axes = ("lubrication", "load_regime")
+        assert any(len({p.get(a) for p in out["points"]}) > 1 for a in axes), (
+            "the sweep warned about a regime change that none of the reported "
+            "axes shows")
+
+
 def test_each_point_carries_its_own_regime():
     out = run_sweep({"parameter": "rpm_platen", "values": [60, 200],
                      "recipe": BASE})
     for p in out["points"]:
         assert p["lubrication"]
+        assert p["load_regime"]
         assert p["profile"]
 
 
