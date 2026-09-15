@@ -1,0 +1,479 @@
+# Silicon SUBSTRATE CMP — bare monocrystalline Si wafer, alkaline colloidal silica.
+#
+# NEW pack (no inherited si_substrate_* existed), so `base: base` picks up only the
+# tool/pad/contact-mechanics tier. Nothing is inherited from oxide_silica or any
+# other film pack — that is deliberate. Silicon and silicon dioxide are different
+# materials with different removal chemistry (Si + 4OH- -> Si(OH)4 + 4e-, an
+# ELECTROCHEMICAL oxidation of Si-Si backbonds, versus SiO2's purely chemical
+# Si-O-Si hydrolysis), and the two sit on opposite sides of the alkaline etch
+# selectivity (Seidel 1990 Table II: Ea 0.59 eV for Si<100> vs 0.84-0.90 eV for
+# thermal SiO2 in the same etchants). Letting an oxide Kp leak in here would be
+# the same inheritance accident that broke sic_ceria_h2o2.
+#
+# SCOPE
+# -----
+# Stock-removal / final polish of a BARE silicon wafer (wafer-maker process, and
+# the same chemistry used for 3D-package Si thinning). Alkaline colloidal silica,
+# pH ~10-11, alkali source KOH / NaOH / NH4OH / amine. Mechanism: OH- attacks the
+# Si-Si backbonds to form a soluble, soft hydrated silicate Si(OH)4 layer which
+# the silica particles then wipe off. Haze and defectivity are the real KPIs; this
+# pack does not model them.
+#
+# SOURCES USED (full text read, not abstracts)
+# --------------------------------------------
+#  [ZHU25]  Zhu, et al., "Research on the Trajectory and Relative Speed of a
+#           Single-Sided Chemical Mechanical Polishing Machine", Micromachines
+#           16(4) 450 (2025), doi:10.3390/mi16040450. 125 mm Si wafers, 20 pcs,
+#           Fujimi AJ-7120 colloidal silica + KOH at pH 11, Nitta DuPont MH-S15S
+#           pad. Tables 1/3, Figures 8/11/12. THE Kp SOURCE — the only open paper
+#           found that states load, wafer count, relative velocity in m/s, and
+#           measured removal thickness for bare Si in one place.
+#  [SEI90]  Seidel, Csepregi, Heuberger, Baumgaertel, "Anisotropic Etching of
+#           Crystalline Silicon in Alkaline Solutions: I", J. Electrochem. Soc.
+#           137(11) 3612-3626 (1990), doi:10.1149/1.2086277. Table II + text.
+#           THE ACTIVATION-ENERGY SOURCE, and the mechanism this pack assumes.
+#  [BAE22]  Bae et al., "Silicon Wafer CMP Slurry Using a Hydrolysis Reaction
+#           Accelerator with an Amine Functional Group Remarkably Enhances
+#           Polishing Rate", Nanomaterials 12(21) 3893 (2022),
+#           doi:10.3390/nano12213893 (CC-BY). 60 nm colloidal silica 1 wt%,
+#           pH 10.90, 5.7 psi. Alkali-source rate ladder and abrasive loading.
+#  [HAN25]  Han et al., "Effects of Hydrolysis Reaction and Abrasive Drag Force
+#           Accelerator on Enhancing Si-Wafer Polishing Rate ...", Nanomaterials
+#           15(16) 1248 (2025), doi:10.3390/nano15161248. 100 nm colloidal silica,
+#           pH 9.7 NH4OH, 3 psi soft pad. Soft-pad / low-rate branch.
+#  [SHI25]  Shih et al. (Ta-on-Si nanowear study), Micromachines 16(4) 427 (2025),
+#           doi:10.3390/mi16040427, Table 1. Berkovich nanoindentation of a BARE
+#           SILICON SUBSTRATE used as the instrument reference specimen.
+#  [WAN18]  Wang, Guo, Xu, Cheng, Qian, "An Investigation of the Wear on Silicon
+#           Surface at High Humidity", Materials 11(6) 1027 (2018),
+#           doi:10.3390/ma11061027. Single silica-sphere-on-Si contact pressure.
+#  [LUO22]  Luo et al., "Role of Interfacial Bonding in Tribochemical Wear",
+#           Front. Chem. 10 852371 (2022), doi:10.3389/fchem.2022.852371.
+#           Independent statement of the same single-particle stress scale.
+#  [WAN11]  Wang, Zhang, Biddut, "Chemical effect on the material removal rate in
+#           the CMP of silicon wafers", Wear 270 312-316 (2011),
+#           doi:10.1016/j.wear.2010.11.006. pH sweep on Si(100). Used ONLY for the
+#           pH-dependence narrative; its abrasives are alumina/ceria, not silica,
+#           so none of its numbers are adopted as pack values.
+
+base: base
+description: "Silicon substrate (bare Si wafer) CMP: alkaline colloidal silica, OH- hydrolysis mechanism"
+
+params:
+
+  film:
+    value: silicon
+    note: "Bare monocrystalline Si wafer (substrate), not poly-Si and not SOI device layer."
+    source: "pack scope declaration"
+    confidence: literature
+
+  material_family:
+    value: semiconductor
+    unit: "-"
+    note: >
+      Read by cmp_sim/core/regime.py::material_family / classify_film. Silicon is
+      a semiconductor, so classify_film routes on the family first and then splits
+      on film_bulk_hardness_pa: 10.0 GPa is BELOW the HARDNESS_HARD_CERAMIC
+      threshold, so this pack classifies as "semiconductor", not "hard_ceramic".
+      That is the physically right call — unlike 4H-SiC, bare Si does react
+      readily with OH- at room temperature (Seidel's KOH etch rates are
+      micrometres per hour at 20-100 C, [SEI90] Table A-I), so removal is
+      chemically ASSISTED but not chemically starved. classify_rate_limit then
+      returns "mixed" whenever a reactive chemistry is declared, which is the
+      correct description of alkaline Si polish.
+    source: "[SEI90] doi:10.1149/1.2086277 (Si dissolves in alkali at room T) + pack taxonomy"
+    confidence: literature
+
+  # ══════════════════════════════════════════════════════════════════
+  # 1. Preston coefficient — THE number
+  # ══════════════════════════════════════════════════════════════════
+  # NOTE ON KEY NAME: the engine reads `kp_m_per_pa` (cmp_sim/core/solver.py:109).
+  # `preston_kp` is declared below as a same-valued alias so that either name
+  # resolves; the engine ignores the alias.
+
+  kp_m_per_pa:
+    value: 6.91e-13
+    unit: m/Pa   # equivalently m^2/N; MRR [m/s] = Kp * P[Pa] * V[m/s]
+    note: >
+      DERIVED from [ZHU25] (doi:10.3390/mi16040450) — the paper does NOT publish a
+      Preston coefficient, so this value is back-calculated. FULL ARITHMETIC:
+
+        Wafer (Table 3):   125 mm diameter Si, 540 um thick
+                           area per wafer A1 = pi*(0.0625 m)^2 = 1.227e-2 m^2
+        Wafer count:       4 carriers x 5 wafers = 20
+                           total polished area A = 20 * 1.227e-2 = 2.4544e-1 m^2
+        Load (Table 3):    250 N (15 s) -> 1050 N (29 min) -> 250 N (75 s)
+                           main-stage pressure P = 1050 / 2.4544e-1 = 4278 Pa
+                           (= 0.62 psi — a single-side wafer-maker polisher runs
+                            MUCH lighter than the 3-5 psi of device-layer CMP)
+        Velocity (Fig.8m): plate 60 rpm / carrier 60 rpm gives a STABLE relative
+                           velocity V = 1.7 m/s (abstract says 1.75 m/s at 60 rpm;
+                           1.7 is the value quoted for this exact configuration)
+        Removal (Fig.12a): mean removal thickness 9.2 um for config (a) 60/60 rpm
+        Total time:        15 + 1740 + 75 = 1830 s
+
+        MRR = 9.2e-6 m / 1830 s = 5.027e-9 m/s  (= 301.6 nm/min)
+        SELF-CHECK: the paper's own abstract states "0.3 um/min removal rates"
+        for the optimised condition. 301.6 nm/min reproduces that to 0.5%, which
+        confirms the area and time bookkeeping above is the paper's own.
+
+        Kp = MRR / (P * V) = 5.027e-9 / (4278 * 1.7) = 6.91e-13 m/Pa
+
+      SENSITIVITY / HONEST BAND. If instead the 9.2 um is attributed only to the
+      1050 N main stage (1740 s), MRR = 5.287e-9 m/s and Kp = 7.27e-13 m/Pa. The
+      two bracket the answer at 6.9-7.3e-13, a 5% spread; this pack takes the
+      lower (whole-recipe) end because it matches the paper's own quoted rate.
+
+      WHY confidence is 'med' and not higher:
+        (a) Derived, not published. The paper never writes Kp.
+        (b) The 1.7 m/s is the paper's SIMULATED relative velocity (their Fig. 8),
+            not a measured one, though it is a closed-form kinematic result for
+            the stated geometry (Table 1: carrier R 175 mm, plate R 457 mm,
+            e = 277.89 mm) and their whole point is that at 60/60 rpm it is stable.
+        (c) Single-point calibration. P and V were NOT swept independently in
+            [ZHU25] — the three configurations vary V only (1.7, 1.4-2.6,
+            0.5-1.8 m/s) at fixed load. The Preston P-linearity is therefore
+            ASSUMED here, not demonstrated on this data.
+        (d) 125 mm wafers on a single-side machine. A 300 mm rotary CMP tool at
+            3 psi is a 5x pressure extrapolation.
+
+      CROSS-CHECK AGAINST INDEPENDENT DATA (they do NOT agree — recorded, not
+      averaged, per this project's rule):
+        [BAE22] at 5.7 psi (39.3 kPa), pH 10.90, 1 wt% 60 nm colloidal silica
+          reports 177.1 nm/min (NaOH) / 193.2 nm/min (KOH) / 552.8 nm/min (EDA),
+          and 316.7-372.3 nm/min for commercial Si slurries. Its relative velocity
+          cannot be recovered (69/71 rpm given, carrier-platen centre distance not
+          stated), so no Kp can be derived from it. But note the direction: at
+          NINE TIMES the pressure of [ZHU25], the inorganic-alkali rate is LOWER
+          (177-193 vs 302 nm/min). Preston-linear scaling of this pack's Kp to
+          39.3 kPa and 1.7 m/s would predict ~2770 nm/min, i.e. 14x the measured
+          NaOH rate. Alkali concentration, abrasive loading (1 wt% vs a wafer-fab
+          slurry), pad hardness and particle size differ, and [BAE22] shows a 3x
+          rate swing from the ALKALI SOURCE ALONE at fixed pH — so a single Kp
+          cannot span both. Treat this Kp as valid near its own condition.
+        [HAN25] at 3 psi on a SOFT pad (71 shore A), pH 9.7 NH4OH, 100 nm silica
+          reports only 0.4-19.7 nm/min — another order of magnitude below. Soft-pad
+          final-touch polishing is a different regime; do NOT use this Kp there.
+
+      ENGINE DEFAULT-RECIPE CHECK (run after writing this file): the engine's
+      default recipe (3.0 psi = 20.7 kPa, 0.75 m/s, blanket, Preston-only) returns
+      1077.8 nm/min mean with this Kp. That is 3.6x the 302 nm/min actually
+      measured in [ZHU25], purely because the default pressure is 4.8x higher —
+      i.e. the engine is reproducing Preston-linearity faithfully, and the number
+      is only as good as that linearity over a 5x pressure extrapolation, which
+      this data cannot demonstrate. The [BAE22] cross-check above suggests real Si
+      rates do NOT scale that far linearly. Do not quote 1077 nm/min as a
+      prediction.
+
+      BOTTOM LINE: use for ranking and for conditions near 4 kPa / 1.7 m/s /
+      pH 11 / KOH + colloidal silica on a hard pad. Do not use for absolute rate
+      prediction of soft-pad final touch or of amine-accelerated slurries.
+    source: "doi:10.3390/mi16040450 ([ZHU25] Tables 1/3, Figures 8m/12a) — Kp derived, arithmetic in note"
+    confidence: med
+
+  preston_kp:
+    value: 6.91e-13
+    unit: m^2/N
+    note: >
+      ALIAS of kp_m_per_pa above (m^2/N and m/Pa are the same unit). Declared
+      because external callers and this pack's specification use the name
+      `preston_kp`, while the engine's solver reads `kp_m_per_pa`. Same value,
+      same derivation, same caveats — see the note on kp_m_per_pa. If one is ever
+      edited, edit both.
+    source: "doi:10.3390/mi16040450 ([ZHU25]) — see kp_m_per_pa note for the arithmetic"
+    confidence: med
+
+  # ══════════════════════════════════════════════════════════════════
+  # 2. Hardness
+  # ══════════════════════════════════════════════════════════════════
+
+  film_bulk_hardness_pa:
+    value: 1.00e+10
+    unit: Pa
+    note: >
+      Berkovich nanoindentation of a BARE SILICON SUBSTRATE, H = 10.0 +/- 1.0 GPa
+      (elastic modulus 155.6 +/- 4.2 GPa), averaged over indentation depths of
+      ~15 to ~300 nm. [SHI25] Table 1 ("Bare Si substrate"). In that paper silicon
+      is the reference specimen calibrating the instrument alongside fused silica,
+      for which the same run returned 8.7 +/- 0.2 GPa against a literature value of
+      8.77 +/- 0.02 GPa — i.e. the instrument is demonstrably in calibration, which
+      is why this measurement is preferred over a textbook quotation.
+
+      AGREEMENT / SPREAD in the wider literature (recorded, not averaged):
+        - "extreme hardness (~10 GPa)" for the monocrystalline Si substrate,
+          Materials 14(6) 1355 (2021), doi:10.3390/ma14061355 — same value.
+        - 10.5 GPa for bare Si measured as the substrate reference in
+          Adv. Sci. (2024/25) doi:10.1002/advs.76923 — same value within scatter.
+        - Vickers 1050 +/- 113 kgf/mm^2 = 10.3 GPa for a (100) Si wafer,
+          Materials 18(21) 4890, doi:10.3390/ma18214890 Table 1 — independent
+          INDENTER GEOMETRY, same answer.
+        So four independent measurements converge on 10-10.5 GPa. The brief given
+        to this pack expected "~11-13 GPa"; the measured literature does not
+        support the upper half of that range for indentation hardness, and this
+        pack reports what was measured. (13 GPa figures in the literature are
+        typically the Si YIELD/phase-transformation pressure under an indenter
+        — e.g. mean contact pressure 14.91 GPa at pop-in in MD,
+        doi:10.1038/s41598-017-11130-2 — which is a different quantity.)
+
+      This value only splits soft-vs-hard inside the semiconductor family in
+      regime.classify_film; it is NOT used to compute a removal rate.
+    source: "doi:10.3390/mi16040427 ([SHI25]) Table 1, 'Bare Si substrate' — Berkovich, 15-300 nm depth"
+    confidence: literature
+
+  film_surface_hardness_pa:
+    value: null
+    unit: Pa
+    note: >
+      **NOT SOURCED — deliberately null.** TODO(materials-agent): the hardness of
+      the alkaline-hydrated Si(OH)4 surface layer that this process actually
+      abrades has no published direct measurement that this search could find, and
+      the obstruction is physical rather than clerical:
+
+      (a) THE LAYER IS TOO THIN TO INDENT. [BAE22] characterises this exact layer
+          by XPS Si-O-H peak intensity (18.5% -> 42.2% of the O 1s envelope as EDA
+          goes 0 -> 0.10 wt%), i.e. by CHEMICAL abundance, never by thickness or by
+          mechanical property. [HAN25] does the same. It is an XPS-visible surface
+          termination, so of order a few nm at most — below the depth at which a
+          Berkovich tip gives a meaningful hardness (the same objection Tadjiev &
+          Hand 2010 raise for hydrated silica, doi:10.1016/j.jnoncrysol.2009.10.004:
+          "of the order of 5 nm which is too small to be detected by nanoindentation
+          due to indenter bluntness").
+      (b) IT IS PARTLY SOLUBLE, NOT MERELY SOFT. [SEI90]'s mechanism ends in
+          Si(OH)4 that DISSOLVES ("Si(OH)4 leaves a solid silicon surface as the pH
+          value exceeds 11-12", as quoted by [WAN11] from the silicate chemistry).
+          A layer whose steady-state thickness is set by a dissolution-diffusion
+          balance under flowing slurry does not have a well-defined quiescent
+          hardness to measure ex situ.
+      (c) WHAT IS KNOWN IS ONLY THE DIRECTION AND A CEILING. It is softer than the
+          10.0 GPa bulk — that is the whole premise of chemical-mechanical
+          synergy — and both [BAE22] and [HAN25] show the rate rising with the
+          Si-OH fraction, so the softening is monotonic in OH- exposure. No number.
+          Taking, say, the oxide-pack analogy factor of 0.24-0.52 from a different
+          material (silicate glass) would be an extrapolation across the exact
+          variable that controls the effect, and this pack does not ship guesses.
+
+      CONSEQUENCE, STATED PLAINLY: regime.classify_contact_branch therefore falls
+      back to the BULK hardness, giving stress/hardness = 1.2e9 / 1.0e10 = 0.12,
+      which is <= ELASTIC_STRESS_RATIO (0.5) and so reports ELASTIC. Because the
+      true surface layer is SOFTER, the true ratio is LARGER than 0.12, so the
+      elastic verdict is the one that could flip: the layer would have to be below
+      ~2.4 GPa (a 4.2x softening) to reach the transition band, and below ~1.2 GPa
+      to read plastic. That is entirely plausible for a hydroxide gel. Treat the
+      elastic classification of this pack as UNCONFIRMED.
+
+      WHAT WOULD FILL THIS KEY: in-situ or immediately-quenched nanoindentation /
+      AFM force-curve modulus mapping of a Si surface after alkaline colloidal
+      silica exposure at pH 10-11, at indentation depths of 1-5 nm with a sharp
+      tip, reported alongside the XPS Si-OH fraction so the state of the surface is
+      pinned. Failing that, an inverse extraction of H_surface from a Luo-Dornfeld
+      fit to a P/V/particle-size sweep on bare Si — with the caveat that [IH08] on
+      copper found the inverse-extracted H_N and the measured H to disagree by 4x.
+    source: "TODO(materials-agent) — no measurement located; [BAE22]/[HAN25] characterise the layer only by XPS Si-OH fraction"
+    confidence: unverified
+
+  # ══════════════════════════════════════════════════════════════════
+  # 3. Single-particle contact stress
+  # ══════════════════════════════════════════════════════════════════
+
+  particle_contact_stress_pa:
+    value: 1.2e+09
+    unit: Pa
+    note: >
+      MEASURED-CONDITION Hertzian contact pressure for a SINGLE SILICA SPHERE on a
+      monocrystalline Si(100) surface. [WAN18] §2: spherical SiO2 tip of radius
+      R = 1 um on a p-doped Si(100) wafer (native 0.5 nm SiOx left in place, RMS
+      0.07 nm), applied normal load F_n = 3 uN, "the contact pressure P_c was
+      around 1.2 GPa". That is exactly the tribo-system this pack models — silica
+      abrasive against a hydrated silicon surface — measured one particle at a time.
+
+      INDEPENDENT CONFIRMATION OF THE SCALE: [LUO22] (Front. Chem. 10 852371),
+      reviewing the same laboratory's silica-microsphere-on-single-crystal-silicon
+      experiments, states the tribochemical (non-yielding) wear regime holds "as
+      the contact stress is below 2 GPa" and that at such stress "the contact
+      stress is too low to induce silicon yield, so the material removal ... is
+      mainly due to the tribochemical reaction", with TEM showing an intact
+      crystalline lattice right up to the worn surface. So 1.2 GPa sits inside an
+      independently bounded regime, and that regime is chemical removal without
+      plastic yield — which is precisely the physics of alkaline Si polish.
+
+      DISAGREEING / HIGHER VALUES IN THE SAME LITERATURE, recorded not averaged:
+        - 6.9 GPa at 1 uN and 12.5 GPa at 6 uN for a much SHARPER AFM tip on Si,
+          Nanoscale Res. Lett. 9, 269 (2014), doi:10.1186/1556-276x-9-269. Sharper
+          tip, smaller contact radius, an order of magnitude higher stress.
+        - Si yield stress quoted as 7 GPa and the wear-onset pressure as < 1 GPa
+          in doi:10.1186/s11671-017-2176-8.
+        The lesson is that this quantity is a property of the TIP GEOMETRY as much
+        as of silicon. 1.2 GPa is adopted because its 1 um silica sphere is the
+        closest published geometry to a colloidal-silica agglomerate; a 60-100 nm
+        primary particle carrying a comparable load would see a HIGHER stress.
+
+      LIMITS: a quiescent AFM measurement in humid air at 3 uN, not a slurry-wetted
+      particle under a pad asperity. It is a REFERENCE-CONDITION stress. Used only
+      by regime.classify_contact_branch to pick elastic vs plastic — see the
+      film_surface_hardness_pa note for why that verdict is currently unconfirmed.
+    source: "doi:10.3390/ma11061027 ([WAN18]) §2 Materials and Methods; scale confirmed by doi:10.3389/fchem.2022.852371 ([LUO22])"
+    confidence: literature
+
+  # ══════════════════════════════════════════════════════════════════
+  # 4. Chemistry — activation energy and pH
+  # ══════════════════════════════════════════════════════════════════
+
+  chem_activation_energy_kj_per_mol:
+    value: 56.9
+    unit: kJ/mol
+    note: >
+      Arrhenius activation energy of the ALKALINE DISSOLUTION of Si<100>, which
+      [SEI90] identifies as the RATE-LIMITING step of the whole reaction. Their
+      Table II, 20-42% KOH, Si<100> column: Ea = 0.57, 0.62, 0.60, 0.60, 0.57,
+      0.61, 0.59 eV across seven KOH compositions. Body text summarises it as
+      "approximately 0.6 eV for {100} surfaces".
+
+      UNIT CONVERSION (1 eV/particle = 96.485 kJ/mol):
+        0.59 eV * 96.485 = 56.93 kJ/mol   <- adopted
+        band: 0.57 eV -> 55.0 kJ/mol ; 0.62 eV -> 59.8 kJ/mol
+
+      WHY THIS IS THE RIGHT Ea FOR A CMP PACK. [SEI90] assigns the barrier to a
+      specific physical step: after OH- binds, "the Si-Si backbonds of the Si(OH)2
+      groups to the neighboring lattice atoms have to be broken", which requires
+      thermally exciting those bonding electrons into the conduction band; "this
+      step is considered to be rate controlling for the total reaction". The CMP
+      literature's own mechanism is the same reaction — [BAE22] §4 derives
+      Si + 2OH- -> Si(OH)2(2+) + 2e-, then Si(OH)2(2+) + 2OH- -> Si(OH)4 + 2e-,
+      summing to Si + 4OH- -> Si(OH)4 + 4e-, which is Seidel's stoichiometry
+      exactly. So the barrier being transferred is the barrier of the reaction the
+      polish actually runs on.
+
+      ORIENTATION / CHEMISTRY SPREAD, recorded not averaged ([SEI90] Table II
+      and text):
+        Si<100> in KOH        0.57-0.62 eV  (55.0-59.8 kJ/mol)  <- this pack
+        Si<110> in KOH        0.57-0.62 eV  (essentially identical)
+        Si<111> in KOH        ~0.70 eV      (67.5 kJ/mol) — slowest plane
+        Si<100> in 24% NaOH   0.65 eV       (62.7 kJ/mol)
+        Si<100> in 10% LiOH   0.60 eV       (57.9 kJ/mol)
+        Si<100> in EDP (ethylenediamine-pyrocatechol)  0.40 eV  (38.6 kJ/mol)
+        thermal SiO2, all the above etchants  0.84-0.90 eV (81-87 kJ/mol)
+      TWO CONSEQUENCES WORTH KEEPING. (1) An AMINE chemistry has a MATERIALLY
+      LOWER barrier than KOH — 0.40 vs 0.59 eV — which Seidel attributes to
+      "diffusion and solvation effects in the less alkaline electrolyte". If this
+      pack is ever retargeted at an EDA/DETA/TETA slurry (the [BAE22] family),
+      this key must be changed to ~38.6 kJ/mol, not kept. (2) SiO2's barrier is
+      ~45% higher than Si's, which is the chemical root of the Si:oxide etch
+      selectivity in alkali.
+
+      ⚠ PROVENANCE CAVEAT, stated up front: this is an ETCH activation energy
+      measured on masked wafers in a stirred bath at 50-100 C WITHOUT abrasive or
+      pad contact. It is NOT a fitted temperature coefficient of a CMP removal
+      rate. Its use here assumes the CMP rate is governed by the same
+      backbond-breaking step, which is what both [SEI90] and [BAE22] argue, but no
+      one in this search published a CMP-tool Arrhenius fit for bare Si to confirm
+      it. If a mechanically-assisted (stress-activated) barrier is meant, the
+      apparent Ea under a loaded abrasive will be LOWER than 56.9 kJ/mol by the
+      activation-volume term.
+    source: "doi:10.1149/1.2086277 ([SEI90]) Table II, Si<100> in 20-42% KOH; 0.59 eV x 96.485 = 56.9 kJ/mol"
+    confidence: literature
+
+  slurry_ph:
+    value: 11.0
+    unit: pH
+    note: >
+      pH of the polishing solution in the run this pack's Kp is derived from:
+      [ZHU25] Table 3, "Chemical additive: KOH, PH value of polishing solution:
+      PH11", Fujimi AJ-7120 colloidal silica. Declared at 11.0 so that the pH here
+      and the Kp above describe the SAME experiment — mixing a representative pH
+      with a Kp measured at another would silently corrupt any pH factor.
+
+      WHERE THE PROCESS WINDOW ACTUALLY SITS (literature, adopted as context only):
+        pH 9.7   [HAN25] NH4OH-titrated, 100 nm silica, soft pad -> 0.4-19.7 nm/min
+        pH 10.90 [BAE22] NaOH/KOH/amine, 60 nm silica, 5.7 psi  -> 177-617 nm/min
+        pH 11    [ZHU25] KOH, single-side machine               -> ~302 nm/min
+      so alkaline Si polish is a pH 9.7-11 process, and this pack sits at the top.
+
+      THE pH DEPENDENCE IS NOT MONOTONIC, AND THE SOURCES DISAGREE ON WHY:
+        - [SEI90] fits the Si etch rate over the full range as
+          R ~ [H2O]^4 * [KOH]^(1/4). Rate rises only as the FOURTH ROOT of alkali
+          but falls as the FOURTH POWER of the water it displaces, so there is a
+          maximum (their Fig. 16, ~15-20 wt% KOH) beyond which more alkali is
+          counterproductive. High pH is needed mainly "in order to obtain adequate
+          solubility of the Si(OH)4 complex and in order to remove the native
+          silicon dioxide layer" — not to speed the bond-breaking step itself.
+        - [WAN11] (doi:10.1016/j.wear.2010.11.006) Fig. 3, Si(100), 50 nm
+          abrasive, 20 kPa: with ALUMINA the MRR has a MINIMUM at pH 9, climbs
+          sharply from pH 10 to 11, then plateaus above 11; with CERIA it PEAKS at
+          pH 10 and then falls. Same wafer, same pressure, opposite pH response —
+          so the pH law belongs to the ABRASIVE-plus-chemistry pair, not to
+          silicon. Neither of their abrasives is the colloidal silica of this pack,
+          which is why no number from [WAN11] is adopted here.
+        - [BAE22] measured that OH- concentration is "simply proportional to the
+          pH of the slurries" for EDA, NaOH and KOH alike, and yet the amine
+          polishes ~3x faster AT THE SAME pH 10.90. Conclusion, in their words and
+          reproduced here: pH alone does not determine the Si removal rate.
+      Therefore: do NOT build a pH factor for this pack from a single curve.
+    source: "doi:10.3390/mi16040450 ([ZHU25]) Table 3 (pH 11, KOH, AJ-7120 colloidal silica)"
+    confidence: literature
+
+  # ══════════════════════════════════════════════════════════════════
+  # 5. Abrasive
+  # ══════════════════════════════════════════════════════════════════
+
+  abrasive:
+    value: silica
+    note: "Colloidal (amorphous) SiO2. Silica-on-silicon: no ceria 'chemical tooth' term applies."
+    source: "doi:10.3390/mi16040450 ([ZHU25] Table 3, Fujimi AJ-7120); doi:10.3390/nano12213893 ([BAE22])"
+    confidence: literature
+
+  abrasive_size_nm:
+    value: 60.0
+    unit: nm
+    note: >
+      PRIMARY particle diameter of the colloidal silica, 60 nm, measured by
+      FE-SEM. [BAE22] §2.1: "83.3 nm colloidal silica abrasives were synthesized
+      with 60-nm-diameter colloidal silica dispersed in deionized (DI) water" and
+      §2.3 "the diameter of colloidal silica abrasive was 60 nm"; the 83.3 nm is
+      the SECONDARY (in-slurry, DLS) size, which stayed at 80-85 nm across the
+      whole 0-0.10 wt% EDA sweep (their Fig. S2). If a model wants the hydrodynamic
+      size, use ~83 nm; the 60 nm here is the solid-particle size.
+
+      ⚠ MISMATCH DECLARED: this is NOT the abrasive of the Kp source. [ZHU25]
+      names only the commercial product (Fujimi AJ-7120) and never states its
+      particle size, so the size has to come from a different paper. The other
+      published Si-substrate silica sizes are 100 nm ([HAN25] SS-SOL 100, primary;
+      120 nm secondary) and the 10-140 nm sweep surveyed in
+      doi:10.3390/nano15171366. That review reports for "silicon wafer, silica
+      10-140 nm" that MRR rises with diameter up to ~80 nm and then DECREASES —
+      i.e. 60-100 nm straddles the turnover, so the pack value and the likely true
+      AJ-7120 size land on opposite sides of a maximum but at similar rate. Any
+      particle-size FACTOR built on this key is therefore unreliable for this pack
+      until AJ-7120's PSD is obtained.
+    source: "doi:10.3390/nano12213893 ([BAE22]) §2.1/§2.3, FE-SEM primary diameter"
+    confidence: literature
+
+  abrasive_wt_pct:
+    value: 1.0
+    unit: wt%
+    note: >
+      Colloidal silica solids loading, 1 wt%. [BAE22] §2.1: "The Si wafer CMP
+      slurries were composed of the colloidal silica abrasives of 1 wt% and the
+      hydrolysis reaction accelerator of 0~0.125 wt% for NaOH ...". This is an
+      order of magnitude leaner than the 20 wt% of the oxide pack's calibration
+      slurry — bare-Si polish runs dilute because the chemistry, not the particle
+      count, carries the rate.
+
+      ⚠ SAME MISMATCH AS THE SIZE: the Kp source [ZHU25] does not report the
+      solids loading of AJ-7120. Cross-reference: [HAN25] likewise reports a dilute
+      colloidal-silica slurry for bare Si. Do not read this key as the loading at
+      which this pack's Kp was measured.
+    source: "doi:10.3390/nano12213893 ([BAE22]) §2.1"
+    confidence: literature
+
+  abrasive_density_kg_m3:
+    value: 2200.0
+    unit: kg/m^3
+    note: >
+      Amorphous (colloidal) SiO2, 2.20 g/cm^3. Colloidal silica is amorphous, so
+      the quartz density of 2.65 g/cm^3 is the wrong number and is not used. Same
+      value and same reasoning as the inherited oxide/STI packs — it is a property
+      of the abrasive material, not of this process, so there is no pack-specific
+      measurement to make. Feeds the surface-coverage derivation
+      theta_p = 1.5 * phi * h / d in legacy/sim/regime_adapter.py.
+    source: "CRC Handbook of Chemistry and Physics, amorphous silica density (2.20 g/cm^3)"
+    confidence: literature

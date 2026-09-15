@@ -120,10 +120,36 @@ def zone_pressure_profile(zone_edges_norm, zone_pressures_pa):
 
 
 def metrics(radius_m: np.ndarray, values: np.ndarray) -> Dict[str, float]:
-    """Area-weighted non-uniformity metrics (inherited definitions)."""
-    return {k: float(v) for k, v in
-            legacy_wiwnu.wiwnu(np.asarray(radius_m, float),
-                               np.asarray(values, float)).items()}
+    """Area-weighted non-uniformity metrics (inherited definitions).
+
+    ``edge_center`` is edge rate / centre rate, which the inherited routine
+    computes unguarded. With a stationary head the centre rate is zero, so it
+    emitted a numpy divide-by-zero warning and an ``inf``. The ratio is
+    genuinely undefined there, so it is reported as ``None`` rather than as a
+    number that would propagate into a summary table.
+    """
+    vals = np.asarray(values, float)
+
+    # Every non-uniformity metric is a percentage OF THE MEAN, so when nothing
+    # is being removed anywhere they are all 0/0. Uniformity is undefined, not
+    # zero: reporting 0% would read as a perfectly uniform wafer.
+    if not np.any(vals):
+        return {"mean": 0.0, "half_range_pct": None, "sigma_pct": None,
+                "three_sigma_pct": None, "edge_center": None,
+                "undefined_because": (
+                    "the removal rate is zero everywhere, so every "
+                    "non-uniformity metric is a ratio to a zero mean")}
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        raw = legacy_wiwnu.wiwnu(np.asarray(radius_m, float), vals)
+    out: Dict[str, Optional[float]] = {}
+    for k, v in raw.items():
+        v = float(v)
+        out[k] = None if not np.isfinite(v) else v
+    if out.get("edge_center") is None and vals.size and vals[0] == 0.0:
+        out["undefined_because"] = (
+            "the centre removal rate is zero, so edge/centre has no value")
+    return out
 
 
 # ── slurry supply ────────────────────────────────────────────────────

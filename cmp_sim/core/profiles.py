@@ -146,6 +146,27 @@ register(Profile(
 ))
 
 register(Profile(
+    name="semiconductor_alkaline",
+    description="Silicon and poly-Si in alkaline slurry: OH- attacks Si-Si "
+                "bonds to form a hydrated silicate layer which the abrasive "
+                "then removes. Chemistry leads, mechanics follows.",
+    layers=("contact", "abrasive", "chemistry", "transport", "damage"),
+    suits={"film_class": ("semiconductor",), "topography": ("blanket",)},
+    caveats=["Silicon substrate polishing is run at far lower pressure than "
+             "device-layer CMP (often well below 1 psi). A Kp back-calculated "
+             "from a wafer-maker's tool does not extrapolate to 3-5 psi; the "
+             "plausibility check will say so."],
+))
+
+register(Profile(
+    name="semiconductor_patterned",
+    description="Patterned poly-Si: recess and dishing against a stop layer, "
+                "as in gate poly or a sacrificial layer.",
+    layers=("contact", "abrasive", "chemistry", "transport", "pattern", "damage"),
+    suits={"film_class": ("semiconductor",), "topography": ("patterned",)},
+))
+
+register(Profile(
     name="chemically_limited",
     description="Hard, inert materials (SiC, sapphire): the surface reaction "
                 "sets the pace, not P*V. Use for ranking compositions only.",

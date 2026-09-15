@@ -87,5 +87,13 @@ def mrr_radial_nm_per_min(
 
 
 def uniformity(radius_m: np.ndarray, values: np.ndarray) -> Dict[str, float]:
-    """Area-weighted non-uniformity metrics (inherited definitions)."""
-    return legacy_wiwnu.wiwnu(np.asarray(radius_m, float), np.asarray(values, float))
+    """Area-weighted non-uniformity metrics (inherited definitions).
+
+    Delegates to ``uniformity.metrics`` so the guard against an undefined
+    edge/centre ratio lives in exactly one place. Calling the inherited routine
+    directly here meant a stationary head still emitted a divide-by-zero
+    warning through this path.
+    """
+    from cmp_sim.models.uniformity import metrics
+
+    return metrics(radius_m, values)

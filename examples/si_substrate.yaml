@@ -1,0 +1,32 @@
+# Bare silicon wafer, final polish.
+#
+# NOTE THE PRESSURE. Silicon substrate polishing on a wafer-maker's tool runs
+# far below device-layer CMP: the pack's Preston coefficient is back-calculated
+# from a 0.62 psi process, so running this at 3-5 psi extrapolates it several
+# fold and the plausibility check will say so. That is the intended behaviour,
+# not a defect.
+model: auto
+
+wafer:
+  film: si
+  diameter_mm: 200
+  n_radial: 81
+
+slurry:
+  pack: si_substrate_alkaline
+
+pad:
+  name: SUBA-IV
+  groove_width_mm: 0.5
+  groove_pitch_mm: 2.0
+  groove_depth_mm: 0.75
+
+disk:
+  name: generic-diamond
+
+tool:
+  pressure_psi: 0.62        # the pressure the pack's Kp was derived at
+  rpm_platen: 60
+  rpm_head: 60
+  flow_ml_min: 200
+  time_s: 600               # stock removal takes minutes, not seconds

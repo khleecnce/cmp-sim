@@ -159,7 +159,8 @@ class Result:
             "film": self.film,
             "removal_rate_A_per_min": round(self.mean_rr_angstrom_per_min, 1),
             "removal_rate_nm_per_min": round(self.mean_rr_nm_per_min, 3),
-            "wiwnu_percent": round(self.wiwnu_percent, 3),
+            "wiwnu_percent": (None if self.wiwnu_percent is None
+                              else round(self.wiwnu_percent, 3)),
             "radial_profile": {
                 "radius_mm": [round(float(r) * 1e3, 2) for r in self.radius_m],
                 "mrr_A_per_min": [round(float(v) * 10.0, 1) for v in self.mrr_nm_per_min],

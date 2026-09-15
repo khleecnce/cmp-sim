@@ -373,10 +373,15 @@ def _detect_situation(rr: ResolvedRecipe):
 
 def simulate(recipe: Recipe) -> Result:
     from cmp_sim.core.profiles import check as check_profile, resolve_model
+    from cmp_sim.core.validate_input import validate
+
+    # Reject impossible input here, with a message about what the user typed,
+    # rather than letting it surface as whatever the inner numerics raise.
+    input_warnings = validate(recipe)
 
     rr = resolve(recipe)
     notes: List[str] = []
-    warnings: List[str] = []
+    warnings: List[str] = list(input_warnings)
     factors: Dict[str, float] = {}
 
     if recipe.model not in MODELS:
@@ -504,14 +509,19 @@ def simulate(recipe: Recipe) -> Result:
         mrr_nm_per_min=mrr,
         mean_rr_nm_per_min=mean_nm,
         mean_rr_angstrom_per_min=mean_nm * 10.0,
-        wiwnu_percent=float(u["sigma_pct"]),
+        # None when nothing is removed anywhere: uniformity is undefined there,
+        # and reporting 0% would read as a perfectly uniform wafer.
+        wiwnu_percent=(None if u.get("sigma_pct") is None
+                       else float(u["sigma_pct"])),
         removed_nm=removed,
         remaining_nm=remaining,
         factors=factors,
         provenance=rr.pack.provenance(rr.used_keys),
         notes=notes,
         warnings=warnings,
-        extras={"uniformity": {k: round(float(v), 4) for k, v in u.items()},
+        extras={"uniformity": {k: (v if not isinstance(v, (int, float))
+                                   else round(float(v), 4))
+                               for k, v in u.items()},
                 "situation": rr.situation.as_dict(),
                 "profile": rr.profile.name,
                 **extras},

@@ -56,6 +56,10 @@ from gw_pressure_solve import local_contact_state  # legacy
 NAME = "contact_gw"
 
 
+class ContactSolverOutOfRange(ValueError):
+    """The elastic GW contact model has no solution at this load."""
+
+
 def shore_d_to_youngs_modulus_pa(shore_d: float) -> float:
     """Young's modulus [Pa] from Shore D durometer.
 
@@ -109,17 +113,46 @@ class PadContactState:
         return self.height_sigma_m
 
     def contact_state(self, pressure_pa: float) -> Dict[str, float]:
-        """Solve the GW inverse problem at this nominal pressure."""
-        return local_contact_state(
-            float(pressure_pa), self.nominal_area_m2,
-            1.0 / self.height_sigma_m, self.asperity_density_m2,
-            self.e_star_pa, self.asperity_radius_m)
+        """Solve the GW inverse problem at this nominal pressure.
+
+        The inherited solver brackets the separation over a fixed span of the
+        summit-height distribution, so a load it cannot reach even with every
+        summit fully engaged fails to bracket. That is a genuine physical limit
+        of the elastic GW picture, not a numerical hiccup, but the inherited
+        message says only "bracket failed" (in Korean) with two residuals.
+        Translate it into what the user actually did.
+        """
+        try:
+            return local_contact_state(
+                float(pressure_pa), self.nominal_area_m2,
+                1.0 / self.height_sigma_m, self.asperity_density_m2,
+                self.e_star_pa, self.asperity_radius_m)
+        except RuntimeError as exc:
+            raise self._out_of_range(pressure_pa) from exc
+
+    def _out_of_range(self, pressure_pa: float) -> "ContactSolverOutOfRange":
+        return ContactSolverOutOfRange(
+            f"the Greenwood-Williamson contact solver cannot reach "
+            f"{float(pressure_pa) / 6894.757:.1f} psi on this pad "
+            f"(E* = {self.e_star_pa / 1e6:.0f} MPa, summit density "
+            f"{self.asperity_density_m2:.3g} /m^2, roughness "
+            f"{self.height_sigma_m * 1e6:.1f} um). Every summit is already in "
+            f"contact below this load, so the elastic asperity model has no "
+            f"solution here: past full contact the pad deforms in bulk rather "
+            f"than at its summits. Either lower the pressure into the 0.5-10 psi "
+            f"range these correlations were fitted across, or use a profile "
+            f"without the contact layer (for example 'preston_baseline').")
 
     def n_contacts(self, pressure_pa: float) -> float:
-        return float(gw_preston_link.n_contacts_at(
-            float(pressure_pa), E_star=self.e_star_pa, R=self.asperity_radius_m,
-            beta=1.0 / self.height_sigma_m, eta=self.asperity_density_m2,
-            A_n=self.nominal_area_m2))
+        # Reaches the same inherited solver by a different path, so it needs
+        # the same translation - see contact_state().
+        try:
+            return float(gw_preston_link.n_contacts_at(
+                float(pressure_pa), E_star=self.e_star_pa,
+                R=self.asperity_radius_m, beta=1.0 / self.height_sigma_m,
+                eta=self.asperity_density_m2, A_n=self.nominal_area_m2))
+        except RuntimeError as exc:
+            raise self._out_of_range(pressure_pa) from exc
 
     def mean_real_pressure_pa(self, pressure_pa: float) -> float:
         return float(self.contact_state(pressure_pa)["p_r_mean"])
