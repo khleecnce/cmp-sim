@@ -140,6 +140,7 @@ MODELS: Dict[str, str] = {
 _WITH_CONTACT = {"gw_preston", "full"}
 _WITH_ABRASIVE = {"full"}
 _WITH_CHEMISTRY = {"full"}
+_WITH_SUPPLY = {"full"}
 
 
 def _kappa_contact_hook(rr: ResolvedRecipe) -> Dict[str, Any]:
@@ -197,6 +198,52 @@ def _abrasive_hook(rr: ResolvedRecipe) -> Dict[str, Any]:
             "warnings": warnings, "regime": regime.as_dict()}
 
 
+def _supply_diagnostic(rr: ResolvedRecipe) -> Dict[str, Any]:
+    """P5 — slurry supply and lubrication regime. Diagnostic, not a Kp factor.
+
+    Starvation is reported rather than applied: how sharply the centre droops
+    at a given flow depends on groove pattern and injection geometry, which we
+    cannot derive. A profile is applied only when the pack supplies a
+    calibrated starvation length.
+    """
+    from cmp_sim.models import uniformity as un
+    from cmp_sim.slurry.rheology import derive as derive_slurry, water_viscosity_pa_s
+
+    tool = rr.recipe.tool
+    temp_c = (rr.recipe.slurry.temperature_c
+              if rr.recipe.slurry.temperature_c is not None else 25.0)
+
+    viscosity = rr.recipe.slurry.viscosity_pa_s
+    if viscosity is None:
+        conc = rr.p_or("abrasive_wt_pct", None)
+        density = rr.p_or("abrasive_density_kg_m3", None)
+        if conc and density:
+            viscosity = derive_slurry(float(conc), float(density),
+                                      temp_c=temp_c).viscosity_pa_s
+        else:
+            viscosity = water_viscosity_pa_s(temp_c)
+
+    _rs, v = un.relative_speed_profile(rr.wafer_radius_m, rr.center_offset_m,
+                                       tool.rpm_head, tool.rpm_platen, n_radial=21)
+    mean_speed = float(np.mean(v))
+
+    pad = rr.recipe.pad
+    roughness = float(pad.roughness_beta_inv_m or rr.p("pad_height_beta_inv_m"))
+    groove_depth_m = (float(pad.groove_depth_mm) * 1e-3) if pad.groove_depth_mm else None
+    gfq = 0.25
+    if pad.groove_width_mm and pad.groove_pitch_mm:
+        gfq = float(pad.groove_width_mm) / float(pad.groove_pitch_mm)
+
+    state = un.diagnose_supply(
+        flow_ml_min=tool.flow_ml_min, wafer_radius_m=rr.wafer_radius_m,
+        mean_speed_m_s=mean_speed, pressure_pa=rr.pressure_pa,
+        viscosity_pa_s=float(viscosity), pad_roughness_m=roughness,
+        groove_depth_m=groove_depth_m, groove_area_fraction=gfq)
+    return {"name": "_supply", "value": None, "notes": state.notes,
+            "warnings": state.warnings, "supply": state.as_dict(),
+            "supply_state": state, "mean_speed_m_s": mean_speed}
+
+
 def _chemistry_hook(rr: ResolvedRecipe) -> Dict[str, Any]:
     """P4 — slurry chemistry through the softened-hardness channel."""
     if rr.recipe.model not in _WITH_CHEMISTRY:
@@ -224,8 +271,12 @@ def simulate(recipe: Recipe) -> Result:
     warnings.extend(rr.formulation_warnings)
 
     hooks = list(_FACTOR_HOOKS) + [_kappa_contact_hook, _abrasive_hook, _chemistry_hook]
+    if recipe.model in _WITH_SUPPLY:
+        hooks.append(_supply_diagnostic)
+
     kp = rr.kp_base
     extras: Dict[str, Any] = {}
+    supply_state = None
     for hook in hooks:
         out = hook(rr) or {}
         notes.extend(out.get("notes", []))
@@ -235,6 +286,9 @@ def simulate(recipe: Recipe) -> Result:
         if out.get("terms"):
             extras["chemistry_terms"] = {k: round(float(v), 5)
                                          for k, v in out["terms"].items()}
+        if out.get("supply"):
+            extras["slurry_supply"] = out["supply"]
+            supply_state = out.get("supply_state")
         if out.get("value") is None:
             continue
         factors[out["name"]] = float(out["value"])
@@ -251,6 +305,25 @@ def simulate(recipe: Recipe) -> Result:
         zone_pressures_pa=rr.zone_pressures_pa,
         zone_edges_norm=recipe.tool.zone_edges_norm,
     )
+
+    # P5: apply the radial supply weighting only when the pack calibrates it.
+    if supply_state is not None:
+        from cmp_sim.models import uniformity as un
+        weight = un.starvation_profile(
+            radius_m, rr.wafer_radius_m, supply_state.supply_number,
+            rr.p_or("starvation_length_m", None))
+        if weight is not None:
+            mrr = mrr * weight
+            notes.append(
+                f"slurry starvation profile applied with starvation length "
+                f"{float(rr.p('starvation_length_m')) * 1e3:.1f} mm: centre/edge "
+                f"supply weighting {weight[0]:.3f}/{weight[-1]:.3f}")
+        elif supply_state.starved:
+            warnings.append(
+                "the wafer is slurry-starved but this pack has no calibrated "
+                "starvation_length_m, so NO radial correction was applied — the "
+                "profile below is the un-starved one and will look better than "
+                "reality at the centre")
 
     u = preston_model.uniformity(radius_m, mrr)
     mean_nm = float(u["mean"])
