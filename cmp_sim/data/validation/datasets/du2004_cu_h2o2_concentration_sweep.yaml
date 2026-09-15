@@ -12,8 +12,12 @@
 #   See the read-method block below. confidence: low for that reason.
 
 source: >
-  T. Du, D. Tamboli, Y. Obeng, V. Desai, "Mechanism of Copper Removal during CMP in
+  T. Du, D. Tamboli, V. Desai, S. Seal, "Mechanism of Copper Removal during CMP in
   Acidic H2O2 Slurry", Journal of The Electrochemical Society, 151 (4) G230-G235 (2004).
+  doi:10.1149/1.1648029 — printed on the PDF's own first page; independently
+  confirmed against Crossref (vol 151, issue 4, pages G230-G235, 2004).
+  ⚠ The author list was corrected on review: an earlier draft of this file said
+  "Y. Obeng" where the paper's title page says "S. Seal".
   Local PDF: ~/fab-sim/papers/du2004-jes-mechanism-cu-removal-acidic-h2o2-slurry.pdf
   Numbers from: FIGURE 1, "Effect of H2O2 concentration on removal rates and static etch
   rates of copper" — the filled-circle "Removal rate" series only. Figure 1 is printed on
@@ -25,10 +29,17 @@ source: >
   pixel-centroid read of that same marker gives 1.01 vol%, 180.4 nm/min — 0.2% error.
   That validates the reading procedure; the remaining five points are still digitized.
 
-film: copper
-pack: copper_alumina      # PLACEHOLDER if no such pack exists in the repo — retarget
-                          # before scoring. Slurry is alumina, NOT silica/ceria.
-in_scope: true
+film: cu
+pack: cu_h2o2_bta         # nearest pack: acidic H2O2 copper. NOTE the abrasive
+                          # differs (Du used alumina, the pack is silica-based)
+                          # and Du used no glycine, so this file is NOT used to
+                          # score absolute rate.
+# NOT part of the P*V validation gate, deliberately: pressure and velocity are
+# CONSTANT here (7.63 psi, 0.2 m/s) and the swept axis is oxidizer concentration,
+# so a Preston backtest has nothing to fit. Its job is to validate the SHAPE of
+# the oxidizer term, which tests/test_peaked_oxidizer.py does point by point.
+in_scope: false
+sweep_axis: oxidizer_concentration
 used_for_calibration: false
 confidence: low           # digitized from a raster plot; only 1 of 6 values printed.
 

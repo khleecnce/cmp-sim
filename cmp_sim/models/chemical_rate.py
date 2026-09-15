@@ -115,6 +115,59 @@ def langmuir_coverage(conc: float, k: float) -> float:
     return kc / (1.0 + kc) if kc > 0 else 0.0
 
 
+def peaked_oxidizer_response(conc: float, peak_conc: float, k: float) -> float:
+    """Oxidizer response that RISES, peaks, then falls — normalised to 1.0 at
+    the peak.
+
+        f(C) = [KC/(1+KC)] * exp(-C/Cd),   Cd = peak_conc * (1 + K*peak_conc)
+
+    Why this shape
+    --------------
+    Two competing effects, each with a mechanism:
+
+    * **Promotion.** Removal needs an oxidised surface layer to abrade, and
+      surface coverage follows Langmuir: ``KC/(1+KC)``. This dominates at low
+      concentration and saturates.
+    * **Passivation.** The same oxide keeps thickening. Past a point the film
+      is thicker than the abrasive can cut per pass, and the exponential is the
+      standard limited-growth penalty on the abradable fraction.
+
+    Why the peak position is not a free parameter
+    ---------------------------------------------
+    Setting ``d(ln f)/dC = 0`` at ``C = peak_conc`` gives
+
+        1/C - K/(1+KC) - 1/Cd = 0   =>   Cd = peak_conc * (1 + K*peak_conc)
+
+    so the decay scale is *determined* by the measured peak position and K.
+    That leaves ONE free parameter (K), which is the whole reason this form is
+    usable: the project's own history is that a peaked curve with both the
+    position and the shape free is degenerate when data sit on one side only.
+    The peak position must therefore come from a measurement, never from a fit.
+
+    Verified against Du 2004, *J. Electrochem. Soc.* **151**(4), G230,
+    doi:10.1149/1.1648029, Fig. 1, read off the
+    original PDF: 6 points, 0-10 vol% H2O2, peak at 1 vol%. With the peak
+    pinned at the paper's own 1 vol%, K = 8 reproduces the set to 5.6% MAPE.
+    A free-peak fit prefers 0.52 vol% and does only marginally better, which is
+    exactly the weak identification the Du dataset file warns about: there is
+    one point on the rising limb, so the peak HEIGHT and the decay are pinned
+    but its POSITION is not.
+    """
+    c = float(conc)
+    cp = float(peak_conc)
+    kk = float(k)
+    if c <= 0:
+        return 0.0
+    if cp <= 0 or kk <= 0:
+        raise ValueError(
+            "a peaked oxidizer response needs a positive measured peak "
+            f"concentration and rate constant, got peak={cp}, K={kk}")
+    decay = cp * (1.0 + kk * cp)
+    f = (kk * c / (1.0 + kk * c)) * math.exp(-c / decay)
+    f_peak = (kk * cp / (1.0 + kk * cp)) * math.exp(-cp / decay)
+    return f / f_peak if f_peak > 0 else 0.0
+
+
 @dataclass
 class ChemicalEffect:
     factor: float
@@ -210,16 +263,69 @@ def chemical_factor(resolved, temp_c: Optional[float] = None) -> ChemicalEffect:
                     or resolved.has("oxidizer_langmuir_K"))
     peak = resolved.p_or("oxidizer_peak_wt_pct", None)
     conc = resolved.p_or("oxidizer_wt_pct", None)
-    if has_langmuir and peak:
+
+    # A measured peak position turns the degenerate two-parameter peak into a
+    # one-parameter curve (see peaked_oxidizer_response), so when the pack
+    # states one it is USED rather than merely declared and ignored.
+    peak_k = resolved.p_or("oxidizer_peak_shape_K", None)
+    used_peaked = False
+    if peak and peak_k and conc is not None and float(conc) > 0:
+        # The inherited layer has ALREADY multiplied its own monotonic oxidizer
+        # term into `factor`. Multiplying the peaked term on top would count the
+        # same physics twice - the mistake that once collapsed a copper rate by
+        # 20x in this project - so the old term is divided out and REPLACED.
+        legacy_ox = terms.get("oxidizer")
+        if legacy_ox:
+            if abs(float(legacy_ox)) < 1e-9:
+                warnings.append(
+                    "peaked oxidizer term skipped: the inherited oxidizer term "
+                    "is ~0, so it cannot be divided out without amplifying "
+                    "rounding error")
+                peak_k = None
+            else:
+                factor /= float(legacy_ox)
+                terms.pop("oxidizer", None)
+                notes.append(
+                    f"replaced the inherited monotonic oxidizer term "
+                    f"({float(legacy_ox):.4f}) with the peaked form rather than "
+                    "multiplying both, which would double-count the same "
+                    "surface chemistry")
+    if peak and peak_k and conc is not None and float(conc) > 0:
+        try:
+            shape = peaked_oxidizer_response(float(conc), float(peak), float(peak_k))
+        except ValueError as exc:
+            warnings.append(f"peaked oxidizer term skipped: {exc}")
+        else:
+            floor = float(resolved.p_or("oxidizer_mechanical_floor", 0.0) or 0.0)
+            # The floor is the abrasive-only rate: at zero oxidizer removal does
+            # not stop, so a purely multiplicative term would predict zero.
+            ox_factor = floor + (1.0 - floor) * shape
+            factor *= ox_factor
+            terms["oxidizer_peaked"] = ox_factor
+            notes.append(
+                f"peaked oxidizer response: {float(conc):g} vs measured peak at "
+                f"{float(peak):g} -> {shape:.4f} of peak "
+                f"(K = {float(peak_k):g}, decay scale set by the peak, not fitted)")
+            if float(conc) > 3.0 * float(peak):
+                warnings.append(
+                    f"the oxidizer concentration ({float(conc):g}) is more than "
+                    f"3x the measured peak ({float(peak):g}), far out on the "
+                    "falling limb where the exponential penalty is an "
+                    "extrapolation rather than a fitted shape")
+            used_peaked = True
+
+    if has_langmuir and peak and not used_peaked:
         warnings.append(
             f"this pack declares an oxidizer peak at {float(peak):g} wt% but the "
             "Langmuir branch takes precedence, so the oxidizer term is monotonic "
             "and no maximum will appear in a concentration scan. The Langmuir "
             "form was chosen because it has one identifiable parameter, whereas "
             "the peak's shape exponent and peak position are degenerate when "
-            "only sub-peak data exist. Treat a scan across the declared peak as "
+            "only sub-peak data exist. Supply oxidizer_peak_shape_K to use the "
+            "peaked form instead. Treat a scan across the declared peak as "
             "showing the passivation branch only")
-    if conc is not None and peak and float(conc) < float(peak) and has_langmuir:
+    if (conc is not None and peak and float(conc) < float(peak)
+            and has_langmuir and not used_peaked):
         warnings.append(
             f"the oxidizer concentration ({float(conc):g} wt%) sits below the "
             f"declared peak ({float(peak):g} wt%), where the real system is "

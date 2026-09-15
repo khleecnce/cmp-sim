@@ -109,6 +109,24 @@ def test_inherited_notes_keep_their_numbers():
 
 
 # ── composition response through the full model ──────────────────────
+def _recipe_cu(model="full", **kw):
+    """The same recipe _cu simulates, returned unsimulated so a test can read
+    resolved pack values (e.g. the declared oxidizer peak) instead of hardcoding
+    them and drifting from the pack."""
+    adds = []
+    if kw.get("h2o2") is not None:
+        adds.append(Additive("hydrogen_peroxide", conc_wt_pct=kw["h2o2"], role="oxidizer"))
+    if kw.get("bta") is not None:
+        adds.append(Additive("benzotriazole", conc_mM=kw["bta"], role="inhibitor"))
+    return Recipe(
+        model=model, wafer=Wafer(film="cu", n_radial=21),
+        slurry=Slurry(pack="cu_h2o2_bta", additives=adds, ph=kw.get("ph"),
+                      temperature_c=kw.get("temp_c"),
+                      abrasive=Abrasive(kind="silica", conc_wt_pct=kw.get("conc"),
+                                        d50_nm=kw.get("d50"))),
+        tool=Tool(pressure_psi=3.0, rpm_platen=60, rpm_head=60, time_s=60))
+
+
 def _cu(model="full", **kw):
     adds = []
     if kw.get("h2o2") is not None:
@@ -133,9 +151,34 @@ def test_more_inhibitor_lowers_the_copper_rate():
 
 
 def test_excess_oxidizer_lowers_the_copper_rate_through_thicker_passivation():
-    """cu_h2o2_bta uses the passivation branch: past the optimum, more H2O2
-    thickens the film and slows removal."""
-    assert _cu(h2o2=5.0).mean_rr_nm_per_min < _cu(h2o2=0.5).mean_rr_nm_per_min
+    """Past the optimum, more H2O2 thickens the film and slows removal.
+
+    This once compared 5.0 against 0.5 wt%, which only worked while the model
+    fell monotonically from zero. Both of those points are now on OPPOSITE
+    sides of the pack's declared 3 wt% peak, so 0.5 wt% is correctly the slower
+    of the two (too little oxide to abrade). The comparison that actually tests
+    passivation has to start AT the peak and move up from there.
+    """
+    from cmp_sim.core.solver import resolve
+
+    peak = float(resolve(_recipe_cu(h2o2=3.0)).p_or("oxidizer_peak_wt_pct", 3.0))
+    at_peak = _cu(h2o2=peak).mean_rr_nm_per_min
+    above = _cu(h2o2=peak * 2.0).mean_rr_nm_per_min
+    far_above = _cu(h2o2=peak * 4.0).mean_rr_nm_per_min
+    assert above < at_peak, (
+        f"{peak*2:g} wt% ({above:.1f}) is not below the peak ({at_peak:.1f})")
+    assert far_above < above, "the falling limb is not monotonic"
+
+
+def test_too_little_oxidizer_also_lowers_the_rate():
+    """The other side of the same peak: without enough oxide there is little to
+    abrade. Together with the test above this is what makes the curve peaked
+    rather than merely decreasing."""
+    from cmp_sim.core.solver import resolve
+
+    peak = float(resolve(_recipe_cu(h2o2=3.0)).p_or("oxidizer_peak_wt_pct", 3.0))
+    assert (_cu(h2o2=peak / 6.0).mean_rr_nm_per_min
+            < _cu(h2o2=peak).mean_rr_nm_per_min)
 
 
 def test_a_formulation_change_actually_moves_the_answer():

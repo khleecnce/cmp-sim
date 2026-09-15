@@ -438,3 +438,49 @@ params:
       makes the peak location citable.
     source: "doi:10.1149/1.2718474 (Gopal & Talbot, JES 154(6) H507, 2007), abstract and Figs. 1-2"
     confidence: literature
+
+  # ── 7. oxidiser peak SHAPE — makes the declared peak actually do something ──
+  oxidizer_peak_shape_K:
+    value: 8.0
+    unit: "1/wt%"
+    note: >
+      The Langmuir rate constant of the PROMOTION half of the peaked oxidiser
+      response (see cmp_sim/models/chemical_rate.py:peaked_oxidizer_response).
+      Supplying it switches the oxidiser term from the inherited monotonic
+      Langmuir form to the peaked form, which is the whole point: this pack has
+      declared a peak at 3.0 wt% since inception while the model fell
+      monotonically from zero, contradicting it.
+
+      WHY ONLY ONE FREE PARAMETER. A peaked curve with both the peak position
+      and the shape free is degenerate when the data lie on one side of the
+      maximum - the reason the peaked form was avoided until now. Pinning the
+      peak to a MEASURED position makes the decay scale a consequence,
+      Cd = C_peak*(1 + K*C_peak), leaving K alone. So the peak position must
+      always come from a measurement, never from a fit.
+
+      PROVENANCE OF THE VALUE, AND ITS LIMIT. K = 8 was fitted to Du 2004
+      (doi:10.1149/1.1648029) Fig. 1: six removal rates over 0-10 vol% H2O2 at
+      fixed pH 4, 4.6 wt% alumina, 7.63 psi and 0.2 m/s, verified against the
+      original PDF. With the peak pinned at that paper's stated 1 vol%, K = 8
+      reproduces the six points to 5.6% MAPE and puts the peak height at
+      180 nm/min against the 180 printed in the text.
+
+      ⚠ TRANSFERRED ACROSS TWO DIFFERENCES, so treat the CURVATURE as
+      order-of-magnitude, not calibrated:
+        1. Du's x-axis is VOL%, this pack's peak is in WT%. Du's figure is
+           labelled "Peroxide Concentration (Vol%)" and the paper never states
+           what the vol% is vol% OF, so no conversion is attempted. The two
+           numbers are NOT averaged or reconciled.
+        2. Du ran WITHOUT glycine; the 3.0 wt% peak from [GT07] is for an
+           alumina/glycine/H2O2 slurry, and glycine is known to move the peak.
+      What is shared is the mechanism - promotion by surface oxide, then
+      passivation once the film outgrows what the abrasive removes per pass -
+      and that is what K parameterises. Replace it with your own H2O2 sweep
+      (three or more points either side of your peak) and the shape becomes
+      calibrated rather than borrowed.
+    source: >
+      Fitted to Du, Tamboli, Desai & Seal, J. Electrochem. Soc. 151(4) G230
+      (2004), doi:10.1149/1.1648029, Fig. 1 removal-rate series; dataset file
+      cmp_sim/data/validation/datasets/du2004_cu_h2o2_concentration_sweep.yaml.
+      Peak position for THIS pack remains [GT07] as above.
+    confidence: low
