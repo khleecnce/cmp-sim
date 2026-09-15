@@ -19,7 +19,7 @@
   zero-dependency web UI + API, `CMP-Sim.command` launcher
 - Films: Cu, W, oxide, STI-ceria, poly-Si, Si substrate, SiC, SnAg
 - Data: 55 additives × 9 films, 11 abrasives × 9 films
-- **438 tests**; verified from a clean clone including `pip install -e .`
+- **442 tests**; verified from a clean clone including `pip install -e .`
 
 ## NEXT
 Owner review of the physics. No implementation is queued — every P1–P8 gate,
@@ -31,8 +31,11 @@ all example films, the validation table and the data-fitting path are green.
   Luo-Dornfeld the contact stress is *set equal* to the hardness by assumption,
   so sourcing it independently is circular. Nanoindentation of a polished
   surface would settle the sign of the particle-size exponent in P3.
-- **SnAg has no published Preston coefficient** (68 sourced numbers, no rate).
-  It now runs on the Archard estimate; one measured rate would replace it.
+- **SnAg has no published Preston coefficient** (68 sourced numbers, no rate;
+  searched 320 local CMP papers, ScienceDirect and Crossref again this session).
+  It runs as a ranking on the Archard estimate and says so; four measured rates
+  take it to +/-1.4% cross-validated. Also means there is no envelope to
+  sanity-check its absolute rate against, which the run now states outright.
 - Cu oxidizer term is monotonic where the real system peaks (~1–3 wt%). The
   Langmuir branch is used because the Kaufman peak's parameters are degenerate
   below the peak; both facts are warned about at runtime.

@@ -81,6 +81,35 @@ def test_contact_factor_cannot_silently_inflate_every_rate():
 # Examples that are SUPPOSED to refuse, because the literature has no value to
 # run them with. They are shipped so the refusal itself is demonstrable and
 # tested, not to be quietly skipped.
+def test_every_plausibility_range_cites_a_measurement():
+    """A range with no source is a number someone felt was about right. The
+    snag entry was once (1,000-20,000, "SnAg solder is very soft") - wide
+    enough that no prediction could ever fall outside it, so it read as
+    having checked something while being incapable of firing."""
+    from cmp_sim.core.sanity import PLAUSIBLE_RATE_A_PER_MIN
+
+    vague = {"soft", "hard", "fast", "slow", "very", "usually"}
+    for film, (lo, hi, basis) in PLAUSIBLE_RATE_A_PER_MIN.items():
+        assert hi / lo <= 40, (
+            f"{film}: the range {lo:.0f}-{hi:.0f} spans {hi/lo:.0f}x, too wide "
+            "to catch a 10x error - it cannot fire")
+        has_number = any(ch.isdigit() for ch in basis)
+        has_name = any(w[0].isupper() for w in basis.split() if w)
+        assert has_number or has_name, (
+            f"{film}: basis {basis!r} cites neither a figure nor a source")
+        assert not (set(basis.lower().split()) <= vague), f"{film}: vague basis"
+
+
+def test_a_film_with_no_envelope_says_so_rather_than_passing_silently():
+    from cmp_sim.core.sanity import check_rate
+
+    warnings = check_rate("snag", 18291.0)
+    assert warnings, "an unbounded film produced no caveat at all"
+    text = " ".join(warnings).lower()
+    assert "could not be sanity-checked" in text
+    assert "ranking" in text, "it does not say how the number should be read"
+
+
 EXPECTED_TO_REFUSE = {"snag_solder"}
 
 RUNNABLE = [p for p in EXAMPLES if p.stem not in EXPECTED_TO_REFUSE]

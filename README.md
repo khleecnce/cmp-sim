@@ -42,14 +42,16 @@ python3 -m venv .venv
 # interactive web UI (standard library only, no web framework)
 .venv/bin/python -m cmp_sim.api          # -> http://127.0.0.1:8765
 
-# 438 tests
+# 442 tests
 .venv/bin/python -m pytest -q
 ```
 
 Worked examples for every supported film are in `examples/`: copper damascene,
 tungsten plug, blanket oxide, STI with ceria, SiC substrate, silicon substrate,
 multi-zone uniformity — and `snag_solder.yaml`, which **deliberately refuses to
-run** because no published source gives a SnAg Preston coefficient.
+run** because no published source gives a SnAg Preston coefficient, alongside
+`snag_solder_screening.yaml`, which supplies the input it asks for and runs as a
+ranking.
 
 ## Validation
 
@@ -123,13 +125,26 @@ entirely. A mechanical `P·V` law cannot explain it, whatever `Kp` you choose.
 | poly-Si | `poly_si_alkaline` | `semiconductor_alkaline` | Kp derived, arithmetic in pack |
 | Si substrate | `si_substrate_alkaline` | `semiconductor_alkaline` | Kp derived at 0.62 psi |
 | SiC | `sic_ceria_h2o2` | `chemically_limited` | rankings only, see below |
-| SnAg | `snag_solder` | — | **refuses: no published Kp** |
+| SnAg solder | `snag_solder` | `soft_metal_plastic` | **graded unestablished**: rankings only |
 
-The SnAg pack carries 68 sourced numbers — nanohardness, tin electrochemistry,
-abrasive properties — and no Preston coefficient, because no primary source
-publishes a SnAg or pure-Sn removal rate together with the pressure and velocity
-it was measured at. Running it raises an error naming the missing key rather
-than inventing a number; supply your own under `params:` and the model works.
+SnAg is not merely under-documented — it is a film the industry gave up
+polishing. The only primary 300 mm report eliminated both pH windows it tried
+(alkaline etched the tin away leaving Ni₃Sn₄ intermetallic; acidic-to-neutral
+scratched it), and fine-pitch tin bumps are planarized by **fly-cutting**
+instead. Tin is amphoteric, sits at ~0.6 of its melting point at room
+temperature so it creeps rather than fractures, and is ~6x softer than copper
+on the same indenter.
+
+So it is graded `unestablished`, and the two examples show both halves of that:
+
+* `snag_solder.yaml` **refuses to run** — given only a film name it will not guess.
+* `snag_solder_screening.yaml` supplies the one input it asks for (an intended
+  pH) and runs, on a Kp estimated from hardness via Archard. The rate carries a
+  warning that it is a **ranking, not a prediction**: there is no published SnAg
+  rate to bound it, so a 10x error would not be caught.
+
+Four measured rates take it to **±1.4% cross-validated**. That is the intended
+path for any unestablished film: refuse → rank → predict.
 
 ## Choosing a model: by situation, not by film
 

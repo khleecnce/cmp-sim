@@ -1,0 +1,70 @@
+# SnAg solder microbump planarization — screening a pH, with the caveats visible.
+#
+# The companion example, snag_solder.yaml, deliberately refuses: given only a
+# film name it will not guess. This one supplies the single input it asks for —
+# an intended pH — and so it runs, which is what makes it useful for comparing
+# candidate formulations against each other.
+#
+# Read the number as a RANKING, not a prediction. Three reasons, all reported at
+# runtime rather than buried here:
+#
+#  1. No primary source publishes a SnAg or pure-Sn removal rate together with
+#     the pressure and velocity it was measured at, so there is no Preston
+#     coefficient to divide out. The rate below rests on the Archard identity
+#     Kp = k/H with a wear coefficient calibrated across six other films, whose
+#     spread is a factor of ~1.8 — and that is the optimistic figure, because
+#     SnAg sits outside the hardness range those six cover.
+#
+#  2. The pack's own hardness sources disagree by 2.1x (0.27 vs 0.58 GPa). They
+#     are recorded as a disagreement rather than averaged, because averaging two
+#     measurements of possibly different things produces a number that describes
+#     neither.
+#
+#  3. Room temperature is ~0.6 of tin's melting point, so the surface creeps
+#     rather than fracturing. Archard's law assumes abrasive wear; smearing and
+#     particle embedment are not in it at all, and both are what the primary
+#     literature actually reports for tin.
+#
+# Give it one measured rate and all of this is replaced by a fitted Kp with a
+# cross-validated error — see the `measurements:` block at the foot of the file.
+model: auto
+
+wafer:
+  film: snag
+  diameter_mm: 300
+  n_radial: 81
+
+slurry:
+  pack: snag_solder
+  # Near-neutral, chosen to sit between the two windows the only primary CMP-on-Sn
+  # report eliminated: alkaline pH 10-11 etched the tin (leaving Ni3Sn4 IMC), and
+  # acidic-to-neutral pH 5-7 scratched it. Neither worked, and no third window was
+  # qualified, so this is a starting point for screening rather than a recommendation.
+  ph: 6.5
+
+pad:
+  name: IC1000
+  groove_width_mm: 0.5
+  groove_pitch_mm: 2.0
+  groove_depth_mm: 0.75
+
+disk:
+  name: generic-diamond
+
+tool:
+  pressure_psi: 1.0         # solder is ~6x softer than copper; run gentle
+  rpm_platen: 60
+  rpm_head: 60
+  flow_ml_min: 200
+  time_s: 60
+
+# ── Turning this from a ranking into a prediction ────────────────────
+# Uncomment and replace with your own rates. The model fits Kp to them and
+# quotes a LEAVE-ONE-OUT accuracy — each point predicted by a fit that never saw
+# it — so the error it reports is out-of-sample rather than the 0% any
+# one-parameter fit scores on its own data.
+#
+# measurements:
+#   - {label: "lot A 1.0 psi", rate_A_per_min: 3200, pressure_psi: 1.0, rpm_platen: 60}
+#   - {label: "lot A 2.0 psi", rate_A_per_min: 6500, pressure_psi: 2.0, rpm_platen: 60}
+#   - {label: "lot B 1.5 psi", rate_A_per_min: 4700, pressure_psi: 1.5, rpm_platen: 60}
