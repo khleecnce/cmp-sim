@@ -14,6 +14,11 @@ carries the warnings that tell you where not to trust it.
 
 ## Quick start
 
+**Double-click `CMP-Sim.command`** in Finder. It builds the environment on first
+run, starts the local server and opens the UI. Nothing leaves the machine.
+
+Or from a shell:
+
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -e .
 
