@@ -109,6 +109,24 @@ def test_a_load_beyond_the_contact_model_explains_itself_in_english():
     assert "preston_baseline" in msg, "the message offers no way forward"
 
 
+def test_a_pack_with_no_preston_coefficient_refuses_by_name():
+    """A null Kp is how an unsourced value is honestly recorded, so it must not
+    surface as "float() argument must be ... not 'NoneType'"."""
+    from cmp_sim.core.params import ParamMissing
+
+    r = _recipe()
+    r.wafer.film = "snag"
+    r.slurry.pack = None
+    with pytest.raises(ParamMissing) as exc:
+        simulate(r)
+    msg = str(exc.value)
+    assert "snag" in msg, "the message does not say which film"
+    assert "kp_m_per_pa" in msg, "the message does not name the missing value"
+    assert "not been sourced" in msg, (
+        "the message does not distinguish unsourced from zero")
+    assert "slurry.pack" in msg, "the message offers no way forward"
+
+
 def test_low_flow_is_flagged_as_starvation():
     r = simulate(_recipe(flow_ml_min=5.0))
     assert any("starvation" in w or "supply" in w.lower() for w in r.warnings)

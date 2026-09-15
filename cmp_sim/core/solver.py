@@ -106,7 +106,28 @@ class ResolvedRecipe:
 
     @property
     def kp_base(self) -> float:
-        return float(self.p("kp_m_per_pa"))
+        """The Preston coefficient, or a refusal that explains itself.
+
+        A pack is allowed to leave Kp null — that is how an honestly unknown
+        value is recorded. What must not happen is the null reaching float()
+        and surfacing as "float() argument must be ... not 'NoneType'", which
+        says nothing about which film or which number is missing.
+        """
+        value = self.p("kp_m_per_pa")
+        if value is None:
+            param = self.pack.params.get("kp_m_per_pa")
+            note = ""
+            if param is not None and getattr(param, "note", None):
+                first = str(param.note).strip().splitlines()[0]
+                note = f" The pack says: {first}"
+            raise ParamMissing(
+                f"no Preston coefficient is available for film "
+                f"'{self.recipe.wafer.film}' (pack '{self.pack.name}'). "
+                f"kp_m_per_pa is null, which means it has not been sourced "
+                f"rather than that it is zero, so no removal rate can be "
+                f"computed.{note} Supply one in a pack override, or pass a "
+                f"different pack with slurry.pack.")
+        return float(value)
 
 
 def resolve(recipe: Recipe) -> ResolvedRecipe:
