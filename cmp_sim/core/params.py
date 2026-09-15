@@ -11,8 +11,9 @@ raise ``ParamMissing`` — a silent default is a hallucination.
 """
 from __future__ import annotations
 
+import copy
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
 
@@ -65,6 +66,39 @@ def available_packs() -> List[str]:
     return sorted(names)
 
 
+#: Parsed YAML keyed by (path, mtime_ns, size). Only the PARSED TEXT is cached,
+#: never a ParamPack object: packs are mutated in place by owner overrides and
+#: by fitted factors, so handing out a shared instance would let one run's
+#: override leak into the next. Re-building the pack from cached raw data is
+#: ~90% cheaper than re-parsing 224 KB of YAML and carries no such risk.
+#:
+#: The mtime and size are part of the key so editing a pack takes effect
+#: immediately - a stale cache during a parameter-tuning session would be a
+#: silent wrong answer, which is the worst kind.
+_RAW_CACHE: Dict[Tuple[str, int, int], Dict[str, Any]] = {}
+
+
+def _load_yaml(path: Path) -> Dict[str, Any]:
+    """Parse a YAML file, reusing the result while the file is unchanged."""
+    try:
+        st = path.stat()
+        key = (str(path), st.st_mtime_ns, st.st_size)
+    except OSError:                                   # pragma: no cover
+        return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    hit = _RAW_CACHE.get(key)
+    if hit is None:
+        hit = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        _RAW_CACHE[key] = hit
+    # Deep-copied on the way out: callers build packs from this and must not be
+    # able to mutate the cached tree.
+    return copy.deepcopy(hit)
+
+
+def clear_cache() -> None:
+    """Drop the parsed-YAML cache (tests that write packs on the fly)."""
+    _RAW_CACHE.clear()
+
+
 def load_pack(name: str, _seen: Optional[List[str]] = None,
               _after: Optional[Path] = None) -> ParamPack:
     """Load ``<name>.yaml`` with ``base:`` inheritance, own-dir first.
@@ -78,7 +112,7 @@ def load_pack(name: str, _seen: Optional[List[str]] = None,
     if (name, path) in [(n, p) for n, p in _seen]:
         chain = " -> ".join(n for n, _ in _seen + [(name, path)])
         raise ValueError(f"pack inheritance cycle: {chain}")
-    raw: Dict[str, Any] = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    raw: Dict[str, Any] = _load_yaml(path)
 
     params: Dict[str, Param] = {}
     lineage: List[str] = []
