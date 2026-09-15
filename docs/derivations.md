@@ -867,3 +867,112 @@ deliberate strictnesses:
   10x error into every fitted rate.
 * **Unusable rows are refused, not skipped.** A dropped row changes the fit
   invisibly, which is worse than an error that names the row.
+
+---
+
+## Deciding the contact branch without a circular input
+
+### The circularity
+P3 needs to know whether a particle indents the film elastically or plastically:
+it sets the load exponent alpha, and through it the concentration and size
+exponents. The obvious test is the particle contact stress against the film
+hardness — but Luo-Dornfeld *defines* the contact stress as the hardness, so
+sourcing it independently is circular. Every pack left it null and the branch
+was reported `unknown` for every film.
+
+### The way round: compare loads, capped by the pad
+The pad hardness is measured directly, by nanoindentation of a wet pad, and it
+caps the load one asperity can put on a particle:
+
+    P_Y   = (pi^3/48) * Hc^3 / Ec^2 * R^2     yield load, Hertz + Tresca
+    P_max = pi * R^2 * Hp                     pad-limited load
+    plastic when P_max > P_Y:
+    Lambda = 48 * Hp * Ec^2 / (pi^2 * Hc^3)  > 1
+
+`R` cancels exactly, so **the branch does not depend on particle size**. That is
+not a convenience: it reproduces Eusner's measurement that scratch width and
+depth are independent of polishing pressure and pad topography.
+
+Sources, read from the original PDFs: `P_Y` is Eq. 3 in both Saka, Eusner &
+Chun, *CIRP Annals* **57**, 341 (2008) and Eusner *et al.*, *J. Electrochem.
+Soc.* **156**(7) H528 (2009). Moduli and hardnesses are Eusner Table I (SiO2
+92/15, Cu 128/1.22, wet pad 0.53/0.05 GPa). Pad hardness distribution is
+Eusner Fig. 15 — 36 measurements, mean 0.05 GPa, standard deviation 0.06 — with
+Hp,max = 0.31 GPa in Table IV.
+
+| film state | Hc | Ec | Lambda | branch |
+|---|---|---|---|---|
+| Cu, glycine+H2O2+BTA pH 3 | 3.24 | 128 | 117 | plastic |
+| bare Cu film | 1.22 | 128 | 2194 | plastic |
+| Cu, glycine pH 10 (hardest measured) | 15.6 | 128 | 1.05 | marginal |
+| SiO2 at 15 GPa | 15 | 92 | 0.61 | elastic |
+| SiO2 at 8 GPa | 8.0 | 69.8 | 2.31 | plastic, marginal |
+
+The rule discriminates rather than always answering "plastic", and oxide lands
+on the boundary — which is physically right: oxide is the one material in the
+source paper's Table IV with no measurable scratches.
+
+### Two traps, recorded because both are easy to fall into
+**Do not compare Hp against Hc directly.** `Hp = 0.05 GPa` is a load divided by
+the particle's *cross-section*, not by the ~100x smaller particle/film contact
+area. The naive test calls copper elastic, contradicting its measured
+scratches. Only the load comparison is valid.
+
+**Watch the pack lineage.** Adding SiO2's modulus to the silica packs
+propagated it to SiC through SiC -> sti_ceria -> oxide_silica. Lambda goes as
+E^2, so SiC looked elastic on a number that was never about SiC. It is now
+blocked with `value: null`; the same route once carried the oxide Kp into that
+pack and over-predicted SiC by 128x.
+
+### What this does NOT settle
+Deciding the branch was supposed to fix the sign of the particle-size exponent.
+It does not. The exponent relations assume `0 <= 1 - alpha*chi <= 1`, and the
+plastic branch (alpha = 3/2) with copper's measured load sharing (chi = 1.0)
+gives `n_C = -0.5` — "more abrasive removes less", which the model's own bound
+forbids. alpha and chi are not independently adjustable, since chi comes from
+the measured area-pressure exponent. So the engine reports the branch, leaves
+the exponents on the inherited elastic values at confidence `unverified`, and
+names the measurement that would resolve it.
+
+---
+
+## The abrasive size exponent is per-film, and the data say so loudly
+
+Nine measured sweeps across seven films give exponents from -0.45 to +1.0, and
+three are non-monotonic so no power law fits at all. The decisive evidence is
+*within* single experiments:
+
+* **Bouvet 2002** (*JVST B* **20**(4) 1556, Fig. 3): W, Ti and thermal oxide,
+  same four colloidal-silica slurries, same runs. W flat (n ~ -0.05), Ti
+  falling (-0.45), oxide peaked at 25 nm.
+* **US 2019/0127607 A1** (Tables 1-2): HDP oxide and TEOS oxide, same four
+  ceria-coated-silica slurries, same runs. HDP monotonic rising (+0.75), TEOS
+  reversing at 156 nm. The patent states it at [0120]: "particle size and
+  particle size distribution affected HDP silicon dioxide films and TEOS films
+  differently even though both films essentially comprise silicon oxide films."
+
+Sorting by abrasive chemistry explains more of the spread than sorting by film:
+ceria and ceria-coated silica give large positive exponents (+0.75 to +1.0),
+plain silica gives about zero or an interior maximum.
+
+### Proving the row pairing before trusting the patent numbers
+The patent's PDF text layer scrambles the A/B/C/D label column, so the
+size-to-rate correspondence was established arithmetically from two printed,
+self-consistent ratio columns rather than assumed:
+
+* Table 1's own `D50/(D99-D50)`: 156.1/146.5 = 1.066 ~ 1.07; 117.2/65.5 = 1.789
+  ~ 1.79; 210.7/106 = 1.988 ~ 1.99; 88.7/69.8 = 1.271 ~ 1.27.
+* Table 2's own TEOS/HDP ratio: 1311/2041 = 0.642 ~ 0.64; 1828/1807 = 1.012 ~
+  1.01; 2223/2299 = 0.967 ~ 0.97; 875/1158 = 0.756 ~ 0.76.
+
+Checking every alignment permutation, only one fits, to within 0.004. Row
+identity then follows from the patent's prose about particles A and D.
+
+### How the engine uses this
+Where a pack carries a sourced sweep for **its own film**, the measured exponent
+overrides the derived one — Cu uses +0.33 (Lai 2001 MIT thesis Table 3.6,
+confirmed against the thesis prose's own 2.2x and 1.2x ratios) instead of the
+-1.67 its branch and load sharing imply. Oxide stays `null`, because its
+response is non-monotonic and depends on both abrasive chemistry and deposition
+method; a single number would be false, so the derived exponent is used and the
+regime is flagged `unverified`.
