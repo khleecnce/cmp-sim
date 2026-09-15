@@ -119,9 +119,31 @@ def fit_dataset(path: Path, min_points: int = 3) -> List[GroupFit]:
     return out
 
 
+#: This package's own datasets, which take precedence over the inherited ones.
+OWN_DATASETS = Path(__file__).resolve().parents[1] / "data" / "validation" / "datasets"
+
+
 def dataset_paths(directory: Optional[Path] = None) -> List[Path]:
-    d = Path(directory or LEGACY_DATASETS)
-    return sorted(p for p in d.glob("*.yaml") if not p.stem.startswith("_"))
+    """Every validation dataset, this package's own plus the inherited ones.
+
+    Searching only the legacy directory silently hid the datasets added here,
+    so the library reported two passing datasets while the CLI, which knew
+    about both directories, reported four. A same-named file in the local
+    directory wins.
+    """
+    if directory is not None:
+        d = Path(directory)
+        return sorted(p for p in d.glob("*.yaml") if not p.stem.startswith("_"))
+
+    found: Dict[str, Path] = {}
+    for folder in (LEGACY_DATASETS, OWN_DATASETS):       # later wins
+        folder = Path(folder)
+        if not folder.is_dir():
+            continue
+        for p in sorted(folder.glob("*.yaml")):
+            if not p.stem.startswith("_"):
+                found[p.stem] = p
+    return [found[k] for k in sorted(found)]
 
 
 def run_all(directory: Optional[Path] = None, min_points: int = 3) -> List[GroupFit]:
