@@ -149,6 +149,10 @@ def _cmd_fit(args: argparse.Namespace) -> int:
     if args.template:
         print(TEMPLATE, end="")
         return 0
+    if not args.config:
+        print("give a YAML config, or --template to see the CSV format",
+              file=sys.stderr)
+        return 2
     if not args.csv:
         print("give a CSV of measurements, or --template to see the format",
               file=sys.stderr)
@@ -253,7 +257,9 @@ def build_parser() -> argparse.ArgumentParser:
     sw.set_defaults(func=_cmd_sweep)
 
     ft = sub.add_parser("fit", help="fit the model's factors to a CSV of measurements")
-    ft.add_argument("config", help="YAML config describing the process")
+    # nargs="?" so `cmp-sim fit --template` works without a config: someone who
+    # only wants to see the CSV format should not have to invent a recipe first.
+    ft.add_argument("config", nargs="?", help="YAML config describing the process")
     ft.add_argument("csv", nargs="?", help="CSV of measured rates and conditions")
     ft.add_argument("--template", action="store_true",
                     help="print an example CSV and exit")
