@@ -58,6 +58,12 @@ class Measurement:
     rpm_platen: float
     rpm_head: Optional[float] = None
     label: str = ""
+    #: slurry state during this run, for fitting the chemistry/abrasive factors
+    abrasive_wt_pct: Optional[float] = None
+    abrasive_d50_nm: Optional[float] = None
+    oxidizer_wt_pct: Optional[float] = None
+    ph: Optional[float] = None
+    temperature_c: Optional[float] = None
 
     @property
     def pressure_pa(self) -> float:
@@ -264,11 +270,20 @@ def from_dicts(raw: Sequence[Dict[str, Any]]) -> List[Measurement]:
                 "a rate (rate_A_per_min or rate_nm_per_min) plus the "
                 "pressure_psi and rpm_platen it was measured at - a rate without "
                 "its conditions cannot calibrate anything")
+        def _opt(key):
+            v = d.get(key)
+            return None if v is None else float(v)
+
         out.append(Measurement(
             rate_a_per_min=float(rate),
             pressure_psi=float(d["pressure_psi"]),
             rpm_platen=float(d["rpm_platen"]),
             rpm_head=(None if d.get("rpm_head") is None else float(d["rpm_head"])),
             label=str(d.get("label", "")),
+            abrasive_wt_pct=_opt("abrasive_wt_pct"),
+            abrasive_d50_nm=_opt("abrasive_d50_nm"),
+            oxidizer_wt_pct=_opt("oxidizer_wt_pct"),
+            ph=_opt("ph"),
+            temperature_c=_opt("temperature_c"),
         ))
     return out

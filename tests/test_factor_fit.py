@@ -126,6 +126,80 @@ def test_thresholds_are_documented_constants_not_magic_numbers():
     assert POINTS_PER_FACTOR >= 2
 
 
+# ── the slurry factors ───────────────────────────────────────────────
+def _abrasive_series(c_half=3.0, pressures=(2.0, 4.0),
+                     concentrations=(0.5, 1.0, 2.0, 4.0, 8.0, 16.0)):
+    """Loading series obeying Luo-Dornfeld occupancy with a known C_half."""
+    ref = sum(concentrations) / len(concentrations)
+    v = 2 * math.pi * 60 / 60 * OFFSET_M
+    out = []
+    for c in concentrations:
+        for psi in pressures:
+            base = KP_TRUE * psi * 6894.757 * v * 1e10 * 60
+            occ = (1 - math.exp(-c / c_half)) / (1 - math.exp(-ref / c_half))
+            out.append(Measurement(base * occ, psi, 60, abrasive_wt_pct=c))
+    return out
+
+
+def test_abrasive_saturation_is_recovered():
+    """The defining Luo-Dornfeld behaviour, fitted from a loading series."""
+    fit = fit_factors(_abrasive_series(c_half=3.0))
+    assert "abrasive_half_wt_pct" in fit.unlocked
+    assert fit.values["abrasive_half_wt_pct"] == pytest.approx(3.0, rel=0.15)
+    assert fit.cv_mape < fit.baseline_cv_mape / 10.0
+
+
+def test_a_saturating_slurry_is_distinguished_from_a_starved_one():
+    """The practical question: is more abrasive still buying rate?"""
+    saturated = fit_factors(_abrasive_series(c_half=1.0))
+    starved = fit_factors(_abrasive_series(c_half=20.0))
+    assert (saturated.values["abrasive_half_wt_pct"]
+            < starved.values["abrasive_half_wt_pct"])
+
+
+def test_activation_energy_is_recovered_from_a_temperature_series():
+    R = 8.314462618e-3
+    v = 2 * math.pi * 60 / 60 * OFFSET_M
+    ms = []
+    for t in (20, 30, 40, 50, 60):
+        for psi in (2.0, 4.0):
+            base = KP_TRUE * psi * 6894.757 * v * 1e10 * 60
+            arr = math.exp(-45.0 / R * (1 / (t + 273.15) - 1 / (40 + 273.15)))
+            ms.append(Measurement(base * arr, psi, 60, temperature_c=t))
+    fit = fit_factors(ms)
+    assert "activation_energy_kj_per_mol" in fit.unlocked
+    assert fit.values["activation_energy_kj_per_mol"] == pytest.approx(45.0, rel=0.1)
+
+
+def test_two_real_effects_are_separated_rather_than_confounded():
+    """Sub-linear pressure AND abrasive saturation in one dataset."""
+    import random
+    rng = random.Random(5)
+    v = 2 * math.pi * 60 / 60 * OFFSET_M
+    ms = []
+    for psi in (1.0, 2.0, 3.5, 5.0):
+        for c in (1.0, 3.0, 9.0):
+            occ = (1 - math.exp(-c / 3.0)) / (1 - math.exp(-(13 / 3) / 3.0))
+            rate = (KP_TRUE * psi * 6894.757 * v * 1e10 * 60
+                    * (psi / 3.0) ** (0.7 - 1.0) * occ)
+            ms.append(Measurement(rate * (1 + rng.uniform(-0.05, 0.05)), psi, 60,
+                                  abrasive_wt_pct=c))
+    fit = fit_factors(ms)
+    assert set(fit.unlocked) == {"abrasive_half_wt_pct", "pressure_exponent"}
+    assert fit.values["pressure_exponent"] == pytest.approx(0.70, abs=0.08)
+    assert fit.values["abrasive_half_wt_pct"] == pytest.approx(3.0, rel=0.2)
+    assert fit.cv_mape < 5.0
+
+
+def test_factors_with_no_data_stay_locked_even_in_a_rich_dataset():
+    """A 12-point pressure/abrasive study still says nothing about temperature."""
+    fit = fit_factors(_abrasive_series())
+    for name in ("activation_energy_kj_per_mol", "oxidizer_langmuir_K",
+                 "abrasive_size_exponent", "velocity_exponent"):
+        assert name not in fit.unlocked
+        assert name in fit.locked
+
+
 # ── through the solver ───────────────────────────────────────────────
 def _run(measurements, psi=3.0):
     return simulate(Recipe(

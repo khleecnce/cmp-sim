@@ -107,6 +107,65 @@ def _velocity_exponent(value: float, m: Measurement, ctx: Dict[str, float]) -> f
     return (v / ref) ** (value - 1.0) if v > 0 else 1.0
 
 
+def _abrasive_saturation(value: float, m: Measurement, ctx: Dict[str, float]) -> float:
+    """Site-occupancy saturation: N ~ 1 - exp(-C/C_half).
+
+    The Luo-Dornfeld result. ``value`` is C_half, the concentration at which
+    active-site occupancy reaches 1 - 1/e. Below it removal is nearly linear in
+    loading; above it, adding abrasive buys almost nothing. One free parameter,
+    so it is identifiable - unlike a free power law, which trades off against
+    the overall scale.
+    """
+    c = m.abrasive_wt_pct
+    c_ref = ctx.get("abrasive_ref_wt_pct")
+    if c is None or not c_ref or value <= 0:
+        return 1.0
+    occ = 1.0 - math.exp(-c / value)
+    occ_ref = 1.0 - math.exp(-c_ref / value)
+    return occ / occ_ref if occ_ref > 0 else 1.0
+
+
+def _abrasive_size_exponent(value: float, m: Measurement,
+                            ctx: Dict[str, float]) -> float:
+    """MRR ~ d^n at fixed loading.
+
+    The literature disagrees about the sign - this repository's own abrasive
+    database records six datasets with conflicting directions - so it is fitted
+    rather than assumed, and only when particle size was actually varied.
+    """
+    d = m.abrasive_d50_nm
+    d_ref = ctx.get("abrasive_ref_d50_nm")
+    if d is None or not d_ref or d <= 0:
+        return 1.0
+    return (d / d_ref) ** value
+
+
+def _oxidizer_langmuir(value: float, m: Measurement, ctx: Dict[str, float]) -> float:
+    """Langmuir coverage theta(C) = K*C/(1+K*C), normalised to the reference.
+
+    One free parameter (K), which is why this form is used here in preference
+    to a peak-and-shape curve whose two parameters are degenerate below the
+    peak - a degeneracy already documented in the copper pack.
+    """
+    c = m.oxidizer_wt_pct
+    c_ref = ctx.get("oxidizer_ref_wt_pct")
+    if c is None or c_ref is None or value <= 0:
+        return 1.0
+    theta = value * c / (1.0 + value * c)
+    theta_ref = value * c_ref / (1.0 + value * c_ref)
+    return theta / theta_ref if theta_ref > 0 else 1.0
+
+
+def _arrhenius(value: float, m: Measurement, ctx: Dict[str, float]) -> float:
+    """Temperature dependence, with ``value`` the activation energy [kJ/mol]."""
+    t = m.temperature_c
+    t_ref = ctx.get("temperature_ref_c")
+    if t is None or t_ref is None:
+        return 1.0
+    R = 8.314462618e-3          # kJ/(mol K)
+    return math.exp(-value / R * (1.0 / (t + 273.15) - 1.0 / (t_ref + 273.15)))
+
+
 FACTORS: Tuple[Factor, ...] = (
     Factor(
         name="pressure_exponent",
@@ -130,6 +189,55 @@ FACTORS: Tuple[Factor, ...] = (
         default=1.0,
         bounds=(0.2, 1.6),
         apply=_velocity_exponent,
+    ),
+    Factor(
+        name="abrasive_half_wt_pct",
+        param_key="abrasive_conc_half_wt_pct",
+        description="abrasive loading at which active-site occupancy saturates "
+                    "(Luo-Dornfeld). A low value means the slurry is already "
+                    "saturated and adding particles only raises cost and defect "
+                    "risk; a high value means loading is still buying rate",
+        driver="abrasive_wt_pct",
+        default=5.0,
+        bounds=(0.3, 40.0),
+        apply=_abrasive_saturation,
+    ),
+    Factor(
+        name="abrasive_size_exponent",
+        param_key="abrasive_size_exponent",
+        description="exponent on particle diameter at fixed loading. The "
+                    "published sign is contradictory across systems, so this is "
+                    "fitted rather than assumed; a positive value means larger "
+                    "particles cut faster, a negative one that finer particles "
+                    "win through sheer number",
+        driver="abrasive_d50_nm",
+        default=0.0,
+        bounds=(-2.0, 2.0),
+        apply=_abrasive_size_exponent,
+    ),
+    Factor(
+        name="oxidizer_langmuir_K",
+        param_key="oxidizer_langmuir_K",
+        description="Langmuir adsorption constant for the oxidizer. Large K "
+                    "means coverage saturates at low concentration, so extra "
+                    "oxidizer is wasted; small K means the surface reaction is "
+                    "still starved",
+        driver="oxidizer_wt_pct",
+        default=1.0,
+        bounds=(0.02, 50.0),
+        apply=_oxidizer_langmuir,
+    ),
+    Factor(
+        name="activation_energy_kj_per_mol",
+        param_key="chem_activation_energy_kj_per_mol",
+        description="Arrhenius activation energy. Below ~20 kJ/mol the process "
+                    "is diffusion- or mechanically-limited; above ~40 it is "
+                    "surface-reaction limited and will be sensitive to platen "
+                    "temperature drift",
+        driver="temperature_c",
+        default=25.0,
+        bounds=(2.0, 120.0),
+        apply=_arrhenius,
     ),
 )
 
@@ -265,10 +373,21 @@ def fit_factors(measurements: Sequence[Measurement],
         fit.warnings.append("no usable measurements")
         return fit
 
+    def _mean_of(attr):
+        vals = [getattr(m, attr) for m in ms if getattr(m, attr) is not None]
+        return sum(vals) / len(vals) if vals else None
+
+    # Reference points are the dataset's own means, so every factor is exactly
+    # 1.0 at the centre of the data and cannot double-count what Kp already
+    # absorbed.
     ctx: Dict[str, Any] = {
         "center_offset_m": center_offset_m,
         "pressure_ref_psi": pressure_ref_psi,
         "velocity_ref_m_s": sum(m.velocity_m_s(center_offset_m) for m in ms) / len(ms),
+        "abrasive_ref_wt_pct": _mean_of("abrasive_wt_pct"),
+        "abrasive_ref_d50_nm": _mean_of("abrasive_d50_nm"),
+        "oxidizer_ref_wt_pct": _mean_of("oxidizer_wt_pct"),
+        "temperature_ref_c": _mean_of("temperature_c"),
     }
 
     # ── baseline: scale only ─────────────────────────────────────────

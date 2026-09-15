@@ -40,6 +40,13 @@ FILM_PACK: Dict[str, str] = {
 FACTOR_PARAM = {
     "pressure_exponent": "pressure_exponent",
     "velocity_exponent": "velocity_exponent",
+    # These land on keys the existing physics layers already read, so a fitted
+    # value replaces the literature one in place rather than bolting on a
+    # parallel term that could double-count it.
+    "abrasive_half_wt_pct": "abrasive_conc_half_wt_pct",
+    "abrasive_size_exponent": "abrasive_size_exponent",
+    "oxidizer_langmuir_K": "oxidizer_langmuir_K",
+    "activation_energy_kj_per_mol": "chem_activation_energy_kj_per_mol",
 }
 
 FactorFn = Callable[["ResolvedRecipe"], Dict[str, Any]]
