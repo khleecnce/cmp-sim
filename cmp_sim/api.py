@@ -17,7 +17,7 @@ import json
 import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from cmp_sim.cli import recipe_from_dict
 from cmp_sim.core.params import ParamMissing, available_packs
@@ -43,7 +43,87 @@ def _meta() -> Dict[str, Any]:
         "additives": sorted(additives),
         "additive_roles": {k: (v or {}).get("role") for k, v in additives.items()},
         "abrasives": sorted(abrasives) or ["silica", "ceria", "alumina", "diamond"],
+        "sweepable": sorted(SWEEPABLE),
     }
+
+
+#: Parameters a sweep may vary, mapped to where they live in the recipe.
+SWEEPABLE: Dict[str, Any] = {
+    "pressure_psi": ("tool", "pressure_psi"),
+    "rpm_platen": ("tool", "rpm_platen"),
+    "rpm_head": ("tool", "rpm_head"),
+    "flow_ml_min": ("tool", "flow_ml_min"),
+    "temperature_c": ("slurry", "temperature_c"),
+    "ph": ("slurry", "ph"),
+    "abrasive_conc_wt_pct": ("slurry.abrasive", "conc_wt_pct"),
+    "abrasive_d50_nm": ("slurry.abrasive", "d50_nm"),
+    "pattern_density": ("wafer", "pattern_density"),
+    "pad_use_hours": ("pad", "use_hours"),
+    "disk_hours_used": ("disk", "hours_used"),
+}
+
+
+def run_sweep(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Run one recipe across a range of a single parameter.
+
+    A process engineer asks "what happens as I raise the pressure", not "what
+    is the rate at exactly 3 psi". Each point carries its own situation, so a
+    sweep that crosses a regime boundary says so instead of drawing a smooth
+    line through physics that changed underneath it.
+    """
+    import copy
+
+    param = payload.get("parameter")
+    if param not in SWEEPABLE:
+        raise ValueError(
+            f"cannot sweep '{param}'. available: {sorted(SWEEPABLE)}")
+    values = payload.get("values")
+    if not isinstance(values, list) or not values:
+        raise ValueError("'values' must be a non-empty list")
+    if len(values) > 50:
+        raise ValueError(f"at most 50 sweep points, got {len(values)}")
+
+    base = payload.get("recipe") or {}
+    section, key = SWEEPABLE[param]
+    points: List[Dict[str, Any]] = []
+    regimes: set = set()
+
+    for v in values:
+        body = copy.deepcopy(base)
+        target = body
+        for part in section.split("."):
+            target = target.setdefault(part, {})
+        target[key] = v
+        try:
+            res = run_recipe(body)
+        except Exception as exc:                   # one bad point must not kill the sweep
+            points.append({"value": v, "error": f"{type(exc).__name__}: {exc}"})
+            continue
+        sit = res.get("situation") or {}
+        regimes.add((sit.get("lubrication"), sit.get("load_regime"),
+                     sit.get("contact_branch")))
+        points.append({
+            "value": v,
+            "removal_rate_A_per_min": res.get("removal_rate_A_per_min"),
+            "wiwnu_percent": res.get("wiwnu_percent"),
+            "profile": res.get("profile"),
+            "lubrication": sit.get("lubrication"),
+            "load_regime": sit.get("load_regime"),
+            "n_warnings": len(res.get("warnings") or []),
+        })
+
+    warnings: List[str] = []
+    if len(regimes) > 1:
+        warnings.append(
+            "this sweep crosses a regime boundary: the points are not all "
+            "described by the same physics, so do not read a single trend "
+            "through them. The per-point regime is given for each value.")
+    ok = [p for p in points if "error" not in p]
+    if not ok:
+        warnings.append("every point failed; see the per-point error messages")
+
+    return {"parameter": param, "unit_hint": param, "points": points,
+            "warnings": warnings, "n_ok": len(ok), "n_failed": len(points) - len(ok)}
 
 
 def run_recipe(payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -89,7 +169,8 @@ class Handler(BaseHTTPRequestHandler):
         self._json(404, {"error": f"no such path: {path}"})
 
     def do_POST(self) -> None:                    # noqa: N802
-        if self.path.split("?", 1)[0] != "/api/simulate":
+        route = self.path.split("?", 1)[0]
+        if route not in ("/api/simulate", "/api/sweep"):
             return self._json(404, {"error": "no such path"})
         try:
             n = int(self.headers.get("Content-Length") or 0)
@@ -98,7 +179,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(400, {"error": f"invalid JSON: {exc}"})
 
         try:
-            return self._json(200, run_recipe(payload))
+            handler = run_sweep if route == "/api/sweep" else run_recipe
+            return self._json(200, handler(payload))
         except ParamMissing as exc:
             return self._json(422, {"error": "ParamMissing", "detail": str(exc)})
         except (ValueError, KeyError, TypeError) as exc:

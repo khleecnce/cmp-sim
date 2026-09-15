@@ -110,6 +110,7 @@
       <label>conc (wt%)<input id="add2wt" type="number" step="0.1" placeholder="-"/></label>
     </div>
     <div class="hint">Oxidizers take wt%, inhibitors take mM.</div>
+    <div class="hint" id="addinfo"></div>
   </fieldset>
 
   <fieldset><legend>Pad &amp; conditioner</legend>
@@ -137,6 +138,19 @@
     <label>Polish time (s)<input id="time" type="number" step="5" value="60"/></label>
     <label>Zone pressures (psi, comma separated &mdash; blank = uniform)
       <input id="zones" placeholder="e.g. 2.5, 3.0, 4.0"/></label>
+  </fieldset>
+
+  <fieldset><legend>Sweep (optional)</legend>
+    <div class="row">
+      <label>Vary<select id="swparam"><option value="">(single run)</option></select></label>
+      <label>from<input id="swfrom" type="number" step="any" placeholder="1"/></label>
+    </div>
+    <div class="row">
+      <label>to<input id="swto" type="number" step="any" placeholder="5"/></label>
+      <label>steps<input id="swn" type="number" step="1" value="7"/></label>
+    </div>
+    <div class="hint">Sweeps flag any point where the physical regime changes,
+      so a trend is never drawn through a boundary.</div>
   </fieldset>
 
   <fieldset><legend>Model profile</legend>
@@ -171,6 +185,18 @@ async function boot(){
   opts("film", META.films);
   $("film").value = META.films.includes("oxide") ? "oxide" : META.films[0];
   opts("abtype", META.abrasives, "(from pack)");
+  (META.sweepable || []).forEach(k => $("swparam").appendChild(new Option(k, k)));
+
+  // Name the role of each selected additive, so the choice is not blind.
+  function describeAdditives(){
+    const roles = META.additive_roles || {};
+    const picked = ["add1","add2"].map(id => $(id).value).filter(Boolean);
+    $("addinfo").textContent = picked.length
+      ? picked.map(n => `${n} → ${roles[n] || "role unknown"}`).join("  ·  ")
+      : `${(META.additives||[]).length} additives in the database, each mapped to its effect per film.`;
+  }
+  ["add1","add2"].forEach(id => $(id).addEventListener("change", describeAdditives));
+  describeAdditives();
   opts("add1", META.additives, "(none)");
   opts("add2", META.additives, "(none)");
   const m = $("model"); m.innerHTML = "";
@@ -343,9 +369,77 @@ function render(r){
   o.innerHTML = h;
 }
 
+// ── sweep ────────────────────────────────────────────────────────────
+function sweepChart(points, param){
+  const ok = points.filter(p => p.removal_rate_A_per_min != null);
+  if(ok.length < 2) return "";
+  const W=760,H=270,L=62,R=16,T=18,B=40;
+  const xs=ok.map(p=>p.value), ys=ok.map(p=>p.removal_rate_A_per_min);
+  const x0=Math.min(...xs), x1=Math.max(...xs);
+  const ymin=Math.min(...ys), ymax=Math.max(...ys);
+  const pad=(ymax-ymin)*0.15 || Math.max(ymax*0.05,1);
+  const y0=Math.max(0,ymin-pad), y1=ymax+pad;
+  const X=v=>L+((v-x0)/((x1-x0)||1))*(W-L-R);
+  const Y=v=>T+(1-(v-y0)/((y1-y0)||1))*(H-T-B);
+  let d="", dots="";
+  ok.forEach((p,i)=>{
+    d += (i?" L":"M")+X(p.value).toFixed(1)+" "+Y(p.removal_rate_A_per_min).toFixed(1);
+    // a point in a different lubrication regime is marked, not hidden
+    const odd = p.lubrication && p.lubrication !== ok[0].lubrication;
+    dots += `<circle cx="${X(p.value).toFixed(1)}" cy="${Y(p.removal_rate_A_per_min).toFixed(1)}"
+             r="${odd?5:3.2}" fill="${odd?"#ffb454":"#4da3ff"}"><title>${p.value}: ${p.removal_rate_A_per_min} A/min (${p.lubrication||"?"})</title></circle>`;
+  });
+  let g="";
+  for(let i=0;i<=4;i++){
+    const v=y0+(y1-y0)*i/4, y=Y(v);
+    g += `<line x1="${L}" y1="${y}" x2="${W-R}" y2="${y}" stroke="#2a2f3a"/>
+          <text x="${L-8}" y="${y+4}" fill="#9aa3b2" font-size="10.5" text-anchor="end">${v.toFixed(0)}</text>`;
+  }
+  let xt="";
+  ok.forEach(p => { xt += `<text x="${X(p.value)}" y="${H-14}" fill="#9aa3b2" font-size="10.5" text-anchor="middle">${p.value}</text>`; });
+  return `<svg id="sweepchart" viewBox="0 0 ${W} ${H}">${g}${xt}
+    <path d="${d}" fill="none" stroke="#4da3ff" stroke-width="2.2"/>${dots}
+    <text x="${L}" y="12" fill="#9aa3b2" font-size="10.5">removal rate (A/min)</text>
+    <text x="${W/2}" y="${H-1}" fill="#9aa3b2" font-size="10.5" text-anchor="middle">${param}</text>
+  </svg>`;
+}
+
+function renderSweep(j){
+  const o = $("out");
+  let h = `<h2>Sweep &mdash; <code>${j.parameter}</code></h2>`;
+  (j.warnings||[]).forEach(w => h += `<div class="err">${w}</div>`);
+  h += sweepChart(j.points, j.parameter);
+  h += `<table><tr><th>${j.parameter}</th><th>RR (A/min)</th><th>WIWNU %</th>
+        <th>lubrication</th><th>profile</th></tr>` +
+    j.points.map(p => p.error
+      ? `<tr><td class="num">${p.value}</td><td colspan="4" class="n">${p.error}</td></tr>`
+      : `<tr><td class="num">${p.value}</td><td class="num">${p.removal_rate_A_per_min}</td>
+         <td class="num">${p.wiwnu_percent}</td><td>${p.lubrication||"?"}</td>
+         <td>${p.profile||""}</td></tr>`).join("") + `</table>`;
+  if(j.n_failed) h += `<div class="hint">${j.n_failed} of ${j.points.length} points failed.</div>`;
+  o.innerHTML = h;
+}
+
 async function runSimulation(){
   const b = $("run"); b.disabled = true; b.textContent = "Simulating...";
   try{
+    const sweepParam = $("swparam").value;
+    if(sweepParam){
+      const from = num("swfrom"), to = num("swto");
+      const n = Math.max(2, Math.min(50, num("swn") || 7));
+      if(from === null || to === null){
+        $("out").innerHTML = `<div class="err">a sweep needs both a from and a to value</div>`;
+        return;
+      }
+      const values = Array.from({length:n}, (_,i) => +(from + (to-from)*i/(n-1)).toFixed(6));
+      const res = await fetch("/api/sweep", {method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({parameter: sweepParam, values, recipe: buildRecipe()})});
+      const j = await res.json();
+      if(!res.ok){ $("out").innerHTML = `<div class="err"><b>${j.error}</b>\n${j.detail||""}</div>`; }
+      else { renderSweep(j); }
+      return;
+    }
     const res = await fetch("/api/simulate", {method:"POST",
       headers:{"Content-Type":"application/json"},
       body: JSON.stringify(buildRecipe())});
