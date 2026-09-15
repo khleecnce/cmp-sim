@@ -226,6 +226,24 @@ def evaluate(*, blanket_rate_m_per_s: float, rho_local: np.ndarray,
         f"up-area rate spans {float(np.min(up)) * 6e11:.0f}-{float(np.max(up)) * 6e11:.0f} "
         "A/min: RR = K/rho_eff, so dense regions polish slower and clear last")
 
+    # When the step reaches zero the wafer is planar and every further second is
+    # overpolish -- which is exactly when dishing and erosion accrue. Reporting
+    # only "step height 0.0 nm" hides that: it reads as a perfect result rather
+    # than as "planarised 86 s ago and still polishing".
+    if blanket_rate_m_per_s > 0:
+        t_clear = float(np.max(rho_eff)) * float(initial_step_m) / float(blanket_rate_m_per_s)
+        notes.append(
+            f"the step clears at t = {t_clear:.0f} s in the densest region "
+            f"(rho_eff {float(np.max(rho_eff)):.2f})")
+        if time_s > t_clear:
+            over = time_s - t_clear
+            warnings.append(
+                f"planarisation completed at {t_clear:.0f} s but the recipe "
+                f"polishes for {time_s:.0f} s, so {over:.0f} s ({over / time_s:.0%} "
+                f"of the step) is overpolish on a flat surface. A step height of "
+                f"0 nm here means 'cleared long ago', not 'just right' -- this is "
+                f"the regime where dishing and erosion accumulate")
+
     dishing = erosion = sel = None
     rho_m = float(np.max(rho_eff))
     if rate_stop_m_per_s:

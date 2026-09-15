@@ -340,6 +340,26 @@ def _pattern_diagnostic(rr: ResolvedRecipe) -> Dict[str, Any]:
             "length is a pad/process property and is not guessed"]}
 
     step0 = rr.p_or("initial_step_height_m", None)
+    # The initial step height is an APPLICATION choice, not a material constant:
+    # poly-Si spans 190 nm (logic/STI) to >=5 um (MEMS), a 25x range, and
+    # planarisation time is linear in it. A pack can only carry one value, so
+    # the assumption is stated rather than left inside the pack file where
+    # nobody reads it.
+    if step0:
+        param = rr.pack.params.get("initial_step_height_m")
+        scale = ""
+        if param is not None and getattr(param, "note", None):
+            head = str(param.note).strip().splitlines()[0]
+            scale = f" Pack says: {head}"
+        rr_notes_step = (
+            f"initial step height {float(step0) * 1e9:.0f} nm is the pack's "
+            f"assumed application scale, not a property of the film. "
+            f"Planarisation time is linear in it, so override "
+            f"initial_step_height_m under params: if your layer differs."
+            + scale)
+    else:
+        rr_notes_step = None
+
     if not step0:
         return {"name": "_pattern", "value": None, "warnings": [
             "a pattern density was given but no initial step height "
@@ -363,6 +383,8 @@ def _pattern_diagnostic(rr: ResolvedRecipe) -> Dict[str, Any]:
     out = res.as_dict()
     notes = out.pop("notes", [])
     warnings = out.pop("warnings", [])
+    if rr_notes_step:
+        notes.insert(0, rr_notes_step)
     return {"name": "_pattern", "value": None, "notes": notes,
             "warnings": warnings, "pattern": out}
 
