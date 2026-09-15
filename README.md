@@ -46,7 +46,7 @@ python3 -m venv .venv
 #   POST /api/simulate   one run           GET /api/meta   films, packs, profiles
 #   POST /api/sweep      vary one input    GET /           the web UI
 
-# 543 tests
+# 546 tests
 .venv/bin/python -m pytest -q
 ```
 

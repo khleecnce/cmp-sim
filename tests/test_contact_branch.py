@@ -111,6 +111,11 @@ def test_oxide_is_reported_as_marginal_not_forced_to_a_side():
     assert situation["contact_branch"] == "transition"
     marginal = [u for u in situation["undetermined"] if "marginal" in u]
     assert marginal, "a boundary case was reported without saying it is one"
+    # The caveat must say the limit is physical, not clerical: no published
+    # nanoindentation reaches the sub-nm depth an abrasive works at, and
+    # Lambda goes as 1/H^3, so 2x in hardness is 8x here.
+    assert "sub-nm" in marginal[0] or "1/hardness^3" in marginal[0], (
+        "the caveat reads as if a tidier number would settle it")
 
 
 def test_the_engine_agrees_with_the_independent_calculation():
@@ -180,6 +185,60 @@ def test_the_structural_bound_is_what_it_claims_to_be():
                            (1.5, 0.5, True), (1.5, 2 / 3, True)]:
         within = 0.0 <= 1.0 - alpha * chi <= 1.0
         assert within is ok, f"alpha={alpha}, chi={chi}"
+
+
+# ── the circular-value trap in the hardness source ───────────────────
+def test_the_copper_surface_hardness_is_the_independent_column():
+    """Ihnfeldt's dissertation reports TWO hardness columns for the same
+    surfaces. H (nanoindentation, ~1-3 GPa here) is a direct measurement.
+    H_N (>12 GPa) is BACK-SOLVED from Luo-Dornfeld to reproduce the measured
+    removal rate, so using it to decide the contact branch would be circular in
+    exactly the way this whole criterion exists to avoid.
+    """
+    from cmp_sim.core.params import load_pack
+
+    param = load_pack("cu_h2o2_bta").param("film_surface_hardness_pa")
+    gpa = float(param.value) / 1e9
+    assert 1.0 < gpa < 6.0, (
+        f"{gpa:.2f} GPa is outside the measured nanoindentation band and sits "
+        "in the back-solved H_N range")
+    assert "H_N" in (param.note or ""), (
+        "the note does not warn about the circular H_N column in the same table")
+
+
+def test_no_pack_carries_a_back_solved_hardness():
+    """A film surface hardness above ~12 GPa on a metal would be the H_N
+    signature. Ceramics legitimately sit there, so only metals are checked."""
+    from cmp_sim.core.params import available_packs, load_pack
+
+    metals = {"cu_h2o2_bta", "w_fe_oxidizer", "snag_solder"}
+    for name in available_packs():
+        if name not in metals:
+            continue
+        try:
+            pack = load_pack(name)
+        except Exception:
+            continue
+        value = pack.get_or("film_surface_hardness_pa", None)
+        if value:
+            assert float(value) / 1e9 < 12.0, (
+                f"{name} declares a {float(value)/1e9:.1f} GPa metal surface "
+                "hardness, which is the back-solved H_N range")
+
+
+def test_the_particle_contact_stress_that_does_exist_is_not_luo_dornfeld_derived():
+    """Some packs do carry a contact stress. It is only usable if it came from
+    somewhere other than 'stress = hardness'."""
+    from cmp_sim.core.params import load_pack
+
+    param = load_pack("oxide_silica").param("particle_contact_stress_pa")
+    source = ((param.source or "") + (param.note or "")).lower()
+    assert "cook" in source and "hertz" in source, (
+        "the oxide contact stress no longer cites an independent Hertzian "
+        f"derivation: {source[:120]}")
+    hardness = float(load_pack("oxide_silica").get_or("film_bulk_hardness_pa", 0))
+    assert float(param.value) != hardness, (
+        "contact stress equals the hardness, which is the circular assumption")
 
 
 # ── the inheritance trap this exposed ────────────────────────────────

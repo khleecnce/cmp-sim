@@ -19,7 +19,7 @@
   zero-dependency web UI + API, `CMP-Sim.command` launcher
 - Films: Cu, W, oxide, STI-ceria, poly-Si, Si substrate, SiC, SnAg
 - Data: 55 additives × 9 films, 11 abrasives × 9 films
-- **543 tests**; verified from a clean clone including `pip install -e .`
+- **546 tests**; verified from a clean clone including `pip install -e .`
 
 ## NEXT
 Owner review of the physics. No implementation is queued — every P1–P8 gate,
@@ -39,6 +39,12 @@ all example films, the validation table and the data-fitting path are green.
   exponent), so the engine reports the branch and leaves the exponents
   `unverified` rather than publishing a negative concentration exponent.
   **To settle it:** a measured abrasive-CONCENTRATION sweep per film.
+  **A depth limit no bookkeeping removes:** no nanoindentation of an actually
+  CMP-polished surface exists in the 324-paper corpus (every "surface" value is
+  static immersion or as-deposited), and instruments resolve to ~5 nm while an
+  abrasive indents under 1 nm. Lambda goes as 1/H^3, so 2x in hardness is 8x in
+  Lambda. Cu at 117 survives that; oxide at 2.8 does not, which is why it is
+  reported `transition` rather than assigned a side.
   **Partly settled by data since:** 9 measured SIZE sweeps across 7 films were
   extracted and verified (exponents -0.45 to +1.0, three non-monotonic). Where
   a pack now has a sourced sweep for its own film the measured exponent

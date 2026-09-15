@@ -56,8 +56,13 @@ params:
       measurement. The measured value happens to be near zero too, which is a
       coincidence of mechanism rather than a confirmation of that derivation.
     source: >
-      Bouvet, Vos, Gonzalez et al., J. Vac. Sci. Technol. B 20(4) 1556-1561
-      (2002), Fig. 3 (rates) and Table I (sizes). Local PDF:
+      D. Bouvet, P.-A. Beaud, P. Fazan, R. Sanjines, "Impact of the colloidal
+      silica particle size on physical vapor deposition tungsten chemical
+      mechanical polishing", J. Vac. Sci. Technol. B 20(4) 1556-1560 (2002),
+      doi:10.1116/1.1490393 — author list, page range and DOI verified against
+      Crossref. An earlier draft of this note credited "Bouvet, Vos, Gonzalez",
+      which was wrong: those co-author names were not in the paper.
+      Fig. 3 (rates) and Table I (sizes). Local PDF:
       ~/fab-sim/papers/bouvet2002-jvst-colloidal-silica-w-cmp-size.pdf;
       dataset file
       cmp_sim/data/validation/datasets/bouvet2002_w_silica_size_sweep.yaml.

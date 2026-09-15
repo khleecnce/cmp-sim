@@ -127,12 +127,23 @@ def _pad_limited_branch(resolved, h_surf, h_bulk, s) -> Optional[float]:
         # Independent of the hardness caveat above: a marginal Lambda needs
         # saying even when the hardness is well sourced, and especially when it
         # is not, since the two uncertainties compound.
+        #
+        # The depth limit is what makes this band matter. No nanoindentation of
+        # an actually CMP-polished surface exists in the literature surveyed -
+        # every "surface" hardness is a statically immersed or as-deposited
+        # film - and the instruments resolve to ~5 nm while a single abrasive
+        # particle indents under 1 nm. Lambda goes as 1/Hc^3, so a 2x hardness
+        # error is 8x in Lambda: a verdict two orders of magnitude clear of the
+        # boundary survives that, one within 3x does not.
         s.undetermined.append(
             f"contact_branch is marginal (Lambda = {lam:.3g}, within 3x of the "
-            "elastic/plastic boundary). The pad hardness this rests on has a "
-            "standard deviation as large as its mean across 36 measurements of "
-            "one pad, so this film sits where the branch genuinely depends on "
-            "which asperity a particle happens to meet")
+            "elastic/plastic boundary) and cannot be resolved by better "
+            "bookkeeping. Lambda goes as 1/hardness^3, the pad hardness it "
+            "rests on has a standard deviation as large as its mean across 36 "
+            "measurements of one pad, and no published nanoindentation reaches "
+            "the sub-nm depth an abrasive actually works at - so a 2x hardness "
+            "error is 8x here. Treat this film as genuinely straddling the "
+            "branch rather than as awaiting a tidier number")
     return lam
 
 

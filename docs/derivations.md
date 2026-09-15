@@ -924,6 +924,25 @@ E^2, so SiC looked elastic on a number that was never about SiC. It is now
 blocked with `value: null`; the same route once carried the oxide Kp into that
 pack and over-predicted SiC by 128x.
 
+### A depth limit that no amount of care removes
+Two further caveats came out of the source search and are worth stating because
+they bound what the branch can mean at all:
+
+1. **No nanoindentation of an actually CMP-polished surface exists in this
+   corpus.** Every "surface" hardness is a statically immersed or as-deposited
+   film. Polishing is not immersion — it removes the layer it creates — so even
+   the best available number describes a related surface, not the one the
+   abrasive meets.
+2. **The instrument cannot reach the depth that matters.** Ihnfeldt's
+   nanoindenter resolves to roughly 5 nm, while a single abrasive particle
+   indents well under 1 nm. So 3.24 GPa is the shallowest *resolvable*
+   hardness, not the hardness at the abrasive's working depth. Since Lambda
+   goes as 1/Hc^3, a factor of 2 wrong in hardness is a factor of 8 in Lambda.
+
+Copper's Lambda is 117, two orders of magnitude clear of the boundary, so that
+verdict survives an 8x error comfortably. Oxide's 2.8 does not, which is
+exactly why it is reported as `transition` rather than assigned a side.
+
 ### What this does NOT settle
 Deciding the branch was supposed to fix the sign of the particle-size exponent.
 It does not. The exponent relations assume `0 <= 1 - alpha*chi <= 1`, and the
