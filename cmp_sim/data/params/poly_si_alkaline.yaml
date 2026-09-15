@@ -1,0 +1,890 @@
+# Poly-SILICON (poly-Si) CMP — alkaline colloidal-silica slurry.
+#
+# NEW pack. No inherited legacy/knowledge/params/poly_si_* exists, so
+# `base: base` picks up ONLY the tool / pad / contact-mechanics tier. Nothing is
+# inherited from oxide_silica or from si_substrate_alkaline, and that is
+# deliberate:
+#
+#   - vs OXIDE. Poly-Si removal is the electrochemical oxidation of Si-Si
+#     backbonds by OH- (Si + 4OH- -> Si(OH)4 + 4e-), not the Si-O-Si hydrolysis
+#     of silica. The whole point of a poly-Si slurry is that it does NOT polish
+#     oxide: the same slurry that takes poly-Si at 4278 A/min takes TEOS at
+#     62 A/min ([DOW18] Table A, Example 1-2). Letting an oxide Kp leak in here
+#     would be the inheritance accident that broke sic_ceria_h2o2.
+#   - vs BARE Si SUBSTRATE (cmp_sim/data/params/si_substrate_alkaline.yaml).
+#     Same chemistry family, DIFFERENT material and different process window.
+#     Poly-Si is polycrystalline (grains expose mixed orientations whose alkaline
+#     etch rates differ by up to 100:1, [SEI90] Fig. 13), is usually doped (heavy
+#     boron doping alone suppresses the rate ~5x, [PIR14] Fig. 6-4), is a THIN
+#     patterned film stopping on oxide/nitride rather than a bare substrate, and
+#     runs at 3-6 psi on a device tool rather than <1 psi on a wafer-maker
+#     polisher. The two packs therefore carry independent Kp values that differ
+#     by ~6x, and neither should be substituted for the other.
+#
+# SCOPE
+# -----
+# Blanket and patterned poly-Si removal with an ALKALINE COLLOIDAL-SILICA slurry
+# (KOH / NaOH / NH4OH / TMAH / amine base, pH ~10-12), stopping on an oxide or
+# nitride layer. Covers gate poly / floating-gate poly (NAND, FinFET dummy-gate
+# removal) and sacrificial or structural poly in MEMS and 3D NAND. Abrasive-free
+# "reactive liquid" polycation chemistries (PDADMAC, amino acids) polish poly-Si
+# by a DIFFERENT and partly non-Prestonian mechanism ([LAG19], [PEN11a/b]) and
+# are cited below only as context — none of their numbers is adopted as a pack
+# value.
+#
+# SOURCES USED (full text read, not abstracts)
+# --------------------------------------------
+#  [PIR14]  H. Pirayesh, "Study of the High Rate Chemical Mechanical Polishing of
+#           Heavily Boron-doped Polysilicon for 3D Applications", PhD thesis,
+#           University of Alberta 2014, doi:10.7939/r3zp3w76c. Local copy
+#           ~/fab-sim/papers/pirayesh2014-ualberta-thesis-boron-doped-polysilicon-cmp.pdf.
+#           Table 3-1 (Preston coefficients), Fig. 3-1/3-2 (rate vs PV),
+#           Fig. 6-4 (doping), §2.2/§2.3 (tool, slurry, kinematics).
+#           THE Kp SOURCE — the only document found that PUBLISHES a Preston
+#           coefficient for poly-Si rather than a single rate.
+#           Companion paper: H. Pirayesh & K. Cadien, ECS J. Solid State Sci.
+#           Technol. 3(6) P213-P218 (2014), doi:10.1149/2.010406jss.
+#  [DOW18]  US 10,822,524 B2 (Rohm and Haas / DuPont), "Aqueous compositions of
+#           low dishing silica particles for polysilicon polishing", granted
+#           2020-11-03. Table A (poly-Si and TEOS rates, selectivity), Tables
+#           B/C/D (step-height vs polish time at 30/50/70% pattern density), and
+#           the "Removal Rate and Step Height" test-method paragraph (Ebara
+#           EPO222, 93/87 rpm, 207 hPa = 3 psi, 200 mL/min, VP5000 pad).
+#           THE STOP-LAYER-RATE, STEP-HEIGHT and SELECTIVITY SOURCE.
+#  [TAN04]  B. Tang & D. Boning, "CMP Modeling and Characterization for
+#           Polysilicon MEMS Structures", MRS Symp. Proc. 816 K7.6 (2004),
+#           doi:10.1557/proc-816-k7.6. THE PLANARIZATION-LENGTH SOURCE: a
+#           Stine/Ouma pattern-density + step-height model fitted to five
+#           poly-Si wafers on a Strasbaugh 6EC.
+#  [PAR07]  K.-W. Park, H.-G. Kang, M. Kanemoto, J.-G. Park, U. Paik, J. Korean
+#           Phys. Soc. 51(1) 214-223 (2007). Fuso PL-3/PL-7 colloidal silica +
+#           TMAH, poly-Si vs PETEOS on a Strasbaugh 6EC, 2-6 psi, 0.539 m/s.
+#           Abrasive size / loading and the pH-and-selectivity behaviour.
+#  [HWA08]  H.-S. Hwang, H.-G. Kang, J.-H. Park, U. Paik, J.-G. Park, ECS Meet.
+#           Abstr. MA2008-01, 692 (213th ECS Meeting). Same laboratory: KOH vs
+#           NaOH vs TMAH rate-vs-concentration curves in colloidal silica.
+#  [SEI90]  H. Seidel, L. Csepregi, A. Heuberger, H. Baumgaertel, "Anisotropic
+#           Etching of Crystalline Silicon in Alkaline Solutions: I",
+#           J. Electrochem. Soc. 137(11) 3612-3626 (1990), doi:10.1149/1.2086277.
+#           Table II + Figs. 13/16/18. THE ACTIVATION-ENERGY SOURCE.
+#  [KIM22]  E. Kim, S. Choi, H. Seok, C. Kang, T. Kim (SKKU / SK hynix),
+#           "Mechanochemically Enhanced Selective Material Removal during poly-Si
+#           CMP by Nanocontact-induced Dissolution", NCCAVS/ICPT extended
+#           abstract. Local copy
+#           ~/fab-sim/papers/kim-nccavs-icpt-poly-si-mechanochemical-selective.pdf.
+#           Fig. 1: Hertzian single-particle pressure ON POLY-Si.
+#           THE PARTICLE-CONTACT-STRESS SOURCE.
+#  [BHU97]  B. Bhushan & X. Li, "Micromechanical and tribological characterization
+#           of doped single-crystal silicon and polysilicon films for MEMS
+#           devices", J. Mater. Res. 12(1) 54-63 (1997),
+#           doi:10.1557/jmr.1997.0010. Nanoindentation hardness of LPCVD n+
+#           polysilicon (quoted via the MEMSnet materials database, p.59 entries).
+#  [IVA16]  N. Ivanov et al., "Grain size and doping effect on structure and
+#           electromechanical properties of polycrystalline silicon for MEMS",
+#           J. Phys. Conf. Ser. 741 012001 (2016),
+#           doi:10.1088/1742-6596/741/1/012001. DISAGREEING hardness (14-16 GPa).
+#  [PEN11a] N. K. Penta, P. R. D. Veera, S. V. Babu, Langmuir 27(7) 3502-3510
+#           (2011), doi:10.1021/la104257k. PDADMAC, poly-Si vs oxide vs nitride.
+#  [PEN11b] N. K. Penta et al., ACS Appl. Mater. Interfaces 3(11) 4181 (2011),
+#           doi:10.1021/am2010114. Polycation charge density and pH.
+#  [LAG19]  S. Lagudu et al., ECS J. Solid State Sci. Technol. 8(5) P3040-P3046
+#           (2019), doi:10.1149/2.0081905jss. Non-Prestonian poly-Si removal;
+#           also the literature summary of poly-Si:oxide:nitride rate ratios.
+#  [PAR16]  S. Park, H. Jeong, S.-H. Yoon, Int. J. Mater. Mech. Manuf. 4(2)
+#           115-118 (2016), doi:10.7763/ijmmm.2016.v4.236. Annealing / Young's
+#           modulus vs MRR, POLI-500, 500 gf/cm^2, 60/60 rpm, Cabot P1000.
+
+base: base
+description: "Poly-Si CMP: alkaline colloidal silica (KOH/TMAH/NH4OH), OH- backbond attack, oxide/nitride stop layer"
+
+params:
+
+  film:
+    value: poly_si
+    note: >
+      LPCVD polycrystalline silicon film. Matches the engine's
+      SEMICONDUCTOR_FILMS set and cmp_sim/core/solver.py's film->pack map
+      ("poly_si" -> "poly_si_alkaline"), and the sanity envelope
+      PLAUSIBLE_RATE_A_PER_MIN["poly_si"] = 200-5000 A/min.
+    source: "pack scope declaration"
+    confidence: literature
+
+  material_family:
+    value: semiconductor
+    unit: "-"
+    note: >
+      Read by cmp_sim/core/regime.py::material_family / classify_film. Poly-Si is
+      a semiconductor; classify_film then splits on film_bulk_hardness_pa, and
+      11.5 GPa is below HARDNESS_HARD_CERAMIC (15.0 GPa), so the pack classifies
+      as "semiconductor" rather than "hard_ceramic". That is the physically right
+      call: unlike 4H-SiC, poly-Si is attacked by OH- at room temperature
+      ([SEI90] Table A-I gives micrometres per hour in KOH at 20-100 C), so
+      removal is chemically ASSISTED, not chemically starved.
+      ⚠ This verdict is only ~30% away from flipping — see the hardness note:
+      if [IVA16]'s 14.1-16.3 GPa were adopted instead of [BHU97]'s 11.5 GPa the
+      same code would return "hard_ceramic" and route this pack down the SiC
+      branch. The classification is therefore sensitive to which hardness
+      measurement you believe.
+    source: "doi:10.1149/1.2086277 ([SEI90], Si dissolves in alkali at room T) + pack taxonomy"
+    confidence: literature
+
+  abrasive:
+    value: silica
+    note: >
+      Colloidal (amorphous) SiO2. Silica-on-silicon: no ceria "chemical tooth"
+      term applies here. All three primary experimental sources use colloidal
+      silica — Fujimi Planerlite 6103 ([PIR14]), Fuso PL-3/PL-7 ([PAR07],
+      [HWA08]) and Fuso PL-3-derived "Slurry A" ([DOW18]).
+    source: "doi:10.7939/r3zp3w76c ([PIR14] §2.2); J. Korean Phys. Soc. 51(1) 214 ([PAR07] Table 1); US10822524B2 ([DOW18] Slurry A)"
+    confidence: literature
+
+  # ══════════════════════════════════════════════════════════════════
+  # 1. Preston coefficient — THE number
+  # ══════════════════════════════════════════════════════════════════
+  # KEY NAME: the engine reads `kp_m_per_pa` (cmp_sim/core/solver.py:109).
+  # `preston_kp` is declared below as a same-valued alias; the engine ignores it.
+
+  kp_m_per_pa:
+    value: 1.07e-13
+    unit: m/Pa   # equivalently m^2/N; MRR [m/s] = Kp * P[Pa] * V[m/s]
+    note: >
+      PUBLISHED Preston slope, UNIT-CONVERTED (not fitted here). [PIR14]
+      Table 3-1 reports Preston's coefficient K directly, as the slope of
+      measured removal rate against the P*V product, for a 3x3 matrix of
+      pressure (3 / 4.5 / 6 psi) x slurry flow rate (100 / 200 / 350 mL/min):
+
+        K at low and moderate velocities [(um/min) per (kN/(m*s))]
+                   100 mL/min   200 mL/min   350 mL/min
+          3   psi     0.0029       0.0036       0.0008
+          4.5 psi     0.0047       0.0064       0.0066
+          6   psi     0.0067       0.0064       0.0077
+
+      ADOPTED CELL: 4.5-6 psi at the author's own optimum flow rate of
+      200 mL/min, K = 0.0064. Chosen because (a) [PIR14] §3.1 states the
+      critical pressure Pc sits between 3 and 4.5 psi, so the 3 psi row is in
+      the HYDRODYNAMIC regime where solid contact — and hence Preston
+      linearity — is not established (its K is 4-8x lower and the paper says so
+      explicitly); and (b) 200 mL/min is where the paper shows the chemistry
+      saturated and the mechanics not yet flooded. 0.0064 appears twice
+      independently (4.5 psi and 6 psi), which is why it is preferred over the
+      single 0.0077 outlier.
+
+      FULL ARITHMETIC (unit conversion only — no fitting):
+        K       = 0.0064 (um/min) / (kN/(m*s))
+        um/min -> m/s :  x 1e-6 / 60          = 1.6667e-8
+        kN     -> N   :  / 1000
+        Kp = 0.0064 * (1e-6 / 60) / 1000
+           = 0.0064 * 1.6667e-8 / 1000
+           = 1.0667e-13 m/Pa   ->  1.07e-13 (3 s.f.)
+
+      AXIS-UNIT CHECK (done, because the whole value hangs on it). [PIR14]
+      Fig. 3-2 axes read "Removal rate (um/min)" and "PV (KN/ms)". Their
+      kinematics (§2.3.1): pad and carrier co-rotating at the same rpm with a
+      centre offset averaging 0.17 m, so V = 2*pi*rpm/60 * 0.17. At 3 psi
+      (20.68 kPa) that predicts PV = 11.0 / 22.1 / 29.5 / 33.1 kN/(m*s) for
+      30 / 60 / 80 / 90 rpm — and the plotted 3 psi points sit at ~11, 17, 26,
+      33. The axis label therefore means kN per (metre*second), i.e. Pa*m/s in
+      thousands, and the conversion above is the right one.
+
+      SANITY CHECK. Hand calculation at the base pack's reference point
+      (3.0 psi = 20.68 kPa, relative_velocity_ref_mps = 0.75 m/s):
+        MRR = 1.07e-13 * 20684 * 0.75 = 1.66e-9 m/s = 993 A/min.
+      ACTUAL ENGINE RUN (done after writing this file, model='preston',
+      film='poly_si', default 3 psi / 60 rpm wafer / 55 rpm platen, 21 radial
+      points) returns 1669.0 A/min mean. It is higher than the hand figure
+      because the solver computes the radial relative velocity from the
+      kinematics (r_cc = 0.20 m) rather than using the 0.75 m/s reference
+      scalar. Both numbers sit inside cmp_sim/core/sanity.py's poly_si envelope
+      (200-5000 A/min) and are the right order for a device-tool poly-Si step.
+
+      ** FOUR HONEST WARNINGS — read before trusting an absolute number **
+
+      (a) THE FILM IS HEAVILY BORON-DOPED, AND DOPING MATTERS A LOT. Table 3-1
+          was measured on 3.5 mOhm*cm boron-doped poly-Si. [PIR14] Fig. 6-4
+          (6 psi, 200 mL/min) measures, at 80-120 rpm:
+            2.2 mOhm*cm  0.20-0.25 um/min
+            3.5 mOhm*cm  0.59-0.63 um/min
+            UNDOPED      0.88-1.08 um/min
+          so UNDOPED poly-Si polishes 1.6-1.7x faster than the film this Kp
+          came from (and ~5x faster than the most heavily doped). Scaling gives
+          Kp(undoped) ~ 0.0064 * 1.65 = 0.0106 -> 1.76e-13 m/Pa. That number is
+          NOT adopted here because it is a second inference on top of a first;
+          but if you are simulating an UNDOPED sacrificial or MEMS poly-Si, this
+          pack will UNDERPREDICT by roughly 1.7x and you should say so.
+      (b) NON-ZERO INTERCEPT — POLY-Si IS NOT STRICTLY PRESTONIAN. [PIR14]
+          §3.1: the fitted lines do not pass through the origin; the intercept
+          is 0.1-0.2 um/min, "close to the silicon etch rate at room temperature
+          at pH = 11.4". Preston's MRR = Kp*P*V has no such term, so at low P*V
+          this pack UNDERPREDICTS by up to 0.1-0.2 um/min of pure chemical etch.
+          The engine has no static-etch term to put it in.
+      (c) THE SLOPE GOES NEGATIVE AT HIGH SPEED. The same table's second column
+          (110 rpm, V ~ 2.0 m/s) is mostly NEGATIVE (-0.0027 to -0.0136):
+          hydroplaning reverses the rate-vs-PV trend. Preston cannot represent
+          that. Do not run this pack above ~1.5 m/s and expect the rate to keep
+          rising.
+      (d) SLURRY CHEMISTRY IS A TRADE SECRET. Fujimi Planerlite 6103: 17.3 wt%
+          colloidal silica, bimodal 30-40 / 70-80 nm, pH 11-11.8, vendor-quoted
+          poly-Si:oxide selectivity as high as 450. [PIR14] states the exact
+          composition "is a trade secret and was not disclosed"; organic
+          additives and buffers are expected. So this Kp belongs to an
+          unspecified commercial formulation, not to a reproducible recipe.
+
+      CROSS-CHECKS AGAINST INDEPENDENT POLY-Si DATA — THEY DISAGREE, and per
+      this project's rule the disagreement is recorded rather than averaged:
+        [DOW18] Table A, Example 1-2: 4278 A/min poly-Si at 3 psi (207 hPa),
+          Ebara EPO222 at 93/87 rpm. The patent never states the platen-carrier
+          centre distance, so V cannot be recovered; ASSUMING V = 0.75 m/s gives
+          Kp = (4278e-10/60) / (20684 * 0.75) = 4.6e-13 m/Pa, i.e. 4.3x THIS
+          PACK. Undoped poly-Si + an optimised production slurry + a different
+          pad. Treat as an upper bound on what a modern poly slurry can do.
+        [PAR07] reports a peak poly-Si rate of ~2600 A/min at V = 0.539 m/s over
+          a 2-6 psi range, but does not say which pressure produced the peak, so
+          no Kp can be derived from it at all.
+        [PAR16] (POLI-500, Cabot P1000, 500 gf/cm^2 = 49.0 kPa = 7.1 psi,
+          60/60 rpm) measures 7032-7200 A/min on unannealed poly-Si. Their
+          centre distance is unstated too; for V = 0.5-1.0 m/s the implied Kp is
+          2.4e-13 to 4.8e-13 — again 2-4x above this pack.
+        [LAG19] abrasive-free 250 ppm PDADMAC + 25 ppm CPB at pH 10 gives
+          ~320 nm/min at 4 psi but ~0 nm/min at 1-1.5 psi (a THRESHOLD, i.e.
+          deliberately non-Prestonian). Different mechanism; not comparable.
+      Read together: published poly-Si Kp-equivalents span roughly
+      1.1e-13 to 4.8e-13 m/Pa, a factor of ~4.5, dominated by doping level and
+      by slurry formulation. This pack takes the only DIRECTLY PUBLISHED slope,
+      which happens to sit at the bottom of that band because its film is
+      heavily boron-doped.
+
+      BOTTOM LINE: good for ranking recipes and for conditions near 4.5-6 psi,
+      1.0-1.6 m/s, pH ~11.4, colloidal silica on a polyurethane pad, on a DOPED
+      poly-Si film. For undoped poly-Si multiply by ~1.65. Do not use for
+      absolute prediction of an optimised production slurry, and do not use
+      above 1.5 m/s.
+    source: "doi:10.7939/r3zp3w76c ([PIR14]) Table 3-1, 4.5-6 psi / 200 mL/min cell (K = 0.0064 (um/min)/(kN/(m*s))); unit conversion shown in note"
+    confidence: med
+
+  preston_kp:
+    value: 1.07e-13
+    unit: m^2/N
+    note: >
+      ALIAS of kp_m_per_pa above (m^2/N and m/Pa are the same unit). Declared
+      because this pack's specification and external callers use the name
+      `preston_kp`, while the engine's solver reads `kp_m_per_pa`. Same value,
+      same derivation, same four warnings — see the note on kp_m_per_pa. If one
+      is ever edited, edit both.
+    source: "doi:10.7939/r3zp3w76c ([PIR14]) Table 3-1 — see kp_m_per_pa note for the arithmetic"
+    confidence: med
+
+  # ══════════════════════════════════════════════════════════════════
+  # 2. Hardness
+  # ══════════════════════════════════════════════════════════════════
+
+  film_bulk_hardness_pa:
+    value: 1.15e+10
+    unit: Pa
+    note: >
+      Nanoindentation hardness of an LPCVD n+ (phosphorus-doped) POLYSILICON
+      FILM: H = 11.5 GPa at 0.2 mN peak load / 25 nm indentation depth
+      ([BHU97], J. Mater. Res. 12(1), p.59). The SHALLOWEST indent is adopted
+      deliberately: CMP removes the top few nanometres, so the near-surface
+      value is the relevant one.
+
+      LOAD DEPENDENCE IN THE SAME MEASUREMENT (same paper, same film):
+        0.2 mN,  25 nm depth  ->  11.5 GPa   <- adopted
+        15  mN, 289 nm depth  ->  10.5 GPa
+      i.e. ~9% indentation-size effect across a 75x load range.
+
+      AGREEMENT AND DISAGREEMENT IN THE WIDER LITERATURE (recorded, not
+      averaged):
+        - 12.5 GPa at 100 uN on a LAPPED polysilicon film, AFM/FFM
+          nanoindentation (IEEE MEMS Workshop, San Diego 1996, p.97) — same
+          laboratory, sharper probe, consistent with the load trend above.
+        - 10.0 +/- 1.0 GPa for a BARE SINGLE-CRYSTAL Si substrate (Berkovich,
+          doi:10.3390/mi16040427 Table 1, adopted by this repo's
+          si_substrate_alkaline pack). Poly-Si measuring ~15% harder than
+          single-crystal Si is the expected direction (grain-boundary
+          Hall-Petch strengthening).
+        - **DISAGREEMENT:** [IVA16] (doi:10.1088/1742-6596/741/1/012001) reports
+          14.1-16.3 GPa for PECVD polysilicon with 117-430 nm grains, and states
+          plainly that these "exceed theoretical values". That is 23-42% above
+          the value adopted here. Their films are PECVD, not LPCVD, and their
+          own framing flags the numbers as anomalous. The disagreement is
+          recorded and NOT averaged in.
+      ⚠ CONSEQUENCE OF THE DISAGREEMENT: HARDNESS_HARD_CERAMIC in
+      cmp_sim/core/regime.py is 15.0 GPa. 11.5 GPa classifies as
+      "semiconductor"; [IVA16]'s 16.3 GPa would classify as "hard_ceramic" and
+      send this pack down the SiC branch. The film class of this pack is
+      therefore contingent on this choice — stated here so it is not discovered
+      as a surprise.
+
+      ⚠ SECOND-HAND CITATION, DECLARED. The 1997 J. Mater. Res. paper is
+      paywalled and was not read in full; the two hardness values and their
+      measurement conditions are quoted from the MEMSnet materials database
+      entry for "Polysilicon, film", which cites J. Mater. Res. 12(1), Jan 1997,
+      p.59 for each. The DOI and pagination were verified independently via
+      Crossref (doi:10.1557/jmr.1997.0010, J. Mater. Res. 12, 54-63, Jan 1997).
+
+      This value only splits soft-vs-hard inside the semiconductor family in
+      regime.classify_film; it is NOT used to compute a removal rate.
+    source: "doi:10.1557/jmr.1997.0010 ([BHU97]) p.59, LPCVD n+ polysilicon, Berkovich 0.2 mN / 25 nm; quoted via memsnet.org/material/polysiliconfilm"
+    confidence: literature
+
+  film_surface_hardness_pa:
+    value: null
+    unit: Pa
+    note: >
+      **NOT SOURCED — deliberately null.** TODO(materials-agent): the hardness of
+      the alkaline-modified poly-Si surface that CMP actually abrades has no
+      published measurement that this search could find, and the obstruction is
+      physical, not clerical:
+
+      (a) THE MODIFIED LAYER IS ATOMICALLY THIN. [PAR07] §III describes it as the
+          poly-Si surface turning "into monohydride or dihydride with two
+          backboned oxygen atoms on silicon" — a TERMINATION, a few atomic
+          layers, not a film. [KIM22] computes that a 30 nm silica particle at
+          2 psi presses only 3.4 ANGSTROM into poly-Si. No indenter resolves a
+          hardness at that depth (compare Tadjiev & Hand 2010,
+          doi:10.1016/j.jnoncrysol.2009.10.004, who report that a ~5 nm hydrated
+          layer is "too small to be detected by nanoindentation due to indenter
+          bluntness").
+      (b) IT IS PARTLY SOLUBLE, NOT MERELY SOFT. [SEI90]'s mechanism ends in
+          Si(OH)4, which dissolves above pH ~11. A layer whose steady-state
+          thickness is set by a dissolution-diffusion balance under flowing
+          slurry has no well-defined quiescent hardness to measure ex situ.
+      (c) THE ONE QUANTITATIVE HANDLE IS AN ENERGY, NOT A HARDNESS. [KIM22]
+          argues from a Morse-potential/Arrhenius model that the Si-Si bond
+          energy and hence the activation energy DROP under the particle load,
+          and demonstrates it by AFM: at 134 nN tip force there is NO abrasion
+          in DI water but measurable removal in TBAF solution. That is direct
+          evidence of chemical softening — with no number in pascals.
+      (d) DIRECTION ONLY. It is softer than the 11.5 GPa bulk (that is the whole
+          premise of chemical-mechanical synergy), and [PAR07]'s contact-angle
+          data show the softening tracks OH- availability non-monotonically.
+          Borrowing the 0.24-0.52 softening factor measured on hydrated silicate
+          GLASS would be an extrapolation across the exact variable that
+          controls the effect, and this pack does not ship guesses.
+
+      CONSEQUENCE, STATED PLAINLY: regime.classify_contact_branch falls back to
+      the BULK hardness, giving stress/hardness = 1.48e8 / 1.15e10 = 0.013,
+      far below ELASTIC_STRESS_RATIO (0.5), so it reports ELASTIC. Because the
+      true surface layer is SOFTER, the true ratio is LARGER than 0.013: the
+      layer would have to be below ~0.3 GPa (a ~39x softening) to reach the
+      transition band. So the elastic verdict is robust here, more so than in
+      the bare-Si pack — but it is still a bound, not a measurement.
+
+      WHAT WOULD FILL THIS KEY: AFM force-curve modulus mapping or in-situ
+      nanoindentation of a poly-Si surface held at pH 10-12 in colloidal silica,
+      at 0.3-5 nm indentation depth, reported alongside the XPS Si-OH / Si-O-Si
+      fractions so the surface state is pinned. Failing that, an inverse
+      extraction of H_surface from a Luo-Dornfeld fit to a P / V / particle-size
+      sweep on blanket poly-Si — with the caveat that the copper literature
+      (doi:10.1149/1.2903293) found inverse-extracted and measured hardness to
+      disagree by 4x.
+    source: "TODO(materials-agent) — no measurement located; [PAR07]/[KIM22] characterise the modified surface only chemically and energetically"
+    confidence: unverified
+
+  # ══════════════════════════════════════════════════════════════════
+  # 3. Single-particle contact stress
+  # ══════════════════════════════════════════════════════════════════
+
+  particle_contact_stress_pa:
+    value: 1.48e+08
+    unit: Pa
+    note: >
+      HERTZIAN CONTACT PRESSURE UNDER ONE ABRASIVE PARTICLE, computed for
+      exactly this system (colloidal silica on poly-Si, on a polyurethane CMP
+      pad). [KIM22] "DISCUSSION" and Fig. 1, using IC1010 pad properties, 30 nm
+      colloidal silica at 0.1 wt% solids:
+
+        applied down-force                          2 psi (13.8 kPa)
+        pressure pad asperity -> wafer              0.86 MPa
+        pressure from ONE nanoparticle on top of
+        that asperity                               148 MPa   <- adopted
+        equivalent contact force                    134 nN
+        indentation depth into the poly-Si film     3.4 Angstrom
+
+      WHY THIS SOURCE RATHER THAN A GENERIC SILICA-ON-SILICON NUMBER: the
+      calculation is done FOR poly-Si with a real CMP pad and a real solids
+      loading, and the authors then applied the same 134 nN with an AFM tip of
+      matching 30 nm radius to verify the removal behaviour experimentally. The
+      force is theirs, measured-equivalent; the pressure is their Hertzian
+      calculation from it.
+
+      DISAGREEING / HIGHER VALUES IN NEIGHBOURING SYSTEMS, recorded not averaged:
+        - 1.2 GPa for a 1 um silica sphere at 3 uN on Si(100)
+          (doi:10.3390/ma11061027), the value this repo's si_substrate_alkaline
+          pack adopts — 8x higher, because both the sphere and the load are far
+          larger.
+        - 2.58e8 Pa for 15 nm silica on silica glass (Cook 1990,
+          doi:10.1016/0022-3093(90)90200-6 Appendix 2), adopted by the oxide
+          pack — 1.7x higher, smaller particle, higher part pressure.
+        - 6.9 GPa at 1 uN for a sharp AFM tip on Si
+          (doi:10.1186/1556-276x-9-269) — a reminder that this quantity belongs
+          to the TIP GEOMETRY as much as to the material.
+      The published band for a CMP-scale particle on Si/SiO2 is therefore
+      ~1.5e8 to ~1.2e9 Pa; this pack takes the bottom of it because that is the
+      only entry computed for poly-Si with CMP-realistic particle size and pad.
+
+      LIMITS: a Hertzian calculation at 2 psi and 0.1 wt% solids, not a
+      measurement under a running pad, and not at this pack's own 4.5-6 psi
+      Kp condition (Hertz gives P0 ~ P^(1/3), so 6 psi would raise it by ~44%
+      to ~2.1e8 Pa if the solids loading were unchanged; it is not). It is a
+      REFERENCE-CONDITION stress, used only by
+      regime.classify_contact_branch to pick elastic vs plastic.
+    source: "NCCAVS/ICPT extended abstract, Kim, Choi, Seok, Kang & Kim (SKKU/SK hynix) ([KIM22]), DISCUSSION + Fig. 1; local copy ~/fab-sim/papers/kim-nccavs-icpt-poly-si-mechanochemical-selective.pdf"
+    confidence: literature
+
+  # ══════════════════════════════════════════════════════════════════
+  # 4. Chemistry — activation energy and pH
+  # ══════════════════════════════════════════════════════════════════
+
+  chem_activation_energy_kj_per_mol:
+    value: 56.9
+    unit: kJ/mol
+    note: >
+      Arrhenius activation energy of the ALKALINE DISSOLUTION of silicon, which
+      [SEI90] identifies as the rate-limiting step of the whole reaction. Their
+      Table II, Si<100> in 20-42% KOH: Ea = 0.57, 0.62, 0.60, 0.60, 0.57, 0.61,
+      0.59 eV across seven KOH compositions; body text summarises as
+      "approximately 0.6 eV for {100} surfaces".
+
+      UNIT CONVERSION (1 eV/particle = 96.485 kJ/mol):
+        0.59 eV * 96.485 = 56.93 kJ/mol   <- adopted
+        band: 0.57 eV -> 55.0 kJ/mol ; 0.62 eV -> 59.8 kJ/mol
+
+      WHY THIS BARRIER IS THE RIGHT ONE FOR A POLY-Si CMP PACK. [SEI90] assigns
+      it to a specific step: after OH- binds, "the Si-Si backbonds of the
+      Si(OH)2 groups to the neighboring lattice atoms have to be broken", which
+      requires thermally exciting those bonding electrons into the conduction
+      band; "this step is considered to be rate controlling". The poly-Si CMP
+      literature runs on the same reaction: [PAR07] §III concludes "the
+      polysilicon film was removed through etching by OH-", citing Pietsch's
+      FT-IR evidence that "a direct attack of Si-H bonds by OH-, if active, is
+      the rate-limiting step"; [KIM22] builds its whole mechanism on the
+      Arrhenius barrier of Si-Si bond rupture. So the barrier transferred here
+      is the barrier of the reaction the polish actually runs on.
+
+      ⚠ THREE CAVEATS, IN ORDER OF IMPORTANCE.
+      (1) POLY-Si IS POLYCRYSTALLINE, THE SOURCE IS NOT. [SEI90] measured
+          single-crystal wafers, and Ea is ORIENTATION DEPENDENT:
+            Si<100> in KOH   0.57-0.62 eV   (55.0-59.8 kJ/mol)  <- adopted
+            Si<110> in KOH   0.57-0.62 eV   (essentially identical)
+            Si<111> in KOH   ~0.70 eV       (67.5 kJ/mol) — slowest plane
+          A poly-Si film exposes all of these at once, so its EFFECTIVE Ea is a
+          rate-weighted mixture somewhere in 55-67.5 kJ/mol, weighted towards
+          the fast (low-Ea) planes because they dominate the removal. 56.9 is
+          therefore a LOWER-EDGE estimate of the polycrystalline average.
+      (2) CHEMISTRY DEPENDENCE — DO NOT CARRY THIS KEY ACROSS A BASE CHANGE.
+          Same table: Si<100> in 24% NaOH 0.65 eV (62.7 kJ/mol); in 10% LiOH
+          0.60 eV; in EDP (ethylenediamine-pyrocatechol) only 0.40 eV
+          (38.6 kJ/mol), which Seidel attributes to "diffusion and solvation
+          effects in the less alkaline electrolyte". Since real poly-Si slurries
+          are frequently TMAH- or amine-based ([PAR07], [DOW18], [HWA08]), an
+          amine-based recipe may sit nearer 38.6 than 56.9. Change this key if
+          the base changes.
+      (3) IT IS AN ETCH Ea, NOT A CMP Ea. Measured on masked wafers in a stirred
+          bath at 50-100 C, with no abrasive and no pad contact. No CMP-tool
+          Arrhenius fit for poly-Si was found in this search. Under a loaded
+          abrasive the APPARENT barrier is LOWER by the activation-volume term —
+          which is precisely [KIM22]'s thesis ("the dissolution energy and bond
+          strength drastically decreased when the force was loaded on the Si
+          bonds"). So 56.9 kJ/mol is an UPPER bound on the mechanically assisted
+          barrier.
+
+      USEFUL CONTRAST FOR SELECTIVITY: in the same etchants thermal SiO2 shows
+      0.84-0.90 eV (81-87 kJ/mol) and Si3N4 no measurable etch at all
+      (<0.1 nm/h upper limit). That ~45% higher oxide barrier is the chemical
+      root of the poly-Si:oxide selectivity this pack's process depends on.
+    source: "doi:10.1149/1.2086277 ([SEI90]) Table II, Si<100> in 20-42% KOH; 0.59 eV x 96.485 = 56.9 kJ/mol"
+    confidence: literature
+
+  slurry_ph:
+    value: 11.4
+    unit: pH
+    note: >
+      pH of the slurry the Kp above was measured with: Fujimi Planerlite 6103,
+      "pH between 11-11.8" ([PIR14] §2.2). 11.4 is the MIDPOINT of that
+      vendor-stated band; the band, not the midpoint, is the real datum. Declared
+      here so that pH and Kp describe the SAME experiment — pairing a
+      representative pH with a Kp measured elsewhere would silently corrupt any
+      pH factor.
+
+      WHERE THE PROCESS WINDOW ACTUALLY SITS (context, not adopted):
+        pH 10.0-10.5  [DOW18] NH4OH / amine titrants, 1.5 wt% silica, 3 psi
+                      -> 1755-5182 A/min poly-Si
+        pH 10         [PEN11a/b], [LAG19] polycation reactive liquids
+                      -> 500-600 nm/min poly-Si
+        pH 9.6-12.5   [PAR07] TMAH 0.06-0.52 wt% in colloidal silica
+        pH 11-11.8    [PIR14] Fujimi commercial slurry   <- this pack
+        pH 11-12      [PIR14] §7: "the optimum pH of the colloidal silica
+                      solution is between pH~11-12"
+      so alkaline poly-Si CMP is a pH 9.6-12 process and this pack sits near the
+      top of it.
+
+      THE pH / ALKALI DEPENDENCE IS NON-MONOTONIC, AND THE MECHANISM IS DISPUTED:
+        - [PAR07] Fig. 5 + Fig. 8: raising TMAH from 0.06 to 0.52 wt% (pH 9.6 ->
+          12.5) makes the poly-Si rate RISE AND THEN FALL, for both 30 nm and
+          70 nm abrasive and at every solids loading. Their explanation is that
+          above pH ~10-12 the poly-Si surface converts from hydrophobic to
+          hydrophilic and the surface stoichiometry drifts towards SiO2
+          (HxSi(OH)4-x), which polishes far slower; the measured contact angle
+          (41 deg minimum at 0.12 wt% TMAH, rising to 51.5 deg) is the inverse
+          of the rate curve.
+        - [HWA08] Fig. 1, same laboratory, shows the SHAPE OF THE PEAK DEPENDS
+          ON THE ALKALI: with TMAH the rate peaks earliest and highest
+          (2613 A/min) then decays; with NaOH the post-peak fall is steepest
+          (-1165 A/min); with KOH the rate rises monotonically and then
+          SATURATES at 0.3 wt% with no fall at all. Same pH, same abrasive,
+          three different laws.
+        - [SEI90] Fig. 16 gives the etch-side reason: R ~ [H2O]^4 * [KOH]^(1/4).
+          Rate rises only as the fourth root of alkali but falls as the fourth
+          power of the water it displaces, hence a maximum (~15-20 wt% KOH).
+          High pH is needed mainly for Si(OH)4 solubility and native-oxide
+          removal, not to speed the bond-breaking step.
+        - [PEN11a] Fig. 4 shows the poly-Si rate rising monotonically with pH
+          from 2 to 10 in an abrasive-free polycation solution — a different
+          chemistry with a different law again.
+      THEREFORE: do NOT build a single pH factor for this pack from any one
+      curve. The pH law belongs to the (alkali species + abrasive + additive)
+      triple, not to poly-Si.
+    source: "doi:10.7939/r3zp3w76c ([PIR14]) §2.2, Fujimi Planerlite 6103 pH 11-11.8 (midpoint taken)"
+    confidence: literature
+
+  # ══════════════════════════════════════════════════════════════════
+  # 5. Abrasive
+  # ══════════════════════════════════════════════════════════════════
+
+  abrasive_size_nm:
+    value: 30.0
+    unit: nm
+    note: >
+      PRIMARY particle diameter of the colloidal silica, 30 +/- 10 nm, measured
+      by HRTEM on Fuso PL-3 ([PAR07] §III / Fig. 2a-b: "the average primary
+      abrasive sizes for the two slurries were approximately 30 +/- 10 nm and
+      70 +/- 10 nm"; PL-3 = 30 nm, PL-7 = 70 nm). The same paper reports the
+      SECONDARY (in-slurry, acoustic-attenuation) distribution separately, so if
+      a model wants the hydrodynamic size use the secondary figure, not this one.
+
+      THREE INDEPENDENT SOURCES CONVERGE ON THIS SIZE CLASS:
+        - [PAR07]  Fuso PL-3, 30 +/- 10 nm primary (HRTEM).
+        - [DOW18]  "Slurry A" is a PL-3 dispersion whose SECONDARY (DLS,
+                   non-agglomerated) size is 60-80 nm — consistent with a ~30 nm
+                   primary; the patent's claimed range is 20-60 nm secondary.
+        - [PIR14]  the Kp source's Fujimi Planerlite 6103 is BIMODAL with peaks
+                   at 30-40 nm AND 70-80 nm. So the Kp slurry contains this size
+                   class, but is not monodisperse at it.
+      ⚠ MISMATCH DECLARED: this 30 nm is NOT a property of the Kp slurry; that
+      slurry is bimodal and its exact PSD is a trade secret. Any particle-size
+      FACTOR built on this key is unreliable for this pack.
+
+      SIZE DEPENDENCE, recorded because it is counter-intuitive: [PAR07] finds
+      "the polysilicon-to-SiO2 removal selectivity was almost independent of the
+      abrasive size and concentration", and that rate itself was "not clearly
+      influenced" by size over 30-70 nm. [PIR14] §5, by contrast, finds ~40%
+      HIGHER rate for high-surface-area (300 m^2/g, ~3-10 nm) silica than for
+      low-surface-area (30 m^2/g, ~60 nm) silica, and says "the particle size
+      showed greater effect on polishing than abrasive concentration". Two
+      sources, opposite conclusions about whether size matters — do not build a
+      size law from either alone.
+    source: "J. Korean Phys. Soc. 51(1) 214-223 ([PAR07]) §III / Fig. 2, HRTEM primary size of Fuso PL-3"
+    confidence: literature
+
+  abrasive_wt_pct:
+    value: 1.5
+    unit: wt%
+    note: >
+      Colloidal-silica solids loading at POINT OF USE, 1.5 wt%. [DOW18] Table A:
+      every Example is run at "Solids (wt. %) 1.5" (Examples 3-1/3-2/3-3 sweep
+      it 0.75 / 1.50 / 3.00), with the pH measured after dilution to that solids
+      content. Chosen because it is a STATED point-of-use loading tied in the
+      same table to a stated pressure (3 psi), a stated poly-Si rate
+      (4278 A/min) and a stated stop-layer rate (62 A/min).
+
+      ⚠ MISMATCH DECLARED: this is NOT the loading at which this pack's Kp was
+      measured. [PIR14] states only that Planerlite 6103 contains 17.3 wt%
+      colloidal silica AS SUPPLIED and that the vendor "suggests" 10:1 dilution;
+      the thesis never confirms which was actually used. If diluted as suggested
+      the in-use loading would be ~1.7 wt%, which agrees with the 1.5 wt% adopted
+      here to within 15% — a coherence worth noting, but not a confirmation.
+      The honest statement is: the Kp-condition loading is EITHER ~1.7 wt%
+      OR 17.3 wt%, a 10x ambiguity the source does not resolve.
+
+      LOADING SPREAD IN THE LITERATURE (context): [PAR07] swept 1.3-5.3 wt%;
+      [DOW18] Examples 3-1..3-3 swept 0.75-3.00 wt% and found rate rising from
+      3090 to 7147 A/min while poly:TEOS selectivity FELL from 215 to lower
+      values — i.e. more solids buys rate and costs selectivity; [KIM22] pushes
+      the other way, achieving high rates at only 0.1 wt% by mechanochemical
+      activation.
+    source: "US10822524B2 ([DOW18]) Table A, 'Solids (wt. %)' column at point of use"
+    confidence: literature
+
+  abrasive_density_kg_m3:
+    value: 2200.0
+    unit: kg/m^3
+    note: >
+      Amorphous (colloidal) SiO2, 2.20 g/cm^3. Colloidal silica is amorphous, so
+      the quartz density of 2.65 g/cm^3 is the wrong number and is not used. Same
+      value and same reasoning as the inherited oxide/STI packs and as
+      si_substrate_alkaline — it is a property of the abrasive MATERIAL, not of
+      this process, so there is no pack-specific measurement to make. Feeds the
+      surface-coverage derivation theta_p = 1.5 * phi * h / d in
+      legacy/sim/regime_adapter.py.
+    source: "CRC Handbook of Chemistry and Physics, amorphous silica density (2.20 g/cm^3)"
+    confidence: literature
+
+  # ══════════════════════════════════════════════════════════════════
+  # 6. Pattern / topography terms
+  # ══════════════════════════════════════════════════════════════════
+
+  planarization_length_m:
+    value: 3.20e-3
+    unit: m
+    note: >
+      MEASURED PLANARIZATION LENGTH FOR POLY-Si, 3.20 mm. [TAN04] fitted the
+      updated Stine/Ouma step-height pattern-density model — the same model
+      family cmp_sim/models/pattern_density.py implements — to five poly-Si
+      wafers polished for 10-50 s, and report: "our model extracts a blanket
+      removal rate of 2826.3 A/min, and a planarization length of 3.20 mm. The
+      root mean square error between the model fit and measured data is 254.8 A."
+
+      MEASUREMENT CONDITIONS ([TAN04] "Process flow and measurement strategy"):
+        6 inch p-type wafers, 1.0 um undoped poly-Si over 500 A dry oxide over
+        patterned raised lines; Strasbaugh 6EC; down force 68.95 kPa (10 psi),
+        back pressure 55.16 kPa (8 psi); table 28 rpm, quill 20 rpm;
+        Semisphere SS-25 silica slurry at 200 mL/min; Tencor UV1280 metrology.
+        Test die 20 mm square, four 50%-density line arrays with line/space of
+        500/500, 50/50, 150/150 and 300/300 um in a 0%-density field.
+        A Gaussian filter was used (they note Ouma found the elliptical filter
+        marginally better).
+
+      ⚠ THREE LIMITS THE AUTHORS THEMSELVES STATE.
+      (a) 10 psi and 28/20 rpm is a MEMS-scale recipe, roughly 2x the pressure of
+          this pack's Kp condition and far slower. Planarization length is a
+          pad/process property, so it does not automatically transfer to a 3 psi
+          300 mm tool — Ouma's oxide values on production tools are typically
+          2-5 mm, so 3.20 mm is at least in the right band.
+      (b) THE FIT IS A COMPROMISE. Arrays I (500/500 um) and II (50/50 um) have
+          identical 50% local density but polished differently — more removed
+          from the up areas of II and from the down areas of I — and the single
+          fitted planarization length splits the difference. [TAN04]: "when the
+          die features approach the same order of magnitude as the planarization
+          length (0.5 mm in Array I compared to 3.20 mm), the pattern density
+          effect and the removal rate function become intertwined."
+      (c) A 5.58 s TIME BIAS (tool ramp-up) was fitted alongside; the 3.20 mm is
+          conditional on that correction.
+
+      CROSS-CHECK ON THE COMPANION NUMBER: their fitted blanket rate of
+      2826 A/min at 10 psi implies, via Preston, ~848 A/min at 3 psi — the same
+      order as this pack's 993 A/min at the engine default. Two independent
+      poly-Si experiments landing within ~15% after a pressure scaling is a
+      genuine, if loose, consistency check on the Kp above.
+    source: "doi:10.1557/proc-816-k7.6 ([TAN04]) 'Model extraction and results'"
+    confidence: literature
+
+  initial_step_height_m:
+    value: 1.90e-7
+    unit: m
+    note: >
+      INITIAL POLY-Si STEP HEIGHT on a patterned wafer, 190 nm. [DOW18]
+      "Removal Rate and Step Height": "Polysilicon thickness on pattern
+      substrate is about 6000 A and step height is ~1800-2000 A". 1900 A = 190 nm
+      is the midpoint of that stated band. The patent's own Tables B/C/D confirm
+      it as the t = 0 entry: SH at 0 s is 1841 / 1908 / 1852 / 1841 A for the
+      four Example slurries at 30% pattern density (mean 1861 A), and the same
+      t = 0 values recur at 50% and 70% density.
+
+      MEASUREMENT CONDITIONS: 200 mm PolySi MIT864 pattern wafer
+      (poly-Si / SiO2 / Si), die of 25 square segments with pattern densities
+      0-100% in steps of 10% and pitches 1-1000 um; Ebara EPO222 at 93/87 rpm
+      table/carrier and 207 hPa (3 psi); VP5000 pad; KLA-Tencor F5X metrology.
+      SH is defined there as (oxide+poly) thickness outside the trench minus
+      (oxide+poly) thickness in the trench.
+
+      ⚠ THIS IS THE LOGIC-/MEMORY-SCALE CASE ONLY. Poly-Si step heights span
+      more than an order of magnitude by application:
+        190 nm   [DOW18] 200 mm floating-gate / STI-class pattern wafer <- here
+        0.5 um   [TAN04] MEMS test mask (1.0 um poly over etched lines)
+        >=5 um   [PEN11a] "MEMS systems require even higher poly-Si RR because
+                 the step heights are 5 um or greater"
+        ~1 um    [LAG19] poly-Si overburden in FinFET / replacement-metal-gate
+      If you are simulating MEMS or a thick sacrificial layer, OVERRIDE this key;
+      leaving it at 190 nm will make the pattern model clear the step far too
+      early (planarization time is linear in step height,
+      pattern_density.planarization_time_s).
+    source: "US10822524B2 ([DOW18]) 'Removal Rate and Step Height' test method; corroborated by Tables B/C/D t=0 entries"
+    confidence: literature
+
+  stop_layer_rate_m_per_s:
+    value: 1.03e-10
+    unit: m/s
+    note: >
+      TEOS (oxide) STOP-LAYER removal rate measured IN THE SAME RUN as the
+      poly-Si rate, with the same slurry, tool and pressure: 62 A/min.
+      [DOW18] Table A, inventive Example 1-2 (Slurry A, 1.5 wt% solids,
+      3.75 ppm alkoxylated diamine, NH4OH titrant, pH 10.5): poly-Si RR
+      4278 A/min, TEOS RR 62 A/min, poly:TEOS 69.
+
+      UNIT CONVERSION: 62 A/min = 62e-10 m / 60 s = 1.033e-10 m/s. Adopted as
+      1.03e-10 m/s.
+
+      WHY THIS EXAMPLE AND NOT ANOTHER: 1-2 is the patent's own preferred
+      composition (lowest end-of-polish step height of the set), and it is the
+      only row where the base, the pH, the solids and both rates are all stated
+      together with the 3 psi tool conditions.
+
+      THE FULL TABLE, because the stop-layer rate swings by 30x with the base
+      alone (all at 1.5 wt% solids, 3.75 ppm diamine, 3 psi):
+        titrant                      pH     poly-Si    TEOS   poly:TEOS
+        NH4OH (no diamine, comp.)   10.5     4000       42        97
+        NH4OH                       10.5     4278       62        69
+        ethanolamine                10.5     5182       18       290
+        diethanolamine              10.0     3388        5       686
+        dibutylamine                10.5     3825        2      1832
+        tetraethylammonium OH       10.5     3049        2      1601
+        tetrabutylammonium OH       10.5     1755        2      1150
+      So a 2 A/min stop rate (selectivity >1000) is achievable with the right
+      amine, and 62 A/min is a MID-RANGE, not a best, case.
+
+      ⚠ MISMATCH DECLARED: measured at 3 psi with an NH4OH/amine slurry, whereas
+      this pack's Kp comes from a 4.5-6 psi KOH-class commercial slurry. The
+      selectivity of a real recipe is a property of the additive package, so
+      pairing this stop rate with that Kp gives an EFFECTIVE selectivity of
+      ~1400 A/min per 62 A/min = 22 at the engine default 3 psi, well below the
+      69 measured in the patent's own run. Treat the ratio, not either number
+      alone, with suspicion when mixing conditions.
+    source: "US10822524B2 ([DOW18]) Table A, Example 1-2 (TEOS RR 62 A/min at 3 psi)"
+    confidence: literature
+
+  dishing_max_m:
+    value: null
+    unit: m
+    note: >
+      **NOT SOURCED — deliberately null.** TODO(pattern-agent): `dishing_max_m`
+      and `oxide_dishing_sensitivity_b` are the two fitted constants of the
+      steady-state dishing law in cmp_sim/models/pattern_density.py
+      (steady_state_dishing_m), a model developed and calibrated for COPPER
+      DAMASCENE (Gbondo-Tugbawa, MIT 2002). No equivalent fit exists for poly-Si
+      in any source found here, and inventing one would put a copper-shaped
+      curve on a semiconductor film.
+
+      WHAT THE POLY-Si LITERATURE ACTUALLY PROVIDES INSTEAD — step-height-vs-time
+      traces, not a dishing asymptote. [DOW18] Table B (30% pattern density,
+      3 psi) gives, for comparative Example 1-1 (NH4OH, no diamine):
+        t(s)   0    20    40    60    80   100
+        SH(A) 1841  497   505   557   494  1760
+      i.e. the step first PLANARISES to ~500 A and then REOPENS to 1760 A once
+      the underlying stop layer is exposed and the trench poly keeps polishing.
+      The patent names this behaviour explicitly: "Comparative Example 1-1
+      exhibited dishing, wherein step height initially decreases as the surface
+      is planarized and then increases once the underlying stop layer is exposed
+      and removal of polysilicon continues in the trench." The inventive
+      Example 1-2 instead decays monotonically (1908 -> 1628 -> 977 -> 833 ->
+      640 -> 296 A over 0-72 s). Tables C and D repeat this at 50% and 70%
+      density, where the reopening is worse.
+      That is a qualitative dishing SIGNATURE and a raw time series — it is not
+      the steady-state (dishing_max, b) pair the model wants, and extracting one
+      would require fitting the patent's tables to a model the patent never used.
+
+      WHAT WOULD FILL THIS KEY: a poly-Si damascene/recess experiment reporting
+      steady-state recess versus pattern density at fixed overpolish, from which
+      dishing_max and the oxide sensitivity exponent b can be regressed the way
+      Gbondo-Tugbawa did for Cu. Alternatively, a documented decision to fit
+      [DOW18] Tables B/C/D directly — which would be a derived quantity and must
+      be marked as such, not as literature.
+    source: "TODO(pattern-agent) — no poly-Si steady-state dishing fit located; [DOW18] Tables B/C/D give step-height time series only"
+    confidence: unverified
+
+  oxide_dishing_sensitivity_b:
+    value: null
+    unit: "-"
+    note: >
+      **NOT SOURCED — deliberately null.** Partner of `dishing_max_m` above; see
+      that note for the full reasoning and for what data does exist. Both keys
+      must be supplied together or not at all — cmp_sim/models/pattern_density.py
+      only evaluates the dishing branch when dishing_max_m, this key AND
+      stop_layer_rate_m_per_s are all present, so leaving these two null
+      disables the dishing output cleanly rather than emitting a copper-derived
+      number for a poly-Si film.
+    source: "TODO(pattern-agent) — see dishing_max_m"
+    confidence: unverified
+
+  # ══════════════════════════════════════════════════════════════════
+  # 7. Selectivity (NOT read by the engine — documentation of record)
+  # ══════════════════════════════════════════════════════════════════
+  # These two keys are not consumed by cmp_sim; they are declared so the
+  # selectivity evidence lives with the pack rather than in a chat log.
+
+  poly_si_to_oxide_selectivity:
+    value: 69.0
+    unit: "-"
+    note: >
+      SAME-RUN measured poly-Si : TEOS rate ratio, 4278 / 62 = 69, from [DOW18]
+      Table A Example 1-2 (3 psi, 1.5 wt% colloidal silica, 3.75 ppm alkoxylated
+      diamine, NH4OH, pH 10.5, Ebara EPO222). Adopted because it is the only
+      selectivity found that is measured in one experiment with an ALKALINE
+      COLLOIDAL-SILICA slurry — the chemistry this pack declares — and reported
+      together with both absolute rates.
+
+      THE PUBLISHED RANGE IS ENORMOUS (recorded, not averaged) — selectivity is
+      a property of the ADDITIVE, not of poly-Si:
+         69      [DOW18] Ex. 1-2, NH4OH + alkoxylated diamine (adopted)
+         97      [DOW18] Ex. 1-1, NH4OH alone (comparative)
+        215      [DOW18] Ex. 3-1 at 0.75 wt% solids (falls as solids rise)
+        290-686  [DOW18] ethanolamine / diethanolamine
+       1150-1832 [DOW18] dibutylamine / tetra-alkylammonium hydroxides
+         25-45   [PAR07] Fig. 5b/5d, TMAH in colloidal silica; the ratio rises
+                 then falls with TMAH concentration ("approximately from 25:1 to
+                 45:1 to 33:1, regardless of the abrasive size")
+         up to
+         ~180    [HWA08] Fig. 4, with 0.06 wt% polyacrylamide at pH 10 — the
+                 mechanism being that PAM adsorbs on oxide (plateau
+                 0.23 mg/m^2) but "is scarcely adsorbed on poly Si surfaces"
+        ~450     [PIR14] §2.2, vendor claim for Fujimi Planerlite 6103 (the Kp
+                 slurry) — a datasheet figure, not a measurement in that work
+        >420     [KIM22], semi-abrasive-free TBAF + 0.1 wt% silica
+        ~600     [PEN11a] abrasive-free 250 ppm PDADMAC at pH 10 (poly-Si
+                 ~600 nm/min, oxide <1 nm/min) — different mechanism
+      MECHANISM, consistently reported across these: at pH >= 10 the oxide film
+      and the silica abrasive are both strongly negative (below -50 mV) while
+      poly-Si is only weakly negative (above -5 mV), so the particle is
+      electrostatically attracted to poly-Si and repelled from oxide ([PAR07]
+      Fig. 6); surfactants and polycations then amplify the split by adsorbing
+      preferentially on one surface.
+    source: "US10822524B2 ([DOW18]) Table A, Example 1-2 (4278 A/min poly-Si / 62 A/min TEOS)"
+    confidence: literature
+
+  poly_si_to_nitride_selectivity:
+    value: null
+    unit: "-"
+    note: >
+      **NOT SOURCED FOR THIS CHEMISTRY — deliberately null.**
+      TODO(materials-agent): every poly-Si : Si3N4 selectivity located in this
+      search comes from an ABRASIVE-FREE polycation or amino-acid chemistry, not
+      from the alkaline colloidal-silica slurry this pack declares, and the two
+      remove material by different mechanisms (polycation bridging to the pad
+      versus OH- attack plus particle abrasion). Adopting one would silently
+      attach a different process's number to this pack.
+
+      WHAT IS PUBLISHED, so the evidence is not lost:
+        ~600    [PEN11a] 250 ppm PDADMAC, pH 10, 4 psi, CETR polisher: poly-Si
+                ~600 nm/min while BOTH oxide and nitride are <1 nm/min, "a
+                selectivity of ~600 over both of them". Abrasive-free (and
+                unchanged by adding ceria or silica).
+        ~260    [PEN11a] intro, citing Natarajan & Dandu: 2 wt% arginine/lysine
+                in silica- and ceria-based slurries, poly-Si ~550 nm/min,
+                selectivity ~130 over oxide and ~260 over nitride. This is the
+                CLOSEST to an abrasive-containing measurement, but the rate is
+                carried by the amino acid, not by the alkali.
+        >250    [LAG19] intro, citing Lee et al. and Kraft et al.: PEI-added
+                silica- and ceria-based slurries, poly-Si ~500 nm/min with both
+                oxide and nitride <2 nm/min.
+      A useful bound from the etch side: [SEI90] could not measure ANY Si3N4
+      etch rate in KOH, NaOH, LiOH or EDP, setting an upper limit of 0.1 nm/h —
+      so the CHEMICAL contribution to nitride removal in an alkaline slurry is
+      essentially zero and whatever nitride rate a real process shows is
+      mechanical. That argues the true selectivity is high, but it is an
+      argument, not a number.
+
+      WHAT WOULD FILL THIS KEY: a blanket poly-Si / LPCVD-Si3N4 pair polished in
+      one experiment with an alkaline colloidal-silica slurry at a stated pH,
+      pressure and velocity, with both absolute rates reported.
+    source: "TODO(materials-agent) — all located values come from abrasive-free polycation / amino-acid chemistries ([PEN11a] doi:10.1021/la104257k; [LAG19] doi:10.1149/2.0081905jss)"
+    confidence: unverified

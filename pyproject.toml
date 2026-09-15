@@ -28,7 +28,14 @@ packages = [
 ]
 
 [tool.setuptools.package-data]
-cmp_sim = ["data/params/*.yaml", "data/validation/*.csv"]
+# The validation datasets are YAML, not CSV, and live under
+# data/validation/datasets/. The old glob matched nothing, so an installed
+# copy could not reproduce its own validation table.
+cmp_sim = [
+    "data/params/*.yaml",
+    "data/validation/datasets/*.yaml",
+    "web/*.html",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

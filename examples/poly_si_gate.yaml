@@ -1,0 +1,30 @@
+# Poly-silicon CMP in alkaline colloidal silica.
+#
+# OH- attacks the Si-Si network to form a hydrated silicate layer that the
+# silica particles then remove, so the chemistry leads and the mechanics
+# follows. Surfactants are the usual lever for poly-Si:oxide selectivity.
+model: auto
+
+wafer:
+  film: poly_si
+  diameter_mm: 300
+  n_radial: 81
+
+slurry:
+  pack: poly_si_alkaline
+
+pad:
+  name: IC1000
+  groove_width_mm: 0.5
+  groove_pitch_mm: 2.0
+  groove_depth_mm: 0.75
+
+disk:
+  name: generic-diamond
+
+tool:
+  pressure_psi: 3.0
+  rpm_platen: 60
+  rpm_head: 60
+  flow_ml_min: 200
+  time_s: 60

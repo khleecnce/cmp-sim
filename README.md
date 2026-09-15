@@ -20,20 +20,33 @@ run, starts the local server and opens the UI. Nothing leaves the machine.
 Or from a shell:
 
 ```bash
-python3 -m venv .venv && .venv/bin/pip install -e .
+python3 -m venv .venv
+.venv/bin/pip install --upgrade pip      # editable installs need a recent pip
+.venv/bin/pip install -e ".[dev]"
 
 # one recipe in, one JSON result out
-.venv/bin/python -m cmp_sim.cli run examples/oxide_baseline.yaml --out result.json
+.venv/bin/cmp-sim run examples/oxide_baseline.yaml --out result.json
+
+# vary one parameter and see where the physics changes underneath you
+.venv/bin/cmp-sim sweep examples/cu_damascene.yaml pressure_psi 1 4 --steps 4
+
+# what physics is available, and what each bundle suits
+.venv/bin/cmp-sim profiles
+
+# reproduce the validation table below
+.venv/bin/cmp-sim validate --gate 15
 
 # interactive web UI (standard library only, no web framework)
 .venv/bin/python -m cmp_sim.api          # -> http://127.0.0.1:8765
 
-# reproduce the validation table below
-.venv/bin/python -m cmp_sim.validate_cli --gate 15
-
-# 217 tests
+# 358 tests
 .venv/bin/python -m pytest -q
 ```
+
+Worked examples for every supported film are in `examples/`: copper damascene,
+tungsten plug, blanket oxide, STI with ceria, SiC substrate, silicon substrate,
+multi-zone uniformity — and `snag_solder.yaml`, which **deliberately refuses to
+run** because no published source gives a SnAg Preston coefficient.
 
 ## Validation
 
@@ -95,6 +108,25 @@ A test asserts this dataset keeps failing, so nobody can quietly tune `Kp` to it
 **SiC (32%) is chemically rate-limited.** In that DOE the factor ranking is pH >
 head rpm > CeO₂ > pressure, and pump flow and polish time outrank composition
 entirely. A mechanical `P·V` law cannot explain it, whatever `Kp` you choose.
+
+## Film coverage
+
+| film | pack | profile chosen by `auto` | status |
+|---|---|---|---|
+| oxide (TEOS/PETEOS) | `oxide_silica` | `dielectric_blanket` | validated, 1.9–12.9% |
+| STI / oxide-ceria | `sti_ceria` | `dielectric_patterned` | validated |
+| Cu | `cu_h2o2_bta` | `soft_metal_plastic` | counter-example kept failing |
+| W | `w_fe_oxidizer` | `hard_metal_passivation` | Kp from two patent tables |
+| poly-Si | `poly_si_alkaline` | `semiconductor_alkaline` | Kp derived, arithmetic in pack |
+| Si substrate | `si_substrate_alkaline` | `semiconductor_alkaline` | Kp derived at 0.62 psi |
+| SiC | `sic_ceria_h2o2` | `chemically_limited` | rankings only, see below |
+| SnAg | `snag_solder` | — | **refuses: no published Kp** |
+
+The SnAg pack carries 68 sourced numbers — nanohardness, tin electrochemistry,
+abrasive properties — and no Preston coefficient, because no primary source
+publishes a SnAg or pure-Sn removal rate together with the pressure and velocity
+it was measured at. Running it raises an error naming the missing key rather
+than inventing a number; supply your own under `params:` and the model works.
 
 ## Choosing a model: by situation, not by film
 

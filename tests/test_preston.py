@@ -95,5 +95,5 @@ def test_every_film_in_the_map_resolves_to_a_pack_or_says_why():
     from cmp_sim.core.params import available_packs
     have = set(available_packs())
     missing = sorted(p for p in FILM_PACK.values() if p not in have)
-    # P1 ships the inherited packs; poly-Si / Si / SnAg packs are later phases.
-    assert missing == ["poly_si_alkaline"], missing
+    # Every film in the map now resolves to a pack.
+    assert missing == [], missing
