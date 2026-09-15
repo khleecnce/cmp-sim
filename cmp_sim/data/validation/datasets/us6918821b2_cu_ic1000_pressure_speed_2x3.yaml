@@ -61,6 +61,44 @@ center_offset_m: 0.200    # r_cc not stated in the patent; base value used.
 #   KEEP IT as a negative control: it marks where the model must not be trusted.
 #   Do not tune Kp to improve this number.
 
+# ── WHY THIS DATASET FAILS THE PRESTON GATE (44.1% MAPE) ─────────────
+# It is kept FAILING on purpose. It is not excluded, not split into a
+# passing subset, and not reweighted: it documents a real limit of P*V,
+# and the simulator predicts that limit independently.
+#
+# Transcription re-verified against the official patent PDF
+# (patentimages.storage.googleapis.com/pdfs/US6918821.pdf, TABLE 1,
+# IC1000 rows): 4.0 psi -> 594/1384/1636 A/min at 60/120/200 rpm;
+# 1.5 psi -> 425/419/250 A/min at 60/120/200 rpm. Exact.
+#
+# The two pressure branches disagree about physics:
+#   4.0 psi : rate RISES with speed, 2.75x over 60->200 rpm.
+#             Preston alone fits these three points at 13.4% MAPE.
+#   1.5 psi : rate FALLS with speed, 0.59x, where Preston demands 3.33x.
+#             Preston alone fits these three points at 60.3% MAPE.
+# Fitting one Kp across both branches necessarily lands in between: 44.1%.
+#
+# This is not a transcription error and not a bad slurry. It is the
+# lubrication transition. At low load and high speed the slurry film
+# carries part of the load, so asperity contact drops and removal falls.
+# Two independent checks:
+#   1. The patent's own inventive pads A, B and C do NOT invert at
+#      1.5 psi (A: 874/1293/1439 A/min rising). Only the conventional
+#      IC1000 comparison pad does. The whole point of the patent is that
+#      its pads keep working at low pressure where IC1000 does not.
+#   2. cmp_sim/core/regime.py classifies these six runs WITHOUT seeing any
+#      measured rate, from lambda = h_film/roughness alone, and flags
+#      exactly one as leaving the boundary regime:
+#           1.5 psi  60 rpm  lambda 0.37  boundary
+#           1.5 psi 120 rpm  lambda 0.75  boundary
+#           1.5 psi 200 rpm  lambda 1.24  MIXED   <-- the rate collapse
+#           4.0 psi  60 rpm  lambda 0.14  boundary
+#           4.0 psi 120 rpm  lambda 0.28  boundary
+#           4.0 psi 200 rpm  lambda 0.47  boundary
+#      The lambda thresholds are Bhushan's standard tribology boundaries,
+#      not tuned here.
+#
+# Locked by tests/test_lubrication_limit.py.
 conditions:
   - label: "IC1000 pad, 1.5 psi (10.3 kPa), 60 rpm"
     pressure_psi: 1.5
