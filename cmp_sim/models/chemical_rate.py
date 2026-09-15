@@ -199,6 +199,33 @@ def chemical_factor(resolved, temp_c: Optional[float] = None) -> ChemicalEffect:
             "ceria/pH-softening parameters, so slurry chemistry is still lumped "
             "inside Kp and changing the formulation will not change the result")
 
+    # A pack may declare BOTH a Langmuir passivation constant and a Kaufman
+    # peak. The Langmuir branch wins, which makes the oxidizer term fall
+    # monotonically and silently contradicts the peak the same pack declares.
+    # That choice is defensible - the peak's (n, C_peak) pair is degenerate
+    # below the peak, while Langmuir has one identifiable parameter - but it
+    # must not be invisible, or a user will read a monotonic curve as the
+    # model's opinion about a system famous for having a maximum.
+    has_langmuir = (resolved.has("oxidizer_passivation_K")
+                    or resolved.has("oxidizer_langmuir_K"))
+    peak = resolved.p_or("oxidizer_peak_wt_pct", None)
+    conc = resolved.p_or("oxidizer_wt_pct", None)
+    if has_langmuir and peak:
+        warnings.append(
+            f"this pack declares an oxidizer peak at {float(peak):g} wt% but the "
+            "Langmuir branch takes precedence, so the oxidizer term is monotonic "
+            "and no maximum will appear in a concentration scan. The Langmuir "
+            "form was chosen because it has one identifiable parameter, whereas "
+            "the peak's shape exponent and peak position are degenerate when "
+            "only sub-peak data exist. Treat a scan across the declared peak as "
+            "showing the passivation branch only")
+    if conc is not None and peak and float(conc) < float(peak) and has_langmuir:
+        warnings.append(
+            f"the oxidizer concentration ({float(conc):g} wt%) sits below the "
+            f"declared peak ({float(peak):g} wt%), where the real system is "
+            "reported to RISE with concentration while this model falls. "
+            "Rankings below the peak are not trustworthy for this term")
+
     # ── temperature ──────────────────────────────────────────────────
     if temp_c is not None:
         ea = resolved.p_or("chem_activation_energy_kj_per_mol", None)
