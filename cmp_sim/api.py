@@ -183,6 +183,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, handler(payload))
         except ParamMissing as exc:
             return self._json(422, {"error": "ParamMissing", "detail": str(exc)})
+        except FileNotFoundError as exc:
+            # A film with no parameter pack yet is a data gap, not a server
+            # fault: 500 would send the user looking for a crash.
+            return self._json(422, {"error": "PackMissing", "detail": str(exc)})
         except (ValueError, KeyError, TypeError) as exc:
             return self._json(400, {"error": type(exc).__name__, "detail": str(exc)})
         except Exception as exc:                   # pragma: no cover
