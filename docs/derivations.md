@@ -750,3 +750,75 @@ this repository unfittable.
 
 Precedence throughout: **measurements > explicit `params:` > Archard estimate >
 pack default**, and every level is labelled in the provenance.
+
+---
+
+## Fitting factors to data, without inventing physics
+
+### Why named factors rather than a fresh model per dataset
+Given a table of measurements one could regress a new expression each time.
+Three reasons not to, all already demonstrated inside this repository:
+
+**Identifiability.** The Kaufman oxidizer curve has two free parameters, a peak
+position and a shape exponent, which are mathematically degenerate when only
+sub-peak data exist. This is why the copper pack uses a one-parameter Langmuir
+form. Re-deriving a model per dataset walks into that repeatedly; fitting named
+factors makes the degeneracy explicit and refusable.
+
+**Extrapolation.** A black-box regression collapses outside the measured box.
+A fitted physical factor keeps the structure: doubling pressure still doubles
+rate, because that is the form, not something learned.
+
+**Convergence on few points.** Every free parameter costs data. One measurement
+already moves Kp from -56.7% to -0.8% on a held-out point; a ten-parameter
+surface fitted to ten points reproduces the points and predicts nothing.
+
+### The factor registry
+Six named quantities, each with exactly **one** free parameter by construction:
+
+| factor | form | what it means |
+|---|---|---|
+| `pressure_exponent` | MRR ~ P^n | n<1: real contact area saturating |
+| `velocity_exponent` | MRR ~ V^n | n<1: transport or lubrication limit |
+| `abrasive_half_wt_pct` | N ~ 1-exp(-C/C_half) | loading at which sites saturate |
+| `abrasive_size_exponent` | MRR ~ d^n | sign is contradictory in the literature, so fitted |
+| `oxidizer_langmuir_K` | theta = KC/(1+KC) | coverage saturation |
+| `activation_energy_kj_per_mol` | Arrhenius | <20 diffusion-limited, >40 reaction-limited |
+
+Each factor's reference point is the dataset's own mean, so every factor equals
+exactly 1.0 at the centre of the data and cannot double-count what Kp absorbed.
+Fitted values land on the pack keys the existing physics layers already read,
+replacing the literature value in place rather than adding a parallel term.
+
+### Three gates against overfitting
+More parameters always fit the training data better, so a factor unlocks only if:
+
+1. **Leverage** — its driving input varies by at least 15% across the runs.
+   Fitting an abrasive exponent to runs at one concentration is fitting noise.
+2. **Budget** — at least three measurements per free parameter, Kp included.
+3. **Out-of-sample gain** — it must improve the **leave-one-out** error by at
+   least 25%, never the in-sample error.
+
+The 25% floor is a measurement, not a preference. At 8% measurement scatter on
+data that genuinely obeys Preston's law, a 2% threshold admitted a spurious
+pressure exponent in 2 runs out of 5; a true departure cuts the error by 60-70%.
+Better to miss a marginal factor than to report one that is not there.
+
+### Recovery against known answers
+| truth | recovered | cross-validated error |
+|---|---|---|
+| pressure exponent 0.65 | 0.652 | 19.6% -> 0.12% |
+| abrasive C_half 3.0 wt% | 3.08 | 94.4% -> 1.0% |
+| activation energy 45 kJ/mol | 44.5 | 122.9% -> 1.1% |
+| 0.70 and 3.0 simultaneously, 5% noise | 0.68 / 3.08 | 56.2% -> 2.8% |
+| Preston-true data | nothing unlocked | unchanged |
+
+### Reading a CSV
+`core/measurement_io.py` accepts the column names people actually use. Two
+deliberate strictnesses:
+
+* **Units are matched before being stripped.** "MRR (A/min)" and "MRR (nm/min)"
+  differ only by their unit; a lenient parser that merged them would put a silent
+  10x error into every fitted rate.
+* **Unusable rows are refused, not skipped.** A dropped row changes the fit
+  invisibly, which is worse than an error that names the row.

@@ -33,13 +33,16 @@ python3 -m venv .venv
 # what physics is available, and what each bundle suits
 .venv/bin/cmp-sim profiles
 
+# fit the model to your own measurements
+.venv/bin/cmp-sim fit examples/oxide_baseline.yaml mylog.csv
+
 # reproduce the validation table below
 .venv/bin/cmp-sim validate --gate 15
 
 # interactive web UI (standard library only, no web framework)
 .venv/bin/python -m cmp_sim.api          # -> http://127.0.0.1:8765
 
-# 358 tests
+# 438 tests
 .venv/bin/python -m pytest -q
 ```
 
@@ -148,6 +151,69 @@ An axis that cannot be computed is reported as undetermined, never defaulted.
 The common case is `contact_branch`, which needs the chemically modified surface
 hardness — rarely published, and assuming it would silently fix the sign of the
 particle-size exponent in P3.
+
+## Learning from your own data
+
+The literature anchors the model; your tool is not the literature. Give it
+measured rates and it fits its **named physical factors** to them — and reports
+a **leave-one-out** accuracy, each point predicted by a fit that never saw it.
+
+```bash
+cmp-sim fit examples/oxide_baseline.yaml mylog.csv
+cmp-sim fit --template            # see the CSV format
+```
+
+or paste the CSV straight into the web UI.
+
+```
+fitted to 12 measurement(s) from mylog.csv
+
+  Kp            2.9932e-13 m/Pa
+  accuracy      +/-0.8% leave-one-out  (scale alone: 56.0%)
+
+  fitted factors
+    abrasive_half_wt_pct             3.079
+    pressure_exponent                0.694
+
+  locked (this dataset cannot identify them)
+    velocity_exponent                velocity varies by only 0% across these runs
+    activation_energy_kj_per_mol     temperature_c varies by only 0% across these runs
+```
+
+### Why factors rather than a fresh regression each time
+* **Identifiability.** A free-form fit walks into degenerate parameters. The
+  Kaufman oxidizer curve's peak position and shape exponent cannot be separated
+  from sub-peak data at all — which is why the copper pack uses a one-parameter
+  Langmuir form. Named factors make that refusable instead of silent.
+* **Extrapolation.** A fitted physical factor keeps the structure: doubling
+  pressure still doubles rate. A black-box surface collapses outside its box.
+* **Convergence on few points.** Every free parameter costs data.
+
+### How overfitting is prevented
+A factor unlocks only if **all three** hold:
+
+1. its input actually varies across the runs (≥15% spread);
+2. the dataset can afford it (3 measurements per free parameter);
+3. it improves the **cross-validated** error — never the in-sample error, which
+   more parameters always improve.
+
+The gain threshold comes from a noise study rather than taste: at 8% measurement
+scatter on data that genuinely obeys Preston's law, a 2% threshold admitted a
+spurious pressure exponent in 2 runs out of 5. A true departure cuts the error
+by 60–70%, so the floor is 25%.
+
+Recovery against synthetic tools with known answers:
+
+| truth | recovered | cross-validated error |
+|---|---|---|
+| pressure exponent 0.65 | 0.652 | 19.6% → 0.12% |
+| abrasive C_half 3.0 wt% | 3.08 | 94.4% → 1.0% |
+| activation energy 45 kJ/mol | 44.5 | 122.9% → 1.1% |
+| both 0.70 and 3.0 at once, 5% noise | 0.68 / 3.08 | 56.2% → 2.8% |
+| Preston-true data | **nothing unlocked** | unchanged |
+
+That last row matters most: given data with no departure to find, the fitter
+finds none and says the factors were rejected as overfitting.
 
 ## Sweeps
 
