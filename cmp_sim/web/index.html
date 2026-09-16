@@ -187,6 +187,7 @@ run-2,4.0,60,4690,3.0"></textarea></label>
 const $ = id => document.getElementById(id);
 const num = id => { const v = $(id).value.trim(); return v === "" ? null : Number(v); };
 let META = null;
+let ACC = null;   // measured predictive accuracy, from GET /api/accuracy
 
 function opts(sel, items, blank){
   const s = $(sel); s.innerHTML = "";
@@ -196,6 +197,9 @@ function opts(sel, items, blank){
 
 async function boot(){
   META = await (await fetch("/api/meta")).json();
+  // Scoring 320 points takes a moment, so it must not block the first paint:
+  // fetch it alongside and let the result panel pick it up when it lands.
+  fetch("/api/accuracy").then(r=>r.json()).then(a=>{ACC=a;}).catch(()=>{});
   opts("film", META.films);
   $("film").value = META.films.includes("oxide") ? "oxide" : META.films[0];
   opts("abtype", META.abrasives, "(from pack)");
@@ -415,6 +419,30 @@ function render(r){
   }
 
   if(r.situation){
+    // Predictive accuracy, stated next to the number itself. A rate shown
+    // bare invites more trust than the model has earned on that axis, so the
+    // measured error for the axes this run actually depends on goes here.
+    if(ACC && ACC.by_axis){
+      const rows = Object.entries(ACC.by_axis)
+        .sort((a,b)=>a[1].median_shape_error_percent-b[1].median_shape_error_percent);
+      h += `<h2>How accurate is this, measured?</h2>
+        <p class="muted">Median error against ${ACC.measured_points} published
+        measurements across ${ACC.datasets_scored} datasets:
+        <b>${ACC.median_shape_error_percent}%</b> on trend,
+        <b>${ACC.median_leave_one_out_percent}%</b> out-of-sample
+        (fit n&minus;1 points, predict the one held back).
+        ${ACC.beat_predicting_the_mean}/${ACC.datasets_scored} beat
+        &ldquo;just assume this dataset's average&rdquo;.</p>
+        <table><tr><th>axis</th><th>datasets</th><th>median error</th></tr>
+        ${rows.map(([k,v])=>`<tr><td>${k.replace(/_/g," ")}</td>
+          <td>${v.datasets}</td>
+          <td>${v.median_shape_error_percent}%</td></tr>`).join("")}
+        </table>
+        <p class="muted">Pressure and velocity read worse than the &plusmn;15%
+        validation gate because they include the three datasets kept as
+        deliberate counter-examples (SiC, quartz, rheological). Restricted to
+        clean P&middot;V sweeps that axis runs 12&ndash;23%.</p>`;
+    }
     const s = r.situation;
     const axes = ["film_class","rate_limit","contact_branch","asperity_regime",
                   "load_regime","lubrication","topography","pad_state"];
