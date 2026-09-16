@@ -146,7 +146,7 @@ points on whichever axis each dataset varies:
 | pressure | 10 | 40.7% |
 | velocity | 6 | 44.1% |
 
-**Overall: median 22.9% shape error, 26.0% leave-one-out**, over 37 of 38
+**Overall: median 19.5% shape error, 23.6% leave-one-out**, over 37 of 38
 datasets and 320 measured points. 27 of 37 beat "predict this dataset's
 average" — the baseline that says whether the physics contributed anything.
 
@@ -175,6 +175,16 @@ causes, both silent:
 * **the particle-size exponent had the wrong sign** on 8 of 10 sweeps. Every
   pack used the derived −0.84; the data run −0.45 to +1.08 and split cleanly by
   **abrasive**, not by film (ceria +0.87, alumina +0.29, silica −0.05).
+* **zero oxidizer was answered two different wrong ways.** The peaked branch
+  skipped `C = 0`, so it fell through to a Langmuir term that returns 3.10
+  there — copper polishing 3× faster with no oxidizer at all, which inverted
+  Du 2004 completely (25107 Å/min predicted against 203 measured). Handling
+  `C = 0` then exposed the opposite bug: with no floor declared the
+  multiplicative term gave exactly **0.0 Å/min**, against 187 measured.
+  Chemistry scales removal; it does not switch it off.
+
+Each fix is pinned by a test that names the dataset and the failure, so the
+next change cannot quietly undo it.
 
 ## Film coverage
 

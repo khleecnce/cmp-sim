@@ -1,73 +1,64 @@
 # CMP-Sim — STATUS
 
 ## DONE (phase, module, tests)
-- P1 Preston — gate: 4 published datasets within ±15%
-- P2 GW contact · P3 Luo-Dornfeld abrasive · P4 chemistry (Arrhenius)
-- P5 radial uniformity, zone pressure, slurry supply
-- P6 pattern dishing/erosion · P7 pad glazing + conditioner ageing · P8 defects
-- Model selection by SITUATION: `core/regime.py` (8 axes) + `core/profiles.py`
-  (13 profiles, 7 orthogonal layers, wear/pattern as overlays)
-- CMP maturity grading `core/maturity.py` — established / emerging /
-  unestablished, derived from pack evidence; a pack may lower its grade, never
-  raise it. Unestablished films refuse defaults and ask for specific inputs.
-- Kp from first principles `models/first_principles.py` — Archard Kp = k/H when
-  no CMP data exist, with its ~1.8x uncertainty stated rather than hidden
-- **Learning from data**: `core/calibration.py` (scale + leave-one-out accuracy),
-  `core/factor_fit.py` (6 named physical factors, three anti-overfitting gates),
-  `core/measurement_io.py` (CSV logs)
-- Interfaces: CLI (`run`/`fit`/`sweep`/`validate`/`packs`/`profiles`),
-  zero-dependency web UI + API, `CMP-Sim.command` launcher
-- Films: Cu, W, oxide, STI-ceria, poly-Si, Si substrate, SiC, SnAg
-- Data: 55 additives × 9 films, 11 abrasives × 9 films
-- **546 tests**; verified from a clean clone including `pip install -e .`
+- P1 Preston · P2 GW contact · P3 Luo-Dornfeld abrasive · P4 chemistry
+  (pH/oxidizer/inhibitor + Arrhenius) · P5 radial uniformity & slurry supply
+  · P6 pattern dishing/erosion · P7 pad glazing & conditioner ageing
+  · P8 defect proxy
+- Model selection by SITUATION, not by film: `core/regime.py` (8 axes) +
+  `core/profiles.py` (13 profiles, 7 orthogonal layers)
+- Maturity grading `core/maturity.py` — a pack may lower its grade, never raise
+  it; unestablished films refuse defaults and name the input they need
+- Kp from first principles `models/first_principles.py` (Archard, ~1.8x
+  uncertainty stated rather than hidden)
+- Learning from data: `core/calibration.py`, `core/factor_fit.py` (6 physical
+  factors, LOO-gated), `core/measurement_io.py` (CSV logs)
+- **Prediction scored on every measured axis**: `core/predictive_score.py`,
+  `cmp-sim accuracy`, `GET /api/accuracy`, surfaced in the web UI next to the
+  rate. 37/38 datasets, 320 points.
+- Interfaces: CLI (`run`/`fit`/`sweep`/`validate`/`accuracy`/`packs`/
+  `profiles`), zero-dependency web UI + API, `CMP-Sim.command` launcher
+- Films: Cu, W, oxide, STI-ceria, poly-Si, Si substrate, SiC, SnAg.
+  Data: 55 additives × 9 films, 11 abrasives × 9 films
+- **558 tests**; verified from a clean clone including `pip install -e .`
 
 ## NEXT
-Owner review of the physics. No implementation is queued — every P1–P8 gate,
-all example films, the validation table and the data-fitting path are green.
+Owner review of the three judgement calls where measurements disagreed and a
+compromise was chosen over a flattering fit. Detail and derivations:
+`docs/predictive-accuracy.md`.
+1. `oxide_silica` loading `C_half = 4.4` — its two datasets want 0.6 (0.5–3
+   wt%) and 5.9 (5–25 wt%). The compromise costs both ~20%. A single Langmuir
+   may not span that range.
+2. `sti_ceria` pH pools Dandu (81× swing, peak 4.5, TEOS) with Netzband (1.9×,
+   rises to pH 10, thermal oxide) at 34%; either alone is 20–26%. Likely two
+   packs.
+3. Acid-side pH floors for `oxide_silica` and `cu_h2o2_bta` are 1%-of-peak
+   bounds, not measurements — no dataset sweeps the acid side of their optima.
 
 ## BLOCKED
-- **Partly resolved.** `contact_branch` is now decided without any circular
-  input, via the pad-limited load criterion
-  `Lambda = 48*Hp*E^2/(pi^2*H^3) > 1` (Saka CIRP 2008 Eq. 3, Eusner JES 2009
-  Fig. 15 pad hardness). Particle size cancels out. Cu = plastic (117),
-  oxide/STI = transition (2.8), SiC = blocked (see below).
-  **What it did NOT unblock:** the sign of the P3 particle-size exponent. The
-  exponent relations assume `0 <= 1-alpha*chi <= 1`, but the plastic branch
-  (alpha=3/2) with copper's measured load sharing (chi=1.0) gives
-  `n_C = -0.5` — "more abrasive removes less". alpha and chi are not
-  independently adjustable (chi comes from the measured area-pressure
-  exponent), so the engine reports the branch and leaves the exponents
-  `unverified` rather than publishing a negative concentration exponent.
-  **To settle it:** a measured abrasive-CONCENTRATION sweep per film.
-  **A depth limit no bookkeeping removes:** no nanoindentation of an actually
-  CMP-polished surface exists in the 324-paper corpus (every "surface" value is
-  static immersion or as-deposited), and instruments resolve to ~5 nm while an
-  abrasive indents under 1 nm. Lambda goes as 1/H^3, so 2x in hardness is 8x in
-  Lambda. Cu at 117 survives that; oxide at 2.8 does not, which is why it is
-  reported `transition` rather than assigned a side.
-  **Partly settled by data since:** 9 measured SIZE sweeps across 7 films were
-  extracted and verified (exponents -0.45 to +1.0, three non-monotonic). Where
-  a pack now has a sourced sweep for its own film the measured exponent
-  OVERRIDES the derived one: Cu +0.33 (Lai 2001 printed table), W -0.05
-  (Bouvet 2002, passivation-limited so size barely matters). Oxide stays null
-  because its measured response is non-monotonic and depends on abrasive
-  chemistry AND deposition method - a single number would be a lie.
-- **SnAg has no published Preston coefficient** (68 sourced numbers, no rate;
-  searched 320 local CMP papers, ScienceDirect and Crossref again this session).
-  It runs as a ranking on the Archard estimate and says so; four measured rates
-  take it to +/-1.4% cross-validated. Also means there is no envelope to
-  sanity-check its absolute rate against, which the run now states outright.
-- **RESOLVED.** The Cu oxidizer term now peaks instead of falling monotonically.
-  Pinning the peak to a MEASURED position makes the decay scale a consequence
-  of it, leaving one free parameter, which Du 2004 (doi:10.1149/1.1648029,
-  6 points across the peak) supplies: 5.6% MAPE, beats plain Langmuir by >2x.
-  Curvature is borrowed across a vol%/wt% axis difference and a glycine
-  difference, recorded at `confidence: low`.
-- **New, found while fixing the above:** SiC was inheriting SiO2's elastic
-  modulus (92 GPa vs SiC's ~450) through its SiC -> sti_ceria -> oxide_silica
-  lineage, and Lambda goes as E^2. Blocked with `value: null` + TODO(owner)
-  rather than a handbook number: the same inheritance route once carried the
-  oxide Kp into this pack and over-predicted SiC by 128x.
+- **Particle-size exponent sign: settled by data, and my grouping was wrong.**
+  It splits by ABRASIVE, not by film — ceria +0.87, alumina +0.29, silica
+  −0.05; within one abrasive the sweeps agree, across them they do not share a
+  sign. Leaving oxide `null` was not neutral: it selected the derived −0.84,
+  wrong in sign for 8 of 10 measured sweeps.
+- **`contact_branch` decided without circular input** via the pad-limited load
+  criterion (particle size cancels): Cu plastic, oxide/STI transition. It did
+  NOT unblock the P3 exponent derivation — plastic α=3/2 with copper's measured
+  χ=1.0 gives n_C = −0.5 ("more abrasive removes less"), violating the model's
+  own bound, and α and χ are not independently adjustable. The engine reports
+  the branch and leaves the exponents `unverified`. Loading is now fitted
+  directly instead, which bypasses the conflict rather than resolving it.
+  **Depth limit no bookkeeping removes:** no nanoindentation of an actually
+  CMP-polished surface exists in the 324-paper corpus, and instruments resolve
+  ~5 nm while an abrasive indents under 1 nm. Λ ∝ 1/H³, so 2× in hardness is
+  8× in Λ.
+- **SnAg has no published Preston coefficient** (68 sourced numbers, no rate).
+  Runs as a ranking on the Archard estimate and says so; four measured rates
+  take it to ±1.4% cross-validated. No envelope exists to sanity-check its
+  absolute rate, which the run states outright.
+- **SiC inherits SiO₂'s modulus through its lineage** (92 vs ~450 GPa, and
+  Λ ∝ E²). Blocked with `null` + TODO(owner): the same route once carried the
+  oxide Kp into this pack and over-predicted SiC by 128×.
 
 ## VALIDATION
 | dataset | n | MAPE | verdict |
@@ -76,11 +67,14 @@ all example films, the validation table and the data-fitting path are green.
 | US8142675B2 Pt/alumina | 4 | 12.3% | pass |
 | US6564116B2 oxide L25 | 5 | 12.6% | pass |
 | Mariscal 2020 PETEOS/ceria | 9 | 12.9% | pass |
-| Wang SiC DOE50 | 6 | 31.9% | **kept failing** — chemically limited: rate spans 5.2× at identical P·V, R²=0.09 |
-| US6918821B2 Cu/IC1000 | 6 | 44.1% | **kept failing** — lubrication transition; the model flags the collapse point (λ=1.24) without seeing a rate |
+| Wang SiC DOE50 | 6 | 31.9% | **kept failing** — chemically limited, R²=0.09 |
+| US6918821B2 Cu/IC1000 | 6 | 44.1% | **kept failing** — lubrication transition, flagged at λ=1.24 without seeing a rate |
 
 Gate: 4 in-scope datasets within ±15% (need 3) → **PASS**
 
-Factor recovery against synthetic tools with known answers: pressure exponent
-0.65→0.652, abrasive C_half 3.0→3.08, Ea 45→44.5 kJ/mol, two effects at once
-0.70/3.0→0.68/3.08. Preston-true data unlock nothing.
+Prediction on every axis (320 points): median **19.5%** trend, **23.6%**
+leave-one-out, 27/37 datasets beat predicting their own mean. By axis —
+particle size 8.7%, loading 34.6%, pH 36.2%, oxidizer 36.2%, pressure 40.7%,
+velocity 44.1%. Was 42.8% / 53.9% with 16 of 36 losing to the mean, before
+three silent failures were found: pH was inert, `abrasive_d50_nm` was dropped,
+and zero oxidizer predicted both 3× too fast and exactly zero.
