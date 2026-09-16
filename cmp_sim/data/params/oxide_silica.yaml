@@ -21,6 +21,34 @@ base: oxide_silica
 description: "Oxide / colloidal silica: hydrolysis mechanism, contact stress, pattern and thermal terms"
 
 params:
+  # ── pH response, fitted to MEASURED silica-on-oxide sweeps ─────────────
+  # Inherited ph_peak = 11.0 is kept: Li 2021 measures a maximum at pH 11
+  # (1727 A/min vs 1551 at pH 10 and 1407 at pH 12.5), which confirms it.
+  ph_response_width:
+    value: 3.1
+    unit: pH
+    note: >
+      Gaussian half-width, fitted to Li 2021 (3 points, pH 10-12.5,
+      alkaline silica with an additive). Shape error 0.1%, but on 3 points
+      straddling the peak -- the fit is well posed yet narrowly sampled.
+      Does NOT describe the acidic branch: CN109609035B measures a 22x FALL
+      from pH 2 to 5 with charged silica, whose own optimum is near pH 2,
+      not 11. That is a different slurry system (anionic-surfactant
+      stabilised) and needs its own pack rather than a wider bell here.
+    source: li2021_oxide_silica_ph.yaml (3 measured points)
+    confidence: med
+  ph_mechanical_floor:
+    value: 0.12
+    unit: fraction of peak rate
+    note: >
+      Fitted jointly with the width on Li 2021. The floor applies on the
+      alkaline side only (see ph_response), and with a width of 3.1 the
+      bell itself stays near 1.0 across the measured pH 10-12.5 window, so
+      the weak 1.2x sensitivity Li reports comes from the width rather than
+      from the floor. Poorly constrained: no point in this dataset sits far
+      enough above pH 11 to make the floor visible.
+    source: li2021_oxide_silica_ph.yaml (3 measured points)
+    confidence: med
   abrasive_size_exponent:
     value: null
     unit: dimensionless

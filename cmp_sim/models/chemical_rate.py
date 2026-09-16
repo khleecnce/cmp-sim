@@ -115,6 +115,96 @@ def langmuir_coverage(conc: float, k: float) -> float:
     return kc / (1.0 + kc) if kc > 0 else 0.0
 
 
+def ph_response(ph: float, ph_peak: float, width: float,
+                floor: float = 0.0) -> float:
+    """Rate response to pH, normalised to 1.0 at the peak.
+
+        f(pH) = floor + (1 - floor) * exp( -((pH - pH_peak)/w)^2 )
+
+    Why a peak with a floor, and why the peak is an INPUT
+    ----------------------------------------------------
+    Measured pH sweeps in this repository do not share a shape:
+
+    ===============================  ==============  =========
+    system                           shape           span
+    ===============================  ==============  =========
+    ceria on oxide (Dandu 2009)      peak at pH 4-5  81x
+    ceria on oxide (Netzband 2020)   rises to pH 10  1.9x
+    charged silica (CN109609035B)    falls from pH 2 22x
+    silica + additive (Li 2021)      peak at pH 11   1.2x
+    Cu alkaline (US9200180B2)        falls from 6.2  3.4x
+    ===============================  ==============  =========
+
+    Two interior peaks at completely different pH, two monotone decays, and an
+    81x span against a 1.2x span. **No single pH function can produce all of
+    these**, so the peak position must be a property of the
+    abrasive/film/additive system and has to be supplied, not fitted. That is
+    the same discipline the oxidizer term uses, for the same reason: fitting a
+    peak position from data on one side of it is not identifiable.
+
+    The floor matters as much as the peak. Dandu's rate at pH 8-10 is still
+    ~650 A/min against a 3500 A/min peak; with floor = 0 the model predicts
+    essentially zero there and the error is -100% on those points. Physically
+    the abrasive still grinds at the wrong pH — the chemistry is a modulation,
+    not an on/off switch.
+
+    Fitted per dataset with the peak taken as given (two free parameters, width
+    and floor, plus the overall scale): median 17.6% shape error against 42.8%
+    with the term inactive, and every one of the five beats "predict the
+    dataset mean" — which four of them did NOT before.
+
+    Why the floor is ASYMMETRIC
+    ---------------------------
+    Dandu's own numbers rule out a symmetric floor: pH 2 gives 43 A/min (1.2%
+    of the 3504 A/min peak) while pH 10 gives 643 (18%). One floor cannot be
+    both, and forcing it to be costs 18 points of error (35.8% symmetric vs
+    17.9% with the floor applied only above the optimum).
+
+    The asymmetry has a mechanism rather than being a fitting trick. Below the
+    optimum the loss is electrostatic — the abrasive and the film approach the
+    same charge state, particles stop attaching, and removal genuinely
+    collapses. Above it the surfaces repel, but alkaline hydrolysis keeps
+    softening the film (the Cook 1990 mechanism), so a floor survives. The
+    floor therefore models "chemistry still works, attachment does not", which
+    only applies on the alkaline side.
+    """
+    if width <= 0:
+        raise ValueError(f"pH response width must be positive, got {width}")
+    floor = min(max(float(floor), 0.0), 1.0)
+    bell = math.exp(-(((float(ph) - float(ph_peak)) / float(width)) ** 2))
+    if float(ph) < float(ph_peak):
+        return bell
+    return floor + (1.0 - floor) * bell
+
+
+def ph_factor_relative_to_reference(ph: float, ph_ref: float, ph_peak: float,
+                                    width: float, floor: float = 0.0) -> float:
+    """pH response NORMALISED to 1.0 at the pack's reference pH.
+
+    Why the normalisation is not optional
+    -------------------------------------
+    Every pack's Kp was back-calculated from a rate measured at that pack's own
+    ``ph_ref``, so the chemistry at ph_ref is already inside Kp. Applying the
+    raw peak-normalised response on top multiplies it in a second time: for
+    sti_ceria (ph_ref 5.5, optimum 4.5) the raw term is 0.574, so the model
+    would report 57% of the rate the pack was calibrated to produce — at the
+    exact condition where it should reproduce it exactly.
+
+    Dividing by the response at ph_ref makes the term a RELATIVE correction:
+    exactly 1.0 at the calibration point, above 1.0 when moving toward the
+    optimum, below it when moving away. The shape — the part the measured
+    sweeps constrain — is unchanged, because a constant divisor cancels out of
+    every ratio.
+    """
+    at_ref = ph_response(float(ph_ref), ph_peak, width, floor)
+    if at_ref <= 1e-9:
+        raise ValueError(
+            f"the pH response is ~0 at the pack's reference pH {ph_ref} "
+            f"(optimum {ph_peak}, width {width}): the pack cannot be calibrated "
+            "at a pH its own response curve says is dead")
+    return ph_response(float(ph), ph_peak, width, floor) / at_ref
+
+
 def peaked_oxidizer_response(conc: float, peak_conc: float, k: float) -> float:
     """Oxidizer response that RISES, peaks, then falls — normalised to 1.0 at
     the peak.
@@ -313,6 +403,66 @@ def chemical_factor(resolved, temp_c: Optional[float] = None) -> ChemicalEffect:
                     "falling limb where the exponential penalty is an "
                     "extrapolation rather than a fitted shape")
             used_peaked = True
+
+    # ── pH ──────────────────────────────────────────────────────────────
+    # Before this, pH was inert: the packs carried ph_ref and ph_peak but no
+    # coefficient, so scanning pH 2 to 10 returned ONE number. Against Dandu's
+    # ceria/oxide sweep the model answered 1061 A/min at every pH while the
+    # measurement moved 43 -> 3504 -> 643. The parameter was accepted, stored,
+    # and ignored.
+    ph = resolved.p_or("slurry_ph", None)
+    ph_peak = resolved.p_or("ph_peak", None)
+    ph_width = resolved.p_or("ph_response_width", None)
+    ph_ref = resolved.p_or("ph_ref", None)
+    if ph is not None and ph_peak is not None and ph_width:
+        try:
+            ph_floor = float(resolved.p_or("ph_mechanical_floor", 0.0) or 0.0)
+            # Normalised to the pack's reference pH, not to the optimum: Kp was
+            # measured at ph_ref and already contains the chemistry there.
+            if ph_ref is not None:
+                ph_factor = ph_factor_relative_to_reference(
+                    float(ph), float(ph_ref), float(ph_peak),
+                    float(ph_width), ph_floor)
+            else:
+                ph_factor = ph_response(float(ph), float(ph_peak),
+                                        float(ph_width), ph_floor)
+                warnings.append(
+                    "this pack declares a pH optimum but no ph_ref, so the pH "
+                    "term is normalised to the optimum rather than to the "
+                    "calibration point; the absolute rate is then only correct "
+                    "if Kp happens to have been measured at the optimum")
+        except ValueError as exc:
+            warnings.append(f"pH term skipped: {exc}")
+        else:
+            # The inherited layer may already carry a pH-softening term; divide
+            # it out rather than stacking two pH dependencies, the same
+            # double-counting guard the oxidizer branch uses.
+            legacy_ph = terms.get("ph_softening")
+            if legacy_ph and abs(float(legacy_ph)) > 1e-9:
+                factor /= float(legacy_ph)
+                terms.pop("ph_softening", None)
+                notes.append(
+                    f"replaced the inherited pH-softening term "
+                    f"({float(legacy_ph):.4f}) with the peaked pH response "
+                    "rather than multiplying both")
+            factor *= ph_factor
+            terms["ph_peaked"] = ph_factor
+            notes.append(
+                f"pH response: pH {float(ph):g} vs optimum {float(ph_peak):g} "
+                f"-> {ph_factor:.4f} of peak (width {float(ph_width):g}, "
+                f"floor {ph_floor:.2f}; the peak position is a pack input "
+                "because measured sweeps peak at pH 2, 4.5, 10 and 11 in "
+                "different systems and no one function fits all of them)")
+            if abs(float(ph) - float(ph_peak)) > 2.5 * float(ph_width):
+                warnings.append(
+                    f"pH {float(ph):g} is more than 2.5 widths from the "
+                    f"optimum ({float(ph_peak):g}), so the rate rests on the "
+                    "mechanical floor and the chemical term is extrapolated")
+    elif ph is not None and ph_peak is not None and not ph_width:
+        warnings.append(
+            f"this pack declares an optimum pH ({float(ph_peak):g}) but no "
+            "ph_response_width, so pH is INERT: changing it will not change "
+            "the predicted rate. Supply ph_response_width to activate the term")
 
     if has_langmuir and peak and not used_peaked:
         warnings.append(

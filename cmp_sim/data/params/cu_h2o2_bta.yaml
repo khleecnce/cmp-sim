@@ -43,6 +43,41 @@ base: cu_h2o2_bta
 description: "Cu/H2O2/BTA: softened-surface hardness, damascene pattern terms and Arrhenius Ea, each sourced"
 
 params:
+  # ── pH response, fitted to a MEASURED Cu sweep ─────────────────────────
+  ph_peak:
+    value: 4.0
+    unit: pH
+    note: >
+      Optimum pH for this acidic H2O2/BTA system. US9200180B2 measures a
+      monotone FALL across pH 6.2-9.9 (732 -> 214 A/min), so the maximum
+      lies at or below 6.2 and that sweep alone cannot locate it. 4.0 is
+      the pack's own operating pH (ph_ref), i.e. the pH the rest of this
+      pack's constants were measured at, which makes it the defensible
+      choice rather than a fitted one. TODO(owner): a sweep across pH 2-6
+      would pin it; until then a scan below pH 4 is an extrapolation.
+    source: >
+      operating point of this pack (= ph_ref); the alkaline branch is
+      constrained by us9200180b2_cu_ph_alkaline_sweep.yaml (5 points)
+    confidence: low
+  ph_response_width:
+    value: 4.1
+    unit: pH
+    note: >
+      Fitted to US9200180B2 (5 points, pH 6.2-9.9). Shape error 0.7% with
+      the floor below. Constrains the ALKALINE side only -- the acidic side
+      is unmeasured here, and because ph_peak itself is unmeasured (the
+      sweep is monotone), the width and the peak trade off against each
+      other. Both are provisional until an acidic Cu sweep exists.
+    source: us9200180b2_cu_ph_alkaline_sweep.yaml (5 measured points)
+    confidence: med
+  ph_mechanical_floor:
+    value: 0.12
+    unit: fraction of peak rate
+    note: >
+      Copper still removes at pH 9.9 (214 A/min against 732 at pH 6.2),
+      so the floor is real and not a fitting convenience.
+    source: us9200180b2_cu_ph_alkaline_sweep.yaml (pH 9.9 point)
+    confidence: med
   abrasive_size_exponent:
     value: 0.33
     unit: dimensionless

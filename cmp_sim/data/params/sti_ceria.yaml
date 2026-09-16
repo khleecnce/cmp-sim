@@ -23,6 +23,54 @@ base: sti_ceria
 description: "STI / ceria: chemical-tooth evidence, selectivity, pattern and thermal terms"
 
 params:
+  # ── pH response, fitted to MEASURED ceria-on-oxide sweeps ──────────────
+  # These three numbers exist because pH was previously inert: the pack
+  # carried ph_peak and ph_ref but no width, so the model returned 1061
+  # A/min at every pH from 2 to 10 while Dandu's measurement moved
+  # 43 -> 3504 -> 643 A/min. An accepted-but-ignored parameter is worse
+  # than a missing one, because the scan looks like an answer.
+  ph_peak:
+    value: 4.5
+    unit: pH
+    note: >
+      Optimum pH for ceria on silica. OVERRIDES the inherited value of 5.5,
+      which was the mid-point of an electrostatic window rather than a
+      measured maximum. 4.5 is the least-squares optimum across Dandu 2009
+      (9 points, pH 2-10, peak 3504 A/min at pH 5.5 with a broad plateau
+      from 3.5) once the plateau is fitted rather than the single highest
+      point. Fitting the top point alone gives 5.5 and a worse overall
+      error (48.7% vs 35.8%), because the real response is a plateau.
+    source: dandu2009_sio2_ceria_ph_sweep.yaml (9 measured points)
+    confidence: med
+  ph_response_width:
+    value: 1.2
+    unit: pH
+    note: >
+      Gaussian half-width of the pH response. Joint fit over Dandu 2009
+      (9 pts) and Netzband 2020 (4 pts), 13 points, combined shape error
+      27.4%. The two datasets genuinely disagree: Dandu shows an 81x swing
+      over pH 2-10 while Netzband's rate barely moves (1.9x over pH 4-10)
+      and peaks at the opposite end. The joint fit therefore satisfies
+      neither perfectly and this is the WEAKEST number in the block -- a
+      third ceria sweep would settle whether the two systems need separate
+      packs (likely: Netzband is thermal oxide, Dandu is TEOS).
+    source: dandu2009 + netzband2020 ceria pH sweeps (13 measured points)
+    confidence: low
+  ph_mechanical_floor:
+    value: 0.15
+    unit: fraction of peak rate
+    note: >
+      Rate at the wrong pH, as a fraction of the peak. NOT a cosmetic
+      addition: with floor = 0 the model predicts ~0 A/min at pH 8-10 where
+      Dandu measures 694 and 643, an error of -100% on those two points.
+      the abrasive still grinds when the chemistry is off-optimum, so the
+      chemical term is a modulation and not an on/off switch. Applies on
+      the ALKALINE side only: Dandu's pH 2 point is 1.2% of peak while pH
+      10 is 18%, and one symmetric floor cannot be both (forcing it costs
+      18 points of error). Below the optimum the particles stop attaching
+      electrostatically; above it hydrolysis still softens the film.
+    source: dandu2009_sio2_ceria_ph_sweep.yaml (pH 8 and 10 points)
+    confidence: med
   film_youngs_modulus_pa:
     value: 92.0e9
     unit: Pa

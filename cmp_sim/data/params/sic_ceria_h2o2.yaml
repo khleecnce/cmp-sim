@@ -37,6 +37,28 @@ base: sic_ceria_h2o2
 description: "4H-SiC: ceria/H2O2 alkaline slurry, Kp refitted to SiC's own DOE"
 
 params:
+  # ── block the inherited oxide pH response ──────────────────────────────
+  # sic_ceria_h2o2 inherits from sti_ceria, so the pH optimum fitted to
+  # ceria-on-SILICA sweeps (peak 4.5, width 1.2) arrived here uninvited and
+  # multiplied SiC's rate by 0.57 at its own operating pH, pushing the
+  # prediction below the published SiC floor. Same class of inheritance
+  # accident that once made Kp wrong by 128x in this pack.
+  #
+  # SiC is not silica: it is chemically rate-limited (its P*V correlation is
+  # R^2 = 0.09), its removal depends on OXIDATION of the Si face rather than
+  # on hydrolysis of a silica network, and the reported pH dependence goes the
+  # other way -- alkaline-oxidant systems are the ones that work. Setting the
+  # width to null switches the term OFF rather than guessing a SiC optimum.
+  ph_response_width:
+    value: null
+    unit: pH
+    note: >
+      TODO(owner) - deliberately null so the pH term stays inactive for SiC
+      rather than inheriting the silica optimum. A measured SiC pH sweep at
+      fixed oxidant would activate it; the DOE50 set varies pH together with
+      oxidizer and pressure, so it cannot isolate the pH axis.
+    source: null
+    confidence: low
   # ── blocking an inherited value that does not belong to SiC ──────────
   # This pack's lineage runs SiC -> sti_ceria -> oxide_silica, so anything the
   # silica packs declare arrives here unless it is overridden. That has already
