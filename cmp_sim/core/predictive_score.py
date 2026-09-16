@@ -64,6 +64,11 @@ OVERRIDE_TO_RECIPE: Dict[str, Tuple[str, str]] = {
 #: Overrides that are additives rather than scalar fields.
 ADDITIVE_OVERRIDES = {
     "oxidizer_wt_pct": ("hydrogen_peroxide", "oxidizer"),
+    # Du 2004 reports vol% rather than wt%. For dilute aqueous H2O2 the two are
+    # within a few percent, which is well inside the scatter of a digitized
+    # figure, so the series is usable -- but the alias must be declared or the
+    # whole oxidizer axis is silently dropped.
+    "h2o2_vol_pct": ("hydrogen_peroxide", "oxidizer"),
     "inhibitor_mM": ("benzotriazole", "inhibitor"),
 }
 
@@ -183,6 +188,13 @@ def _recipe_for(doc: Dict[str, Any], row: Dict[str, Any]) -> Dict[str, Any]:
         "slurry": slurry,
         "tool": tool,
     }
+    # A dataset may declare parameters that belong to ITS formulation rather
+    # than to the pack it borrows: Du 2004's oxidizer peak is 1 vol% because
+    # its slurry has no glycine, while the pack's 3.0 wt% was measured on a
+    # glycine system. Merging those would be wrong in both directions, so the
+    # dataset states its own and they are applied on top.
+    for key, value in (doc.get("pack_overrides") or {}).items():
+        leftovers.setdefault(key, value)
     if doc.get("wafer_radius_m"):
         recipe["wafer"]["diameter_mm"] = float(doc["wafer_radius_m"]) * 2000.0
     if leftovers:

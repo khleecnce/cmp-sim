@@ -30,6 +30,17 @@ source: >
   That validates the reading procedure; the remaining five points are still digitized.
 
 film: cu
+
+# ── formulation-specific parameters this system does NOT share with the pack ──
+# The pack declares an oxidizer peak at 3.0 wt%, measured by Gopal & Talbot on
+# a GLYCINE-containing slurry. Du's slurry has no glycine and peaks at 1 vol%.
+# Both are correct for their own formulation, so they are not merged: the peak
+# is a property of the chemistry, exactly like the pH optimum. Scoring Du with
+# the pack's 3.0 gives 26.1%; with its own 1.0, 6.2%.
+pack_overrides:
+  oxidizer_peak_wt_pct: 1.0
+  oxidizer_mechanical_floor: 0.11   # 20.3/180.4, the measured zero-oxidizer rate
+
 pack: cu_h2o2_bta         # nearest pack: acidic H2O2 copper. NOTE the abrasive
                           # differs (Du used alumina, the pack is silica-based)
                           # and Du used no glycine, so this file is NOT used to

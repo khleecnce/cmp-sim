@@ -368,7 +368,13 @@ def chemical_factor(resolved, temp_c: Optional[float] = None) -> ChemicalEffect:
     # states one it is USED rather than merely declared and ignored.
     peak_k = resolved.p_or("oxidizer_peak_shape_K", None)
     used_peaked = False
-    if peak and peak_k and conc is not None and float(conc) > 0:
+    # Zero oxidizer is a MEASURED condition, not a missing input: Du 2004's
+    # first point is 0 vol%, and the inherited Langmuir returns 3.10 there --
+    # i.e. "copper polishes 3x faster with no oxidizer at all", which inverts
+    # the whole series and made that dataset score 157%. The peaked branch must
+    # therefore handle C = 0, where it equals the mechanical floor, rather than
+    # declining it and leaving the monotonic term in place.
+    if peak and peak_k and conc is not None and float(conc) >= 0:
         # The inherited layer has ALREADY multiplied its own monotonic oxidizer
         # term into `factor`. Multiplying the peaked term on top would count the
         # same physics twice - the mistake that once collapsed a copper rate by
@@ -389,7 +395,13 @@ def chemical_factor(resolved, temp_c: Optional[float] = None) -> ChemicalEffect:
                     f"({float(legacy_ox):.4f}) with the peaked form rather than "
                     "multiplying both, which would double-count the same "
                     "surface chemistry")
-    if peak and peak_k and conc is not None and float(conc) > 0:
+    # Zero oxidizer is a MEASURED condition, not a missing input: Du 2004's
+    # first point is 0 vol%, and the inherited Langmuir returns 3.10 there --
+    # i.e. "copper polishes 3x faster with no oxidizer at all", which inverts
+    # the whole series and made that dataset score 157%. The peaked branch must
+    # therefore handle C = 0, where it equals the mechanical floor, rather than
+    # declining it and leaving the monotonic term in place.
+    if peak and peak_k and conc is not None and float(conc) >= 0:
         try:
             shape = peaked_oxidizer_response(float(conc), float(peak), float(peak_k))
         except ValueError as exc:
@@ -398,6 +410,22 @@ def chemical_factor(resolved, temp_c: Optional[float] = None) -> ChemicalEffect:
             floor = float(resolved.p_or("oxidizer_mechanical_floor", 0.0) or 0.0)
             # The floor is the abrasive-only rate: at zero oxidizer removal does
             # not stop, so a purely multiplicative term would predict zero.
+            #
+            # With no floor declared this branch returned EXACTLY 0.0 A/min at
+            # zero oxidizer, against 187 A/min measured in US2011/0165777A1 --
+            # the chemistry switching the process off rather than scaling it.
+            # A pack that does not state its floor gets a small positive one
+            # plus a warning, because "no data" must not become "no removal".
+            if floor <= 0.0 and float(conc) <= 0.0:
+                floor = 0.10
+                warnings.append(
+                    "this pack declares no oxidizer_mechanical_floor, so the "
+                    "rate at zero oxidizer would be exactly 0 A/min. A "
+                    "provisional floor of 10% of the peak is used instead: an "
+                    "abrasive under load removes material with no oxidizer at "
+                    "all (US2011/0165777A1 measures 187 A/min there). Supply "
+                    "the measured zero-oxidizer rate over the peak rate to "
+                    "replace this estimate")
             ox_factor = floor + (1.0 - floor) * shape
             factor *= ox_factor
             terms["oxidizer_peaked"] = ox_factor
