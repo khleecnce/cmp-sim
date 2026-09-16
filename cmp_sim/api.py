@@ -9,6 +9,7 @@ Endpoints
 ---------
 ``GET  /``               the web UI
 ``GET  /api/meta``       packs, models, films, additives and abrasives available
+``GET  /api/accuracy``   measured predictive error over all 320 literature points
 ``POST /api/simulate``   a recipe dict in, a result dict out
 """
 from __future__ import annotations
@@ -167,7 +168,40 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, html, "text/html; charset=utf-8")
         if path == "/api/meta":
             return self._json(200, _meta())
-        self._json(404, {"error": f"no such path: {path}"})
+        if path == "/api/accuracy":
+            # Measured predictive accuracy across every dataset, so the UI can
+            # state how far to trust a number instead of showing it bare.
+            from cmp_sim.core.predictive_score import score_all
+
+            scores = [s for s in score_all() if s.shape_mape is not None]
+            shape = sorted(s.shape_mape for s in scores)
+            loo = sorted(s.loo_mape for s in scores)
+            by_axis = {}
+            for axis in ("pressure", "velocity", "slurry_ph",
+                         "abrasive_wt_pct", "abrasive_d50_nm",
+                         "oxidizer_wt_pct"):
+                sel = sorted(s.shape_mape for s in scores if axis in s.axes)
+                if sel:
+                    by_axis[axis] = {
+                        "datasets": len(sel),
+                        "median_shape_error_percent": round(
+                            sel[len(sel) // 2], 1)}
+            return self._json(200, {
+                "datasets_scored": len(scores),
+                "measured_points": sum(s.n for s in scores),
+                "median_shape_error_percent": round(shape[len(shape) // 2], 1),
+                "median_leave_one_out_percent": round(loo[len(loo) // 2], 1),
+                "beat_predicting_the_mean": sum(1 for s in scores
+                                                if s.beats_flat),
+                "by_axis": by_axis,
+                "worst": [{"dataset": s.dataset,
+                           "shape_error_percent": round(s.shape_mape, 1)}
+                          for s in sorted(scores,
+                                          key=lambda x: -x.shape_mape)[:5]],
+            })
+        self._json(404, {"error": f"no such path: {path}",
+                         "valid_get_paths": ["/", "/api/meta",
+                                             "/api/accuracy"]})
 
     def do_POST(self) -> None:                    # noqa: N802
         route = self.path.split("?", 1)[0]

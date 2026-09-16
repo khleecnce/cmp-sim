@@ -36,8 +36,13 @@ python3 -m venv .venv
 # fit the model to your own measurements
 .venv/bin/cmp-sim fit examples/oxide_baseline.yaml mylog.csv
 
-# reproduce the validation table below
+# reproduce the validation table below (does Preston's law hold?)
 .venv/bin/cmp-sim validate --gate 15
+
+# score against EVERY measured point, not just the P*V sweeps
+.venv/bin/cmp-sim accuracy                     # all 320 points, all axes
+.venv/bin/cmp-sim accuracy --axis slurry_ph    # one axis at a time
+.venv/bin/cmp-sim accuracy --json              # machine-readable
 
 # interactive web UI (standard library only, no web framework)
 .venv/bin/python -m cmp_sim.api          # -> http://127.0.0.1:8765
@@ -45,8 +50,9 @@ python3 -m venv .venv
 # the same engine over HTTP, standard library only:
 #   POST /api/simulate   one run           GET /api/meta   films, packs, profiles
 #   POST /api/sweep      vary one input    GET /           the web UI
+#   GET  /api/accuracy   measured predictive error, overall and per axis
 
-# 546 tests
+# 558 tests
 .venv/bin/python -m pytest -q
 ```
 
@@ -58,6 +64,11 @@ run** because no published source gives a SnAg Preston coefficient, alongside
 ranking.
 
 ## Validation
+
+Two different questions, answered separately, because conflating them is how a
+model comes to look better than it is.
+
+### 1. Does Preston's law hold? (`cmp-sim validate`)
 
 Preston has exactly one free constant, `Kp`. A dataset that sweeps pressure and
 speed at fixed chemistry therefore tests the *shape* the model predicts, with
@@ -117,6 +128,53 @@ A test asserts this dataset keeps failing, so nobody can quietly tune `Kp` to it
 **SiC (32%) is chemically rate-limited.** In that DOE the factor ranking is pH >
 head rpm > CeO₂ > pressure, and pump flow and polish time outrank composition
 entirely. A mechanical `P·V` law cannot explain it, whatever `Kp` you choose.
+
+### 2. How accurate is it on *every* axis? (`cmp-sim accuracy`)
+
+The gate above only admits datasets that sweep pressure or speed — 6 of 38
+files here, about 40% of the measured points. That left the slurry axes this
+simulator exists to predict (pH, oxidizer, loading, particle size) **never
+scored against a measurement at all**. `cmp-sim accuracy` scores all 320
+points on whichever axis each dataset varies:
+
+| axis | datasets | median error |
+|---|---:|---:|
+| abrasive particle size | 9 | **8.7%** |
+| abrasive loading | 8 | 34.6% |
+| pH | 9 | 36.2% |
+| oxidizer | 8 | 36.2% |
+| pressure | 10 | 40.7% |
+| velocity | 6 | 44.1% |
+
+**Overall: median 22.9% shape error, 26.0% leave-one-out**, over 37 of 38
+datasets and 320 measured points. 27 of 37 beat "predict this dataset's
+average" — the baseline that says whether the physics contributed anything.
+
+Three numbers, and they mean different things:
+
+* **shape** — scale fitted to the dataset, so it measures the *trend*. Use it
+  when asking "which way does it move, and by how much"; no pack's `Kp` is
+  calibrated to another lab's tool, so absolute agreement is not the question.
+* **leave-one-out** — fit on n−1 points, predict the held-out one. The only
+  number quotable as accuracy without qualification.
+* **predict-the-mean** — the baseline. A model that cannot beat it added
+  nothing on that dataset.
+
+The pressure and velocity medians look poor next to the ±15% gate because they
+include the three datasets that are *supposed* to fail (SiC, quartz,
+rheological). Restricted to clean `P·V` sweeps the same axis runs 12–23%.
+
+Finding this changed the model materially. Scored this way the first time, the
+median was **42.8%** and 16 of 36 datasets lost to predicting the mean. Two
+causes, both silent:
+
+* **pH did nothing.** The packs carried `ph_peak` and `ph_ref` but no width, so
+  the term never ran — a pH 2→10 scan returned one number while the measurement
+  moved 81×. An accepted-and-ignored parameter is worse than a missing one,
+  because the scan still looks like an answer.
+* **the particle-size exponent had the wrong sign** on 8 of 10 sweeps. Every
+  pack used the derived −0.84; the data run −0.45 to +1.08 and split cleanly by
+  **abrasive**, not by film (ceria +0.87, alumina +0.29, silica −0.05).
 
 ## Film coverage
 

@@ -281,7 +281,69 @@ def build_parser() -> argparse.ArgumentParser:
                     help="require >=3 in-scope datasets within this MAPE %%")
     va.add_argument("--all-groups", action="store_true")
     va.set_defaults(func=_cmd_validate)
+
+    ac = sub.add_parser("accuracy",
+                        help="score the model against EVERY measured point, "
+                             "not just the P*V sweeps")
+    ac.add_argument("--json", action="store_true",
+                    help="emit machine-readable scores")
+    ac.add_argument("--axis", default=None,
+                    help="only datasets varying this axis "
+                         "(e.g. slurry_ph, abrasive_wt_pct)")
+    ac.set_defaults(func=_cmd_accuracy)
     return ap
+
+
+def _cmd_accuracy(args) -> int:
+    """Score the model on every measured axis.
+
+    Separate from `validate` on purpose. `validate` asks whether Preston's law
+    holds and only admits datasets that sweep pressure or speed -- 6 of 38
+    files here. This asks the question a process engineer actually has: given a
+    slurry and a tool setting, how close is the predicted rate, on whichever
+    axis was varied.
+    """
+    import json as _json
+
+    from cmp_sim.core.predictive_score import report, score_all
+
+    scores = score_all()
+    if args.axis:
+        scores = [s for s in scores if args.axis in s.axes]
+        if not scores:
+            print(f"no dataset varies {args.axis!r}")
+            return 2
+
+    if args.json:
+        ran = [s for s in scores if s.shape_mape is not None]
+        shape = sorted(s.shape_mape for s in ran)
+        loo = sorted(s.loo_mape for s in ran)
+        print(_json.dumps({
+            "datasets": [s.as_dict() for s in scores],
+            "summary": {
+                "datasets_scored": len(ran),
+                "datasets_total": len(scores),
+                "measured_points": sum(s.n for s in ran),
+                "median_shape_error_percent": (
+                    round(shape[len(shape) // 2], 1) if shape else None),
+                "median_leave_one_out_percent": (
+                    round(loo[len(loo) // 2], 1) if loo else None),
+                "beat_predicting_the_mean": sum(1 for s in ran if s.beats_flat),
+            },
+            "how_to_read": {
+                "shape": "scale fitted to the dataset; measures the TREND, "
+                         "because no pack's Kp is calibrated to another lab's "
+                         "tool",
+                "leave_one_out": "fit on n-1 points, predict the held-out one "
+                                 "- the only number quotable as accuracy",
+                "predict_the_mean": "baseline; if the model does not beat it, "
+                                    "the physics added nothing on that dataset",
+            },
+        }, indent=2))
+        return 0
+
+    print(report(scores))
+    return 0
 
 
 def main(argv=None) -> int:
