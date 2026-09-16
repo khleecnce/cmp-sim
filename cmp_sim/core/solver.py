@@ -384,6 +384,14 @@ def _abrasive_hook(rr: ResolvedRecipe) -> Dict[str, Any]:
     conc = rr.p_or("abrasive_wt_pct", None)
     conc_ref = rr.p_or("abrasive_ref_wt_pct", None)
     d50 = rr.p_or("abrasive_size_nm", None)
+    # `abrasive_d50_nm` is the same quantity under a different name, and it is
+    # the name most of the measured datasets use. Reading only one of the two
+    # meant a size override was ACCEPTED and then silently dropped: quadrupling
+    # the particle diameter returned a bit-identical rate. An ignored input is
+    # the most dangerous kind of bug here, because the run still looks like an
+    # answer to the question that was asked.
+    if d50 is None:
+        d50 = rr.p_or("abrasive_d50_nm", None)
     d50_ref = rr.p_or("abrasive_ref_size_nm", None)
     if conc is None and d50 is None:
         return {"name": "chi_abrasive", "value": None,

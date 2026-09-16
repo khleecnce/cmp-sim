@@ -395,22 +395,32 @@ def mechanical_factor(*, conc: Optional[float], conc_ref: Optional[float],
 
     # particle size
     if diameter_nm is not None and diameter_ref_nm:
-        # A MEASURED exponent for this film beats the derived one. The derivation
-        # gives a single number from alpha, beta, chi and q, but nine published
-        # sweeps across seven films run from -0.45 to +1.0 and three are
-        # non-monotonic, so the derived value cannot be right for every film.
-        # Where a pack carries a sourced sweep for its own film, that wins.
+        # A MEASURED exponent beats the derived one. The derivation gives a
+        # single number from alpha, beta, chi and q, but ten measured sweeps
+        # show the exponent belongs to the ABRASIVE rather than to the film:
+        #
+        #   ceria    n = +0.87  (3 sweeps,  3-211 nm, oxide)
+        #   alumina  n = +0.29  (2 sweeps, 50-3500 nm, Cu and SiC)
+        #   silica   n = -0.05  (5 sweeps, 12-160 nm, five different films)
+        #
+        # Within one abrasive the sweeps agree; across abrasives they do not
+        # share a sign. Ceria removes silica chemically at the contact (Cook
+        # 1990: one SiO2 molecule per 24 collisions against one per 5e8 for
+        # silica), so a larger ceria particle carries a proportionally larger
+        # reacted footprint. Silica abrades mechanically - the regime this
+        # derivation assumes, where the size dependence cancels - which is why
+        # the derived value is right for silica and wrong by a sign for ceria.
         n_size = regime.n_size
         if measured_size_exponent is not None:
             n_size = float(measured_size_exponent)
             notes.append(
-                f"particle-size exponent n_d = {n_size:+.3f} taken from a "
-                f"MEASURED sweep for this film, overriding the derived "
+                f"particle-size exponent n_d = {n_size:+.3f} taken from "
+                f"MEASURED sweeps for this abrasive, overriding the derived "
                 f"{regime.n_size:+.3f}. The derivation yields one number from "
-                "the contact branch and load sharing, but measured exponents "
-                "span -0.45 to +1.0 across films - including three different "
-                "answers from single experiments on different films with the "
-                "same slurries - so it cannot hold everywhere")
+                "the contact branch and load sharing, and it assumes purely "
+                "mechanical indentation; measured exponents run -0.45 to +1.0 "
+                "and split cleanly by abrasive (ceria +0.87, alumina +0.29, "
+                "silica -0.05), so one value cannot hold everywhere")
         ratio = (float(diameter_nm) / float(diameter_ref_nm)) ** n_size
         factor *= ratio
         notes.append(

@@ -23,6 +23,21 @@ base: sti_ceria
 description: "STI / ceria: chemical-tooth evidence, selectivity, pattern and thermal terms"
 
 params:
+  abrasive_size_exponent:
+    value: 0.87
+    unit: dimensionless
+    note: >
+      MRR ~ d^n. Ceria is strongly size-dependent because it removes silica chemically at the contact, so a larger particle carries a larger reacted footprint.
+      Measured sweeps split by ABRASIVE, not by film: ceria +0.87 (3 sweeps,
+      3-211 nm), alumina +0.29 (2 sweeps, 50-3500 nm), silica -0.05 (5
+      sweeps, 12-160 nm, five different films). Within one abrasive the
+      sweeps agree; across abrasives they do not share a sign, so this value
+      is NOT transferable to a pack with a different abrasive.
+      Replaces the derived -0.84, which had the sign backwards for every
+      chemically active abrasive.
+    source: son2021_oxide_ceria_size_sweep (+1.00, 3-100 nm), us20190127607a1_hdpoxide (+0.75) and _teos (+0.85) ceria-silica sweeps (89-211 nm)
+    confidence: med
+
   # ── pH response, fitted to MEASURED ceria-on-oxide sweeps ──────────────
   # These three numbers exist because pH was previously inert: the pack
   # carried ph_peak and ph_ref but no width, so the model returned 1061

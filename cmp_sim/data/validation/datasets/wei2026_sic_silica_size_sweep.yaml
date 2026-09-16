@@ -62,7 +62,11 @@ source: >
   study is section 3.2 and is NOT pooled here. NOT confounded.
 
 film: sic                # 4H-SiC substrate, C-face (carbon face)
-pack: oxide_silica       # ⚠ PLACEHOLDER: silica-abrasive pack, but the workpiece is SiC and
+# pack corrected from oxide_silica to sic_ceria_h2o2: silica on SiC. The generating pass
+# defaulted every size sweep to oxide_silica, which silently applied
+# the silica size exponent (-0.05) to ceria and alumina experiments
+# whose measured exponents are +0.87 and +0.29.
+pack: sic_ceria_h2o2       # ⚠ PLACEHOLDER: silica-abrasive pack, but the workpiece is SiC and
                          # the chemistry is a heterogeneous Fenton system (H2O2 + Fe3O4 ->
                          # .OH radicals). Absolute MRR is meaningless from an oxide pack.
                          # Use for the SHAPE of the size response only.

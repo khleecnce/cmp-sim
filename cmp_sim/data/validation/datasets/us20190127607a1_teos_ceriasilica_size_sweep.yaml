@@ -70,7 +70,11 @@ source: >
   NOT a loading or chemistry confound.
 
 film: oxide              # TEOS-deposited SiO2 blanket films
-pack: oxide_silica       # ⚠ abrasive is ceria-COATED silica (ceria surface, silica core),
+# pack corrected from oxide_silica to sti_ceria: ceria-coated silica abrasive. The generating pass
+# defaulted every size sweep to oxide_silica, which silently applied
+# the silica size exponent (-0.05) to ceria and alumina experiments
+# whose measured exponents are +0.87 and +0.29.
+pack: sti_ceria       # ⚠ abrasive is ceria-COATED silica (ceria surface, silica core),
                          # chemically closer to a ceria slurry. Shape/rank use only.
 in_scope: true
 used_for_calibration: false

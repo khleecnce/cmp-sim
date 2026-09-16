@@ -37,6 +37,19 @@ base: sic_ceria_h2o2
 description: "4H-SiC: ceria/H2O2 alkaline slurry, Kp refitted to SiC's own DOE"
 
 params:
+  abrasive_size_exponent:
+    value: 0.17
+    unit: dimensionless
+    note: >
+      MRR ~ d^n. SiC sits between the two mechanisms: its own two sweeps give +0.24 (alumina, 1000-3500 nm) and +0.10 (silica, 30-130 nm), so 0.17 is their mean and the abrasive-specific values should be preferred when known.
+      Measured sweeps split by ABRASIVE, not by film: ceria +0.87 (3 sweeps,
+      3-211 nm), alumina +0.29 (2 sweeps, 50-3500 nm), silica -0.05 (5
+      sweeps, 12-160 nm, five different films). Within one abrasive the
+      sweeps agree; across abrasives they do not share a sign, so this value
+      is NOT transferable to a pack with a different abrasive.
+    source: su2011_sic_alumina_size_sweep (+0.24), wei2026_sic_silica_size_sweep (+0.10)
+    confidence: low
+
   # ── block the inherited oxide pH response ──────────────────────────────
   # sic_ceria_h2o2 inherits from sti_ceria, so the pH optimum fitted to
   # ceria-on-SILICA sweeps (peak 4.5, width 1.2) arrived here uninvited and

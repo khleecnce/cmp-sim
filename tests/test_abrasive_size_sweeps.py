@@ -195,27 +195,50 @@ def test_the_measured_exponent_overrides_the_derived_one():
 
 
 def test_the_override_is_disclosed_in_the_notes():
-    notes = " ".join(_rate("cu", "cu_h2o2_bta", 200).notes)
-    assert "MEASURED sweep for this film" in notes
+    result = _rate("cu", "cu_h2o2_bta", 200)
+    notes = " ".join(result.notes + (result.extras.get("abrasive") or {}).get("notes", []))
+    assert "MEASURED sweeps for this abrasive" in notes
     assert "overriding the derived" in notes
 
 
-def test_a_film_with_contradictory_data_falls_back_and_says_so():
-    """Oxide's measured response is non-monotonic, so its pack declares null
-    rather than a number. The engine must then use the derived exponent and
-    flag the regime as unverified rather than implying a measured value."""
+def test_the_exponent_splits_by_abrasive_not_by_film():
+    """The corrected conclusion, and the reason the earlier one was wrong.
+
+    This test previously asserted oxide_silica declared NULL, on the grounds
+    that oxide's measured response is contradictory. It is -- but only because
+    "oxide" pools experiments with different ABRASIVES. Regrouped by abrasive
+    the scatter collapses:
+
+        ceria    +0.87  (3 sweeps, 3-211 nm)
+        alumina  +0.29  (2 sweeps, 50-3500 nm)
+        silica   -0.05  (5 sweeps, 12-160 nm, five different films)
+
+    Leaving it null was not neutral: the engine fell back to the DERIVED
+    exponent of -0.84, which has the wrong sign for eight of the ten measured
+    sweeps. A null that silently selects a wrong number is worse than a
+    sourced approximation.
+    """
     from cmp_sim.core.params import load_pack
 
-    assert load_pack("oxide_silica").get_or("abrasive_size_exponent", None) is None
+    silica = load_pack("oxide_silica").get_or("abrasive_size_exponent", None)
+    ceria = load_pack("sti_ceria").get_or("abrasive_size_exponent", None)
+    assert silica is not None and ceria is not None
+    # Different abrasives must not share a value, and must not share a sign.
+    assert silica < 0 < ceria, (silica, ceria)
+    assert abs(ceria - silica) > 0.5
+
     result = _rate("oxide", "oxide_silica", 200)
-    regime = result.extras.get("abrasive_regime") or {}
-    assert regime.get("confidence") == "unverified"
-    assert "MEASURED sweep for this film" not in " ".join(result.notes)
+    notes = " ".join(result.notes + (result.extras.get("abrasive") or {}).get("notes", []))
+    assert "MEASURED sweeps for this abrasive" in notes
 
 
 def test_no_pack_declares_a_global_size_exponent():
-    """The design conclusion. A single tabulated exponent shared across films
-    would contradict every dataset above."""
+    """A single exponent shared across ABRASIVES would contradict the data.
+
+    Every pack that states a value must say it is scoped to its own abrasive
+    and must cite the sweeps it came from, or it is a global constant wearing
+    a source field.
+    """
     from cmp_sim.core.params import load_pack, available_packs
 
     offenders = []
@@ -231,12 +254,16 @@ def test_no_pack_declares_a_global_size_exponent():
             # The pack must say the value is film-specific, and cite where
             # it came from, or it is a global constant in disguise.
             scoped = any(k in note for k in
-                         ("per-film", "this film", "not transferable"))
+                         ("per-film", "this film", "not transferable",
+                          "this abrasive", "by abrasive", "must not be reused",
+                          "abrasive-specific"))
             cited = any(k in note for k in ("doi", "table", "fig", "thesis",
-                                            "j. vac", "patent"))
+                                            "j. vac", "patent", "sweep",
+                                            ".yaml"))
             if not (scoped and cited):
                 offenders.append((name, value, scoped, cited))
     assert not offenders, (
-        "these packs declare a size exponent without saying it is film-specific: "
-        f"{offenders}. Measured exponents run -0.45 to +1.0 and three sweeps are "
-        "non-monotonic, so one shared constant cannot be right.")
+        "these packs declare a size exponent without scoping it to their own "
+        f"abrasive or citing the sweeps: {offenders}. Measured exponents run "
+        "-0.45 to +1.0 and split by abrasive (ceria +0.87, alumina +0.29, "
+        "silica -0.05), so one shared constant cannot be right.")

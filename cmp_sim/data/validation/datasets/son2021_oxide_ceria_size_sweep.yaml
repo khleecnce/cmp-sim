@@ -77,7 +77,11 @@ source: >
   ⚠ Abrasive LOADING for the Fig. 1 series is NOT explicitly stated — see notes.
 
 film: oxide              # 450 nm CVD SiO2 on a 12-inch Si wafer
-pack: oxide_silica       # ⚠ PLACEHOLDER: the abrasive is CERIA, not silica. Ceria removes
+# pack corrected from oxide_silica to sti_ceria: wet ceria abrasive, not silica. The generating pass
+# defaulted every size sweep to oxide_silica, which silently applied
+# the silica size exponent (-0.05) to ceria and alumina experiments
+# whose measured exponents are +0.87 and +0.29.
+pack: sti_ceria       # ⚠ PLACEHOLDER: the abrasive is CERIA, not silica. Ceria removes
                          # oxide by a chemical-tooth mechanism and runs far faster than
                          # silica at the same size. Absolute MRR from a silica pack is
                          # meaningless. Use for the SHAPE of the size response only.

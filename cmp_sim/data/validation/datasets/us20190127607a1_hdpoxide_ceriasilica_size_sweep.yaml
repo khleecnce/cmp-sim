@@ -77,7 +77,11 @@ source: >
   particle (its D50 and its PSD shape) changes. NOT a loading or chemistry confound.
 
 film: oxide              # High Density Plasma (HDP) deposited SiO2 blanket films
-pack: oxide_silica       # ⚠ the abrasive is ceria-COATED silica, i.e. a ceria surface on a
+# pack corrected from oxide_silica to sti_ceria: ceria-coated silica abrasive. The generating pass
+# defaulted every size sweep to oxide_silica, which silently applied
+# the silica size exponent (-0.05) to ceria and alumina experiments
+# whose measured exponents are +0.87 and +0.29.
+pack: sti_ceria       # ⚠ the abrasive is ceria-COATED silica, i.e. a ceria surface on a
                          # silica core. Closer to a ceria slurry chemically. Treat absolute
                          # MRR with suspicion; use for the SHAPE of the size response.
 in_scope: true           # STI/oxide CMP for nanoscale devices

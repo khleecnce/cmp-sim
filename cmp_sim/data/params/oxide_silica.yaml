@@ -21,6 +21,46 @@ base: oxide_silica
 description: "Oxide / colloidal silica: hydrolysis mechanism, contact stress, pattern and thermal terms"
 
 params:
+  abrasive_size_exponent:
+    value: -0.05
+    unit: dimensionless
+    note: >
+      MRR ~ d^n for SILICA abrasive on oxide. Was null, which fell back to
+      the derived -0.84 and so had the sign wrong for most measured sweeps.
+
+      Measured sweeps split by ABRASIVE, not by film:
+        silica  -0.05  (5 sweeps, 12-160 nm, five different films)
+        alumina +0.29  (2 sweeps, 50-3500 nm, Cu and SiC)
+        ceria   +0.87  (3 sweeps, 3-211 nm, oxide)
+      Within one abrasive the sweeps agree; across abrasives they do not
+      share a sign, so this must NOT be reused for a ceria pack (sti_ceria
+      carries +0.87 for exactly this reason).
+
+      CAVEAT the power law hides: Bouvet 2002 (JVST B 20(4) 1556, Fig. 3)
+      measures 135.5 / 187.5 / 156.4 / 140.2 nm/min at 12/25/45/75 nm on
+      thermal oxide - an interior MAXIMUM at 25 nm. -0.05 is the
+      least-squares slope through a hump, so it tracks the ENDS of that
+      range and under-predicts the middle by about 20%. Three sizes cannot
+      reveal such a maximum; four can.
+
+      The same four ceria-coated-silica slurries also give opposite answers
+      on two oxides: US 2019/0127607 A1 [0120] reports HDP rising
+      monotonically (n ~ +0.75) while TEOS reverses at 156 nm. Deposition
+      method alone changes the size response, so a pack-level exponent is
+      an average over that, not a law. Son 2021 (Sci Rep 11:17736) with wet
+      ceria gives n ~ +1.0.
+
+      To do better: a size sweep on YOUR oxide with YOUR abrasive at fixed
+      loading, pH, pressure and speed - at least four sizes.
+    source: >
+      bouvet2002_oxide_silica_size_sweep.yaml (12-75 nm, interior maximum),
+      wei2026_sic_silica_size_sweep.yaml (+0.10),
+      tw202115224a_cu_abrasive_size_pressure.yaml (+0.14),
+      bouvet2002_w_silica_size_sweep.yaml (-0.05),
+      bouvet2002_ti_silica_size_sweep.yaml (-0.45);
+      contrast us20190127607a1_*.yaml and son2021_oxide_ceria_size_sweep.yaml
+    confidence: med
+
   # ── pH response, fitted to MEASURED silica-on-oxide sweeps ─────────────
   # Inherited ph_peak = 11.0 is kept: Li 2021 measures a maximum at pH 11
   # (1727 A/min vs 1551 at pH 10 and 1407 at pH 12.5), which confirms it.
@@ -49,43 +89,6 @@ params:
       enough above pH 11 to make the floor visible.
     source: li2021_oxide_silica_ph.yaml (3 measured points)
     confidence: med
-  abrasive_size_exponent:
-    value: null
-    unit: dimensionless
-    note: >
-      TODO(owner) - deliberately NULL, because the measured oxide response is
-      NON-MONOTONIC and no single power law describes it. Recording a number
-      here would be worse than recording nothing.
-
-      What the data say for oxide with SILICA abrasive:
-        Bouvet 2002 (JVST B 20(4) 1556, Fig. 3), thermal oxide, 12/25/45/75 nm
-        at fixed 16.3 wt%, pH 3, 7 psi: 135.5 / 187.5 / 156.4 / 140.2 nm/min -
-        an interior MAXIMUM at 25 nm. A power-law slope over that set is ~0 and
-        is meaningless.
-
-      And with CERIA-type abrasive the answer is different again:
-        US 2019/0127607 A1 Tables 1+2, ceria-coated silica, four D50 from 88.7
-        to 210.7 nm at fixed 0.185 wt% and pH 5.45: HDP oxide rises
-        monotonically (n ~ +0.75) while TEOS oxide - the SAME four slurries in
-        the SAME runs - reverses at 156 nm. The patent states this itself at
-        [0120]. Deposition method alone changes the size response.
-        Son 2021 (Sci Rep 11:17736) with wet ceria gives n ~ +1.0.
-
-      So for this film the exponent depends on the abrasive chemistry, the
-      deposition method and the size range, and within one range it is not even
-      monotonic. With this null the engine falls back to the DERIVED exponent
-      and flags the abrasive regime 'unverified', which is the honest state.
-
-      To fill it: a size sweep on YOUR oxide with YOUR abrasive, at fixed
-      loading, pH, pressure and speed - at least four sizes, since three cannot
-      reveal an interior maximum.
-    source: >
-      Contradictory by measurement, not missing by oversight. Datasets:
-      cmp_sim/data/validation/datasets/bouvet2002_oxide_silica_size_sweep.yaml,
-      us20190127607a1_hdpoxide_ceriasilica_size_sweep.yaml,
-      us20190127607a1_teos_ceriasilica_size_sweep.yaml,
-      son2021_oxide_ceria_size_sweep.yaml. See tests/test_abrasive_size_sweeps.py.
-    confidence: unverified
 
   film_youngs_modulus_pa:
     value: 92.0e9

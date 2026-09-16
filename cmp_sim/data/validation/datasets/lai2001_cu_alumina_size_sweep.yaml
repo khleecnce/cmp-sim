@@ -49,7 +49,11 @@ source: >
   So abrasive SIZE is the only variable. NOT confounded with loading or chemistry.
 
 film: cu                 # 1 um sputtered Cu on a 20 nm TiN adhesion layer, on Si(111)
-pack: oxide_silica       # ⚠ PLACEHOLDER. This is alpha-ALUMINA in a NEUTRAL, additive-free
+# pack corrected from oxide_silica to cu_h2o2_bta: alumina on copper, not silica on oxide. The generating pass
+# defaulted every size sweep to oxide_silica, which silently applied
+# the silica size exponent (-0.05) to ceria and alumina experiments
+# whose measured exponents are +0.87 and +0.29.
+pack: cu_h2o2_bta       # ⚠ PLACEHOLDER. This is alpha-ALUMINA in a NEUTRAL, additive-free
                          # slurry — no oxidizer, no complexing agent, nothing like a
                          # production Cu slurry. Absolute MRR from any silica/Cu pack is
                          # meaningless here. Use for the SHAPE of the size response only.
