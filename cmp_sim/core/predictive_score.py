@@ -202,6 +202,21 @@ def _predict(doc: Dict[str, Any], row: Dict[str, Any]) -> Optional[float]:
     return None if value in (None, 0) else float(value)
 
 
+def _why_unscorable(doc: Dict[str, Any], rows: List[Dict[str, Any]]) -> str:
+    """Name the missing input rather than reporting a generic failure.
+
+    A dataset that cannot be scored is not necessarily a model defect: some
+    published tables omit the down force entirely, and the honest response is
+    to say which field is missing rather than to invent a pressure.
+    """
+    if not any(r.get("pressure_psi") for r in rows):
+        return ("the source table states no down force, so P*V cannot be "
+                "formed; scoring it would require inventing a pressure")
+    if not any(r.get("rpm_platen") for r in rows):
+        return "the source table states no platen speed"
+    return "the model could not run this dataset's conditions"
+
+
 def _mape(pairs: List[Tuple[float, float]]) -> float:
     return 100.0 * sum(abs(p - m) / m for m, p in pairs) / len(pairs)
 
@@ -220,7 +235,7 @@ def score_dataset(path: Path) -> Score:
     for row in rows:
         value = _predict(doc, row)
         if value is None:
-            score.error = "the model could not run this dataset's conditions"
+            score.error = _why_unscorable(doc, rows)
             return score
         measured.append(_measured(row))
         predicted.append(value)

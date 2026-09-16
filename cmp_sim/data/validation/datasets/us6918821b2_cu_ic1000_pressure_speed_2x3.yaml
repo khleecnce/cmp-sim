@@ -11,7 +11,7 @@ source: >
   Conditions from the "Cu Polishing Tests" running text immediately preceding TABLE 1.
 
 film: cu
-pack: cu_slurry          # if this pack name does not exist in the repo, retarget to the
+pack: cu_h2o2_bta        # retargeted from the non-existent 'cu_slurry', as this file's own comment instructed
                          # project's copper parameter pack before scoring.
 in_scope: true
 used_for_calibration: false

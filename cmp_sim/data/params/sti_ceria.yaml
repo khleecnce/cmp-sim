@@ -23,6 +23,23 @@ base: sti_ceria
 description: "STI / ceria: chemical-tooth evidence, selectivity, pattern and thermal terms"
 
 params:
+  ph_acid_mechanical_floor:
+    value: 0.012
+    unit: fraction of peak rate
+    note: >
+      Rate BELOW the optimum pH, as a fraction of the peak. Separate from
+      ph_mechanical_floor (which applies above the optimum) because the two
+      sides decay by different mechanisms: below the optimum the abrasive and
+      the film approach the same charge state and particles stop attaching,
+      while above it alkaline hydrolysis keeps softening the film.
+
+      NOT a free parameter. The unconstrained fit wants 0.0, which is the
+      setting that made the model return 0.0 A/min at pH 2 -- CN109609035B
+      measures 109 A/min there. An abrasive under load removes material at
+      any pH. 0.012 = 43/3504, Dandu's measured pH 2 rate over her measured peak.
+    source: dandu2009_sio2_ceria_ph_sweep.yaml (pH 2 point vs the pH 5.5 peak)
+    confidence: low
+
   abrasive_size_exponent:
     value: 0.87
     unit: dimensionless

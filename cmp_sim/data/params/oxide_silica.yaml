@@ -21,6 +21,53 @@ base: oxide_silica
 description: "Oxide / colloidal silica: hydrolysis mechanism, contact stress, pattern and thermal terms"
 
 params:
+  ph_acid_mechanical_floor:
+    value: 0.010
+    unit: fraction of peak rate
+    note: >
+      Rate BELOW the optimum pH, as a fraction of the peak. Separate from
+      ph_mechanical_floor (which applies above the optimum) because the two
+      sides decay by different mechanisms: below the optimum the abrasive and
+      the film approach the same charge state and particles stop attaching,
+      while above it alkaline hydrolysis keeps softening the film.
+
+      NOT a free parameter. The unconstrained fit wants 0.0, which is the
+      setting that made the model return 0.0 A/min at pH 2 -- CN109609035B
+      measures 109 A/min there. An abrasive under load removes material at
+      any pH. 1% of peak. No silica-on-oxide dataset here measures the deep acid side at a fixed alkaline formulation, so this is a floor chosen to keep the prediction finite rather than a fitted value; CN109609035B's acid series is a different (anionic-surfactant) system whose own optimum is near pH 2.
+    source: TODO(owner) - order-of-magnitude bound, not a measurement
+    confidence: low
+
+  abrasive_conc_half_wt_pct:
+    value: 4.4
+    unit: wt%
+    note: >
+      Abrasive loading at which the mechanical term reaches half its
+      saturated value: factor ~ C/(C_half + C). Without it the model used a
+      bare power law and kept rewarding extra abrasive long after the real
+      process had stopped responding (predicted log-log slope +1.0 against
+      the +0.15 to +0.53 the measurements show).
+
+      A COMPROMISE, and the two oxide datasets genuinely disagree:
+        us9499721b2 (0.5-3 wt%, 4 iso-pressure series) wants 0.6
+        us6564116b2 (5-25 wt%, L25 array)             wants 5.9
+      4.4 minimises the worse of the two (19.9% / 19.8%). Taking
+      us9499721b2's own optimum of 0.59 scored it at 7.3% but pushed
+      us6564116b2 from 20.6% to 26.6%, with the residual rising
+      monotonically from 0.52 to 0.89 across the loading range -- a
+      systematic 2x over-prediction at 5 wt%, which is the signature of a
+      saturation that is too aggressive rather than a random miss.
+
+      The disagreement is real, not fitting noise: one covers 0.5-3 wt% and
+      the other 5-25 wt%, so either the response is not a single Langmuir
+      over 0.5-25 wt%, or the two tools differ in slurry delivery. Fitting
+      each dataset its own constant would hide that behind two good numbers.
+    source: >
+      us9499721b2_teos_colloidal_silica_pressure_conc.yaml (22 pts) and
+      us6564116b2_oxide_taguchi_L25_pressure_platenspeed.yaml (25 pts),
+      jointly; neither alone
+    confidence: low
+
   abrasive_size_exponent:
     value: -0.05
     unit: dimensionless

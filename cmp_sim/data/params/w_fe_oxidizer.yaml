@@ -32,6 +32,28 @@ base: w_fe_oxidizer
 description: "Tungsten / Fe-H2O2, Kp refitted to two printed patent example tables"
 
 params:
+  abrasive_conc_half_wt_pct:
+    value: 0.01
+    unit: wt%
+    note: >
+      Abrasive loading at which the mechanical term reaches half its saturated
+      value: factor ~ C/(C_half + C). Without it the model used a bare power
+      law and predicted a log-log slope of +1.75 against the +0.16 to +0.51 the
+      measurements show -- it kept rewarding extra abrasive long after the
+      real process had stopped responding.
+
+      Fitted ONLY on iso-condition series (pressure, speed, pH and oxidizer
+      all held fixed while loading moves). Pooling non-iso rows fits the
+      oxidizer with a concentration knob: in the W patent the oxidizer varies
+      0-3 wt% and changes the rate 8x, which swamped the loading effect and
+      gave a nonsense C_half of 20 wt%.
+      Very low because this patent's loading range is itself very low
+      (0.01-0.04 wt% diamond): the process is already saturated at the
+      bottom of its own range, so C_half is pinned near that range and
+      should NOT be read as a general tungsten value.
+    source: us20110186542a1_w_diamond_h2o2_ph, 3 iso-(pH, oxidizer) series, 9 points, fit MAPE 9.3%
+    confidence: low
+
   abrasive_size_exponent:
     value: -0.05
     unit: dimensionless

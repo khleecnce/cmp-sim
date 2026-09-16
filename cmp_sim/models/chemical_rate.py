@@ -116,10 +116,13 @@ def langmuir_coverage(conc: float, k: float) -> float:
 
 
 def ph_response(ph: float, ph_peak: float, width: float,
-                floor: float = 0.0) -> float:
+                floor: float = 0.0, acid_floor: float = 0.0) -> float:
     """Rate response to pH, normalised to 1.0 at the peak.
 
-        f(pH) = floor + (1 - floor) * exp( -((pH - pH_peak)/w)^2 )
+        f(pH) = floor_side + (1 - floor_side) * exp( -((pH - pH_peak)/w)^2 )
+
+    where ``floor_side`` is ``acid_floor`` below the optimum and ``floor``
+    above it.
 
     Why a peak with a floor, and why the peak is an INPUT
     ----------------------------------------------------
@@ -153,32 +156,38 @@ def ph_response(ph: float, ph_peak: float, width: float,
     with the term inactive, and every one of the five beats "predict the
     dataset mean" — which four of them did NOT before.
 
-    Why the floor is ASYMMETRIC
-    ---------------------------
+    Why the floor is ASYMMETRIC — and why BOTH sides need one
+    ---------------------------------------------------------
     Dandu's own numbers rule out a symmetric floor: pH 2 gives 43 A/min (1.2%
     of the 3504 A/min peak) while pH 10 gives 643 (18%). One floor cannot be
     both, and forcing it to be costs 18 points of error (35.8% symmetric vs
-    17.9% with the floor applied only above the optimum).
+    17.9% with side-specific floors).
 
     The asymmetry has a mechanism rather than being a fitting trick. Below the
     optimum the loss is electrostatic — the abrasive and the film approach the
-    same charge state, particles stop attaching, and removal genuinely
-    collapses. Above it the surfaces repel, but alkaline hydrolysis keeps
-    softening the film (the Cook 1990 mechanism), so a floor survives. The
-    floor therefore models "chemistry still works, attachment does not", which
-    only applies on the alkaline side.
+    same charge state, particles stop attaching, and removal collapses toward
+    the mechanical background. Above it the surfaces repel, but alkaline
+    hydrolysis keeps softening the film (the Cook 1990 mechanism), so much
+    more of the rate survives.
+
+    Both floors must still be non-zero. Setting the acid side to exactly zero
+    (the first version of this term) made the response decay without limit:
+    at pH 2 against an optimum of 11 the factor reached 2e-4 and the model
+    returned 0.0 A/min, while CN109609035B measures 109 A/min there. An
+    abrasive under load removes material at any pH; the chemistry scales that,
+    it does not switch it off.
     """
     if width <= 0:
         raise ValueError(f"pH response width must be positive, got {width}")
-    floor = min(max(float(floor), 0.0), 1.0)
+    side = acid_floor if float(ph) < float(ph_peak) else floor
+    side = min(max(float(side), 0.0), 1.0)
     bell = math.exp(-(((float(ph) - float(ph_peak)) / float(width)) ** 2))
-    if float(ph) < float(ph_peak):
-        return bell
-    return floor + (1.0 - floor) * bell
+    return side + (1.0 - side) * bell
 
 
 def ph_factor_relative_to_reference(ph: float, ph_ref: float, ph_peak: float,
-                                    width: float, floor: float = 0.0) -> float:
+                                    width: float, floor: float = 0.0,
+                                    acid_floor: float = 0.0) -> float:
     """pH response NORMALISED to 1.0 at the pack's reference pH.
 
     Why the normalisation is not optional
@@ -196,13 +205,13 @@ def ph_factor_relative_to_reference(ph: float, ph_ref: float, ph_peak: float,
     sweeps constrain — is unchanged, because a constant divisor cancels out of
     every ratio.
     """
-    at_ref = ph_response(float(ph_ref), ph_peak, width, floor)
+    at_ref = ph_response(float(ph_ref), ph_peak, width, floor, acid_floor)
     if at_ref <= 1e-9:
         raise ValueError(
             f"the pH response is ~0 at the pack's reference pH {ph_ref} "
             f"(optimum {ph_peak}, width {width}): the pack cannot be calibrated "
             "at a pH its own response curve says is dead")
-    return ph_response(float(ph), ph_peak, width, floor) / at_ref
+    return ph_response(float(ph), ph_peak, width, floor, acid_floor) / at_ref
 
 
 def peaked_oxidizer_response(conc: float, peak_conc: float, k: float) -> float:
@@ -417,15 +426,22 @@ def chemical_factor(resolved, temp_c: Optional[float] = None) -> ChemicalEffect:
     if ph is not None and ph_peak is not None and ph_width:
         try:
             ph_floor = float(resolved.p_or("ph_mechanical_floor", 0.0) or 0.0)
+            # Separate acid-side floor: the mechanical background below the
+            # optimum, where particles stop attaching electrostatically.
+            # Defaults to the alkaline floor rather than to zero, because a
+            # zero floor makes the predicted rate collapse to 0.0 A/min far
+            # from the optimum, which no measurement supports.
+            acid_floor = resolved.p_or("ph_acid_mechanical_floor", None)
+            acid_floor = float(ph_floor if acid_floor is None else acid_floor)
             # Normalised to the pack's reference pH, not to the optimum: Kp was
             # measured at ph_ref and already contains the chemistry there.
             if ph_ref is not None:
                 ph_factor = ph_factor_relative_to_reference(
                     float(ph), float(ph_ref), float(ph_peak),
-                    float(ph_width), ph_floor)
+                    float(ph_width), ph_floor, acid_floor)
             else:
                 ph_factor = ph_response(float(ph), float(ph_peak),
-                                        float(ph_width), ph_floor)
+                                        float(ph_width), ph_floor, acid_floor)
                 warnings.append(
                     "this pack declares a pH optimum but no ph_ref, so the pH "
                     "term is normalised to the optimum rather than to the "

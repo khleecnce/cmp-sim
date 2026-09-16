@@ -37,6 +37,31 @@ base: sic_ceria_h2o2
 description: "4H-SiC: ceria/H2O2 alkaline slurry, Kp refitted to SiC's own DOE"
 
 params:
+  abrasive_conc_half_wt_pct:
+    value: null
+    unit: wt%
+    note: >
+      TODO(owner) - deliberately null. SiC does NOT show a single saturating
+      response to abrasive loading, so fitting one would be curve-fitting
+      through a contradiction.
+
+      Six iso-condition series give exponents of -0.40, -0.28, +0.01, +0.44,
+      +0.49 and +1.43. Two of them fall with loading, which no saturating
+      form can produce: Entegris US 2022/0315802 A1 measures 966.7 -> 200
+      A/min as alumina goes 0.1 -> 5 wt%, a 5x DROP for 50x more abrasive.
+      The best single C_half still leaves 36.7% error against 5.8-9.5% for
+      the other packs.
+
+      This is consistent with SiC being chemically rate-limited (its P*V
+      correlation is R^2 = 0.09): if the oxide layer, not the abrasive, sets
+      the rate, then adding abrasive mostly adds agglomeration and slurry
+      starvation. Leaving this null keeps the bare power law, which is also
+      wrong but does not claim a saturation that the data denies.
+    source: >
+      entegris2022_us20220315802a1_sic_alumina_conc.yaml (-0.40),
+      sic2026_ceria_h2o2_ph_DOE50.yaml (-0.28, +0.01, +0.49, +1.43),
+      su2011_procengr_6hsic_alumina_abrasive_conc.yaml (+0.44)
+    confidence: low
   abrasive_size_exponent:
     value: 0.17
     unit: dimensionless

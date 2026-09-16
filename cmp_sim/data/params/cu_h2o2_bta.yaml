@@ -43,6 +43,41 @@ base: cu_h2o2_bta
 description: "Cu/H2O2/BTA: softened-surface hardness, damascene pattern terms and Arrhenius Ea, each sourced"
 
 params:
+  ph_acid_mechanical_floor:
+    value: 0.010
+    unit: fraction of peak rate
+    note: >
+      Rate BELOW the optimum pH, as a fraction of the peak. Separate from
+      ph_mechanical_floor (which applies above the optimum) because the two
+      sides decay by different mechanisms: below the optimum the abrasive and
+      the film approach the same charge state and particles stop attaching,
+      while above it alkaline hydrolysis keeps softening the film.
+
+      NOT a free parameter. The unconstrained fit wants 0.0, which is the
+      setting that made the model return 0.0 A/min at pH 2 -- CN109609035B
+      measures 109 A/min there. An abrasive under load removes material at
+      any pH. 1% of peak. US9200180B2 sweeps only pH 6.2-9.9, entirely above this pack's optimum, so the acid side is unmeasured for copper.
+    source: TODO(owner) - order-of-magnitude bound, not a measurement
+    confidence: low
+
+  abrasive_conc_half_wt_pct:
+    value: 2.09
+    unit: wt%
+    note: >
+      Abrasive loading at which the mechanical term reaches half its saturated
+      value: factor ~ C/(C_half + C). Without it the model used a bare power
+      law and predicted a log-log slope of +1.0 against the +0.23 to +0.49 the
+      measurements show -- it kept rewarding extra abrasive long after the
+      real process had stopped responding.
+
+      Fitted ONLY on iso-condition series (pressure, speed, pH and oxidizer
+      all held fixed while loading moves). Pooling non-iso rows fits the
+      oxidizer with a concentration knob: in the W patent the oxidizer varies
+      0-3 wt% and changes the rate 8x, which swamped the loading effect and
+      gave a nonsense C_half of 20 wt%.
+    source: us9200180b2_cu_abrasive_series (0.5-20 wt%) and us20080090500a1_cu_ph_silica_cross (4 iso-pH series, 2-4 wt%); 16 points, fit MAPE 9.5%
+    confidence: med
+
   # ── pH response, fitted to a MEASURED Cu sweep ─────────────────────────
   ph_peak:
     value: 4.0
