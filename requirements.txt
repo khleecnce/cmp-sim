@@ -1,0 +1,9 @@
+# Runtime dependencies for the hosted demo (Vercel's Python runtime installs
+# from this file; it does not read pyproject.toml).
+#
+# Kept in sync with [project].dependencies in pyproject.toml. pint is included
+# because the unit registry is imported at module load, not lazily.
+numpy>=1.24,<3
+scipy>=1.10,<2
+PyYAML>=6.0,<7
+pint>=0.22

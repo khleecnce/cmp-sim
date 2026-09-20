@@ -195,11 +195,20 @@ function opts(sel, items, blank){
   items.forEach(i => s.appendChild(new Option(i, i)));
 }
 
+// On a link-protected instance the token arrives in the page URL. Every
+// request has to carry it forward, or the page loads and then every button
+// fails with a 401 — which reads as "the app is broken", not "you need a key".
+const TOKEN = new URLSearchParams(location.search).get("t") || "";
+function api(path){
+  if(!TOKEN) return path;
+  return path + (path.includes("?") ? "&" : "?") + "t=" + encodeURIComponent(TOKEN);
+}
+
 async function boot(){
-  META = await (await fetch("/api/meta")).json();
-  // Scoring 320 points takes a moment, so it must not block the first paint:
+  META = await (await fetch(api("/api/meta"))).json();
+  // Scoring 330 points takes a moment, so it must not block the first paint:
   // fetch it alongside and let the result panel pick it up when it lands.
-  fetch("/api/accuracy").then(r=>r.json()).then(a=>{ACC=a;}).catch(()=>{});
+  fetch(api("/api/accuracy")).then(r=>r.json()).then(a=>{ACC=a;}).catch(()=>{});
   opts("film", META.films);
   $("film").value = META.films.includes("oxide") ? "oxide" : META.films[0];
   opts("abtype", META.abrasives, "(from pack)");
@@ -579,7 +588,7 @@ async function runSimulation(){
         return;
       }
       const values = Array.from({length:n}, (_,i) => +(from + (to-from)*i/(n-1)).toFixed(6));
-      const res = await fetch("/api/sweep", {method:"POST",
+      const res = await fetch(api("/api/sweep"), {method:"POST",
         headers:{"Content-Type":"application/json"},
         body: JSON.stringify({parameter: sweepParam, values, recipe: buildRecipe()})});
       const j = await res.json();
@@ -587,7 +596,7 @@ async function runSimulation(){
       else { renderSweep(j); }
       return;
     }
-    const res = await fetch("/api/simulate", {method:"POST",
+    const res = await fetch(api("/api/simulate"), {method:"POST",
       headers:{"Content-Type":"application/json"},
       body: JSON.stringify(buildRecipe())});
     const j = await res.json();

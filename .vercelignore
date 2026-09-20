@@ -1,0 +1,37 @@
+# Keep the deployment bundle to what the app needs at RUNTIME.
+#
+# legacy/ is ~11 MB of inherited code, notes and research. Most of it is the
+# provenance record and belongs in the repository, but the function only needs
+# the two parts the engine actually imports:
+#
+#   legacy/sim/              — the wrapped physics primitives. cmp_sim puts
+#                              this on sys.path (see core/legacy_bridge.py),
+#                              so excluding it breaks every route with
+#                              ModuleNotFoundError: No module named 'sim'.
+#   legacy/knowledge/params/ — the inherited parameter packs that several
+#                              films still resolve against.
+#
+# Everything else (research notes, validation trees, papers, tests) is never
+# read by a request and would only slow cold starts. Verified by importing the
+# app with the excluded paths removed, not by assumption — the first draft of
+# this file dropped all of legacy/ and broke the import.
+legacy/knowledge/cmp/
+legacy/knowledge/materials/
+legacy/knowledge/process/
+legacy/knowledge/notes/
+legacy/validation/
+legacy/papers/
+legacy/tests/
+legacy/tools/
+legacy/*.md
+
+tests/
+docs/
+examples/
+tools/
+papers/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/

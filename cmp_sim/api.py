@@ -137,6 +137,18 @@ def run_recipe(payload: Dict[str, Any]) -> Dict[str, Any]:
     return out
 
 
+def _expected_token() -> str:
+    """The shared secret for a hosted demo, or "" when running locally.
+
+    Set CMPSIM_TOKEN to put the whole app behind an unguessable link. Left
+    unset — the normal case on a laptop — every route stays open, because
+    demanding a token from someone who just double-clicked the launcher would
+    be a lock with the key taped to it.
+    """
+    import os
+    return (os.environ.get("CMPSIM_TOKEN") or "").strip()
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "CMPSim/0.1"
 
@@ -146,6 +158,37 @@ class Handler(BaseHTTPRequestHandler):
         if os.environ.get("CMPSIM_QUIET"):
             return
         super().log_message(fmt, *args)
+
+    # ── access ───────────────────────────────────────────────────
+    def _authorised(self) -> bool:
+        """True when no token is configured, or the caller presented it.
+
+        Accepts the token from `?t=` (so a single link works when pasted into
+        a browser) or from an `X-CMPSim-Token` header (so scripted clients do
+        not have to put the secret in a URL that lands in server logs).
+
+        Compared with compare_digest: a plain `==` on a secret leaks its
+        length and prefix through timing, which is a needless gift to anyone
+        probing a public URL.
+        """
+        import hmac
+        from urllib.parse import parse_qs, urlparse
+
+        want = _expected_token()
+        if not want:
+            return True
+        given = self.headers.get("X-CMPSim-Token", "")
+        if not given:
+            qs = parse_qs(urlparse(self.path).query)
+            given = (qs.get("t") or [""])[0]
+        return hmac.compare_digest(given, want)
+
+    def _deny(self) -> None:
+        self._json(401, {
+            "error": "Unauthorized",
+            "detail": "this instance is link-protected; append ?t=<token> to "
+                      "the URL or send an X-CMPSim-Token header",
+        })
 
     # ── helpers ──────────────────────────────────────────────────
     def _send(self, code: int, body: bytes, content_type: str) -> None:
@@ -162,6 +205,8 @@ class Handler(BaseHTTPRequestHandler):
 
     # ── routes ───────────────────────────────────────────────────
     def do_GET(self) -> None:                     # noqa: N802
+        if not self._authorised():
+            return self._deny()
         path = self.path.split("?", 1)[0]
         if path in ("/", "/index.html"):
             html = (WEB_DIR / "index.html").read_bytes()
@@ -204,6 +249,8 @@ class Handler(BaseHTTPRequestHandler):
                                              "/api/accuracy"]})
 
     def do_POST(self) -> None:                    # noqa: N802
+        if not self._authorised():
+            return self._deny()
         route = self.path.split("?", 1)[0]
         if route not in ("/api/simulate", "/api/sweep"):
             # Name the valid routes: a bare "no such path" sends the caller
