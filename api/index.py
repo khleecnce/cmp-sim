@@ -8,15 +8,24 @@ it hands each request to a `BaseHTTPRequestHandler` subclass named `handler`
 and there is no port to own.
 
 Rather than fork the routing logic (two copies that drift is worse than one
-adapter), this subclasses the real `Handler`. Every route, every error
-message and the token gate are the SAME code that runs locally, so the hosted
-demo cannot quietly diverge from what the repository's tests cover.
+adapter), this subclasses the real `Handler`. Every route, every error message
+and the token gate are the SAME code that runs locally, so the hosted demo
+cannot quietly diverge from what the repository's tests cover.
+
+Routing, and why `routes` rather than `rewrites`
+------------------------------------------------
+`vercel.json` uses `routes`, not `rewrites`, and the difference is not
+cosmetic. A `rewrite` REPLACES the request path with the destination, so the
+function receives `/api/index` no matter what the visitor typed, and the
+router below rejects everything — including the page — as "no such path".
+Vercel does not pass the original path in any header; this was checked by
+deploying a probe that dumped every header it received, and only the query
+string survived. A `route` preserves the path, which is what the router needs.
 
 Cold starts: the first request in a while pays for importing numpy/scipy and
 parsing the YAML packs. `/api/accuracy` scores 330 measured points and is the
 slowest route; the UI already fetches it out of band so the page paints first.
 """
-import os
 import sys
 from pathlib import Path
 
@@ -31,9 +40,11 @@ from cmp_sim.api import Handler as _CMPSimHandler  # noqa: E402
 class handler(_CMPSimHandler):  # noqa: N801  (Vercel requires this name)
     """The project's own handler, unmodified apart from logging.
 
-    Vercel captures stdout per invocation, so the parent's access log would
-    duplicate what the platform already records.
+    With `routes` preserving the path, nothing else needs adapting: the
+    parent's routing, error messages and token gate all work unchanged.
     """
 
     def log_message(self, fmt, *args):
+        """Vercel captures stdout per invocation, so the parent's access log
+        would duplicate what the platform already records."""
         return

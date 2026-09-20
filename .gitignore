@@ -10,3 +10,4 @@ data/customer/
 papers/
 out/
 *.json.tmp
+.vercel
