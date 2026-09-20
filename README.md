@@ -1,5 +1,10 @@
 # CMP-Sim
 
+[![tests](https://img.shields.io/badge/tests-559%20passing-brightgreen)](#)
+[![validation](https://img.shields.io/badge/literature%20gate-4%20datasets%20within%20%C2%B115%25-brightgreen)](#validation)
+[![accuracy](https://img.shields.io/badge/prediction-20.3%25%20median%2C%20330%20points-blue)](#2-how-accurate-is-it-on-every-axis-cmp-sim-accuracy)
+[![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
 A physics-based simulator for **Chemical Mechanical Planarization**. Given a
 slurry formulation, a pad, a conditioner and tool settings, it predicts what a
 supplier or fab would otherwise have to measure: removal rate, within-wafer
@@ -9,6 +14,11 @@ pad-life drift, and a scratch-risk index.
 Every number it uses carries a source. Every number it cannot source is `null`
 with a `TODO(owner)` rather than a plausible-looking invention, and every result
 carries the warnings that tell you where not to trust it.
+
+**Feed it your own measurements and the model re-fits itself** — see
+[Learning from your own data](#learning-from-your-own-data). It opens only the
+physical factors your data can actually identify, locks the rest, and tells you
+which experiment to run next.
 
 ---
 
@@ -387,3 +397,14 @@ e385ed1) — Preston/kinematics, GW contact, the MIT pattern-density framework,
 the Jeong 2024 glazing measurements, DLVO and the chemistry layer. They are
 wrapped, never re-derived; each commit names the functions it reused. Values
 live in YAML packs, so **a new process is a data file, not a code change**.
+
+**No proprietary or employer-owned data was used.** Every parameter traces to a
+published patent, article, thesis or open dataset. Full texts of copyrighted
+articles are deliberately excluded — `papers/` is in `.gitignore` and no
+article text is tracked here or in the history; the citations tell you exactly
+which table or figure to look at if you want to verify a number.
+
+## Licence
+
+MIT — see [LICENSE](LICENSE), which also explains what the licence does and
+does not cover with respect to the cited literature.

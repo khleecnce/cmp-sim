@@ -1,0 +1,51 @@
+MIT License
+
+Copyright (c) 2026 CMP-Sim contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+## A note on the data this project cites
+
+The MIT licence above covers the SOURCE CODE and the parameter files written
+for this project. It does not, and cannot, relicense the literature the model
+is calibrated against.
+
+* **Patents** (US, WO, EP, CN, JP, KR, TW numbers throughout the parameter
+  packs and validation datasets) are published documents. Their technical
+  disclosures are cited here as prior art, which is what publication is for.
+
+* **Journal articles and theses** remain the copyright of their publishers and
+  authors. This repository cites them by DOI, page and table or figure number,
+  and records the NUMBERS read from them — a rate at a pressure, an exponent
+  from a sweep — which are facts, not expression. Full texts are deliberately
+  excluded: `papers/` is in `.gitignore` and no article text is tracked in
+  this repository or its history.
+
+* If you want to verify a value, the citation tells you exactly where to look.
+  Obtain the paper through your own institutional access.
+
+## Provenance
+
+No proprietary or employer-owned data was used in building this project. Every
+parameter traces to a published patent, article, thesis or open dataset, and
+any value that could not be sourced is recorded as `null` with a
+`TODO(owner)` rather than filled with a plausible guess. The rule is enforced
+by tests, not by good intentions.
