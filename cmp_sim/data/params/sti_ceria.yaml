@@ -23,6 +23,34 @@ base: sti_ceria
 description: "STI / ceria: chemical-tooth evidence, selectivity, pattern and thermal terms"
 
 params:
+  # ── block the inherited SILICA saturation constant ─────────────────────
+  # sti_ceria inherits from oxide_silica, so C_half = 4.4 wt% -- which I
+  # fitted on colloidal-silica loading sweeps spanning 0.5-25 wt% -- arrived
+  # here uninvited. Ceria works at 0.25 wt%, seventeen times lower, so the
+  # occupancy model read 1.0 wt% as "deeply UNsaturated" and multiplied the
+  # rate by 3.68 instead of saturating it.
+  #
+  # Worse, taking the occupancy branch bypassed this pack's own MEASURED
+  # concentration exponent (-0.4295, Dandu 2009 Fig. 2a: 0.25% ceria gives a
+  # HIGHER oxide rate than 0.5% or 1%), so the model returned more removal for
+  # more ceria -- the opposite sign to the paper the pack cites -- and landed
+  # at 21,004 A/min against a published STI band of 200-6,000.
+  #
+  # Null switches the saturation off and lets the measured exponent apply.
+  # A ceria loading sweep of its own would be needed to fill it, and Dandu's
+  # three points (0.25/0.5/1.0 wt%) are that sweep -- they say the response
+  # FALLS, which no saturating form can produce.
+  abrasive_conc_half_wt_pct:
+    value: null
+    unit: wt%
+    note: >
+      TODO(owner) - deliberately null. Ceria at 0.25 wt% does not share a
+      saturation constant with silica at 4.4 wt%, and this system's measured
+      response falls with loading rather than saturating.
+    source: >
+      blocked inheritance from oxide_silica; see abrasive_conc_exponent in
+      legacy/knowledge/params/sti_ceria.yaml (Dandu 2009 doi:10.1149/1.3230624)
+    confidence: low
   ph_acid_mechanical_floor:
     value: 0.012
     unit: fraction of peak rate

@@ -52,17 +52,36 @@ def test_preston_cannot_describe_both_branches():
 
 
 @pytest.mark.parametrize("psi,rpm", sorted(MEASURED))
-def test_only_the_collapse_point_leaves_the_boundary_regime(psi, rpm):
-    """The detector never sees a rate; it works from lambda = h/roughness."""
-    lubrication = _situation(psi, rpm)["lubrication"]
-    if (psi, rpm) == (1.5, 200):
-        assert lubrication != "boundary", (
-            "the one condition where the measured rate collapses was not "
-            "flagged as leaving boundary lubrication")
-    else:
-        assert lubrication == "boundary", (
-            f"{psi} psi / {rpm} rpm was flagged as {lubrication}, but its "
-            "measured rate follows Preston")
+def test_every_condition_reads_boundary_once_the_roughness_is_sourced(psi, rpm):
+    """The absolute-threshold claim did NOT survive sourcing the pad roughness.
+
+    This test used to assert the opposite: that (1.5 psi, 200 rpm) — the one
+    condition where the measured rate collapses — was the only one to leave
+    boundary lubrication, at lambda = 1.24 against a threshold of 1.0.
+
+    That crossing was an artifact. It rested on sigma = 0.3 um, an unsourced
+    order-of-magnitude guess, and Zhou 2018 (ECS JSS 7(6) P295,
+    doi:10.1149/2.0011806jss) measures Rq = 0.474 um on a pad **before any
+    use**, rising to 0.68-1.1 um in service. A polished pad is not smoother
+    than a new one, so the old constant was never physical. Sweeping every
+    sourced roughness in the corpus (0.474 to 5.0 um) puts the collapse point
+    at lambda 0.79 down to 0.075 — **none of them clears 1.0**. It would take
+    sigma = 0.373 um, below a brand-new pad, to reach the threshold.
+
+    So the honest state is: all six conditions read boundary, and the model no
+    longer claims to flag the failure against an absolute cut. What survives is
+    the ordering, which a pure rescale cannot change — see
+    test_lambda_ranks_the_collapse_point_first_without_seeing_a_rate, where the
+    collapse point still comes first by 1.7x without the model seeing a rate.
+
+    Kept as an assertion rather than deleted so that if someone restores the
+    old constant to make a nicer claim, this fails and names the reason.
+    """
+    assert _situation(psi, rpm)["lubrication"] == "boundary", (
+        f"{psi} psi / {rpm} rpm left boundary lubrication. With every sourced "
+        "roughness in the corpus all six conditions sit well below lambda = 1; "
+        "check whether pad_height_beta_inv_m was reverted to the unsourced "
+        "0.3 um, which is smoother than a new pad")
 
 
 def test_lambda_rises_with_speed_and_falls_with_load():

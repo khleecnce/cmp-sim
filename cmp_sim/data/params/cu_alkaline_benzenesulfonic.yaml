@@ -1,0 +1,59 @@
+# Copper, alkaline benzenesulfonic-acid slurry — own-dir overlay.
+#
+# `base: cu_alkaline_benzenesulfonic` resolves to the NEXT tier, so the whole
+# inherited legacy pack is kept intact and this file adds only what the engine
+# needs that the legacy file does not state.
+#
+# Why this file exists
+# --------------------
+# The inherited pack declares `abrasive_size_exponent: 0.0` and backs it
+# properly — it is a sourced NULL RESULT, not a missing number: TW202115224A
+# (Cu, n=18) restricted to its spherical subset (15/27/50/160 nm) gives
+# Spearman rho 0.03-0.15, not significant, and a second independent leg from
+# force-partition theory agrees.
+#
+# What it does not say is WHICH ABRASIVE the 0.0 belongs to, and that is the
+# distinction that decides whether the number transfers. Ten measured sweeps in
+# this repository split by abrasive rather than by film:
+#
+#     ceria    +0.87   (3 sweeps,  3-211 nm)
+#     alumina  +0.29   (2 sweeps, 50-3500 nm)
+#     silica   -0.05   (5 sweeps, 12-160 nm, five different films)
+#
+# A size exponent with no abrasive attached is a global constant in disguise,
+# which is exactly what the derived -0.84 was before it turned out to have the
+# wrong sign on 8 of those 10 sweeps. So the value is kept — 0.0 sits inside
+# the silica group's scatter and is independently evidenced — and only its
+# scope is made explicit.
+
+name: cu_alkaline_benzenesulfonic
+description: >
+  Copper CMP in an alkaline benzenesulfonic-acid slurry. Own-dir overlay over
+  the inherited legacy pack; adds abrasive scoping only.
+base: cu_alkaline_benzenesulfonic
+
+params:
+  abrasive_size_exponent:
+    value: 0.0
+    unit: "-"
+    note: >
+      MRR ~ d^n for COLLOIDAL SILICA on copper in this chemistry. NOT
+      transferable to a pack with a different abrasive: measured exponents
+      split by abrasive (ceria +0.87, alumina +0.29, silica -0.05), and this
+      abrasive belongs to the silica group, whose members scatter around zero.
+
+      A sourced null result rather than an unknown. Two independent legs:
+      (1) TW202115224A, Cu, n=18, spherical subset at 15/27/50/160 nm at
+      matched chemistry (glycine 5.5 wt% + alanine 9.5 wt% + 1,2,4-triazole
+      416 ppm) gives Spearman rho 0.03-0.15 — not significant; (2) the
+      force-partition argument in
+      legacy/knowledge/cmp/abrasive-size-null-result-force-partition-theory.md.
+
+      Inherited from cu_h2o2_bta at one confidence grade lower, as the legacy
+      pack records.
+    source: >
+      legacy/knowledge/params/cu_alkaline_benzenesulfonic.yaml (verbatim value
+      and evidence); dataset
+      cmp_sim/data/validation/datasets/tw202115224a_cu_abrasive_size_pressure.yaml;
+      abrasive grouping in docs/predictive-accuracy.md
+    confidence: literature

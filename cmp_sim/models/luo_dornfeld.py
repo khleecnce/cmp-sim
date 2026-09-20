@@ -356,7 +356,8 @@ def mechanical_factor(*, conc: Optional[float], conc_ref: Optional[float],
                       conc_half: Optional[float] = None,
                       hardness_pa: Optional[float] = None,
                       hardness_ref_pa: Optional[float] = None,
-                      measured_size_exponent: Optional[float] = None
+                      measured_size_exponent: Optional[float] = None,
+                      measured_conc_exponent: Optional[float] = None,
                       ) -> Tuple[float, List[str], List[str]]:
     """Dimensionless Kp multiplier from abrasive loading, size and film hardness.
 
@@ -383,11 +384,28 @@ def mechanical_factor(*, conc: Optional[float], conc_ref: Optional[float],
                     f"(apparent exponent {n_app:.2f}); adding more particles will "
                     "barely change the rate, and the model's sensitivity there is low")
         else:
-            ratio = (float(conc) / float(conc_ref)) ** regime.n_conc
+            # A MEASURED exponent beats the derived one, exactly as for size.
+            # Without this the pack's own sourced value was READ AND IGNORED:
+            # sti_ceria carries abrasive_conc_exponent = -0.43 from Dandu 2009
+            # Fig. 2a ("0.25% ceria gave HIGHER oxide RR than 0.5 and 1%"), yet
+            # the model applied a positive derived exponent and returned MORE
+            # rate for MORE ceria -- the opposite sign to the measurement the
+            # pack cites, and 21,004 A/min against a 200-6,000 published band.
+            n_conc = regime.n_conc
+            if measured_conc_exponent is not None:
+                n_conc = float(measured_conc_exponent)
+                notes.append(
+                    f"concentration exponent n_C = {n_conc:+.3f} taken from a "
+                    f"MEASURED sweep in this pack, overriding the derived "
+                    f"{regime.n_conc:+.3f}. The derivation assumes more "
+                    "particles means more cutting points; in a ceria system "
+                    "that is chemically rate-limited the measurement can go "
+                    "the other way")
+            ratio = (float(conc) / float(conc_ref)) ** n_conc
             factor *= ratio
             notes.append(
                 f"concentration {conc:g} vs reference {conc_ref:g}: power law with "
-                f"computed n_C = {regime.n_conc:.3f} -> {ratio:.4f}")
+                f"n_C = {n_conc:.3f} -> {ratio:.4f}")
             warnings.append(
                 "no saturation concentration (C_half) available for this slurry, so a "
                 "single power law is used; it cannot saturate and will over-predict "

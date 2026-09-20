@@ -29,9 +29,23 @@ def test_a_pressure_sweep_is_linear_in_pressure():
 
 
 def test_crossing_a_regime_boundary_is_warned_about():
-    """At 1.5 psi the slurry film thickens with speed until the contact regime
-    changes; the sweep must say so rather than imply one smooth trend."""
-    out = run_sweep({"parameter": "rpm_platen", "values": [60, 120, 160, 200],
+    """A sweep that genuinely changes lubrication regime must say so.
+
+    This used to sweep 60-200 rpm at 1.5 psi, because that crossed the
+    boundary/mixed line at lambda = 1.24. That crossing disappeared when the
+    legacy transfer replaced the pad roughness with a sourced value: lambda is
+    inversely proportional to sigma, sigma grew 6.7x, and all six conditions of
+    that dataset now sit at lambda <= 0.19. See
+    tests/test_lubrication_limit.py for why the old constant was never
+    physical (it was smoother than a brand-new pad).
+
+    So the sweep is pushed to where a transition genuinely happens now —
+    3000 rpm reaches mixed lubrication. The behaviour under test is unchanged:
+    when the regime moves, the sweep warns instead of implying one smooth
+    trend. Verified that 60-200 rpm no longer crosses anything, so keeping the
+    old values would have tested nothing.
+    """
+    out = run_sweep({"parameter": "rpm_platen", "values": [60, 600, 1500, 3000],
                      "recipe": BASE})
     assert any("regime boundary" in w for w in out["warnings"])
     assert len({p["lubrication"] for p in out["points"]}) > 1

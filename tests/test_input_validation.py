@@ -98,14 +98,25 @@ def test_uniformity_is_undefined_rather_than_zero_when_nothing_is_removed():
 
 
 def test_a_load_beyond_the_contact_model_explains_itself_in_english():
-    """The inherited solver raises an untranslated bracket error."""
+    """The inherited solver raises an untranslated bracket error.
+
+    The trigger pressure moved from 500 to 2000 psi when the legacy transfer
+    replaced the pad constants with sourced values (E* 1.0 GPa -> 132 MPa,
+    asperity radius 5 -> 50 um). A softer, blunter pad carries more load before
+    the GW bracket fails, so 500 psi now solves — absurd as a CMP recipe, but
+    the contact model no longer objects to it.
+
+    What is being tested is the ERROR PATH, not the number: that when the
+    solver does give up, it says so in English, names the pressure, and offers
+    a way forward. Those all still hold at the new limit.
+    """
     from cmp_sim.models.contact_gw import ContactSolverOutOfRange
 
     with pytest.raises(ContactSolverOutOfRange) as exc:
-        simulate(_recipe(pressure_psi=500.0))
+        simulate(_recipe(pressure_psi=2000.0))
     msg = str(exc.value)
     assert msg.isascii(), f"non-English error leaked to the user: {msg}"
-    assert "500.0 psi" in msg
+    assert "2000.0 psi" in msg
     assert "preston_baseline" in msg, "the message offers no way forward"
 
 
