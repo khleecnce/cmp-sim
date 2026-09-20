@@ -15,7 +15,7 @@
   factors, LOO-gated), `core/measurement_io.py` (CSV logs)
 - **Prediction scored on every measured axis**: `core/predictive_score.py`,
   `cmp-sim accuracy`, `GET /api/accuracy`, surfaced in the web UI next to the
-  rate. 37/38 datasets, 320 points.
+  rate. 38 of 46 datasets scorable, 330 points.
 - Interfaces: CLI (`run`/`fit`/`sweep`/`validate`/`accuracy`/`packs`/
   `profiles`), zero-dependency web UI + API, `CMP-Sim.command` launcher
 - Films: Cu, W, oxide, STI-ceria, poly-Si, Si substrate, SiC, SnAg.
@@ -64,7 +64,15 @@ Reasoning, numbers and sources for each: `docs/open-questions.md`.
 
 Gate: 4 in-scope datasets within ±15% (need 3) → **PASS**
 
-Prediction on every axis (320 points): median **19.5%** trend, **23.6%**
-leave-one-out, 27/37 datasets beat predicting their own mean. By axis —
-particle size 8.7%, loading 34.6%, pH 36.2%, oxidizer 36.2%, pressure 40.7%,
-velocity 44.1%.
+Prediction on every axis (330 points, 38 of 46 datasets scorable): median
+**20.3%** trend, **23.6%** leave-one-out, 29/38 beat predicting their own mean.
+By axis — particle size 8.7%, pressure 22.9%, loading 22.9%, oxidizer 39.3%,
+velocity 44.1%, pH 49.2%.
+
+pH is now the weakest axis, and the reason is structural rather than a missing
+tune: ceria and charged silica peak at pH 4.5 and pH 2 on the *same* film, so
+the optimum belongs to the slurry SYSTEM, not the film. Splitting them needs a
+separate Kp per system, which no public dataset supplies.
+
+Resume handover, every figure re-verified against the CLI:
+`~/CMP-SIM-FOR-RESUME.md`
