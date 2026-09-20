@@ -21,21 +21,48 @@
 - Films: Cu, W, oxide, STI-ceria, poly-Si, Si substrate, SiC, SnAg.
   Data: 55 additives × 9 films, 11 abrasives × 9 films
 - **558 tests**; verified from a clean clone including `pip install -e .`
+- Legacy 2nd transfer absorbed (`legacy/HANDOVER-2.md`): 554 pass, 4 fail —
+  all four are the pad-stat / ceria-loading conflicts under BLOCKED, not
+  wrapper bugs.
 
 ## NEXT
-Owner review of the three judgement calls where measurements disagreed and a
-compromise was chosen over a flattering fit. Detail and derivations:
-`docs/predictive-accuracy.md`.
-1. `oxide_silica` loading `C_half = 4.4` — its two datasets want 0.6 (0.5–3
-   wt%) and 5.9 (5–25 wt%). The compromise costs both ~20%. A single Langmuir
-   may not span that range.
-2. `sti_ceria` pH pools Dandu (81× swing, peak 4.5, TEOS) with Netzband (1.9×,
-   rises to pH 10, thermal oxide) at 34%; either alone is 20–26%. Likely two
-   packs.
-3. Acid-side pH floors for `oxide_silica` and `cu_h2o2_bta` are 1%-of-peak
-   bounds, not measurements — no dataset sweeps the acid side of their optima.
+Owner decision on the λ roughness scale (first BLOCKED item): does the
+lubrication threshold move with the new literature σ = 2.0 µm, or is
+`pad_height_beta_inv_m` the wrong quantity to divide the film thickness by?
+Everything else in the regime layer is downstream of that answer.
 
 ## BLOCKED
+- Three judgement calls where measurements disagreed and a compromise was
+  chosen over a flattering fit (detail: `docs/predictive-accuracy.md`):
+  `oxide_silica` `C_half = 4.4` (its two datasets want 0.6 and 5.9, costing
+  both ~20% — one Langmuir may not span 0.5–25 wt%); `sti_ceria` pH pools
+  Dandu (81× swing, peak 4.5, TEOS) with Netzband (1.9×, rises to pH 10,
+  thermal oxide) at 34% when either alone is 20–26% (likely two packs); and
+  the acid-side pH floors for `oxide_silica` / `cu_h2o2_bta` are 1%-of-peak
+  bounds, not measurements — no dataset sweeps the acid side of their optima.
+- **The 2nd legacy transfer (8ed1649) moved the pad surface stats and broke the
+  project's strongest validation result.** `base.yaml` promoted
+  `pad_E_star_pa` 1.0e9 → 1.316e8, `pad_asperity_radius_m` 5e-6 → 5e-5 and
+  `pad_height_beta_inv_m` 0.3e-6 → 2.0e-6 to literature values (Bozkaya 2009,
+  Shi 2010, Sorooshian 2005). λ = h/σ is inversely proportional to σ, so the
+  US6918821B2 collapse point (1.5 psi / 200 rpm) fell λ = 1.24 → 0.187 and no
+  longer leaves boundary lubrication — the model no longer predicts where it
+  fails. Restoring the old trio makes 3 of the 4 failures pass, confirming the
+  cause; NOT restored, because the new numbers are the sourced ones and the
+  old ones were `estimated`. **Question for owner:** the λ thresholds (1.0 /
+  3.0) were tuned against the OLD σ. Either the thresholds move with σ, or
+  `pad_height_beta_inv_m` is the wrong roughness scale for λ (exponential
+  distribution scale vs. the RMS roughness λ is defined on). Affected tests:
+  `test_only_the_collapse_point_leaves_the_boundary_regime[1.5-200]`,
+  `test_crossing_a_regime_boundary_is_warned_about`,
+  `test_a_load_beyond_the_contact_model_explains_itself_in_english`.
+- **`sti_ceria` example now predicts 7,235 Å/min vs the 200–6,000 envelope**
+  (1.2× over) after the same transfer re-declared its ceria loading terms
+  (`abrasive_wt_pct` 20 → 0.25 wt%, `abrasive_conc_exponent` → −0.4295,
+  Dandu 2009). A negative concentration exponent with an 80× smaller reference
+  raises the rate. Left as-is rather than retuned: the pack values are cited
+  and the envelope is cited, so one of the two is wrong and the owner should
+  say which.
 - **Particle-size exponent sign: settled by data, and my grouping was wrong.**
   It splits by ABRASIVE, not by film — ceria +0.87, alumina +0.29, silica
   −0.05; within one abrasive the sweeps agree, across them they do not share a
