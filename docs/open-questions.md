@@ -45,23 +45,69 @@ Restoring the old trio makes three of the four failing tests pass. That was run
 as a diagnostic and reverted; it is not a fix, because it trades sourced numbers
 for guesses.
 
-**The decision.** Two candidate readings, and they are not equivalent:
+**The decision — and a measurement that narrows it sharply.**
+
+Before asking which threshold to use: what roughness values does the corpus
+actually contain, and does *any* of them put the collapse point above λ = 1?
+Sweeping σ with everything else held fixed (λ ∝ 1/σ):
+
+| σ source | σ [µm] | λ(1.5 psi, 200 rpm) | regime at the collapse point |
+|---|---:|---:|---|
+| old unsourced estimate (pre-transfer) | 0.300 | **1.245** | mixed |
+| Zhou 2018, new pad Rq (stated in text) | 0.474 | 0.788 | boundary |
+| Zhou 2018, in-use Rq, 0.9 psi / 30 min | 0.680 | 0.549 | boundary |
+| Zhou 2018, in-use Rq, 1.26 psi / 300 min | 1.115 | 0.335 | boundary |
+| Sorooshian 2005 exponential scale (current) | 2.000 | 0.187 | boundary |
+| Bozkaya 2009 Table I Gaussian σ_s | 5.000 | 0.075 | boundary |
+
+σ would have to be **0.373 µm** for that point to sit exactly at λ = 1.
+
+The uncomfortable part: **no sourced roughness value in the corpus puts the
+collapse point above the boundary threshold.** The only value that does is the
+unsourced 0.3 µm — and it is *below the roughness of a brand-new pad*
+(Zhou et al. 2018, ECS JSS 7(6) P295, doi:10.1149/2.0011806jss, measures
+Rq = 0.474 µm before any use, rising to 0.68–1.1 µm in service). A polished pad
+is not smoother than a new one.
+
+So reading 2 below does not rescue the result either. Swapping the exponential
+scale for a properly-measured RMS roughness moves λ from 0.187 to 0.788 — much
+closer, still boundary.
+
+**What this means for the validation claim.** The λ = 1.24 crossing was an
+artifact of a roughness constant chosen without a source, and the claim "the
+model predicts where it fails, against an absolute threshold" does not survive
+sourcing that constant. What *does* survive, and is unaffected by σ because a
+pure rescale cannot change an ordering:
+
+- λ rises with speed and falls with load, as hydrodynamics requires
+  (`test_lambda_rises_with_speed_and_falls_with_load`).
+- The collapse point is the **maximum** λ of all six conditions — 3.3× the λ of
+  the same pressure at 60 rpm and 2.7× the runner-up. The *ranking* still
+  singles out the right condition without seeing a rate. Locked in by
+  `test_lambda_ranks_the_collapse_point_first_without_seeing_a_rate`.
+
+The honest repair is therefore probably not a new threshold number but a
+different kind of claim: flag the condition whose λ is anomalously high
+*relative to the rest of the process window*, rather than against an absolute
+cut that no sourced σ supports. That changes what the detector asserts, which
+is the owner's call rather than a tuning knob — so it has not been made.
+
+Two readings remain for the constant itself, and they are not equivalent:
 
 1. **The thresholds belong to the old σ.** λ = 1.0 / 3.0 are the textbook
    boundary/mixed/full-film cuts, but they were last sanity-checked against
-   σ = 0.3 µm. If σ is 6.7× larger, the cuts have to move with it or they mean
-   something different than they did.
+   σ = 0.3 µm, which the table shows was never physical.
 2. **`pad_height_beta_inv_m` is the wrong quantity to divide by.** It is the
    scale of an *exponential* asperity-height distribution (1/β). The λ of
-   lubrication theory is film thickness over *composite RMS roughness*. For an
-   exponential distribution those coincide, but Bozkaya's own Table I reports a
-   Gaussian σ_s = 5 µm — a different distribution family, as `base.yaml` itself
-   warns for this key. If the pad roughness entering λ should be an RMS value
-   and not the exponential scale, the two numbers are not interchangeable and
-   the model is currently dividing by the wrong one.
+   lubrication theory is film thickness over *composite RMS roughness* — which
+   the corpus does have, measured, in Zhou 2018. `base.yaml` itself warns that
+   Bozkaya's Gaussian σ_s = 5 µm is a different distribution family and must
+   not be substituted here; the same caution applies in reverse to using 1/β
+   as an RMS.
 
-Reading 2 is the one that would also explain why the flag used to land so close
-to 1.0 with a number nobody had sourced.
+Reading 2 is better supported — the corpus has a directly measured Rq for a
+polyurethane pad, and using it is a strict improvement over dividing by a
+distribution scale. It is just not sufficient on its own.
 
 Tests parked on this: `test_only_the_collapse_point_leaves_the_boundary_regime[1.5-200]`,
 `test_crossing_a_regime_boundary_is_warned_about`,
