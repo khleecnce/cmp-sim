@@ -18,10 +18,15 @@
   rate. 38 of 46 datasets scorable, 330 points.
 - Interfaces: CLI (`run`/`fit`/`sweep`/`validate`/`accuracy`/`packs`/
   `profiles`), zero-dependency web UI + API, `CMP-Sim.command` launcher
+- **Published**: github.com/khleecnce/cmp-sim (MIT) and a link-protected
+  demo at cmp-sim.vercel.app (`CMPSIM_TOKEN`; unset = open, for local runs).
+  History scrubbed of the employer name and rewritten to a single author
+  before going public; no copyrighted article text is tracked.
 - Films: Cu, W, oxide, STI-ceria, poly-Si, Si substrate, SiC, SnAg.
   Data: 55 additives × 9 films, 11 abrasives × 9 films
-- Legacy 2nd transfer absorbed (`legacy/HANDOVER-2.md`). **558 tests: 554 pass,
-  4 fail** — all four are cited-value conflicts listed below, not wrapper bugs.
+- Legacy 2nd transfer absorbed (`legacy/HANDOVER-2.md`). **567 tests pass**
+  (the four cited-value conflicts from the transfer are resolved; the
+  remaining known limits are listed under BLOCKED, not failing tests).
 
 ## NEXT
 Owner decision on the λ roughness scale (BLOCKED #1): does the lubrication

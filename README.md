@@ -20,6 +20,26 @@ carries the warnings that tell you where not to trust it.
 physical factors your data can actually identify, locks the rest, and tells you
 which experiment to run next.
 
+## Run it
+
+```bash
+git clone https://github.com/khleecnce/cmp-sim && cd cmp-sim
+python3 -m venv .venv && .venv/bin/pip install --upgrade pip setuptools
+.venv/bin/pip install -e ".[dev]"
+.venv/bin/python -m pytest -q          # 567 tests
+.venv/bin/python -m cmp_sim.api        # web UI at http://127.0.0.1:8765
+```
+
+macOS: double-click `CMP-Sim.command` instead.
+
+### Hosting it
+
+Set `CMPSIM_TOKEN` and every route — the page included — requires `?t=<token>`
+or an `X-CMPSim-Token` header. Leave it unset and a local run stays open, so a
+laptop user is not asked for a key they would have to give themselves. The
+repository ships a `vercel.json`; `.vercelignore` keeps the function to the
+~4 MB it actually imports.
+
 ---
 
 ## Quick start
