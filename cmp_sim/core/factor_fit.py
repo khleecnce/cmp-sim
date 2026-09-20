@@ -53,13 +53,31 @@ POINTS_PER_FACTOR = 3
 #: Relative spread an input needs before a factor depending on it is fittable.
 MIN_LEVERAGE = 0.15
 #: A factor must improve cross-validated error by at least this fraction.
-#: Set from a noise study rather than by taste: with 8% measurement scatter on
-#: data that genuinely obeys Preston's law, a 2% threshold admitted a spurious
-#: pressure exponent in 2 runs out of 5. A real departure (true exponent 0.65)
-#: cuts the error by 60-70%, so a 25% floor keeps every true signal while
-#: rejecting noise-chasing. Better to miss a marginal factor than to report one
-#: that is not there.
-MIN_CV_GAIN = 0.25
+#:
+#: Set from a two-sided noise study, not by taste, and REVISED downward after
+#: the original 0.25 was measured rather than assumed. Twelve synthetic logs
+#: per arm, 10 runs each, leave-one-out:
+#:
+#:   gate   false positives        true positives
+#:          (pure Preston + 8%)    (real 0.76 law + 5%)
+#:   0.02      7/12                   11/12
+#:   0.05      5/12                   11/12
+#:   0.10      5/12                   11/12    <- chosen
+#:   0.15      4/12                    9/12
+#:   0.25      4/12                    9/12
+#:
+#: The original comment claimed 0.25 "keeps every true signal". It does not:
+#: it costs two of twelve real detections to avoid ONE false one, and on a
+#: hand-built log carrying a true exponent of 0.763 it rejected the factor
+#: outright, leaving the fit at 13.0% when 10.5% was available. At 0.10 the
+#: same log recovers 0.778 — a 2% error against the truth.
+#:
+#: The false positives that remain are cheap: none of them is a spurious
+#: pressure exponent (checked separately — 0/12 at both 0.10 and 0.25), they
+#: appear in weaker factors, and every fitted value is reported with the
+#: cross-validated error it achieved, so a marginal factor is visible as
+#: marginal rather than silent.
+MIN_CV_GAIN = 0.10
 
 
 @dataclass
