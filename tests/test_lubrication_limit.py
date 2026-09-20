@@ -72,6 +72,30 @@ def test_lambda_rises_with_speed_and_falls_with_load():
     assert lam[(1.5, 200)] > lam[(4.0, 200)], "load does not thin the film"
 
 
+def test_lambda_ranks_the_collapse_point_first_without_seeing_a_rate():
+    """The part of the claim that survives sourcing the pad roughness.
+
+    The absolute threshold does not: no sourced roughness in the corpus puts
+    this point above lambda = 1 (see docs/open-questions.md), because lambda
+    scales as 1/sigma and the old 0.3 um was below a NEW pad's measured Rq.
+
+    A pure rescale cannot change an ordering, so this statement is independent
+    of which roughness constant is right - and it is still the useful one:
+    the condition where the measured rate collapses is the one with the
+    thickest fluid film in the whole window, picked out without a rate.
+    """
+    lam = {k: _situation(*k)["metrics"]["lambda_ratio"] for k in MEASURED}
+    worst = max(lam, key=lambda k: lam[k])
+    assert worst == (1.5, 200), (
+        f"the thickest-film condition is {worst}, but the rate collapses at "
+        "(1.5 psi, 200 rpm)")
+    assert lam[worst] == max(lam.values())
+    runner_up = max(v for k, v in lam.items() if k != worst)
+    assert lam[worst] / runner_up > 1.5, (
+        "the collapse point is no longer a clear outlier in lambda, so the "
+        "ranking argument is as weak as the threshold one")
+
+
 def test_this_dataset_is_kept_as_a_documented_failure():
     """It must not be quietly converted into a passing fit by splitting it."""
     from pathlib import Path
