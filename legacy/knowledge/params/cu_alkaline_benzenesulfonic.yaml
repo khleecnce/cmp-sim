@@ -290,6 +290,13 @@ params:
       ⚠ 이 판정이 검증하지 못한 것: 벤젠술폰산·과산화수소 부동태막이 입자
       표면 마찰계수를 바꿔 ②의 소성압입 상수를 흔들 가능성 — 미검증, 방향도
       모름. 이것이 estimated에 머무는 두 번째 이유다.
+
+      SCOPE (English): this abrasive only — spherical colloidal silica,
+      15-160 nm, against a soft plastically-indenting Cu film. It is
+      abrasive-specific and must not be reused for ceria or alumina packs,
+      whose measured sweeps carry a different sign (ceria +0.87, alumina
+      +0.29, silica -0.05). Cited sweep:
+      validation/datasets/tw202115224a_cu_abrasive_size_pressure.yaml.
     source: >
       knowledge/cmp/abrasive-size-null-result-force-partition-theory.md
       (이론), validation/datasets/tw202115224a_cu_abrasive_size_pressure.yaml

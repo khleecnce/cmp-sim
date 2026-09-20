@@ -81,10 +81,17 @@ def reference_pad_is_trustworthy(resolved) -> bool:
     really is the pad the pack's Kp was calibrated with. When the reference
     values are merely ``estimated``, the ratio measures the distance from a
     guess, not a physical difference.
+
+    Inheriting the shared ``base`` pad is the same problem wearing a better
+    grade: those are literature values for a generic polyurethane pad, not a
+    record of the pad THIS pack's Kp was fitted on. Only a pack that declares
+    the reference pad itself may have kappa applied.
     """
     for key in PACK_KEYS:
         param = resolved.pack.params.get(key)
         if param is None or param.confidence not in TRUSTED_CONFIDENCE:
+            return False
+        if getattr(param, "owner", None) in (None, "base"):
             return False
     return True
 

@@ -131,8 +131,12 @@ def test_the_size_exponent_has_the_right_sign_on_every_measured_sweep():
         sizes = [((r.get("overrides") or {}).get("abrasive_d50_nm")
                   or (r.get("overrides") or {}).get("abrasive_size_nm"))
                  for r in rows]
-        pts = sorted((float(s), _measured(r), r)
-                     for s, r in zip(sizes, rows) if s)
+        # Sort on the size alone: two rows can share a size AND a measured
+        # rate, and a tuple sort would then fall through to comparing the
+        # raw dicts (TypeError).
+        pts = sorted(((float(s), _measured(r), r)
+                      for s, r in zip(sizes, rows) if s),
+                     key=lambda t: (t[0], t[1]))
         if len(pts) < 3 or len({p[0] for p in pts}) < 3:
             continue
         n_data = (math.log(pts[-1][1] / pts[0][1])
