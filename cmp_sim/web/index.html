@@ -418,31 +418,37 @@ function render(r){
     if(c.next_experiment) h += `<div class="hint"><b>Next experiment:</b> ${c.next_experiment}</div>`;
   }
 
+  // Predictive accuracy, stated next to the number itself. A rate shown bare
+  // invites more trust than the model has earned on that axis.
+  //
+  // Deliberately OUTSIDE the `r.situation` block: it used to be nested there,
+  // so pasting a calibration CSV — the one path where a user is weighing how
+  // much to trust the model — was the one path that hid the accuracy table.
+  if(ACC && ACC.by_axis){
+    const rows = Object.entries(ACC.by_axis)
+      .sort((a,b)=>a[1].median_shape_error_percent-b[1].median_shape_error_percent);
+    h += `<h2>How accurate is this, measured?</h2>
+      <p class="muted">Median error against ${ACC.measured_points} published
+      measurements across ${ACC.datasets_scored} datasets:
+      <b>${ACC.median_shape_error_percent}%</b> on trend,
+      <b>${ACC.median_leave_one_out_percent}%</b> out-of-sample
+      (fit n&minus;1 points, predict the one held back).
+      ${ACC.beat_predicting_the_mean}/${ACC.datasets_scored} beat
+      &ldquo;just assume this dataset's average&rdquo;.
+      Calibrating against your own measurements above replaces these
+      literature-wide figures with the accuracy on YOUR tool.</p>
+      <table><tr><th>axis</th><th>datasets</th><th>median error</th></tr>
+      ${rows.map(([k,v])=>`<tr><td>${k.replace(/_/g," ")}</td>
+        <td class="num">${v.datasets}</td>
+        <td class="num">${v.median_shape_error_percent}%</td></tr>`).join("")}
+      </table>
+      <p class="muted">Pressure and velocity read worse than the &plusmn;15%
+      validation gate because they include the three datasets kept as
+      deliberate counter-examples (SiC, quartz, rheological). Restricted to
+      clean P&middot;V sweeps that axis runs 12&ndash;23%.</p>`;
+  }
+
   if(r.situation){
-    // Predictive accuracy, stated next to the number itself. A rate shown
-    // bare invites more trust than the model has earned on that axis, so the
-    // measured error for the axes this run actually depends on goes here.
-    if(ACC && ACC.by_axis){
-      const rows = Object.entries(ACC.by_axis)
-        .sort((a,b)=>a[1].median_shape_error_percent-b[1].median_shape_error_percent);
-      h += `<h2>How accurate is this, measured?</h2>
-        <p class="muted">Median error against ${ACC.measured_points} published
-        measurements across ${ACC.datasets_scored} datasets:
-        <b>${ACC.median_shape_error_percent}%</b> on trend,
-        <b>${ACC.median_leave_one_out_percent}%</b> out-of-sample
-        (fit n&minus;1 points, predict the one held back).
-        ${ACC.beat_predicting_the_mean}/${ACC.datasets_scored} beat
-        &ldquo;just assume this dataset's average&rdquo;.</p>
-        <table><tr><th>axis</th><th>datasets</th><th>median error</th></tr>
-        ${rows.map(([k,v])=>`<tr><td>${k.replace(/_/g," ")}</td>
-          <td>${v.datasets}</td>
-          <td>${v.median_shape_error_percent}%</td></tr>`).join("")}
-        </table>
-        <p class="muted">Pressure and velocity read worse than the &plusmn;15%
-        validation gate because they include the three datasets kept as
-        deliberate counter-examples (SiC, quartz, rheological). Restricted to
-        clean P&middot;V sweeps that axis runs 12&ndash;23%.</p>`;
-    }
     const s = r.situation;
     const axes = ["film_class","rate_limit","contact_branch","asperity_regime",
                   "load_regime","lubrication","topography","pad_state"];

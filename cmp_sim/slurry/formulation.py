@@ -171,6 +171,30 @@ def to_overrides(slurry: Slurry) -> FormulationOverrides:
     return out
 
 
+#: Keys the ENGINE reads directly, even when a pack never declares them.
+#:
+#: These are written by the factor fitter (core/factor_fit.py FACTOR_PARAM)
+#: and consumed by the solver. They are legitimately absent from every pack: a
+#: pack states the physics it was calibrated with, while these are what a
+#: user's own measurements OVERRIDE it with.
+#:
+#: Without this list the override warning fired on exactly the values the
+#: fitter had just proven from data — telling the user "recorded but may not
+#: affect the result" about a pressure exponent that provably did affect it
+#: (fitted 0.792, and 0.792 measured back out of the returned rate). A warning
+#: that contradicts the run it is attached to costs more than it protects.
+CONSUMED_BY_THE_ENGINE = frozenset({
+    "pressure_exponent",
+    "velocity_exponent",
+    "abrasive_size_exponent",
+    "abrasive_conc_exponent",
+    "abrasive_conc_half_wt_pct",
+    "abrasive_half_wt_pct",
+    "oxidizer_langmuir_K",
+    "activation_energy_kj_per_mol",
+})
+
+
 def apply_overrides(pack: ParamPack, overrides: Dict[str, Any],
                     source: str = "user recipe") -> Tuple[ParamPack, List[str]]:
     """Return a copy of ``pack`` with overrides applied.
@@ -186,7 +210,7 @@ def apply_overrides(pack: ParamPack, overrides: Dict[str, Any],
                             unit=params[key].unit if known else "",
                             source=source, confidence="owner-provided",
                             note="set from the recipe formulation", owner="recipe")
-        if not known:
+        if not known and key not in CONSUMED_BY_THE_ENGINE:
             notes.append(
                 f"'{key}' is not declared by pack '{pack.name}', so no physics term "
                 "may read it — the input is recorded but may not affect the result")
