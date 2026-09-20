@@ -1,0 +1,83 @@
+# 구리 CMP — 슬러리 pH × H2O2 농도 2^2 완전요인 (Miranda 2004 TABLE 3)
+source: >
+  P. A. Miranda, J. A. Imonigie, A. J. Moll, "Interaction Effects of Slurry
+  Chemistry on Chemical Mechanical Planarization of Electroplated Copper",
+  2004 IEEE Workshop on Microelectronics and Electron Devices (WMED), 2004.
+  doi:10.1109/WMED.2004.1297359
+  전문 오픈액세스(Boise State ScholarWorks):
+  https://scholarworks.boisestate.edu/cgi/viewcontent.cgi?article=1025&context=electrical_facpubs
+  TABLE 3 "Average results of removal rate and WIWNU" 인쇄값을 그대로 옮겼다
+  (read_method: table, Å/min → ÷10 으로 nm/min 환산, 판독오차 0).
+
+  왜 이 데이터인가: 2^2 완전요인(pH 4/8 × H2O2 1.5/3.5 vol%) × 3반복 = 12 run 의
+  평균 4점이다. 장비 파라미터(다운포스 4 psi, 테이블 60 rpm, 스핀들 60 rpm,
+  유량 200 mL/min, 60 s)와 패드(Cabot EPAD-A100), 슬러리 베이스(Cabot 5001,
+  알루미나 연마재)가 전부 고정이고 **조성 2축만** 움직인다.
+
+used_for_calibration: false
+in_scope: true
+pack: cu_h2o2_bta
+
+# ── 범위·해석 주의 ──────────────────────────────────────────────
+# 1) pH 4 와 pH 8 은 Cu pH-MRR V자 곡선의 **서로 다른 가지**다(골 pH 6~6.5).
+#    이 팩은 산성 가지(cu_ph_acid_k=0.1428)와 알칼리 가지(cu_ph_alkaline_k=0.3329)를
+#    따로 갖고 있으므로 이 데이터셋은 두 가지를 한 번에 교차 검증한다 —
+#    지금까지 어느 held-out 도 하지 못한 일이다.
+# 2) Cabot 5001 의 정확한 첨가제 조성(억제제 유무·농도)은 상용 비공개다.
+#    그러나 4개 조건 **전부 같은 베이스 슬러리**이므로 억제제 축은 상수이고,
+#    순위 지표에서 상쇄된다. 억제제 관련 override 를 넣지 않는 이유가 이것이다
+#    (없는 값을 지어내지 않는다 — 팩 기본값 1.0 mM = ref 라 ψ 항이 항등적 1.0).
+# 3) H2O2 는 원문이 vol% 로 적었고 우리 팩 키는 wt% 다. 3.5 wt% H2O2 수용액의
+#    밀도는 1.01 g/mL 수준이라 vol%↔wt% 차이는 1% 미만이므로 그대로 대입한다
+#    (이 근사를 쓴다는 사실 자체를 기록으로 남긴다).
+# 4) 이 실험의 웨이퍼는 TWI 용 **두꺼운 전해도금 Cu(0.5~2 µm 측정, 목표 10~20 µm)**
+#    이고 4인치다. 절대 MRR 은 일반 다마신 Cu CMP 보다 높다(최대 2908 Å/min).
+#    절대값이 아니라 순위만 본다.
+
+conditions:
+  - label: "pH 4, H2O2 1.5%"
+    overrides: {slurry_ph: 4.0, oxidizer_wt_pct: 1.5}
+    pressure_psi: 4.0
+    rpm_platen: 60
+    rpm_wafer: 60
+    sfr_ml_min: 200
+    mrr_nm_per_min: 195.3
+    read_method: table
+  - label: "pH 4, H2O2 3.5%"
+    overrides: {slurry_ph: 4.0, oxidizer_wt_pct: 3.5}
+    pressure_psi: 4.0
+    rpm_platen: 60
+    rpm_wafer: 60
+    sfr_ml_min: 200
+    mrr_nm_per_min: 290.8
+    read_method: table
+  - label: "pH 8, H2O2 1.5%"
+    overrides: {slurry_ph: 8.0, oxidizer_wt_pct: 1.5}
+    pressure_psi: 4.0
+    rpm_platen: 60
+    rpm_wafer: 60
+    sfr_ml_min: 200
+    mrr_nm_per_min: 174.3
+    read_method: table
+  - label: "pH 8, H2O2 3.5%"
+    overrides: {slurry_ph: 8.0, oxidizer_wt_pct: 3.5}
+    pressure_psi: 4.0
+    rpm_platen: 60
+    rpm_wafer: 60
+    sfr_ml_min: 200
+    mrr_nm_per_min: 24.3
+    read_method: table
+
+notes: >
+  원문 ANOVA: pH 주효과 p=0.0021, pH×H2O2 교호작용 p=0.0207, H2O2 단독 p=0.588
+  (유의하지 않음), 보정 R^2=0.69. 즉 **H2O2 의 효과는 pH 에 따라 부호가 바뀐다** —
+  산성에서는 증가(1953→2908 Å/min, +49%), 알칼리에서는 급감(1743→243 Å/min, −86%).
+  원문 해석은 Pourbaix 기반이다: 산성에서는 Cu2+ 가 생겨 제거가 쉬워지고,
+  알칼리 + 고농도 H2O2 에서는 단단한 CuO 부동태막이 생겨 제거를 막는다
+  (Wei et al. 인용: pH 8 에서 0.06% H2O2 → Cu2O, 2.5% H2O2 → CuO).
+
+  우리 모델에 대한 함의: 현재 산화제 항은 팩당 **한 가지 부호**만 가진다
+  (cu_h2o2_bta 는 억제형 oxidizer_passivation_K, 판정#20·#38·#41). 이 데이터는
+  같은 재료계 안에서 pH 가 산화제 항의 부호를 뒤집는다는 것을 4점으로 보여준다.
+  그러므로 이 데이터셋의 순위가 안 맞는다면 그것은 잡음이 아니라
+  **pH×산화제 교호작용이 모델에 없다**는 구조적 신고로 읽어야 한다.

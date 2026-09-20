@@ -37,7 +37,8 @@ from typing import Dict, List, Optional, Tuple
 R_GAS = 8.314462618          # J/(mol·K)
 WATER_MOLAR = 55.34          # mol/L — 물의 몰농도(표준상태 기준 변환용)
 
-__all__ = ["PairDG", "lookup_dG", "K_from_dG", "measurement_spec", "PAIR_TABLE"]
+__all__ = ["PairDG", "lookup_dG", "K_from_dG", "measurement_spec", "PAIR_TABLE",
+           "NO_ADSORPTION", "adsorption_ruled_out"]
 
 
 @dataclass(frozen=True)
@@ -64,8 +65,39 @@ class PairDG:
 PAIR_TABLE: Dict[Tuple[str, str], PairDG] = {}
 
 
+# ──────────────────────────────────────────────────────────────
+# 이름 정규화 — 같은 물질이 두 이름으로 불려 쌍이 조용히 안 잡히는 것을 막는다
+#
+# 왜 필요한가: 산(malonic acid)과 그 음이온(malonate)은 같은 흡착종인데
+# 문헌·데이터셋·팩이 서로 다른 이름을 쓴다. 표기가 다르다는 이유로 조회가
+# 실패하면 **값이 있는데도 '미확보'로 보고**되고, 다음 회차가 이미 확보한
+# 문헌을 다시 찾는다. 반대로 정규화를 남용하면 이식 금지 규칙이 무너지므로
+# **같은 흡착종임이 확실한 산/염기 짝·표기 변형만** 넣는다.
+# ⚠ 작용기가 다른 인접 분자(TTA↔BTA, succinate↔malonate)는 절대 넣지 마라.
+# ──────────────────────────────────────────────────────────────
+_INHIB_ALIAS = {
+    "malonic": "malonate",          # 산 ↔ 그 음이온 (같은 흡착종)
+    "malonic acid": "malonate",
+    "benzotriazole": "bta",
+    "2-mercaptobenzothiazole": "2-mbt",
+}
+_SUBST_ALIAS = {
+    "oxide": "sio2",                # 검증 데이터셋 표기 ↔ 화학식
+    "silica": "sio2",
+    "tan": "ta",                    # TaN 배리어도 표면은 Ta 산화물이다
+    "copper": "cu",
+    "tungsten": "w",
+}
+
+
+def _key(inhibitor: str, substrate: str) -> Tuple[str, str]:
+    i = inhibitor.strip().lower()
+    s = substrate.strip().lower()
+    return (_INHIB_ALIAS.get(i, i), _SUBST_ALIAS.get(s, s))
+
+
 def register(p: PairDG) -> None:
-    PAIR_TABLE[(p.inhibitor.lower(), p.substrate.lower())] = p
+    PAIR_TABLE[_key(p.inhibitor, p.substrate)] = p
 
 
 # ── 쌍이 성질임을 보여주는 결정적 증거 ────────────────────────
@@ -94,6 +126,111 @@ register(PairDG(
     ("⚠ 물리흡착 영역의 낮은 값 — 이런 크기도 실제로 보고된다",
      "EQCM 은 θ 를 직접 재므로 다층 판별이 가능한 방법이다",),
 ))
+register(PairDG(
+    "glycine", "cu", -39.8208,
+    "전위동태 분극(Tafel) + Langmuir (K_ads=1.25e5 L/mol, R²=0.991), 30±0.5 °C",
+    "10.5281/zenodo.5594539", "literature",
+    ("Nandi, Biswas, Jain, Nandi, J. Indian Chem. Soc. 94, 369-380 (2017) "
+     "— OA 전문(Zenodo 호스팅) 확보·직접 읽음, 원문 화합물 (1)=순수 글리신 "
+     "(N-벤젠설포닐 유도체 (2)~(10)은 이식 금지 대상 — 등록하지 않았다)",
+     "0.6 M NaCl 수용액, pH 6, 무산화제 — 이 팩(cu_h2o2_bta, pH 3, H2O2 존재)과 "
+     "전해질·pH 다름. 원문 자신도 'at pH 6 ... glycine ... is found to be only "
+     "10.1% (zwitter ion). glycine is good inhibitor in HCl/H2SO4 ... where it "
+     "exists as protonated species' 라고 pH 의존성을 명시한다 — 부호(억제)는 "
+     "교차 corroboration 있으나 크기는 pH 3 조건에 그대로 쓸 수 없다",
+     "⚠ 교차확인: 같은 팩·같은 데이터셋(jani2025, doi:10.1149/2162-8777/adc59e, "
+     "pH 3)이 독립적으로 '글리신은 억제제'라는 같은 방향을 확인했다(원문: "
+     "'glycine functions as a dissolution inhibitor ... effectiveness is limited "
+     "at low pH, where its predominantly protonated ... forms reduce its ability "
+     "to complex with Cu2+'). 그러나 그 논문은 ΔG_ads(Langmuir)를 보고하지 않고 "
+     "통제쌍 2점에서 역산한 지수형 계수(a=1.5119 /M, "
+     "knowledge/cmp/psi-glycine-chelator-suppression-cu-jani2025.md)만 가진다 — "
+     "이 줄의 값과 그 계수는 서로 다른 함수형·다른 측정법이라 대체하지 않는다",
+     "⚠ 참고(등록 금지 — 인접분자): 같은 계열 유도체(bicine/tricine, N-치환 "
+     "글리신) ΔG_ads ≈ -28~-32 kJ/mol(물리흡착); Lys-Glu-Asp-Gly 테트라펩타이드 "
+     "ΔG_ads=-30.86 kJ/mol — 둘 다 곁사슬이 다른 인접 분자라 이 줄에 쓰지 않았다",),
+))
+register(PairDG(
+    "malonate", "cu", -47.7,
+    "in situ 엘립소메트리(θ 직접 환산) + full Temkin 등온식 (f=1.65)",
+    "10.17675/2305-6894-2020-9-3-13", "literature",
+    ("산화된 Cu 표면(E=0.0 V vs SHE) 기준 ΔG_a,max. CMP 는 산화제를 포함하므로 이쪽이 맞다",
+     "환원 표면(E=-0.60 V)에서는 -38.3 kJ/mol — 산화막 유무로 9.4 kJ/mol 갈린다",
+     "붕산염 완충 pH 7.40, 22±2 °C. 실제 Cu 슬러리(착화제 공존)에서는 경쟁흡착으로 더 약할 수 있다",
+     "다층 아님: plateau + 두께 0.23 nm(분자 길이 미만) 로 평면배향 단층 확인 → 명백한 ΔG1",
+     "⚠ Temkin ΔG_a,max 는 '가장 강한 사이트' 값이라 Langmuir 단일 ΔG 보다 체계적으로 더 음수다",
+     "⚠ 같은 논문의 succinate(-77.4)·ethylmalonate(-69.4) 를 이 줄에 쓰지 마라 — "
+     "같은 기질·같은 방법인데 K 가 10^5 배 갈린다(인접분자 이식 금지의 정량 근거)",),
+))
+
+
+# ──────────────────────────────────────────────────────────────
+# 🚫 흡착이 일어나지 않는다고 **선언된** 쌍
+#
+# 왜 별도 표가 필요한가: `lookup_dG` 가 None 을 돌려주는 경우는 두 가지인데
+# 지금까지 구분되지 않았다.
+#   ① 아무도 안 쟀다        → 절대값 주장 금지, R8 측정 명세 발행
+#   ② 그 메커니즘이 없다     → 억제 항이 없는 것이 **물리적으로 옳다**
+# ②를 ①로 취급하면 다음 회차가 존재하지 않는 문헌을 계속 찾는다.
+# 반대로 근거 없이 ②로 선언하면 억제를 조용히 0 으로 만드는 것이므로,
+# 이 표에 들어오려면 **왜 흡착이 불가능한지**를 반드시 적어야 한다.
+# ──────────────────────────────────────────────────────────────
+NO_ADSORPTION: Dict[Tuple[str, str], str] = {
+    ("bta", "ta"):
+        "BTA 억제의 실체는 Cu(I)-BTA 중합착물이고 Ta 표면은 d0 인 Ta2O5 라 "
+        "착물 상대가 없다. barrier CMP 에서 BTA 를 쓰는 이유 자체가 'Ta 는 두고 "
+        "Cu 만 억제해 선택비를 얻기 위해서'이므로 흡착 부재가 공정 전제다.",
+    ("benzenesulfonic", "sio2"):
+        "SiO2 IEP ~2–3 이라 CMP pH 대역에서 표면이 음전하이고 설포네이트도 "
+        "음이온이다 — 정전 반발. 흡착이 아니라 분산 안정화 방향으로 작용한다.",
+    ("benzenesulfonic", "ta"):
+        "Ta2O5 IEP ~2.7–3 으로 CMP pH 대역에서 음전하. 위와 같은 정전 반발.",
+    ("malonate", "w"):
+        "1차 문헌 2편(10.1557/PROC-477-115, S0927775724012974)이 W CMP 에서 "
+        "말론산의 역할을 H2O2 안정화 + 알루미나/W 제타전위 조절(입자 오염 저감)로 "
+        "규정한다 — 표면 흡착 억제제가 아니다. 이 축은 억제 항이 아니라 산화제 "
+        "안정성·분산 항으로 다뤄야 하므로 쌍 등록 자체가 구조적으로 부적절하다.",
+    ("oxalic", "cu"):
+        "옥살산은 Cu CMP에서 표면 흡착 억제제가 아니라 **착화제(complexing agent)"
+        "**로 작용해 Cu2+ 를 가용성 착물로 빼낸다 — 흡착이 아니라 정반대(용해 촉진) "
+        "방향이다. jani2025(doi:10.1149/2162-8777/adc59e, CC-BY, 전문 확보·직접 "
+        "읽음)가 'HC2O4- dissolved CuO to form soluble complexes like "
+        "[Cu(C2O4)2]2-' 라 명시하고, RSM 회귀에서 [oxalic acid] 계수가 +536.63"
+        "(p=1.7e-7)로 **가장 강하고 유의한 양(+)의 인자**('oxalic acid had the "
+        "most significant positive impact on the response') — 억제제라면 농도가 "
+        "오를 때 제거율이 내려야 하는데 정반대다. 독립 1차 문헌(Cabot US6309560B1 "
+        "TABLE 1, knowledge/cmp/chi-carboxylate-promoter-cu-oxalate-us6309560.md)"
+        "도 옥살산암모늄 농도 증가 → Cu 제거율 단조 증가(최대 12.81배)를 별도로 "
+        "확인해 같은 결론(촉진·복합체 형성)에 도달했다 — 그 물리는 이 팩에서 이미 "
+        "sim/chemistry.py::_carboxylate_promoter_term(promoter_species=oxalic) "
+        "이 맡고 있다. 이 줄이 없으면 갭 리포트가 존재하지 않는 흡착 상수를 "
+        "계속 찾으라고 지시한다(benzenesulfonic×cu 줄과 같은 재발 방지 목적).",
+    ("benzenesulfonic", "cu"):
+        "US9200180B2 명세서가 이 성분을 억제제가 아니라 **산화제 겸 Ta 착화제**로 "
+        "규정한다 — corrosion inhibitor 마쿠쉬 군(1,2,4-triazole/benzotriazole/"
+        "TINUVIN/CDX)에 들어 있지 않고, 'not only serves as oxidants but complexes "
+        "with tantalum ions to form tantalum sulfonate complexes, which results in "
+        "high tantalum and/or tantalum nitride removal rates' 로 서술된다. "
+        "부호도 반대다: 'both Ta and TaN removal rates are substantially increased "
+        "with increasing benzenesulfonic acid concentration' — 억제제라면 농도가 "
+        "오를 때 제거율이 내려야 한다. 이 계에서 Cu 제거율이 낮은 이유는 흡착막이 "
+        "아니라 알칼리 H2O2 부동태화다('a much higher passivation rate for copper "
+        "than tantalum ... in a mixture of hydrogen peroxide and benzenesulfonic "
+        "acid'), 그래서 그 물리는 억제 항이 아니라 oxidizer_passivation_K 가 "
+        "맡는다(팩 cu_alkaline_benzenesulfonic). "
+        "⚠ 이 줄이 없으면 갭 리포트가 이 쌍을 '문헌 조사 목록'에 계속 올려 "
+        "다음 회차가 존재하지 않는 흡착 상수를 찾으러 간다 — 실제로 한 회차를 "
+        "그렇게 썼다. 구조적으로 대상이 아닌 것과 아직 못 찾은 것은 다르다.",
+}
+
+
+def adsorption_ruled_out(inhibitor: str, substrate: str) -> Optional[str]:
+    """이 쌍은 '미측정'이 아니라 '메커니즘 부재'로 선언됐는가.
+
+    반환값이 있으면 그 문자열이 근거다. 호출자는 억제 항을 만들지 않되
+    그 사실을 '값 없음'이 아니라 '효과 없음'으로 신고해야 한다.
+    """
+    return NO_ADSORPTION.get(_key(inhibitor, substrate))
 
 
 def lookup_dG(inhibitor: str, substrate: str) -> Optional[PairDG]:
@@ -102,7 +239,7 @@ def lookup_dG(inhibitor: str, substrate: str) -> Optional[PairDG]:
     None 을 받았을 때 호출자가 할 일은 유사 값으로 채우는 것이 아니라
     measurement_spec() 을 사용자에게 제시하는 것이다.
     """
-    return PAIR_TABLE.get((inhibitor.lower(), substrate.lower()))
+    return PAIR_TABLE.get(_key(inhibitor, substrate))
 
 
 def K_from_dG(dG_kJ_per_mol: float, temp_K: float = 298.15) -> float:

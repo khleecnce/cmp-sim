@@ -18,17 +18,26 @@ source: >
 #   산성·착화제(여기): H2O2 ↑ → MRR ↑ (2282 → 2578 nm/min)
 # 노트: knowledge/cmp/chi-cu-h2o2-regime-reversal-jani2025.md
 #
-# ⚠ in_scope: false — 팩 'cu_h2o2_bta' 의 산화제 항은 피복-억제형(단조 감소)이라
-#   이 레짐을 **구조적으로** 표현할 수 없다(어떤 K 를 골라도 증가가 안 나온다,
-#   위 노트 §6 블록3이 assert 로 고정). 이건 모델이 못 맞히는 게 아니라
-#   **적용 범위 밖**이다. 게이트를 넓혀 삼키지 않고 범위로 표시한다
-#   (lee2021_cu_nicotinic_inhibitor 와 같은 처리).
-#   범위 안으로 들이려면 팩을 레짐별로 분리해야 한다(노트 §7 구현요청).
+# [EVIDENCE-RULES 판정#41, 2026-09-15] in_scope: false → true.
+#   sim/chemistry.py::_oxidizer_term 에 산성(pH<6)×착화제(chelator_M>0) 레짐
+#   게이트를 신설(oxidizer_acid_chelator_K, 촉진-포화형)해 팩을 레짐별로
+#   분리했다(노트 §7 구현요청 이행) — 더 이상 구조적으로 표현 불가능하지
+#   않다. 게이트가 선택한 K=0.7935는 **바로 이 데이터셋의 3점**(Expt
+#   30/31/32)에 최소자승 적합됐으므로, in_scope=true 로 두되
+#   **used_for_calibration: true** 로도 표시한다 — 그래야 qa_loop이 이
+#   3점을 held-out ρ 계산에서 제외한다(F4 자기채점 검사와 동일 원칙).
+#   즉 이 데이터셋은 "모델이 맞혔다"를 보여주는 held-out 증거가 아니라
+#   "부호가 바로잡혔다(반증→정합)"를 보여주는 재현 확인용이다.
+#
+# ⚠ 여전히 남는 한계(값 승격은 하지 않았다): 착화제 종이 이 팩(글리신)과
+#   다르다(여기는 옥살산) — §0 전수탐색 결과 글리신 존재 조건에서 H2O2만
+#   바뀌는 실험쌍이 원문에 없어 확인 불가. K의 confidence는 estimated로
+#   유지한다. 상세: knowledge/cmp/chi-cu-h2o2-regime-reversal-jani2025.md §9.
 #
 # ⚠ 절대값: 이 조건 엔진 예측 ~10284 nm/min vs 실측 2282 (4.5배 과대).
 #   순위 전용이며 절대 MRR 주장에 쓰지 마라.
-in_scope: false
-used_for_calibration: false
+in_scope: true
+used_for_calibration: true
 pack: cu_h2o2_bta
 
 conditions:

@@ -70,6 +70,16 @@ PACK_META: Dict[str, Dict[str, Any]] = {
         "chem": "Fe(NO₃)₃ 계 산화제, 알루미나",
         "note": "리세스·코어링이 주 결함. 산화제 농도 의존성이 Cu보다 가파르다.",
     },
+    "sic_alumina_kmno4": {
+        "family": "Compound — SiC",
+        "label": "SiC — 산성 강산화 연마 (과망간산칼륨 + 알루미나)",
+        "short": "SiC / KMnO4+Al2O3",
+        "film": "SiC",
+        "film_label": "4H·6H-SiC 웨이퍼",
+        "mechanism": "강산화제(KMnO₄)가 산성 조건에서 SiC를 빠르게 산화하고 경질 알루미나가 걷어낸다. 알칼리 세리아/H₂O₂ 계보다 MRR이 두 자리 높다",
+        "chem": "과망간산칼륨(KMnO₄) 산화제, 알루미나, pH 2 부근",
+        "note": "⚠ 같은 SiC라도 알칼리 세리아 계와 제거 속도가 100배 가까이 다르다. 산성·강산화 레시피에만 쓸 것.",
+    },
     "sic_ceria_h2o2": {
         "family": "Compound — SiC",
         "label": "4H-SiC — 알칼리 산화 연마 (세리아 + H₂O₂)",

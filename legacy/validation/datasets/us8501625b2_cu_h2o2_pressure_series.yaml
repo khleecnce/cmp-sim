@@ -1,0 +1,90 @@
+# Cu 배선 CMP — H2O2 농도 3수준 × 다운포스 2수준(2psi/1psi), 나머지 조성 고정. 특허 실시예 인쇄표.
+source: >
+  US8501625B2 (Hitachi Chemical Co., Ltd.), "Polishing liquid for metal film
+  and polishing method", 2013. https://www.freepatentsonline.com/8501625.html
+  (전문 확보: tools/patent_harvest.py 경유 FreePatentsOnline 전문 HTML,
+  _patents/raw/8501625.json 캐시)
+  옮긴 곳: TABLE 1(Experiment Examples 1·6·7 = 배합 A·F·G 조성)과 TABLE 3
+  (BTW 연마속도, 2psi/1psi) — TABLE 5가 A/F/G를 "조성이 유사한" 셋으로 직접
+  묶어 재수록한다(중합체 종류·중량평균분자량·양 180,000/0.6wt%, 억제제·킬레이트제·
+  연마입자 동일, H2O2 wt%만 15→9.0→3.0으로 변화). 공정조건(전 조건 공통,
+  Polishing Conditions 절): 패드 Rodel IC1000, 압반(platen) 93 rpm, 헤드
+  (wafer) 87 rpm, 슬러리 공급 200 mL/min, 기판(I) 무패턴 블랭킷 Cu(1.5 µm).
+in_scope: true
+used_for_calibration: false
+pack: cu_h2o2_bta
+
+notes: >
+  ⚠ 억제제 종 불일치(정직 신고) — 이 셋(A·F·G)의 부식억제제는 1,2,4-트리아졸
+  0.08wt%다(같은 특허 TABLE 1의 C·D만 벤조트리아졸을 쓴다). 벤조트리아졸이
+  아니므로 inhibitor_species를 "bta"로 두는 것은 엄밀히는 틀린 조회 키이지만,
+  sim/inhibitor_pairs.py에 1,2,4-트리아졸×Cu 쌍이 등록돼 있지 않아 엔진은 어차피
+  팩의 단일 ΔG(BTA 기준)로 폴백한다(코드 확인, sim/chemistry.py:380-384) — 즉
+  종을 명시하든 안 하든 같은 계산 경로다. 세 조건 모두 억제제 **농도와 종이
+  동일**(0.08wt%, 불변)이라 억제 항은 세 점에서 상수 배수로만 작용하고 순위에는
+  영향을 주지 않는다(절대값에는 계통 편향으로 남는다 — 순위 전용 취급).
+  chelator_species는 시트르산(citric_acid)으로 팩 기본(글리신)과 다르다 — 팩의
+  chelator_suppression_a(글리신 적합)와 oxidizer_acid_chelator_K(옥살산 적합)
+  모두 종 불일치로 자동 비활성화되고(sim/chemistry.py 종 게이트 확인), 산화제
+  항은 기존 oxidizer_passivation_K(알칼리 벤젠술폰산 데이터 적합) 경로로
+  폴백한다 — 이 팩의 다른 다수 데이터셋(글리신 계열)과 동일한 폴백 경로를 탄다.
+  citric_acid 0.15wt% → mol/L 환산은 밀도 1 g/mL 가정, MW 192.12 g/mol
+  (1.5 g/L / 192.12 g/mol = 0.0078 M).
+  연마입자 0.17wt%(콜로이달 실리카, 1차 17nm/2차 35nm, 응집도 2.1)는 팩 기준
+  3.0wt%보다 훨씬 낮다 — (0.17/3.0)^(1/3)≈0.38배로 절대 MRR을 크게 낮추지만
+  세 조건에 공통이라 순위에는 무관하다(계통 편향, rank_only).
+  ── G(1psi)의 비단조 이상치(정직한 한계) ──
+  원문 TABLE 5 저자 해설: G(H2O2 3.0wt%)는 반응층이 얇아 2psi에서는 최고 속도
+  (820 nm/min)를 내지만 1psi에서는 오히려 최저(190 nm/min)로 떨어진다 — "산화제가
+  지나치게 적어 반응층이 얇고, 저압에서 속도가 낮다"(원문). 이 팩의 Kp·산화제·
+  압력 항은 모두 독립 곱셈이라 압력×산화제 상호작용을 표현하지 못하므로 이
+  한 점(G, 1psi)에서 큰 오차가 예상된다 — 모델 구조적 한계를 드러내라고 남겨둔다
+  (자기 편의적으로 빼지 않았다).
+  ── E(중합체 MW 63,000)는 제외 ──
+  TABLE 5가 A·E·F·G 넷을 묶지만 E는 중합체 분자량만 다르고(63,000 vs 나머지
+  180,000) H2O2는 A와 같은 15wt%라 오히려 축이 뒤섞인다 — 깨끗한 H2O2 단일축을
+  지키기 위해 제외했다(자기 채점 방지가 아니라 축 오염 방지).
+
+conditions:
+  - label: "A: H2O2 15wt%, 2psi"
+    pressure_psi: 2.0
+    rpm_wafer: 87
+    rpm_platen: 93
+    mrr_nm_per_min: 630.0
+    read_method: table
+    overrides: {slurry_ph: 3.6, oxidizer_wt_pct: 15.0, abrasive_wt_pct: 0.17, chelator_species: citric_acid, chelator_M: 0.0078, promoter_species: oxalic_acid, promoter_M: 0.0, inhibitor_mM: 0.08, sfr_ml_min: 200.0}
+  - label: "A: H2O2 15wt%, 1psi"
+    pressure_psi: 1.0
+    rpm_wafer: 87
+    rpm_platen: 93
+    mrr_nm_per_min: 330.0
+    read_method: table
+    overrides: {slurry_ph: 3.6, oxidizer_wt_pct: 15.0, abrasive_wt_pct: 0.17, chelator_species: citric_acid, chelator_M: 0.0078, promoter_species: oxalic_acid, promoter_M: 0.0, inhibitor_mM: 0.08, sfr_ml_min: 200.0}
+  - label: "F: H2O2 9.0wt%, 2psi"
+    pressure_psi: 2.0
+    rpm_wafer: 87
+    rpm_platen: 93
+    mrr_nm_per_min: 720.0
+    read_method: table
+    overrides: {slurry_ph: 3.6, oxidizer_wt_pct: 9.0, abrasive_wt_pct: 0.17, chelator_species: citric_acid, chelator_M: 0.0078, promoter_species: oxalic_acid, promoter_M: 0.0, inhibitor_mM: 0.08, sfr_ml_min: 200.0}
+  - label: "F: H2O2 9.0wt%, 1psi"
+    pressure_psi: 1.0
+    rpm_wafer: 87
+    rpm_platen: 93
+    mrr_nm_per_min: 390.0
+    read_method: table
+    overrides: {slurry_ph: 3.6, oxidizer_wt_pct: 9.0, abrasive_wt_pct: 0.17, chelator_species: citric_acid, chelator_M: 0.0078, promoter_species: oxalic_acid, promoter_M: 0.0, inhibitor_mM: 0.08, sfr_ml_min: 200.0}
+  - label: "G: H2O2 3.0wt%, 2psi"
+    pressure_psi: 2.0
+    rpm_wafer: 87
+    rpm_platen: 93
+    mrr_nm_per_min: 820.0
+    read_method: table
+    overrides: {slurry_ph: 3.6, oxidizer_wt_pct: 3.0, abrasive_wt_pct: 0.17, chelator_species: citric_acid, chelator_M: 0.0078, promoter_species: oxalic_acid, promoter_M: 0.0, inhibitor_mM: 0.08, sfr_ml_min: 200.0}
+  - label: "G: H2O2 3.0wt%, 1psi (반응층 고갈 이상치)"
+    pressure_psi: 1.0
+    rpm_wafer: 87
+    rpm_platen: 93
+    mrr_nm_per_min: 190.0
+    read_method: table
+    overrides: {slurry_ph: 3.6, oxidizer_wt_pct: 3.0, abrasive_wt_pct: 0.17, chelator_species: citric_acid, chelator_M: 0.0078, promoter_species: oxalic_acid, promoter_M: 0.0, inhibitor_mM: 0.08, sfr_ml_min: 200.0}

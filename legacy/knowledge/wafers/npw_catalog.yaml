@@ -1,0 +1,529 @@
+# NPW(블랭킷 테스트 웨이퍼) 카탈로그 — CMP 평가용
+#
+# 왜 이 파일이 있나 (사용자 지시 2026-09-08):
+#   "웨이퍼 초기 두께, TTV, Roughness 등 초기 값을 입력할 수 있도록. 웨이퍼 종류 고르는
+#    항목에서 어떤 NPW인지 고를 수 있도록 해. 그리고 이 NPW 기준으로 CMP 퍼포먼스가 산출되도록."
+#   "실시간 두께 변화 시각화 (웨이퍼 옆면을 보여줘서 웨이퍼 스택별로 연마가 어떻게 되는지)"
+#
+# 원칙
+#   - 웨이퍼 종류를 고르면 **스택**이 정해지고, 스택의 각 층이 **어느 팩(knowledge/params/*.yaml)으로
+#     연마되는지**가 정해진다. 팩이 막질을 소유하므로 pack 은 실존 팩 이름이어야 한다
+#     (검증기가 ls knowledge/params 와 대조한다). 팩이 없는 층은 pack: null + pack_missing_reason.
+#   - 스택은 위에서 아래로(연마되는 순서). 마지막 층(기판)은 stop: true — 실무에서 기판까지 깎지 않는다.
+#   - **출처 없는 숫자 금지.** 값마다 source 를 단다. 모르면 range 생략 + "미검증".
+#   - 이 파일은 sim/timeline.py 의 Layer(name, thickness_nm, pack, stop) 와 1:1 대응하도록
+#     설계했다(§layer_transition_design 참조). UI는 wafers[].stack 을 그대로 Layer 목록으로 넘긴다.
+#
+# 초기값(initial) 공통 근거 — 기판(300 mm Si) 스펙
+#   ⚠ SEMI M1 원문은 downloads.semi.org Cloudflare 봉쇄로 미확보(fabsim-agent-org 스킬·wafer.yaml과 동일 상황).
+#     대신 SEMI M1 준거를 명시한 **벤더 스펙 2건**을 1차 근거로 쓴다:
+#     [V1] WaferPro 300 mm prime polished wafer 제품 스펙(waferpro.com/product/12-inch-300mm-polished-silicon-wafer/,
+#          2026-09-08 curl 확인): 두께 775±25 µm, TTV ≤3 µm, BOW ≤30 µm, WARP ≤30 µm, 표면 Ra ≤5 Å.
+#     [V2] PAM-XIAMEN(powerwaywafer.com) 300 mm test-grade 스펙(2026-09-08 curl 확인):
+#          두께 775±25 µm, TTV 5 µm, WARP 60 µm.
+#     → prime(TTV≤3)와 test(TTV 5)의 차이가 곧 NPW 초기 TTV 범위다. 값은 µm 단위이며 nm로 환산해 적었다.
+#   ⚠ 막 증착 후 bow 는 기판 bow + 막응력 기여(Stoney)다. 막응력 기여의 정량은 팩·증착 조건에 따라 달라
+#     여기서는 **기판 bow 범위만** 적고 막응력 항은 미검증으로 남긴다.
+#   Roughness 는 **스캔 크기와 함께**만 의미가 있다(knowledge/cmp/wafer-surface-roughness-afm-scan-scale-dependence.md §2).
+#     각 값에 scan 필드를 병기한다. Rq(RMS)와 Ra 를 섞지 않는다 — 문헌이 준 것을 그대로 적고 종류를 표시한다.
+#
+# 스키마
+#   wafers[].id                 식별자(소문자 스네이크)
+#   wafers[].label              UI 표시명
+#   wafers[].diameter_mm        문헌 실험 직경(200/300). base 팩은 300 mm 기준이므로 200 mm 문헌값을 옮길 때 주의
+#   wafers[].purpose            무엇을 평가하는 웨이퍼인가
+#   wafers[].stack[]            위→아래. layer/material/deposition/thickness_nm/pack/stop/(pack_missing_reason)
+#   wafers[].initial            ttv_nm / roughness / bow_um — 각 {typical, range, kind, scan, source, confidence}
+#   wafers[].source             이 스택이 표준 테스트 웨이퍼임을 보여주는 문헌/특허
+#   wafers[].status             catalog_ok | pack_missing(첫 층 팩 없음 → 시뮬 불가, UI에 dead 배지)
+
+version: 1
+owner: wafer-type
+substrate_defaults:
+  diameter_mm: 300
+  thickness_um: {typical: 775, range: [750, 800], source: "[V1][V2] 775±25 µm (SEMI M1 준거 벤더 스펙)", confidence: literature}
+  ttv_nm: {typical: 3000, range: [1000, 5000], source: "[V1] prime TTV ≤3 µm, [V2] test TTV 5 µm", confidence: literature,
+           note: "하한 1 µm는 벤더 스펙에 없다 — 첨단 prime이 그 아래로 내려간다는 정성 지식뿐이라 ⚠미검증. 보수적으로 1 µm를 하한으로 둔다."}
+  bow_um: {typical: 10, range: [-30, 30], source: "[V1] BOW ≤30 µm(부호 없는 스펙 → ±로 해석)", confidence: literature,
+           note: "typical 10 µm는 스펙 절반 이하라는 추정이지 실측 분포가 아니다 ⚠미검증"}
+  warp_um: {range: [0, 60], source: "[V1] WARP ≤30 µm(prime), [V2] 60 µm(test)", confidence: literature}
+  substrate_roughness: {typical_ra_nm: 0.2, range_ra_nm: [0.1, 0.5], kind: Ra, scan: "벤더 스펙(스캔 크기 미표기)",
+                        source: "[V1] Ra ≤5 Å; Si 웨이퍼 500 nm FOV AFM RMS 0.11 nm (Sci. Rep. 9, 2019, doi:10.1038/s41598-018-36991-z, 초록 확인)",
+                        confidence: literature}
+
+wafers:
+
+  # ═══════════════════════════════ OXIDE ═══════════════════════════════
+  - id: teos_1um_si
+    label: "PE-TEOS 1.0 µm / Si"
+    diameter_mm: 300
+    purpose: "ILD oxide CMP 기본 평가 — 실리카 슬러리 Kp·WIWNU 기준선"
+    status: catalog_ok
+    stack:
+      - layer: TEOS
+        material: oxide
+        deposition: teos_pecvd
+        thickness_nm: 1000
+        pack: oxide_silica
+        stop: false
+      - layer: Si
+        material: si
+        thickness_nm: 775000
+        pack: null
+        pack_missing_reason: "기판. 실무에서 산화막 CMP는 기판을 노출시키지 않는다 — 노출 시 즉시 정지"
+        stop: true
+    initial:
+      film_thickness_nm: {typical: 1000, range: [700, 2000],
+        source: "Wei 2010 (Micron, WMED, doi:10.1109/wmed.2010.5453755) Table I PECVD-TEOS 700 nm 300 mm 샘플; US7351662 PETEOS 15,000 Å 200 mm(Advantiv) — knowledge/materials/film-oxide-teos-hdp-bpsg-sod-density-hardness.md §3",
+        confidence: literature}
+      ttv_nm: {typical: 3000, range: [1000, 5000], source: "substrate_defaults.ttv_nm ([V1][V2])", confidence: literature}
+      roughness: {typical_nm: 0.4, range_nm: [0.2, 0.5], kind: Rq, scan: "1×1 µm 및 10×10 µm AFM",
+        source: "GINECHIP TEOS oxide wafer 스펙 'RMS < 0.5 nm for both PECVD and LPCVD films' (ginechip.com, 벤더 자료, 2026-09-08 검색 스니펫 확인) — ⚠ 2차/벤더, 학술 1차 미확보",
+        confidence: unverified}
+      bow_um: {typical: 10, range: [-30, 30], source: "substrate_defaults.bow_um — PECVD TEOS 막응력 기여는 ⚠미검증", confidence: unverified}
+    source: >
+      Lee & Boning/Oji thesis (MIT 1999, dspace 1721.1/80109)가 blanket LPCVD TEOS 를 균일도 실험 원형으로 사용
+      (knowledge/cmp/npw-ptw-test-wafer-fundamentals.md §1, 1차). US7351662 (DuPont Air Products) 실시예:
+      "PETEOS 200 mm wafers ... film thickness specification 15,000 Å" (trea.com 전문, 2026-09-08 확인).
+      EP3689988B1 (Versum) 실시예: "PECVD or LECVD or HD TEOS blanket wafers ... purchased from Silicon Valley Microelectronics".
+
+  - id: peteos_1p5um_si_200mm
+    label: "PE-TEOS 1.5 µm / Si (200 mm, 특허 실시예 사양)"
+    diameter_mm: 200
+    purpose: "STI/ILD 슬러리 특허 실시예 재현용 — 200 mm 문헌 데이터(mariscal2020 등) 대조"
+    status: catalog_ok
+    stack:
+      - layer: PETEOS
+        material: oxide
+        deposition: teos_pecvd
+        thickness_nm: 1500
+        pack: sti_ceria
+        stop: false
+      - layer: Si
+        material: si
+        thickness_nm: 725000
+        pack: null
+        pack_missing_reason: "기판"
+        stop: true
+    initial:
+      film_thickness_nm: {typical: 1500, range: [1500, 1500], source: "US7351662: 'PETEOS film thickness specification for these wafers is 15,000 Å' (200 mm, Advantiv)", confidence: literature}
+      substrate_thickness_um: {typical: 725, source: "[V1] 200 mm 725±20 µm", confidence: literature}
+      ttv_nm: {typical: 3000, range: [1000, 5000], source: "substrate_defaults ([V1][V2]는 300 mm 스펙 — 200 mm는 통상 더 느슨하다는 정성 지식뿐 ⚠)", confidence: unverified}
+      roughness: {typical_nm: 0.4, range_nm: [0.2, 0.5], kind: Rq, scan: "1×1 µm AFM", source: "teos_1um_si 와 동일(벤더, 2차)", confidence: unverified}
+      bow_um: {range: [-30, 30], source: "substrate_defaults", confidence: unverified}
+    source: >
+      US7351662 실시예(위). validation/datasets/mariscal2020_peteos_ceria_pressure_velocity_3x3.yaml —
+      Mariscal et al. 2020 (ECS JSS 9 044008, doi:10.1149/2162-8777/ab89bc) "PETEOS-based SiO2 blanket wafers", 200 mm.
+      ⚠ Mariscal 논문의 막두께는 데이터셋 노트에 없어 US7351662 사양(15 kÅ)을 대표값으로 썼다.
+
+  - id: hdp_oxide_700nm_si
+    label: "HDP oxide 0.7 µm / Si"
+    diameter_mm: 200
+    purpose: "STI 매립 산화막 CMP — 세리아 슬러리 제거율·패드 경도 평가 (kenchappa2021 재현)"
+    status: catalog_ok
+    stack:
+      - layer: HDP_SiO2
+        material: oxide
+        deposition: hdp_cvd
+        thickness_nm: 700
+        pack: sti_ceria
+        stop: false
+      - layer: Si
+        material: si
+        thickness_nm: 725000
+        pack: null
+        pack_missing_reason: "기판"
+        stop: true
+    initial:
+      film_thickness_nm: {typical: 700, range: [500, 1000],
+        source: "Wei 2010 Table I HDP 700 nm(300 mm); Kenchappa 2021 (ECS JSS 10 014008, doi:10.1149/2162-8777/abdc40) blanket HDP oxide 200 mm — 두께 본문 미기재라 Wei 값을 씀 ⚠",
+        confidence: literature}
+      ttv_nm: {typical: 3000, range: [1000, 5000], source: "substrate_defaults", confidence: literature}
+      roughness: {kind: Rq, source: "HDP as-deposited 조도 1차 문헌 미확보 — ⚠미검증. TEOS와 같은 서브nm대라는 정성 지식만", confidence: unverified}
+      bow_um: {range: [-30, 30], source: "substrate_defaults. HDP는 압축응력(−100~−300 MPa, ninescrolls.com 기술블로그 2차)이라 bow가 음(convex)으로 이동 — 정량 ⚠미검증", confidence: unverified}
+    source: >
+      Kenchappa et al. 2021 — "polishing experiments were performed with blanket High-Density Plasma deposited
+      silicon dioxide [oxide] wafers" (papers/kenchappa2021-soft-pad-oxide-cmp-jss.txt, 1차 전문 확인).
+      validation/datasets/kenchappa2021_softpad_hdp_oxide.yaml.
+
+  - id: thermal_oxide_1um_si
+    label: "Thermal SiO2 1.0 µm / Si"
+    diameter_mm: 300
+    purpose: "가장 치밀한 산화막 기준선 — 슬러리 화학(pH·Ce3+) 평가 (li2021, netzband2020 재현)"
+    status: catalog_ok
+    stack:
+      - layer: thermal_SiO2
+        material: oxide
+        deposition: thermal_oxide
+        thickness_nm: 1000
+        pack: oxide_silica
+        stop: false
+      - layer: Si
+        material: si
+        thickness_nm: 775000
+        pack: null
+        pack_missing_reason: "기판"
+        stop: true
+    initial:
+      film_thickness_nm: {typical: 1000, range: [300, 1300],
+        source: "Li 2021 (ECS JSS 10 123008, doi:10.1149/2162-8777/ac3e44): 열산화 SiO2 1.3 µm, 300 mm, SKW (validation/datasets/li2021_oxide_silica_ph.yaml 주석); Netzband 2020 열산화막 쿠폰(두께 미기재)",
+        confidence: literature}
+      ttv_nm: {typical: 3000, range: [1000, 5000], source: "substrate_defaults", confidence: literature}
+      roughness: {typical_nm: 0.15, range_nm: [0.1, 0.3], kind: Rq, scan: "500 nm FOV AFM (기판 값)",
+        source: "열산화막은 기판 표면을 그대로 복제한다(정성). 기판: Sci. Rep. 2019 RMS 0.11 nm(500 nm FOV); [V1] Ra ≤5 Å. ⚠ 열산화막 자체의 as-grown Rq 1차 수치는 미확보 — 기판값 대용, 미검증",
+        confidence: unverified}
+      bow_um: {range: [-30, 30], source: "substrate_defaults. 열산화막은 압축응력(~−300 MPa 교과서값, 1차 미확보 ⚠)", confidence: unverified}
+    source: >
+      Li et al. 2021 실험 웨이퍼 사양(열산화 1.3 µm/300 mm/SKW) — papers/slurry-additives-cmp-oxide-ac3e44.pdf.
+      Netzband & Dunn 2020 (ECS JSS 9 044001, doi:10.1149/2162-8777/ab8393) "wafers of thermal oxide or PECVD nitride on silicon"
+      (papers/netzband2020-jss-ceria-oxidation-state-oxide-cmp.pdf 1차 전문 확인).
+      ⚠ oxide_silica 팩의 Kp는 STI 문헌점에서 캘리브레이션됐고 열산화막은 TEOS보다 치밀해 느리게 깎인다
+      (knowledge/materials/film-oxide-teos-hdp-bpsg-sod-density-hardness.md) — 막종류별 Kp 분리는 미구현.
+
+  # ═══════════════════════════════ NITRIDE (정지층 평가) ═══════════════════════════════
+  - id: sin_300nm_oxide_si
+    label: "SiN 0.3 µm / pad-oxide / Si (STI stop 선택비 평가)"
+    diameter_mm: 200
+    purpose: "STI 정지층 자체의 제거율 측정 → oxide:nitride 선택비 분모. sti_ceria 팩 oxide_nitride_selectivity 검증 대상"
+    status: pack_missing
+    stack:
+      - layer: SiN
+        material: nitride
+        deposition: lpcvd_or_pecvd
+        thickness_nm: 300
+        pack: null
+        pack_missing_reason: "nitride 전용 팩 없음(film-nitride 에이전트 대기). 현재는 sti_ceria.oxide_nitride_selectivity=60 으로 oxide MRR/60 근사만 가능 — sim/timeline.py transitional_mrr() 경로"
+        stop: false
+      - layer: pad_oxide
+        material: oxide
+        deposition: thermal_oxide
+        thickness_nm: 10
+        pack: oxide_silica
+        stop: false
+      - layer: Si
+        material: si
+        thickness_nm: 725000
+        pack: null
+        pack_missing_reason: "기판"
+        stop: true
+    initial:
+      film_thickness_nm: {typical: 300, range: [100, 300],
+        source: "US7351662: 'silicon nitride film thickness specification for these wafers is 3,000 Å' (SVM, 200 mm); Ranaweera 2019 (ECS JSS 8 P3001, doi:10.1149/2.0021905jss) Si3N4 ~300 nm on 200 mm Si",
+        confidence: literature}
+      pad_oxide_note: "pad oxide 10 nm는 STI 통합 구조의 관행값이며 블랭킷 SiN 테스트 웨이퍼에 반드시 있는 층은 아니다 ⚠미검증(문헌 사양은 'SiN on Si'만 명시)"
+      ttv_nm: {typical: 3000, range: [1000, 5000], source: "substrate_defaults", confidence: literature}
+      roughness: {typical_nm: 0.4, range_nm: [0.2, 0.6], kind: Rq, scan: "5~10 µm AFM",
+        source: "LPCVD Si3N4 RMS 0.39 nm (arXiv 2411.01724, 2024, 스니펫 확인); 저온 PECVD SiN 최적 RMS 0.58 nm (J. Appl. Phys. 126 115302, 2019, 초록) — 광도파로용 막이라 CMP 테스트 웨이퍼와 증착 조건 다를 수 있음 ⚠",
+        confidence: unverified}
+      bow_um: {range: [-30, 30], source: "substrate_defaults. LPCVD SiN은 강한 인장응력(~1 GPa 교과서값, 1차 미확보 ⚠) → 300 nm에서도 bow 수십 µm 가능", confidence: unverified}
+    source: >
+      Dandu Veera, Peddeti, Babu 2009 (JES 156 H936, doi:10.1149/1.3230624) "RRs of blanket silicon dioxide and silicon
+      nitride films" — nitride ~80 nm/min vs oxide ~350 nm/min (validation/datasets/dandu2009_sio2_ceria_ph_sweep.yaml 주석).
+      Mariscal 2020 제목 자체가 "SiO2 and Si3N4 Polishing for STI CMP on Blanket and Patterned Wafers".
+      EP3689988B1 "SiN blanket wafers were polished at baseline conditions".
+
+  # ═══════════════════════════════ POLY-Si ═══════════════════════════════
+  - id: poly_2um_oxide_si
+    label: "poly-Si 2.0 µm / thermal oxide / Si"
+    diameter_mm: 200
+    purpose: "게이트/MEMS poly CMP — poly:oxide 선택비, 정지층=oxide"
+    status: pack_missing
+    stack:
+      - layer: poly_Si
+        material: poly_si
+        deposition: lpcvd
+        thickness_nm: 2000
+        pack: null
+        pack_missing_reason: "poly-Si 팩 없음(film-poly-si 에이전트 대기). 제거율 문헌: undoped/P-doped 200/250 nm/min (Dandu & Babu, amines/amino acids 논문 초록) — 팩 작성 시 근거"
+        stop: false
+      - layer: thermal_SiO2
+        material: oxide
+        deposition: thermal_oxide
+        thickness_nm: 100
+        pack: oxide_silica
+        stop: false
+      - layer: Si
+        material: si
+        thickness_nm: 725000
+        pack: null
+        pack_missing_reason: "기판"
+        stop: true
+    initial:
+      film_thickness_nm: {typical: 2000, range: [500, 2000],
+        source: "Langmuir 2011 (doi:10.1021/la104257k) 'Blanket poly-Si wafers (2000 nm thick, LPCVD at ~610 °C) ... DK Nanotechnology'(초록 스니펫); PolyMUMPs Poly0 500 nm(MEMS 관행)",
+        confidence: literature}
+      oxide_under_note: "하지 열산화막 100 nm는 la104257k 스니펫 'Thermal oxide ...'가 별도 웨이퍼인지 하지층인지 불명 — ⚠미검증 관행값"
+      ttv_nm: {typical: 3000, range: [1000, 5000], source: "substrate_defaults", confidence: literature}
+      roughness: {typical_nm: 1.5, range_nm: [1.0, 2.5], kind: Rq, scan: "1×1 µm AFM",
+        source: "MEMSnet 물성표: LPCVD n+ poly RMS 1.45 nm @1×1 µm (J. Mater. Res. 12(1) 1997 p.60), 1.07 nm @500×500 nm; JVST A 25(4) 1034 (2007) 'as-deposited LPCVD polysilicon ~2.3 nm rms'(초록). ⚠ 610 °C 완전결정화 두꺼운 막은 71 nm RMS까지 보고(Microsyst. Nanoeng. 2024) — 증착 온도 의존 큼",
+        confidence: literature}
+      bow_um: {range: [-30, 30], source: "substrate_defaults. LPCVD poly 내부응력 −0.18 GPa(MEMSnet, Sens. Act. 20 1989) → 2 µm에서 bow 기여 있음, 정량 ⚠미검증", confidence: unverified}
+    source: >
+      Langmuir 27 (2011) doi:10.1021/la104257k (Babu 그룹, PDADMAC 선택 poly-Si CMP) 실험 웨이퍼 사양(초록 스니펫, 원문 미확보).
+      knowledge/cmp/npw-ptw-test-wafer-fundamentals.md §1 "MEMS 구조 CMP 특성화에 블랭킷 폴리실리콘 사용"(2차).
+
+  # ═══════════════════════════════ METAL ═══════════════════════════════
+  - id: cu_ecd_1um_tan_teos_si
+    label: "ECD Cu 1.0 µm / Cu seed 0.1 µm / Ta(N) 25 nm / TEOS 0.5 µm / Si"
+    diameter_mm: 200
+    purpose: "Cu bulk CMP(1단계) — Kp·산화제/억제제 화학 평가. 배리어 노출이 endpoint"
+    status: catalog_ok
+    stack:
+      - layer: Cu_ECD
+        material: cu
+        deposition: ecp_plating
+        thickness_nm: 1000
+        pack: cu_h2o2_bta
+        stop: false
+      - layer: Cu_seed
+        material: cu
+        deposition: pvd
+        thickness_nm: 100
+        pack: cu_h2o2_bta
+        stop: false
+      - layer: Ta
+        material: ta
+        deposition: pvd
+        thickness_nm: 25
+        pack: null
+        pack_missing_reason: "배리어 팩 없음(2단계 barrier CMP 슬러리는 별도 화학). Cu 팩에 cu:ta 선택비 파라미터도 없음 → 여기서 반경별 연마 정지 = 실무의 'Cu clear 후 배리어 슬러리로 교체' 시점"
+        stop: false
+      - layer: TEOS
+        material: oxide
+        deposition: teos_pecvd
+        thickness_nm: 500
+        pack: oxide_silica
+        stop: false
+      - layer: Si
+        material: si
+        thickness_nm: 725000
+        pack: null
+        pack_missing_reason: "기판"
+        stop: true
+    initial:
+      film_thickness_nm: {typical: 1000, range: [700, 1500],
+        source: "US20110165777A1 실시예: 'Cu 10,000 Å / Cu seed 1,000 Å / Ta 250 Å on silicon' (validation/datasets/us20110165777a1_cu_h2o2_series.yaml); Skorpios 벤더 7~15 kÅ(2차); USF 학위논문 'Electroplated Copper blanket films of 15000 Å'(스니펫); Lai MIT 2001 'Si / TiN 20 nm / PVD Cu 1 µm'(knowledge/equipment/cmp-tool-architecture.md §4)",
+        confidence: literature}
+      ttv_nm: {typical: 3000, range: [1000, 5000], source: "substrate_defaults", confidence: literature}
+      roughness: {typical_nm: 10, range_nm: [1, 40], kind: Rq, scan: "AFM, 스캔 크기 문헌마다 다름",
+        source: "JVST B 22(3) 1108 (2004) 'Characterization of electroplated copper films' — 특정 레시피에서 center 28 nm → edge 37 nm(스니펫); Murata 기술문서 ECD Cu rms <10 nm(Cabas) / <16 nm(Electrobrite); Microelectron. Eng. 2005 (doi:10.1016/j.mee.2005.04.xxx 미확인) '엣지 조도가 두께와 함께 증가'. ⚠ 도금 첨가제·두께·어닐 의존이 커서 범위가 한 자릿수 이상 벌어진다 — typical 10 nm는 그 중앙 추정",
+        confidence: unverified}
+      bow_um: {range: [-30, 30], source: "substrate_defaults. ECD Cu 자기어닐(self-anneal) 중 응력 완화로 bow가 시간에 따라 변함 — 정량 ⚠미검증", confidence: unverified}
+    source: >
+      US20110165777A1 (DuPont Air Products) 실시예 웨이퍼 사양(위). US9200180B2 / TW202115224A(Versum) "전면 전해도금 Cu 웨이퍼"
+      (validation/datasets). Lee et al. 2021 (Sci. Rep. 11 21214, doi:10.1038/s41598-021-00689-6) "300 mm 전해도금 Cu 블랭킷 웨이퍼"
+      (papers/PMC8551296.xml). Lai 2001 MIT 100 mm Si/TiN 20 nm/PVD Cu 1 µm (cmp-tool-architecture.md §4).
+
+  - id: w_cvd_800nm_tin_ti_teos_si
+    label: "CVD W 0.8 µm / TiN 10 nm / Ti 15 nm / TEOS 0.5 µm / Si"
+    diameter_mm: 200
+    purpose: "W plug CMP — Fe계 산화제 슬러리 Kp 평가 (us8070843b2 재현)"
+    status: catalog_ok
+    stack:
+      - layer: W_CVD
+        material: w
+        deposition: cvd_w
+        thickness_nm: 800
+        pack: w_fe_oxidizer
+        stop: false
+      - layer: TiN
+        material: tin
+        deposition: pvd_or_cvd
+        thickness_nm: 10
+        pack: null
+        pack_missing_reason: "TiN/Ti 라이너 팩 없음. 실무 W 슬러리는 Ti/TiN도 깎지만(US8070843B2 'pattern wafer was clear ... including the Ti and TiN layers') 우리 팩에 w:tin 선택비 파라미터 없음 → 미검증으로 정지"
+        stop: false
+      - layer: Ti
+        material: ti
+        deposition: pvd
+        thickness_nm: 15
+        pack: null
+        pack_missing_reason: "동상"
+        stop: false
+      - layer: TEOS
+        material: oxide
+        deposition: teos_pecvd
+        thickness_nm: 500
+        pack: oxide_silica
+        stop: false
+      - layer: Si
+        material: si
+        thickness_nm: 725000
+        pack: null
+        pack_missing_reason: "기판"
+        stop: true
+    initial:
+      film_thickness_nm: {typical: 800, range: [400, 800],
+        source: "US8070843B2 (3M): 'about 500 nm (5,000 Å) TEOS, about 15 nm (150 Å) titanium, about 10 nm (100 Å) titanium nitride, and about 800 nm (8,000 Å) cvd tungsten' (Ramco, 200 mm; 같은 명세서 다른 단락은 400 nm PETEOS/600 nm W 빌드도 기재) — patents.google.com 전문 2026-09-08 확인",
+        confidence: literature}
+      ttv_nm: {typical: 3000, range: [1000, 5000], source: "substrate_defaults", confidence: literature}
+      roughness: {typical_nm: 10, range_nm: [5, 20], kind: Rq, scan: "AFM(스캔 크기 미기재)",
+        source: "US20140017891A1 (Novellus): 'AFM roughness of a 1940 Å film as deposited was 9.7 nm ... conventionally deposited 1720 Å film was 9 nm'; 'RMS roughness to film thickness may exceed 10% for low resistivity tungsten films of 500 Å or greater'. ⚠ 800 nm 막의 직접 측정치는 미확보 — 200 nm 막 9~10 nm에서 두께와 함께 증가한다는 정성으로 상한 20 nm 추정",
+        confidence: unverified}
+      bow_um: {range: [-30, 30], source: "substrate_defaults. CVD W 인장응력 큼(정성) — 정량 ⚠미검증", confidence: unverified}
+    source: >
+      US8070843B2 (3M Innovative Properties) 실시예 블랭킷 W 웨이퍼 사양(위) — validation/datasets/us8070843b2_w_h2o2_series.yaml.
+      US20110186542A1 W 실시예도 동일 계열(validation/datasets).
+
+  - id: co_pvd_500nm_tin_si
+    label: "PVD Co 0.5 µm / TiN or Ti 25 nm / SiO2 / Si"
+    diameter_mm: 200
+    purpose: "Co 배선/컨택 CMP — 알칼리 슬러리 Co 제거율·부식 평가"
+    status: pack_missing
+    stack:
+      - layer: Co_PVD
+        material: co
+        deposition: pvd
+        thickness_nm: 500
+        pack: null
+        pack_missing_reason: "Co 팩 없음(film-emerging 에이전트 대기). 문헌 요구 제거율: bulk >1000 Å/min, barrier <500 Å/min (US20170362466A1) — 팩 작성 시 근거"
+        stop: false
+      - layer: Ti_or_TiN
+        material: tin
+        deposition: pvd
+        thickness_nm: 25
+        pack: null
+        pack_missing_reason: "라이너 팩 없음"
+        stop: false
+      - layer: SiO2
+        material: oxide
+        deposition: teos_pecvd
+        thickness_nm: 500
+        pack: oxide_silica
+        stop: false
+      - layer: Si
+        material: si
+        thickness_nm: 725000
+        pack: null
+        pack_missing_reason: "기판"
+        stop: true
+    initial:
+      film_thickness_nm: {typical: 500, range: [300, 500],
+        source: "US20170362466A1 (Versum): 'blanket PVD cobalt wafer with 5K Angstroms in thickness ... purchased from Silicon Valley Microelectronics'; Ranaweera et al. 2019 (ECS JSS 8 P3001, doi:10.1149/2.0021905jss, /tmp 전문 확인): 'PVD ~300 nm thick Co films on 200 mm Si wafers over a ~25 nm thick Ti layer'",
+        confidence: literature}
+      ttv_nm: {typical: 3000, range: [1000, 5000], source: "substrate_defaults", confidence: literature}
+      roughness: {typical_nm: 0.8, range_nm: [0.5, 1.0], kind: Rq, scan: "350×260 µm 광학 프로파일로미터(Zygo) — AFM 아님",
+        source: "Ranaweera 2019: post-polish Rq <0.8 nm, P/V ~6 nm, 'comparable to those of virgin Co blanket films' → virgin(as-deposited) Rq도 ~1 nm 미만으로 해석. ⚠ 광학 프로파일로미터 값이라 AFM 1 µm 스캔값과 직접 비교 불가",
+        confidence: literature}
+      bow_um: {range: [-30, 30], source: "substrate_defaults", confidence: unverified}
+    source: >
+      US20170362466A1 (Versum Materials, "CMP of Cobalt-Containing Substrates") 실시예 — patents.google.com 전문 2026-09-08 확인.
+      Ranaweera, Baradanahalli, Popuri, Seo, Babu 2019 ECS JSS 8(5) P3001 (OA CC BY-NC-ND).
+
+  - id: ru_pvd_300mm_si
+    label: "Ru blanket (SKW 300 mm) / SiO2 / Si"
+    diameter_mm: 300
+    purpose: "Ru 배리어/라이너 CMP — H2O2계 슬러리 Ru 제거율, Cu/Ru 갈바닉 선택비 평가"
+    status: pack_missing
+    stack:
+      - layer: Ru
+        material: ru
+        deposition: pvd
+        thickness_nm: null
+        pack: null
+        pack_missing_reason: "Ru 팩 없음(film-emerging 대기). 두께: Xu 2021은 '12 inch ruthenium blanket wafers (SKW Associates)'만 기재, Lee 2021은 4점 프로브로 두께 측정했으나 초기값 미기재 → thickness_nm ⚠미검증(null). UI 입력 필수"
+        stop: false
+      - layer: SiO2
+        material: oxide
+        deposition: thermal_oxide
+        thickness_nm: null
+        pack: oxide_silica
+        stop: false
+      - layer: Si
+        material: si
+        thickness_nm: 775000
+        pack: null
+        pack_missing_reason: "기판"
+        stop: true
+    initial:
+      film_thickness_nm: {source: "⚠미검증 — 문헌 2건 모두 Ru 초기 두께 미기재. 배선 배리어 실제 두께는 40~50 Å(Lee 2021 서론)이지만 블랭킷 테스트 웨이퍼는 그보다 두껍게 만든다(정성)", confidence: unverified}
+      ttv_nm: {typical: 3000, range: [1000, 5000], source: "substrate_defaults", confidence: literature}
+      roughness: {kind: Rq, source: "⚠미검증 — Xu 2021 AFM은 DI 침지 후 '결정립 ~30 nm, 매우 평활' 정성 서술만; Lee 2021 Fig.5b Rq는 post-CMP 값(Ru < Cu)이고 초기값 아님", confidence: unverified}
+      bow_um: {range: [-30, 30], source: "substrate_defaults", confidence: unverified}
+    source: >
+      Xu et al. 2021 (RSC Adv. 12 228, doi:10.1039/d1ra08243d): "3 inch wafers cut from 12 inch ruthenium blanket wafers
+      (SKW Associates, Inc., USA)" (papers/xu2021-ru-eda-cmp-d1ra08243d.txt 1차). Lee et al. 2021 Sci. Rep. 11 21214
+      Cu/Ru 블랭킷 (papers/PMC8551296.xml; validation/datasets/lee2021_cu_nicotinic_inhibitor.yaml).
+
+  # ═══════════════════════════════ 비-Si 기판 (팩이 있어 포함) ═══════════════════════════════
+  - id: sic_4h_bulk
+    label: "4H-SiC 벌크 (Si-face) — 기판 직접 연마"
+    diameter_mm: 150
+    purpose: "SiC 기판 CMP — sic_ceria_h2o2 팩 전용. Si 반도체 NPW가 아니라 기판 자체가 피연마체"
+    status: catalog_ok
+    stack:
+      - layer: SiC_4H
+        material: sic
+        deposition: bulk_crystal
+        thickness_nm: 350000
+        pack: sic_ceria_h2o2
+        stop: false
+        note: "stop=false 이지만 실제로는 수 µm만 제거한다 — timeline이 total_s 로 끝난다. 두께 350 µm는 150 mm SiC 기판 통상값(⚠벤더 관행, 1차 미확보)"
+    initial:
+      ttv_nm: {source: "⚠미검증 — SiC 기판 TTV 스펙(SEMI M55)은 Si와 다르며 원문 미확보", confidence: unverified}
+      roughness: {typical_nm: 0.2, range_nm: [0.1, 0.3], kind: Ra, scan: "AFM(SI 표 미기재)",
+        source: "Wang et al. ACS SI Table S3 roughness_ra_nm 열 0.128~0.29 (validation/datasets/sic2026_ceria_h2o2_ph_DOE50.yaml) — ⚠ 이는 post-CMP 값. 초기(as-lapped) Ra는 미기재 → 미검증",
+        confidence: unverified}
+      bow_um: {source: "⚠미검증", confidence: unverified}
+    source: >
+      validation/datasets/sic2026_ceria_h2o2_ph_DOE50.yaml (Wang et al., ACS SI Table S3, figshare 31056549).
+      ⚠ 이 항목은 팩이 존재해 카탈로그에 넣었을 뿐, 사용자 지시의 'NPW'(Si 위 블랭킷 막) 범주 밖이다.
+
+# ══════════════════════════════════════════════════════════════════════════════════════
+# 층 전이 설계 제안 (구현 아님 — 데이터 구조만)
+# ══════════════════════════════════════════════════════════════════════════════════════
+layer_transition_design:
+  현재_상태: >
+    sim/timeline.py 가 이미 반경별 시간 스텝 루프를 갖고 있다. 층 i 가 어떤 반경에서 소진되면 그 반경만
+    층 i+1 로 넘어가고, 층 i+1 에 pack 이 없으면 transitional_mrr() 이 이전 층 팩의
+    `oxide_nitride_selectivity` 하나를 고정 키로 찾아 MRR/sel 로 근사한다. 세 가지 결함이 있다:
+    (a) 선택비 키가 oxide→nitride 하나로 하드코딩돼 Cu→Ta, W→TiN, poly→oxide 전이를 표현할 수 없다.
+    (b) 선택비의 방향(어느 팩이 어느 막을 깎을 때의 비인지)이 데이터에 없다.
+    (c) 전이가 즉시 전환이라 혼합 접촉 구간(같은 반경 격자 안에 두 층이 동시 노출)이 없다.
+    (d) **실측 확인된 버그(2026-09-08, tools/check_npw_catalog.py 실행):** hdp_oxide_700nm_si 를 돌리면
+        "층 'Si'에 팩이 없어 이전 층 팩의 oxide_nitride_selectivity=60로 MRR/60 근사" 노트가 뜬다.
+        루프가 `transitional_mrr(li, li+1)` 을 `layers[li+1].stop` 검사보다 먼저 호출해 **기판(Si)에
+        oxide:nitride 선택비를 적용**한다. stop 덕에 실제로 깎이진 않지만 노트가 거짓이고, 선택비가
+        막질을 묻지 않는다는 (b)의 증거다. 제안 2의 material 키 조회로 고쳐지며, stop 층은 조회 전에 걸러야 한다.
+  제안_1_팩에_선택비_테이블: >
+    팩(knowledge/params/*.yaml)의 params 에 `selectivity_vs:` 맵을 둔다. 팩이 자기 주 막질(film) 대비
+    **다른 막질을 얼마나 느리게 깎는지**를 소유한다 — 선택비는 슬러리의 성질이므로 팩이 소유자다.
+      sti_ceria.params.selectivity_vs:
+        nitride: {value: 60, source: "Hwang 2024 59~80 하단", confidence: literature}
+        poly_si: {value: null, confidence: unverified}
+      cu_h2o2_bta.params.selectivity_vs:
+        ta:      {value: null, note: "Cu bulk 슬러리는 Ta를 거의 못 깎는다(정성) — 미검증이면 null"}
+        oxide:   {value: null}
+      w_fe_oxidizer.params.selectivity_vs:
+        tin:     {value: null, note: "US8070843B2 'clear including Ti and TiN' — 깎이긴 하나 비율 미기재"}
+    기존 `oxide_nitride_selectivity` 는 `selectivity_vs.nitride` 의 별칭으로 남겨 하위 호환한다.
+  제안_2_층_MRR_해석_규칙: >
+    timeline 이 층 L 의 MRR(r)을 정할 때 아래 순서로 해석하고, 어느 경로였는지 frame.notes 에 남긴다:
+      1. L.pack 이 있으면 그 팩으로 simulate() — 정식 모델.
+      2. 없으면, **직전 층의 팩** P 에서 selectivity_vs[L.material] 을 찾는다.
+         있으면 MRR_L(r) = MRR_prev(r) / sel, status='selectivity_approx'.
+      3. 그것도 없으면 그 반경은 정지(status='no_model'). 지어내지 않는다 — 현재 동작 유지.
+    핵심은 "직전 층의 팩"이다: 실무에서 TEOS를 깎던 세리아 슬러리가 SiN을 만나면 슬러리는 그대로이고
+    막만 바뀐다. 따라서 전이 후 MRR은 '새 층의 팩'이 아니라 '**같은 슬러리의 새 막에 대한 선택비**'다.
+    2단계 CMP(Cu clear 후 배리어 슬러리 교체)는 별개 문제이며, 이는 레시피 steps 로 팩을 바꾸는 것이지
+    스택 전이가 아니다 — 카탈로그의 Ta 층에 pack: null 을 둔 이유.
+  제안_3_혼합_접촉_구간: >
+    반경 격자 한 칸 안에서도 WIWNU·조도 때문에 두 층이 동시에 노출된다. 즉시 전환 대신 노출 분율 f_L(r)
+    가중 평균을 쓴다: MRR(r) = Σ f_L(r)·MRR_L(r). f 는 층 잔량이 0에 가까워질 때 초기 TTV·조도 스케일
+    (initial.ttv_nm, roughness)을 폭으로 하는 로지스틱으로 0→1 전이시키면 초기값 입력이 결과에 실제로
+    반응한다(사용자 지시 "이 NPW 기준으로 CMP 퍼포먼스가 산출되도록"의 연결 통로). 폭 파라미터는
+    문헌 폐형식이 없으므로 confidence: unverified 로 팩이 아니라 카탈로그 wafer.initial 에서 가져온다.
+  제안_4_초기값의_엔진_연결: >
+    - initial.ttv_nm → 층 두께를 반경별로 흔든다: thickness(r) = thickness_nm + ttv_profile(r), 프로파일
+      형태(선형 웨지 / 중심 두꺼움)는 UI 선택. 이러면 "반경마다 전이 시점이 다르다"가 초기 TTV 에도 반응한다.
+    - initial.roughness → 제안 3 의 전이 폭 하한.
+    - initial.bow_um → 현재 엔진에 압력분포↔bow 연결 없음. `status: unmodeled` 로 결과 notes 에 명시하고
+      값은 받아 저장만 한다(거짓 연결 금지).
+  데이터_구조_요약: >
+    catalog.wafers[].stack[] (layer, material, thickness_nm, pack, stop) → sim.timeline.Layer 로 1:1 매핑.
+    material 필드가 새로 필요하다 — 선택비 조회 키가 layer 이름("SiN")이 아니라 막질("nitride")이어야
+    팩의 selectivity_vs 와 맞물린다. Layer 데이터클래스에 material: str 추가 제안(코드 변경은 트랙 B).
+  검증_계약: >
+    - 팩 selectivity_vs 값에 source/confidence 필수(test_every_param_carries_a_source 확장).
+    - 카탈로그 stack[].pack ∈ ls knowledge/params (이 파일 검증 스크립트).
+    - selectivity_approx 경로로 깎인 층이 있으면 WaferResult/Timeline notes 에 ⚠ 반드시 실린다.

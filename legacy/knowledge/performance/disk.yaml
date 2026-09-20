@@ -1,0 +1,326 @@
+# 컨디셔너 디스크 성능 결정 인자 — 문헌·특허 근거. 시뮬레이터 UI 슬라이더 범위와 영향 방향의 정본.
+#
+# 규칙은 pad.yaml 상단과 동일. 지표 정의:
+#   pcr(패드 절삭율 µm/h) · pad_roughness(컨디셔닝 후 패드 Ra/Rpk — "+"는 거칠어짐) · disk_life(디스크 수명)
+#   scratch(웨이퍼 스크래치/결함 — ↑가 나쁨) · mrr(웨이퍼 제거율) · pcr_stability(PCR 시간 안정성)
+#   pad_life(패드 수명 — 절삭율의 역) · uniformity(패드 마모 프로파일/WIWNU 개선)
+# ⚠ 제조사 데이터시트에 없는 정량치(그릿 밀도·돌출)는 특허·1차 논문에서만 나온다 — 범위 출처는 전부 그쪽이다.
+# 엔진 연결: 디스크 축은 컨디셔닝 '운전' 변수(cond_downforce_lbf·cond_sweep_cpm·cond_duty_pct)만 Γ에 연결돼 있고,
+#   디스크 '설계' 변수는 패드 asperity 팩 키(pad_asperity_radius_m·pad_asperity_density_m2)로 간접 매핑되나
+#   비례상수 미확정(components/conditioner.yaml status partial). 아래 status는 그 사실을 그대로 적는다.
+
+meta:
+  component: conditioner_disk
+  schema_ref: knowledge/components/conditioner.yaml
+  engine_pack: knowledge/params/base.yaml
+  created: 2026-09-08
+  mesh_to_um_table:
+    note: >
+      US mesh ↔ µm 공칭값. US8104464B2(브레이징 특허) 본문은 400 mesh = 34 µm로 명시하나 업계 통용표는 38 µm
+      (약 10.5% 차이, 정의 차이로 추정·미확정) — knowledge/equipment/diamond-grit-mesh-bonding.md §2.
+      아래 표는 업계 통용 공칭값(근사)이며 특허 표기와 최대 ~10% 어긋날 수 있다. Kim & Kang 2011의 "80 mesh"
+      전착 디스크 그릿 높이 분포 40~90 µm(cvd-diamond-disk-patterned-grit-array.md §2)와 정합.
+    rows:
+      - {mesh: "40/50",  um_nominal: "300–425", source: "US8104464B2 실시예 표기(40/50 mesh, SDA-85+); AMAT-3M DOE 상한 425 µm (conditioner-disk-spec-recipe-industrial.md §2)"}
+      - {mesh: "60/70",  um_nominal: "212–250", source: "통용표(근사); 3M 1세대 250 µm semi-sharp (conditioner-grit-design-space.md §2)"}
+      - {mesh: "80",     um_nominal: "~180",    source: "Kim & Kang 2011 80 mesh 전착 = 3M E187 공칭 181 µm, JP4508514B2 실시예1 180 µm"}
+      - {mesh: "100",    um_nominal: "~150",    source: "Sun 2009 100-grit vs 325-grit (disk-design-pad-roughness-asperity-relation.md §2.3); 3M 150 µm leveled"}
+      - {mesh: "120/140", um_nominal: "106–125", source: "통용표(근사); 3M 125 µm sharp (Region A)"}
+      - {mesh: "170/200", um_nominal: "75–90",  source: "통용표(근사); 3M 90 µm; SARD 76~126 µm (US8657652B2)"}
+      - {mesh: "325",    um_nominal: "~45",     source: "Sun 2009 325-grit; 3M 45 µm sharp (Region C)"}
+      - {mesh: "400",    um_nominal: "34–38",   source: "US8104464B2 본문 34 µm vs 통용표 38 µm"}
+
+factors:
+
+  # ───────────────────────── 1. 그릿 크기 ─────────────────────────
+  - key: grit_size_um
+    label: "Diamond grit size (µm)"
+    range: {min: 45, max: 425, unit: "µm"}
+    range_source: >
+      최소 45: Pysher et al. 2010 (3M, MRS Proc. 1249-E02-04, DOI 10.1557/proc-1249-e02-04) 설계지도 45 µm sharp —
+      knowledge/equipment/conditioner-grit-design-space.md §2; EHWA CVD 팁 45×45 µm²(McAllister 2019, DOI 10.3390/mi10040258).
+      최대 425: AMAT-3M DOE "그릿 크기 100–425 µm" — knowledge/equipment/conditioner-disk-spec-recipe-industrial.md §2;
+      US8104464B2 40/50 mesh(300~425 µm). JP4508514B2 실시예 180/280 µm.
+    typical: 180
+    typical_source: "3M E187 공칭 181 µm; JP4508514B2 실시예1 180 µm; Shin 2018 145~205 µm"
+    affects:
+      - metric: pcr
+        direction: "+"
+        strength: strong
+        source: "Pysher 2010 Fig.1: aggressiveness 45 µm 1~2 → 180 µm sharp 26~36 — disk-design-pad-roughness-asperity-relation.md §2.2"
+      - metric: pad_roughness
+        direction: "+"
+        strength: strong
+        source: "Pysher 2010: surface finish 1.7(45 µm)→3.5(125)→4.1(250) µm, 125→250은 포화; σ ∝ D^0.57 회귀 — disk-design-cutrate-asperity-regeneration-model.md §4"
+      - metric: scratch
+        direction: "+"
+        strength: strong
+        source: "Yang 2010 (DOI 10.1016/j.ijmachtools.2010.06.007): 180→70 µm에 스크래치/로트 5.36→1.69(−68%) — pad-3dprinted-nonporous-lowdefect-review.md §3.2"
+      - metric: mrr
+        direction: unknown
+        strength: medium
+        source: "부호 재료계 의존: Yang 2010 솔리드 패드 70 µm가 RR +20%(작을수록↑), Kwon 2013 거친 패드가 MRR↑(클수록↑) — 미확정"
+      - metric: disk_life
+        direction: "+"
+        strength: weak
+        source: "Pysher 2010 §3: 'slightly-larger diamond + blockier grade'로 PWR 유지하며 수명 연장 — 정성, 정량 미검증"
+    engine_key: pad_asperity_radius_m
+    status: pack_only
+
+  # ───────────────────────── 2. 그릿 밀도 ─────────────────────────
+  - key: grit_density_per_mm2
+    label: "Grit density (#/mm², 디스크 작업면 기준)"
+    range: {min: 0.17, max: 7.6, unit: "#/mm²"}
+    range_source: >
+      Kwon 2013 (Tribol. Int. 67, 272, DOI 10.1016/j.triboint.2013.08.008) 10 cm 디스크에 17k/40k/60k개 →
+      17,000/7,854 mm² ≈ 2.2 ~ 60,000/7,854 ≈ 7.6 #/mm² (전면 분포 가정) — conditioner-grit-wear-scratch-lifetime.md §2;
+      EHWA CVD 1.3K: 1,300개/∅108 mm ≈ 0.14~0.17 #/mm²(McAllister 2019); Tsai 2014 (DOI 10.1155/2014/913812)
+      RCADD 10,000 / CDD 25,000개(∅108 mm ≈ 1.1 / 2.7 #/mm²); Shin 2018 pitch 480~600 µm ≈ 2.8~4.3 #/mm²(규칙 배열).
+      브레이징 concentration 20(=5 vol%) — diamond-grit-mesh-bonding.md §3. 개수→밀도 환산은 이 파일의 계산(디스크 전면 균일 가정).
+    typical: 4.4
+    typical_source: "Kwon 2013 40k / ∅100 mm ≈ 5.1; Tsai CDD 25k/∅108 ≈ 2.7 — 중간값"
+    affects:
+      - metric: pcr
+        direction: "-"
+        strength: strong
+        source: "Kwon 2013: 17k/40k/60k → 37/23/19 µm/h, CR ∝ N^−0.53 (3점 회귀, R² 확인) — disk-design-cutrate-asperity-regeneration-model.md §2. 그릿당 하중↓가 원인(비직관)"
+      - metric: pad_roughness
+        direction: "-"
+        strength: strong
+        source: "Kwon 2013: Ra 8.05→5.95, Rpk 3.75→1.7 µm (17k→60k) — disk-design-pad-roughness-asperity-relation.md §2.1"
+      - metric: scratch
+        direction: "-"
+        strength: medium
+        source: "Kwon 2013: 거친 패드(저밀도 디스크)가 디브리↑→스크래치↑(포화형) — conditioner-grit-wear-scratch-lifetime.md §3"
+      - metric: pad_life
+        direction: "+"
+        strength: strong
+        source: "절삭율의 역 — Son & Lee 2021 (DOI 10.3390/app11083521) 컷레이트 43.4 vs 22.2 µm/h → 수명비 1.95배 (pad-thickness-groove-depth… §4)"
+      - metric: mrr
+        direction: "-"
+        strength: weak
+        source: "Kwon 2013 저자 명시 Rpk–MRR 양의 상관 → 밀도↑→Rpk↓→MRR↓ (간접, 정량 계수 없음)"
+    engine_key: pad_asperity_density_m2
+    status: pack_only
+
+  # ───────────────────────── 3. 그릿 돌출 높이 (입경 대비 %) ─────────────────────────
+  - key: grit_exposure_pct_of_size
+    label: "Grit exposure / protrusion (% of grit size)"
+    range: {min: 5, max: 150, unit: "% of D_grit"}
+    range_source: >
+      JP4508514B2(Asahi Diamond, 전착): 종래 5~30%(JP10-15819 인용), 발명 30~150% —
+      knowledge/equipment/diamond-grit-mesh-bonding.md §4.2. AMAT-3M DOE "exposure ≈0 ~ 약 60%" —
+      conditioner-disk-spec-recipe-industrial.md §2. 절대값: ABT 173 µm 그릿 돌출 52 µm(≈30%), EHWA CVD 팁 높이 50 µm
+      (McAllister 2019); Kim & Kang 2011 80 mesh 전착 높이 분포 40~90 µm.
+    typical: 30
+    typical_source: "ABT S3410845N 52/173 µm ≈ 30% (McAllister 2019); JP4508514B2 종래 상한"
+    affects:
+      - metric: pcr
+        direction: "+"
+        strength: strong
+        source: "JP4508514B2 실시예: 돌출 30~150% 설계 156~170 µm/h vs 종래 130 µm/h (+20~30%) — diamond-grit-mesh-bonding.md §4.2"
+      - metric: pcr_stability
+        direction: "+"
+        strength: medium
+        source: "JP4508514B2: CV 13.8%→5.3~5.5% (약 2.5배 개선, n=20)"
+      - metric: scratch
+        direction: "+"
+        strength: medium
+        source: "Kwon 2013 sharp/깊은 침투→디브리↑ 경로(정성); 돌출↑=침투↑(Shin 2018 d 4.74→11.3 µm) — 직접 정량 미검증"
+      - metric: disk_life
+        direction: "-"
+        strength: medium
+        source: "JP4508514B2 배경: 깊이 매립(저돌출)=탈락 방지, 고돌출=탈락 위험 — 정량 탈락률 미확보(conditioner-grit-wear-scratch-lifetime.md §5 미검증)"
+    status: not_wired
+
+  # ───────────────────────── 4. 돌출 높이 균일성 / 작동 그릿 비율 ─────────────────────────
+  - key: working_grit_fraction_pct
+    label: "Working (active) grit fraction (%)"
+    range: {min: 1.7, max: 75, unit: "%"}
+    range_source: >
+      최소 1.7: Tsai 2014 (DOI 10.1155/2014/913812) CDD 활성 팁 효율 1.7% (RCADD 4.8%), 본문 "<10%" —
+      cvd-diamond-disk-patterned-grit-array.md §1·§3. Saint-Gobain US8657652B2: 종래 전착 ≈25%, 브레이징 ≈30%,
+      SARD ≥75%(정규화 높이 0.5 이상 기준). 3M Pysher 2010: DOP 15 µm 기준 접촉면적 4.46%→9.76%(2.2배) —
+      conditioner-grit-design-space.md §3. ⚠ 정의(선 수/그릿 수 vs 높이 임계 vs 면적%)가 출처마다 달라 같은 축에
+      놓으면 안 됨 — 범위는 '정의 병기' 조건부.
+    typical: 25
+    typical_source: "US8657652B2 종래 전착 ≈25%"
+    affects:
+      - metric: scratch
+        direction: "-"
+        strength: strong
+        source: "Pysher 2010 Table I: 돌출 균일화 설계로 Cu SP1 micro-defect 67~75→0~9, macro 3→0 — conditioner-grit-density-protrusion-cutrate.md §3"
+      - metric: pcr
+        direction: "+"
+        strength: strong
+        source: "Tsai 2014: 레벨링 RCADD PCR 47 vs CDD 24 µm/h(약 2배), N_eff 비만으로는 57%만 설명 — disk-design-cutrate-asperity-regeneration-model.md §3"
+      - metric: pad_roughness
+        direction: "-"
+        strength: medium
+        source: "Pysher 2010: 150 µm 'leveled' surface finish 2.0 µm vs 동급 일반 3.5~4 µm — disk-design-pad-roughness-asperity-relation.md §2.2"
+      - metric: pcr_stability
+        direction: "+"
+        strength: medium
+        source: "Tsai 2014: 20 h PCR 감소 6%(RCADD) vs >16%(CDD); Kim & Kang 2011 CVD ±3 vs 전착 ±10 µm/h"
+      - metric: mrr
+        direction: "+"
+        strength: medium
+        source: "Tsai 2014 산화막 MRR 1506→2100 Å/min(통상 정의 +39%); Kim & Kang 2011 CVD +10%"
+    status: not_wired
+
+  # ───────────────────────── 5. 그릿 배열 ─────────────────────────
+  - key: grit_arrangement
+    label: "Grit arrangement"
+    range: {options: [random, self_avoiding_random, ordered_grid, radial_cluster, oriented_N_type, cvd_patterned], unit: "enum"}
+    range_source: >
+      random(종래 전착/브레이징) · SARD(US8657652B2, 배타반경>그릿 최대반경, 76~126 µm) · ordered(Guo 2023 IJAMT 128:1029, 12 섹터)
+      · radial_cluster(Tsai 2014 RCADD, 3~4개/클러스터) · oriented N-type(Shin 2018 IJAMT 97:563, DOI 10.1007/s00170-018-1956-3, pitch 480 µm)
+      · CVD patterned(Kim & Kang 2011 IJMTM 51:565, 50×50 µm² 돌기) — cvd-diamond-disk-patterned-grit-array.md §1 표.
+    typical: random
+    typical_source: "종래 전착 디스크(Kim & Kang 2011 대조군, Tsai CDD)"
+    affects:
+      - metric: pcr_stability
+        direction: "+"
+        strength: strong
+        source: "규칙/레벨링 배열: Tsai 2014 20 h 감소 6% vs 16%; Kim & Kang 2011 ±3 vs ±10 µm/h; Pysher 2010 sharp 설계 6 h 후 55~65% 유지 vs 경쟁 15% (conditioner-grit-design-space.md §3)"
+      - metric: pcr
+        direction: unknown
+        strength: medium
+        source: "배열별 절대 PCR 부호 불일치: RCADD ↑(2배), CVD 패턴 ↓(Kim & Kang Fig.2a, 절대값 미판독), N-type PWR 약 1/3 — 미확정"
+      - metric: scratch
+        direction: "-"
+        strength: medium
+        source: "US8657652B2·Pysher 2010: 균일 배열=돌출 균일=결함↓ (working_grit_fraction 항 근거 공유)"
+      - metric: disk_life
+        direction: "+"
+        strength: medium
+        source: "Kim & Kang 2011: CVD 패턴 수명 ≥2배(12 µm 피막 균일 마모), W 슬러리 부식 없음"
+    status: not_wired
+
+  # ───────────────────────── 6. 본딩 방식 ─────────────────────────
+  - key: bonding_type
+    label: "Bonding"
+    range: {options: [electroplated_Ni, active_metal_brazing, cvd_diamond_film], unit: "enum"}
+    range_source: >
+      전착 Ni(설파메이트욕, 1~2 A/dm², 도금층 125~500 µm) — JP4508514B2; 브레이징(NICROBRAZ LM Ni–Cr–B–Si, 액상선 970 °C대,
+      포일 25~51 µm) — US8104464B2; CVD 다이아 피막(HF-CVD 12 µm on Si₃N₄) — Kim & Kang 2011.
+      knowledge/equipment/diamond-grit-mesh-bonding.md §4, cvd-diamond-disk-patterned-grit-array.md §2.
+    typical: electroplated_Ni
+    typical_source: "Kim & Kang 2011 대조군·Shin 2018·Guo 2023 모두 전착"
+    affects:
+      - metric: grit_retention
+        direction: unknown
+        strength: medium
+        source: "브레이징=화학결합으로 탈락 저항↑(정성, US8104464B2); 정량 탈락률(DOI 10.1016/j.diamond.2021.108239) 미확보 — 미검증"
+      - metric: disk_life
+        direction: "+"
+        strength: medium
+        source: "CVD > 브레이징 ≈ 전착 순서: Kim & Kang 2011 CVD ≥2배 수명·부식 없음; W 슬러리(H₂O₂/KIO₃) 20 h에 금속 기판 부식 — cvd-diamond-disk-patterned-grit-array.md §2"
+      - metric: pcr
+        direction: unknown
+        strength: medium
+        source: "전착 볼록돌기 설계(JP4508514B2)로 돌출 30~150% 확보 시 PCR↑; 본딩 자체보다 돌출이 매개 — 본딩 단독 부호 미확정"
+      - metric: scratch
+        direction: unknown
+        strength: weak
+        source: "미검증 — 본딩 방식과 스크래치 직접 대조 실험 없음"
+    status: not_wired
+
+  # ───────────────────────── 7. 디스크 직경 ─────────────────────────
+  - key: disk_diameter_mm
+    label: "Disk (carrier) diameter (mm)"
+    range: {min: 100, max: 360, unit: "mm"}
+    range_source: >
+      US8104464B2 실시예 100 mm(중심홀 50 mm); Kwon 2013 100 mm; Kim & Kang·Tsai 108 mm; Shin 2018 4 in(≈102 mm);
+      3M E187 캐리어 260 / 360 mm — conditioner-disk-spec-recipe-industrial.md §1. 300/450 mm 공정에서 패드 면적 증가로
+      대구경 요구(Tsai 2014 동기: 450 mm용 1,050 mm 패드).
+    typical: 108
+    typical_source: "Kim & Kang 2011, Tsai 2014 ∅108 mm (200~300 mm 공정 표준급)"
+    affects:
+      - metric: uniformity
+        direction: "-"
+        strength: medium
+        source: "Feng 2007 (IEEE TSM 20, 464, DOI 10.1109/TSM.2007.907618) Example 4.3: 디스크반경/패드반경 비↑→마모율 피크 중심 이동·평탄도↓ — conditioner-grit-density-protrusion-cutrate.md §2 verify"
+      - metric: pcr
+        direction: "+"
+        strength: medium
+        source: "Feng 2007: CD ∝ 환형 면적당 그릿 수×궤적 길이 — 같은 밀도면 직경↑→총 절삭↑(정성). 3M E187 aggressiveness 표기는 반대(260 mm 70~90 vs 360 mm 55~75)로 '같은 하중에서 단위면적 하중↓' 효과 — 정의 확인 필요"
+      - metric: disk_life
+        direction: "+"
+        strength: weak
+        source: "Pysher 2010 §2: 300 mm 이후 패드 면적↑→수명 요구↑ — 직경 자체와 수명의 정량 관계 미검증"
+    status: not_wired
+
+  # ───────────────────────── 8. 형태 ─────────────────────────
+  - key: disk_form
+    label: "Disk form"
+    range: {options: [full_disk, annular_ring, segmented], unit: "enum"}
+    range_source: >
+      full(Kwon 2013·Kim & Kang 2011) · annular(US8104464B2 100/50 mm; ABT 도넛형 외곽 배치, McAllister 2019) ·
+      segmented(3M E187 Ring 포맷 + 세그먼트 작업면; Tsai RCADD 소형 디스크 24장 조립) —
+      conditioner-disk-spec-recipe-industrial.md §1, cvd-diamond-disk-patterned-grit-array.md §3.
+    typical: annular_ring
+    typical_source: "3M E187 Ring 포맷; ABT 도넛형"
+    affects:
+      - metric: uniformity
+        direction: unknown
+        strength: medium
+        source: "Feng 2007 CD 식은 r_i·r_o(환형 내·외경)를 명시 인자로 둠 — 형태가 마모 프로파일을 바꾼다는 구조만 확인, 실측 대조 없음(미검증)"
+      - metric: pcr
+        direction: unknown
+        strength: weak
+        source: "미검증 — 같은 그릿 사양의 full vs ring 대조 실험 미확보"
+      - metric: scratch
+        direction: unknown
+        strength: weak
+        source: "미검증 — edge exclusion(엣지 그릿이 패드를 파는 것 방지)은 AMAT-3M DOE 변수였으나 결과 수치 미확보"
+    status: not_wired
+
+  # ───────────────────────── 9. 그릿 형상(grade/sharpness) ─────────────────────────
+  - key: grit_grade
+    label: "Grit shape grade (sharp ↔ blocky)"
+    range: {options: [sharp_625, medium_640, blunt_925, blocky_cvd], unit: "enum (Kwon 2013 grade 코드)"}
+    range_source: >
+      Kwon 2013 grade 625/640/925 (40k 고정) — conditioner-grit-wear-scratch-lifetime.md §2; 3M sharp/semi-sharp/blocky
+      (Pysher 2010); EHWA CVD blocky(McAllister 2019); 브레이징은 euhedral·naturally shaped 모두 허용(US8104464B2).
+    typical: medium_640
+    typical_source: "Kwon 2013 기준 grade 640"
+    affects:
+      - metric: pcr
+        direction: "+"
+        strength: strong
+        source: "Kwon 2013: sharp(625) 약 45 µm/h vs 640 23 µm/h(2 h) — 깊은 침투. Shin 2018 N형(점접촉) d 11.3 µm vs C형 4.74 µm — cvd-diamond… §4"
+      - metric: pad_roughness
+        direction: "+"
+        strength: strong
+        source: "Kwon 2013 §3: 'roughness increased with decreased grade' — disk-design-pad-roughness-asperity-relation.md §2.1"
+      - metric: disk_life
+        direction: "-"
+        strength: medium
+        source: "Pysher 2010: sharp는 마모법칙 cot(ψ/2)항↑로 초기 공격성↑, blockier로 수명 보완 — conditioner-grit-design-space.md §3 (정성)"
+      - metric: scratch
+        direction: "+"
+        strength: medium
+        source: "Kwon 2013: 거친 패드→디브리→스크래치(포화형) 경로 — 정량 계수 없음"
+    status: not_wired
+
+  # ───────────────────────── 10. 운전 하중 (참고 — 이미 wired) ─────────────────────────
+  - key: cond_downforce_lbf
+    label: "Conditioning downforce (lbf) — 운전 변수(참고)"
+    range: {min: 3.6, max: 10, unit: "lbf"}
+    range_source: >
+      Sun 2009 3.6/8.0 lb; McAllister 2018 6/10 lbf; Yang 2010 4.5 lbf — disk-design-pad-roughness-asperity-relation.md §2.3·§2.5,
+      pad-3dprinted… §3.1. 설계 변수가 아니라 Γ 운전 변수이므로 참고용으로만 수록(장비 축과 섞지 않음).
+    typical: 6
+    typical_source: "McAllister 2018 6 lbf; base.yaml cond_downforce_lbf"
+    affects:
+      - metric: pad_roughness
+        direction: "+"
+        strength: strong
+        source: "Sun 2009: λ 325-grit 3.3→4.3(+20%), 100-grit 3.5→6.7 µm(+60%) — 그릿 크기와 교호작용"
+      - metric: pcr
+        direction: "+"
+        strength: strong
+        source: "knowledge/equipment/disk-rpm-load-radius-pcr.md (엔진 Γ 근거)"
+    engine_key: cond_downforce_lbf
+    status: wired

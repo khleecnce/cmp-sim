@@ -26,6 +26,7 @@
 """
 from __future__ import annotations
 
+import inspect
 import math
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, TYPE_CHECKING
@@ -108,6 +109,17 @@ LIMIT_ROLE: Dict[str, str] = {
     "pad_porosity_pct": "MODULATOR",     # 그루브·간극이 이송을 대신한다
     "slurry_viscosity_pa_s": "MODULATOR",
     "inhibitor_mM": "MODULATOR",         # 억제가 없으면 오히려 제거가 는다
+    # chelator_M=0(착화제 없음)은 ①"없는 상태"가 명확하고, ②그 상태에서도
+    # χ(반응성)·ψ 억제제(inhibitor_mM) 경로가 남아 재료가 떨어져 나간다 —
+    # inhibitor_mM과 같은 구조(보호제 부재=억제 해제=제거 증가, 소멸 아님).
+    # 판정#95(EVIDENCE-RULES): chelator_M=0에서 ψ가 1을 넘는 것도 이 방향과
+    # 정합 — "메커니즘 소멸"이 아니라 "보호 해제로 인한 상대적 증가"다.
+    "chelator_M": "MODULATOR",
+    # promoter_M=0(촉진 착화제 없음)도 ①없는 상태가 명확하고, ②
+    # _carboxylate_promoter_term의 phi(기계 바닥)가 C=0에서도 유한 양수로
+    # 남아 순수 기계적 연마 경로가 죽지 않는다(chemistry.py 주석: "phi가
+    # 하는 일: 착화제가 0이어도 제거가 0이 되지 않는다").
+    "promoter_M": "MODULATOR",
     "oxidizer_wt_pct": "MODULATOR",      # C=0 에서도 기계적 바닥값이 남는 계가 있다
     "ce3_fraction": "MODULATOR",         # 활성점 0 이어도 입자는 단단한 산화물이다
     "dispersant_type": "MODULATOR",
@@ -129,6 +141,23 @@ LIMIT_ROLE: Dict[str, str] = {
     "temperature_c": "INTENSIVE",
 }
 
+# ══════════════════════════════════════════════════════════════════════
+# 범주형 드라이버의 "없음"에 해당하는 값 (2026-09-20, EVIDENCE-RULES 판정#95)
+#
+# 왜 필요한가: LIMIT_ROLE 은 "0 에서 무엇을 기대하는가"를 말하지만, 범주형
+# 드라이버(문자열 값)에는 애초에 "0"이 없다. 검사기가 "그럼 어느 값이
+# 없음인가"를 추측하면 그건 절차가 아니라 검사기가 물리를 대신 판단하는
+# 것이다. 그래서 모델이 직접 선언한다 — chemistry._dispersant_protection_term
+# 이 이미 "dispersant_ref_type 이 없으면 'NONE'(분산제 없음)을 기준으로
+# 삼는다"고 코드 docstring에 명시하고 있으므로, 그 관례를 여기 옮겨 적을
+# 뿐이지 새로 지어내는 것이 아니다.
+#
+# 여기 없는 범주형 드라이버는 검사기가 극한 검사를 수행할 수 없다는 뜻이고,
+# 그 상태는 결함으로 보고돼야 한다(경고로 조용히 넘기지 않는다).
+CATEGORICAL_ABSENT: Dict[str, str] = {
+    "dispersant_type": "NONE",
+}
+
 
 @dataclass
 class Factor:
@@ -145,6 +174,20 @@ class Factor:
     confidence: str = "unverified"         # verified | literature | estimated | unverified
     sources: List[str] = field(default_factory=list)
     notes: List[str] = field(default_factory=list)
+    # 입력 키 → 그 입력의 항이 **의도적으로 꺼진** 이유 (2026-09-20 신설).
+    #
+    # 왜 필요한가: 이 파일의 여러 항은 "이 레짐은 관측이 없다"며 스스로 None 을
+    # 돌려주고 notes 에 이유를 적는다(예: _ph_cu_acidic_term 의 알칼리×억제제
+    # 레짐). 그 구간에서 MRR 이 평평한 것은 **"변하지 않는다는 예측"이 아니라
+    # "예측하지 않는다는 선언"**이다. 그런데 하류 도구(tools/response_map.py)는
+    # 숫자만 보므로 이 둘을 구분하지 못하고, 평평한 구간과 살아 있는 구간이
+    # 이어져 만든 인공 골짜기를 문헌 정점과 대조해 CONFLICT 로 신고했다
+    # (2026-09-20 cu_h2o2_bta/pH, score 120 최우선 갭). 모델이 침묵한 구간을
+    # 근거로 "모델이 틀린 방향을 가리킨다"고 채점하면 없는 결함을 고치게 된다.
+    #
+    # notes 문자열을 정규식으로 긁지 않고 구조화해 두는 이유도 같다 — 문구가
+    # 바뀌면 조용히 탐지가 꺼진다.
+    gated: Dict[str, str] = field(default_factory=dict)
 
     @property
     def mrr_coupled(self) -> bool:
@@ -166,6 +209,7 @@ class Factor:
             "drivers": self.drivers, "terms": self.terms,
             "confidence": self.confidence, "sources": self.sources,
             "notes": self.notes, "mrr_coupled": self.mrr_coupled,
+            "gated": self.gated,
         }
 
 
@@ -174,9 +218,17 @@ def _new(key: str) -> Factor:
     return Factor(key=key, symbol=sym, name=name, axis=axis, parts=list(parts))
 
 
+# 근거 등급 서열 — **높은 것부터**. 이 목록이 단일 원천이다.
+# ⚠ 같은 서열을 다른 모듈에 손으로 다시 적지 마라. tools/completion.py 가
+#   자기 표를 따로 들고 있다가 "measured" 를 빠뜨려, 최상급에 가까운 실측
+#   등급을 0점(unverified 취급)으로 읽고 이미 확보된 값의 문헌을 다시 찾으라고
+#   회차를 오유도한 적이 있다(2026-09-16). 소비자는 이 상수를 import 하라.
+_CONF_ORDER = ["verified", "measured", "literature", "estimated", "unverified"]
+
+
 def _worst_conf(*confs: str) -> str:
     """여러 근거를 합칠 때 신뢰도는 가장 약한 것을 따른다."""
-    order = ["verified", "measured", "literature", "estimated", "unverified"]
+    order = _CONF_ORDER
     idx = max((order.index(c) if c in order else len(order) - 1) for c in confs) \
         if confs else len(order) - 1
     return order[min(idx, len(order) - 1)]
@@ -1031,7 +1083,8 @@ def _ph_ceria_electrostatic_term(pack, notes: List[str]) -> Optional[float]:
     return cur / ref
 
 
-def _ph_cu_acidic_term(pack, notes: List[str]) -> Optional[float]:
+def _ph_cu_acidic_term(pack, notes: List[str],
+                       gated: Optional[Dict[str, str]] = None) -> Optional[float]:
     """pH → MRR, **금속 Cu 산성역**의 산화제 매개 로그선형 항.
 
     근거 노트: knowledge/cmp/cu-cmp-ph-mechanism.md
@@ -1076,17 +1129,45 @@ def _ph_cu_acidic_term(pack, notes: List[str]) -> Optional[float]:
                     분리 불가(식별 불가로 기록).
       · 산화제 없음 : 대응쌍 미확보 → 미확인. 기본값 '적용 안 함'.
     """
+    def _gate(reason: str) -> None:
+        """이 pH 에서 **예측을 포기한다**는 선언을 구조화해 남긴다(판정#94).
+
+        notes 에만 적으면 하류 도구는 '평평한 예측'과 '예측 없음'을 구분하지
+        못한다 — 실제로 tools/response_map.py 가 그 둘을 섞어 없는 골짜기를
+        만들고 CONFLICT(score 120)를 찍고 있었다.
+        """
+        if gated is not None:
+            gated["slurry_ph"] = reason
+
     if not (pack.has("slurry_ph") and pack.has("cu_ph_acid_k")
             and pack.has("ph_ref")):
         return None
 
     # 기계 경로 게이트 — pH 는 막을 바꿀 뿐, 벗길 입자가 있어야 MRR 이 된다.
+    #
+    # ⚠ 이 게이트의 근거는 **산성 레짐 데이터**(US20080090500A1, 실리카 2/3/4 wt%)
+    #   에서만 나왔다. 알칼리 레짐의 계수를 준 US9200180B2 TABLE 4 는 실리카
+    #   10 wt% 단일 농도라 저농도에서 pH 항이 성립하는지 **관측이 없다**.
+    #   그래서 여기서 하는 일은 "저농도에서 pH 효과가 없다"는 주장이 아니라
+    #   "저농도는 어느 레짐에서도 검증되지 않았다"는 **범위 선언**이다.
+    #
+    # ⚠ 이 경계에서 예측이 불연속으로 뛴다(실측: 1.5 wt% 39.6 → 2.0 wt% 13.4,
+    #   3배 절벽). 물리적 절벽이 아니라 항이 켜지고 꺼지는 데서 오는 인공물이므로,
+    #   경계 아래 조건은 **예측값을 쓰지 말고 범위 밖으로 처리**해야 한다
+    #   (이상치 규칙 C2 — 모델이 선언한 게이트 밖). 검증 집계에 넣으면 모델이
+    #   아니라 게이트를 채점하게 된다.
+    #
+    # ⚠ 이 절벽을 없애려고 게이트를 넓히지 마라. 그것은 물리를 버리고 데이터를
+    #   삼키는 일이다. 저농도를 예측하려면 그 영역의 항을 새로 유도해야 하고,
+    #   그 전까지는 범위 밖으로 남기는 것이 정직하다.
     if pack.has("abrasive_wt_pct"):
         try:
             wt = float(pack.get("abrasive_wt_pct"))
         except (TypeError, ValueError):
             wt = None
         if wt is not None and wt < 2.0:
+            _gate(f"연마입자 {wt:g} wt% < 2 wt% — pH 가 바꾼 막을 벗길 "
+                  "기계 경로가 근거 표에서 검증되지 않았다(범위 선언).")
             notes.append(
                 f"Cu 산성역 pH 항 미적용: 연마입자 {wt:g} wt% < 2 wt%. "
                 "근거 표에서 저농도 행은 비단조(0 wt%)이거나 설명력이 낮다"
@@ -1128,6 +1209,9 @@ def _ph_cu_acidic_term(pack, notes: List[str]) -> Optional[float]:
 
     if alkaline and not has_inhibitor:
         if not pack.has("cu_ph_alkaline_k"):
+            _gate(f"pH {ph:g} 알칼리 × 억제제 없음 레짐인데 팩에 "
+                  "`cu_ph_alkaline_k` 가 없다 — 산성역 계수를 빌리면 부호가 반대라 "
+                  "예측하지 않는다.")
             notes.append(
                 f"⚠ pH {ph:g}는 알칼리 가지(골 {VALLEY_PH} 초과)이고 억제제가 "
                 "없는 레짐인데 `cu_ph_alkaline_k`가 팩에 없다 — 항을 켜지 "
@@ -1144,6 +1228,10 @@ def _ph_cu_acidic_term(pack, notes: List[str]) -> Optional[float]:
         return val
 
     if alkaline and has_inhibitor:
+        _gate(f"pH {ph:g} 알칼리 × 억제제 존재 레짐은 **관측이 없다** — "
+              "어느 계수도 이 조건에서 검증된 적이 없어 예측하지 않는다. "
+              "필요 데이터: 같은 조성에서 억제제 농도 2수준 × 골 양쪽 pH 3점 이상 "
+              "제거율 표.")
         notes.append(
             f"⚠ pH {ph:g} 알칼리 + 억제제 존재 레짐은 **관측이 없다**. "
             "산성역 계수(k=0.1428)도 억제제 없는 알칼리 계수(k=0.3329)도 "
@@ -1153,6 +1241,8 @@ def _ph_cu_acidic_term(pack, notes: List[str]) -> Optional[float]:
         return None
 
     if not alkaline and not has_inhibitor:
+        _gate(f"pH {ph:g} 산성 × 억제제 없음 레짐은 **관측이 없다** — "
+              "산성역 계수는 억제제가 있는 계열(BTA 1 mM)에서 나왔다.")
         notes.append(
             f"⚠ pH {ph:g} 산성 + 억제제 없음 레짐은 **관측이 없다**. "
             "산성역 계수는 억제제가 있는 계열(BTA 1 mM)에서 나왔다. "
@@ -1219,6 +1309,85 @@ def _ph_w_acidic_term(pack, notes: List[str]) -> Optional[float]:
     return val
 
 
+def _ph_sic_kmno4_acidic_term(pack, notes: List[str]) -> Optional[float]:
+    """pH → MRR, **SiC × 산성 KMnO4** 계의 산화력 감쇠 + 기계 하한 항.
+
+    근거 노트: knowledge/cmp/sic-kmno4-acidic-ph-decay-chen2020.md
+    1차 출처: Chen G., Du C., Ni Z., Liu Y., Zhao Y. (2020),
+              Russ. J. Appl. Chem. 93(6) 832-837, doi:10.1134/S1070427220060099, Fig. 1(a).
+              (2 wt% Al2O3 나노입자 + 0.05 M KMnO4, 6H-SiC Si면, 4 psi, 90/90 rpm)
+
+    왜 별도 항인가 — 이 계에서 pH 는 세리아 IEP 창(정전 상호작용)도 실리카 정점형도
+    아니고 **MnO4- 의 산화력**을 통해 들어온다. 산성에서 MnO4- + 4H+ + 3e- → MnO2 +
+    2H2O 의 전위가 Nernst 로 pH 와 함께 떨어지므로 MRR 이 pH 증가와 함께 감소한다.
+    Chen 2020 Fig.1 은 pH 2→10 에서 Si 면·C 면 모두 **단조 감소**를 보인다 — 알칼리
+    쪽에서 오히려 오르는 실리카/세리아 계와 부호가 반대다.
+
+    형태: f(pH) = g(pH)/g(pH_ref),  g(pH) = φ + (1-φ)·exp(-k·(pH - pH_anchor)).
+    φ 는 **화학이 꺼져도 남는 기계 경로**(연마입자 압흔)다 — 산화력이 떨어져도 MRR 이
+    0 으로 가지 않고 평탄해지는 관측(pH 6~10 에서 거의 수평)을 담는다. 단순 지수만
+    쓰면 pH 10 을 3 배 넘게 과소예측한다.
+    기준점 나눗셈 덕에 pH = pH_ref 에서 항상 1.0 이다(Kp 이중 계상 방지).
+
+    ⚠ 적용 게이트 — 팩이 `sic_kmno4_ph_acid_k` 를 **직접 선언**할 때만 켜진다.
+    ⚠ 근거 구간은 pH 2~10 이다. 그 밖은 외삽이며 notes 에 경고를 남긴다.
+    ⚠ 계수는 그래프 판독(digitized)에서 나왔다 — 눈금 간격 역산으로 인쇄 최대값
+      1554 nm/h 를 -0.6 % 로 재현했지만 개별 막대는 판독오차를 갖는다.
+    """
+    if not (pack.has("slurry_ph") and pack.has("sic_kmno4_ph_acid_k")
+            and pack.has("ph_ref")):
+        return None
+    ph = float(pack.get("slurry_ph"))
+    ph_ref = float(pack.get("ph_ref"))
+    k = float(pack.get("sic_kmno4_ph_acid_k"))
+    anchor = float(pack.get_or("sic_kmno4_ph_anchor", 2.0))
+    floor = float(pack.get_or("sic_kmno4_ph_floor", 0.0))
+
+    # ── 산화제 농도에 따른 기계 하한 φ 보간 (판정#64, 2026-09-18)
+    # φ 는 "산화력이 꺼져도 남는 removal" 이다. 산화제가 진해지면 알칼리 쪽에서도
+    # 산화가 완전히 꺼지지 않아 관측되는 평탄부가 **위로 올라간다**. 두 실측 앵커:
+    #   · Chen 2020(0.05 M ≈ 0.79 wt% KMnO4, 6H Si면): pH2→10 3.56배 감소 → φ=0.268
+    #   · Wang 2021(6.5 wt% KMnO4, 4H Si면): pH2 1.4 → pH12 1.1 µm/h → φ=0.785
+    # 두 앵커를 log(농도)로 선형보간한다. 앵커 4개가 전부 선언될 때만 켜지고,
+    # 아니면 위의 정적 floor 를 그대로 쓴다(하위호환).
+    # ⚠ 앵커가 2점뿐이라 형상은 미검증 — 보간값 자체는 estimated 다.
+    _fl_note = ""
+    _anc = ("sic_kmno4_ph_floor_lo_wt", "sic_kmno4_ph_floor_lo",
+            "sic_kmno4_ph_floor_hi_wt", "sic_kmno4_ph_floor_hi")
+    if all(pack.has(a) for a in _anc) and pack.has("oxidizer_wt_pct"):
+        c_lo = float(pack.get("sic_kmno4_ph_floor_lo_wt"))
+        f_lo = float(pack.get("sic_kmno4_ph_floor_lo"))
+        c_hi = float(pack.get("sic_kmno4_ph_floor_hi_wt"))
+        f_hi = float(pack.get("sic_kmno4_ph_floor_hi"))
+        c = float(pack.get("oxidizer_wt_pct"))
+        if c_lo > 0 and c_hi > 0 and c > 0 and c_hi != c_lo:
+            t = (math.log(c) - math.log(c_lo)) / (math.log(c_hi) - math.log(c_lo))
+            t_cl = min(max(t, 0.0), 1.0)          # 앵커 밖은 외삽하지 않고 고정
+            floor = f_lo + t_cl * (f_hi - f_lo)
+            _fl_note = (f" φ 는 산화제 {c:g} wt% 에서 앵커 보간값 "
+                        f"({c_lo:g}→{f_lo:g}, {c_hi:g}→{f_hi:g} wt%, log 선형)")
+            if not (0.0 <= t <= 1.0):
+                _fl_note += " ⚠ 앵커 구간 밖이라 끝값으로 고정"
+    floor = min(max(floor, 0.0), 1.0)
+
+    def g(x: float) -> float:
+        return floor + (1.0 - floor) * math.exp(-k * (x - anchor))
+
+    ref = g(ph_ref)
+    if ref <= 0:
+        return None
+    val = g(ph) / ref
+    notes.append(
+        f"SiC×산성 KMnO4 pH: pH {ph:g} (기준 {ph_ref:g}) → 상대 {val:.3f}. "
+        f"MnO4- 산화력 감쇠 경로 — k={k:g}/pH, 기계 하한 φ={floor:g} "
+        "(Chen 2020 doi:10.1134/S1070427220060099 Fig.1a 판독 5점 적합, "
+        "재현오차 -2.4~+2.6 %)." + _fl_note +
+        " ⚠ k 는 그래프 판독 기반이라 estimated.")
+    if not (2.0 <= ph <= 10.0):
+        notes.append(f"⚠ pH {ph:g}는 근거 구간(2~10) 밖이다 — 외삽이다.")
+    return val
+
+
 def _f_chi(rr: "ResolvedRecipe") -> Factor:
     """χ 화학 반응성 — 표면 연화·산화가 만드는 MRR 배수.
 
@@ -1239,8 +1408,25 @@ def _f_chi(rr: "ResolvedRecipe") -> Factor:
       (sic_ceria_h2o2는 세리아 IEP 창의 `abrasive_iep_ph`를 sti_ceria에서
       상속만 받았을 뿐 직접 선언한 적이 없는데, 이 분기가 최우선이라 자기
       이름으로 직접 역산해 선언한 `ph_softening_per_unit`이 가려지고 있었다.)
+
+    2차 패스(own이 아무도 없을 때) 추가 규칙 — **소유 조상의 연마입자 검사**
+    (EVIDENCE-RULES.md 판정#59): 아무도 own이 아니면 기존 우선순위로 처음
+    적용 가능한 후보를 쓰지만, 그 전에 "이 고유 계수를 실제로 선언한 조상
+    팩의 `abrasive`가 이 팩의 `abrasive`와 다른가"를 확인한다. 다르면 후보를
+    건너뛴다 — 안 그러면 "own은 아무도 없지만 상속된 계수가 남의 재료
+    곡선"인 경우를 그대로 적용하게 된다(sic_alumina_kmno4가 abrasive를
+    alumina로 자기선언한 뒤에도 폴백이 오이드_silica 소유 ph_peak(정점 pH=11,
+    실리카 전용)로 떨어져 산성 알루미나/KMnO4계에 실리카 곡선을 씌우던 사고가
+    실측으로 확인됐다). own 계수는 이 검사를 항상 통과한다(자기 재료가 자기
+    계수를 쓴 것이므로 불일치가 있을 수 없다) — 그래서 5팩(cu_h2o2_bta·
+    oxide_silica·sic_ceria_h2o2·sti_ceria·w_fe_oxidizer)은 전부 1차 패스에서
+    이미 선택이 끝나 이 검사에 닿지 않고, 분기 선택은 바뀌지 않는다. 모든
+    후보가 재료 불일치로 막히면 pH 항 없이(terms에서 빠진 채) notes에 왜
+    막혔는지 남긴다 — 조용히 다른 재료 곡선으로 떨어지지 않는다.
     """
-    from sim.chemistry import (_oxidizer_term, _ceria_term, _ph_softening_term)
+    from sim.params import load_pack
+    from sim.chemistry import (_oxidizer_term, _ceria_term, _ph_softening_term,
+                               _carboxylate_promoter_term)
     f = _new("chi")
     pk = rr.pack
     notes: List[str] = []
@@ -1263,6 +1449,8 @@ def _f_chi(rr: "ResolvedRecipe") -> Factor:
          pk.has("w_ph_acid_k"), "w_ph_acid_k"),
         ("ph_cu_acidic", _ph_cu_acidic_term,
          pk.has("cu_ph_acid_k"), "cu_ph_acid_k"),
+        ("ph_sic_kmno4_acidic", _ph_sic_kmno4_acidic_term,
+         pk.has("sic_kmno4_ph_acid_k"), "sic_kmno4_ph_acid_k"),
         ("ph_peak", _ph_peak_term,
          pk.has("ph_peak") and pk.has("ph_ref"), "ph_peak"),
         ("ph_softening", _ph_softening_term,
@@ -1277,24 +1465,60 @@ def _f_chi(rr: "ResolvedRecipe") -> Factor:
             chosen = (name, fn)
             break
     if chosen is None:
-        # 2차 패스(기존 elif/else 체인과 동일): own이 아무도 없으면(상속값만
-        # 있거나 아예 없으면) 원래 우선순위로 처음 적용 가능한 후보를 쓰고,
-        # 그것도 없으면 마지막(연화) 후보로 무조건 떨어진다 — 원래 else와 동일.
-        for name, fn, applicable, _ in candidates[:-1]:
-            if applicable:
+        # 2차 패스: own이 아무도 없으면(상속값만 있거나 아예 없으면) 원래
+        # 우선순위로 처음 "적용 가능하고 + 소유 조상의 연마입자가 이 팩과
+        # 같은" 후보를 쓴다(판정#59, 위 docstring 참조). own_key는 매
+        # candidates 항목의 applicable 조건에 이미 포함돼 있으므로 여기서
+        # applicable=True면 pk.has(own_key)도 항상 True다.
+        for name, fn, applicable, own_key in candidates:
+            if not applicable:
+                continue
+            if pk.has_own(own_key):
                 chosen = (name, fn)
                 break
-        if chosen is None:
-            chosen = (candidates[-1][0], candidates[-1][1])
-    ph_terms = [chosen]
+            owner_name = pk.param(own_key).owner
+            owner_abrasive = None
+            if owner_name != pk.name:
+                try:
+                    owner_abrasive = load_pack(owner_name).get_or("abrasive", None)
+                except Exception:
+                    owner_abrasive = None
+            this_abrasive = pk.get_or("abrasive", None)
+            if owner_abrasive and this_abrasive and owner_abrasive != this_abrasive:
+                notes.append(
+                    f"⚠ pH 분기 '{name}'의 고유 계수 '{own_key}'는 {owner_name} 팩"
+                    f"(연마입자={owner_abrasive})이 소유한 상속값인데 이 팩의 연마"
+                    f"입자는 {this_abrasive}다 — 재료가 달라 이 분기를 쓰지 않는다"
+                    f"(판정#59).")
+                continue
+            chosen = (name, fn)
+            break
+    ph_terms = [chosen] if chosen is not None else []
+    if chosen is None:
+        notes.append(
+            "⚠ pH 항 미모델링: 상속된 pH 메커니즘 후보가 전부 다른 연마입자가 "
+            "소유한 계수라 재료 불일치로 막혔다 — 이 팩 고유의 pH 계수가 "
+            "확보될 때까지 갭으로 남긴다(판정#59).")
 
+    # 항이 스스로 "이 조건은 관측이 없어 예측하지 않는다"고 신고하면(gated)
+    # 그 선언을 Factor 에 그대로 실어 보낸다 — 하류 도구가 '평평한 예측'과
+    # '예측 없음'을 구분할 수 있어야 한다(판정#94).
+    gate_decl: Dict[str, str] = {}
     for name, fn in ([("oxidizer", _oxidizer_term),
-                      ("ceria_tooth", _ceria_term)] + ph_terms):
-        v = fn(pk, notes)
+                      ("ceria_tooth", _ceria_term),
+                      ("carboxylate_promoter", _carboxylate_promoter_term)]
+                     + ph_terms):
+        # try/except TypeError 를 쓰지 않는다 — 항 **내부**에서 난 TypeError 까지
+        # 삼켜 조용히 재실행하게 된다. 시그니처를 보고 고른다.
+        if "gated" in inspect.signature(fn).parameters:
+            v = fn(pk, notes, gate_decl)
+        else:
+            v = fn(pk, notes)
         if v is not None:
             terms[name] = v
+    f.gated.update(gate_decl)
     for k in ("oxidizer_wt_pct", "slurry_ph", "ce3_fraction",
-              "booster_mM", "chelator_mM"):
+              "booster_mM", "chelator_mM", "promoter_M"):
         if pk.has(k):
             try:
                 f.drivers[k] = float(pk.get(k))
@@ -1330,16 +1554,28 @@ def _f_chi(rr: "ResolvedRecipe") -> Factor:
     # 경로를 쓰는 팩에서는 등급 계산에서 제외한다(안 그러면 비활성 키의
     # estimated 등급이 계속 발목을 잡는다). 둘 다 없는 팩은
     # 기존 그대로 (n, C_peak)를 읽는다 — 하위호환, 동작 불변.
-    if pk.has("oxidizer_langmuir_K"):
+    # 2026-09-16 보강: **실제로 켜진 항의 등급만** 읽는다. 산화제 항이 꺼져 있는데
+    # (종 게이트로 차단됐거나 형상 파라미터가 비어) 그 키의 등급을 등급 하한에
+    # 반영하면, 쓰지도 않는 상수 때문에 χ 전체가 강등된다 — 실제로
+    # sic_alumina_kmno4 가 부모의 H2O2 K(estimated)를 상속만 하고 쓰지는 않는데
+    # χ 가 estimated 로 떨어졌다. 등급은 계산에 들어간 값의 성질이어야 한다.
+    if "oxidizer" not in terms:
+        oxidizer_shape_keys = ()
+    elif pk.has("oxidizer_langmuir_K"):
         oxidizer_shape_keys = ("oxidizer_langmuir_K",)
     elif pk.has("oxidizer_passivation_K"):
         oxidizer_shape_keys = ("oxidizer_passivation_K",)
     else:
         oxidizer_shape_keys = ("oxidizer_curve_n", "oxidizer_peak_wt_pct")
+    # 촉진 항도 실제로 켜졌을 때만 등급 하한에 넣는다(산화제 키와 같은 규칙,
+    # 2026-09-16 보강 참조) — 종 게이트로 꺼진 팩에서 남의 상수가 χ를 강등하면
+    # 계산에 안 들어간 값이 등급을 정하는 것이 된다.
+    promoter_shape_keys = (("promoter_exponent_m", "promoter_floor_phi", "promoter_M")
+                           if "carboxylate_promoter" in terms else ())
     f.confidence = _worst_conf(
         _pack_conf(pk, "oxidizer_wt_pct", "slurry_ph", "ce3_fraction"),
-        _pack_conf(pk, *oxidizer_shape_keys, "ph_peak", "ceria_tooth_gain",
-                   "w_ph_acid_k"))
+        _pack_conf(pk, *oxidizer_shape_keys, *promoter_shape_keys, "ph_peak",
+                   "ceria_tooth_gain", "w_ph_acid_k", "sic_kmno4_ph_acid_k"))
     f.sources = ["knowledge/cmp/ceria-slurry-ce-redox-selectivity.md",
                  "knowledge/cmp/particle-wafer-interaction-"
                  "mechanical-chemical-balance.md"]
@@ -1400,7 +1636,8 @@ def _f_psi(rr: "ResolvedRecipe") -> Factor:
     (proline 등)은 Prasad & Ramanathan 2006이 흡착량–억제 상관을 반증했으므로 이 폐형식
     대상이 아니다(America 2004 Table I 이산 룩업만). (d) 온도 의존 K(T) 없음.
     """
-    from sim.chemistry import _inhibitor_term, _dispersant_protection_term
+    from sim.chemistry import (_inhibitor_term, _dispersant_protection_term,
+                               _chelator_suppression_term)
     f = _new("psi")
     pk = rr.pack
     notes: List[str] = []
@@ -1412,14 +1649,35 @@ def _f_psi(rr: "ResolvedRecipe") -> Factor:
             except (TypeError, ValueError):
                 pass
     if v is not None:
-        # ── 정의 위반 검사 ────────────────────────────────────────
+        # ── 착화제(글리신) 농도축 억제 — 억제제 항과 독립 가정으로 곱한다 ──
+        # 근거: knowledge/cmp/psi-glycine-chelator-suppression-cu-jani2025.md
+        # (Jani 2025 doi:10.1149/2162-8777/adc59e Table I×II 통제쌍 2건 +
+        #  회귀 [glycine]=-440.91, p=4.08e-7). 종 게이트가 안 맞으면 None.
+        terms_metal = {"inhibitor": v}
+        v_chel = _chelator_suppression_term(pk, notes)
+        if v_chel is not None:
+            terms_metal["chelator_suppression"] = v_chel
+            v = v * v_chel
+            if pk.has("chelator_M"):
+                try:
+                    f.drivers["chelator_M"] = float(pk.get("chelator_M"))
+                except (TypeError, ValueError):
+                    pass
+        # ── 정의 위반 검사 (EVIDENCE-RULES 판정#95) ─────────────────
         # ψ 는 "표면 보호가 만드는 제거 **억제** 배수"로 정의된다 — 즉 ≤ 1.
-        # 1을 넘으면 "억제제를 넣었더니 더 깎인다"는 뜻이라 정의와 모순이다.
+        # 1을 넘으면 "보호제를 넣었더니 더 깎인다"는 뜻이라 정의와 모순이다.
+        #
+        # ⚠ 이 검사는 반드시 **최종 v**(억제제 항 × 착화제 항)에 걸려야 한다.
+        # 2026-09-20 이전에는 착화제 항을 곱하기 **전의** v 에만 걸려 있어서,
+        # 억제제 항 자체는 1 이하인데 착화제 항이 곱해져 최종값만 1을 넘는
+        # 경우를 놓쳤다(예: chelator_M=0 → inhibitor=1.0 · chelator_suppression
+        # =1.223 → 최종 ψ=1.223. 범위 검사([0,5])도 통과해 어느 게이트도
+        # 못 잡던 사각지대였다).
         #
         # 어떻게 1을 넘는가: 이 항은 기준 농도 대비 **상대값**이다
         # (Kp 가 이미 기준 슬러리에서 역산됐으므로 절대값을 곱하면 이중 계상).
-        # 그런데 검증 조건이 기준보다 **낮은** 농도(예: 억제제 0)면
-        # 상대값이 1을 넘는다. 이것은 억제제를 뺀 만큼 덜 보호받는다는
+        # 그런데 검증 조건이 기준보다 **낮은** 농도(예: 억제제·착화제 0)면
+        # 상대값이 1을 넘는다. 이것은 보호제를 뺀 만큼 덜 보호받는다는
         # 뜻이라 물리적으로 옳지만, ψ 라는 **이름과 정의**에는 맞지 않는다.
         #
         # 조용히 통과시키면 ψ=18 같은 값이 MRR 을 18배 부풀린다
@@ -1428,18 +1686,20 @@ def _f_psi(rr: "ResolvedRecipe") -> Factor:
         if v > 1.0 + 1e-9:
             notes.append(
                 f"⚠ ψ={v:.3f} > 1 — 정의(표면 보호 ≤1) 위반. 기준 농도보다 "
-                "억제제가 적은 조건이라 상대값이 1을 넘었다. 이 팩의 "
-                "inhibitor_ref_mM 이 검증 조건 범위의 하단이 아니라 중간에 "
-                "있다는 뜻이다. 기준점을 범위 하단(보통 0)으로 옮기거나, "
-                "억제 항을 ψ 가 아니라 별도 팩터로 분리해야 한다.")
+                "억제제·착화제가 적은 조건이라 상대값이 1을 넘었다. 이 팩의 "
+                "inhibitor_ref_mM 또는 chelator_ref_M 이 검증 조건 범위의 "
+                "하단이 아니라 중간에 있다는 뜻이다. 기준점을 범위 하단(보통 0)"
+                "으로 옮기거나, 억제 항을 ψ 가 아니라 별도 팩터로 분리해야 한다.")
         f.value = v
-        f.terms = {"inhibitor": v}
+        f.terms = terms_metal
         f.status = "modeled"
         # 등급 하한 판정 (2026-09-13): 억제 항의 약한 고리는 흡착-제거 변환 계수다.
         # 그 계수도 팩 선언값이므로 리터럴 대신 읽는다.
-        f.confidence = _worst_conf(
-            _pack_conf(pk, "inhibitor_mM"),
-            _pack_conf(pk, "inhibitor_strength_k", "inhibitor_ref_mM"))
+        _confs_psi = [_pack_conf(pk, "inhibitor_mM"),
+                      _pack_conf(pk, "inhibitor_strength_k", "inhibitor_ref_mM")]
+        if v_chel is not None:
+            _confs_psi.append(_pack_conf(pk, "chelator_suppression_a"))
+        f.confidence = _worst_conf(*_confs_psi)
         f.sources = ["knowledge/cmp/cu-electrochemistry-pourbaix-bta-oxidizer-inhibitor.md",
                      "knowledge/cmp/inhibitor-chelator-adsorption-isotherm-passivation.md"]
         f.notes.extend(notes)
@@ -1539,6 +1799,38 @@ def _f_psi(rr: "ResolvedRecipe") -> Factor:
         srcs.append("knowledge/cmp/abrasive-size-concentration-ph-K-additive-mrr-quantitative.md §6")
         f.notes.extend(dnotes)
 
+    # ── χ 선점 판정 (2026-09-19, 판정#70) ─────────────────────────────
+    # ψ 가 비는 이유는 두 가지가 전혀 다르다:
+    #   (a) 아무도 안 쟀다 → 진짜 미모델링(unmodeled). 숨기면 안 된다.
+    #   (b) 메커니즘은 실재하고 계량도 됐지만 **χ 가 같은 θ(C) 를 이미 전담**한다
+    #       → ψ 에 다시 곱하면 이중계상. 이때 옳은 값은 항등원 1.0 이다.
+    # 근거: knowledge/slurry/psi-cu-alkaline-h2o2-passivation.md §3·§6(c)
+    #   — 같은 θ(C) 를 ψ 에도 곱하면 US9200180B2 Ex.5-7 실측 대비 오차가
+    #     단일항보다 커짐을 수치로 확인(노트 verify 블록 (c)).
+    # has_own 게이트: 상속만 받은 팩이 조용히 partial 이 되면 진짜 미모델링을
+    #   가린다 — **자기 own 계수로 χ 를 이미 가동 중인 팩만** 이 분기를 탄다.
+    if not terms:
+        _chi_own = [k for k in ("oxidizer_passivation_K", "cu_ph_alkaline_k")
+                    if pk.has_own(k)]
+        if _chi_own:
+            f.value = 1.0
+            f.terms = {"owned_by_chi": 1.0}
+            f.status = "partial"
+            f.confidence = "literature"
+            f.sources = ["knowledge/slurry/psi-cu-alkaline-h2o2-passivation.md",
+                         "knowledge/cmp/chi-oxidizer-cu-h2o2-reparameterization.md"]
+            f.notes.append(
+                "ψ=1.000 (항등원): 이 팩의 표면 보호 메커니즘(H2O2/pH 유도 Cu 부동태화)은 "
+                "실재하고 1차 문헌으로 계량됐으나(US9200180B2 [0077]·[0111]·TABLE 4), "
+                f"χ 가 자기선언 계수 {'·'.join(_chi_own)} 로 같은 물리량 θ(C) 를 이미 "
+                "전담 모델링한다 — ψ 에 같은 θ(C) 를 다시 곱하면 이중계상이다"
+                "(knowledge/slurry/psi-cu-alkaline-h2o2-passivation.md §6c 수치 증명). "
+                "이 계 문헌에 ψ 가 독립으로 가져갈 흡착 화학종이 없다(§4: 억제제 없음, "
+                "벤젠술폰산은 Ta 착화제·산화제로 부호 반대, 분산제 라벨 없음) — "
+                "새 독립 흡착종이 확보될 때까지 항등원이 맞다.")
+            f.notes.extend(notes)
+            f.notes.extend(dnotes)
+            return f
     if not terms:
         f.notes.append("⚠ ψ 미모델링: 억제제 파라미터(inhibitor_mM + 흡착상수)도, "
                        "첨가제 농도축(shield_*)도, 분산제 파라미터(dispersant_type)도 팩에 "

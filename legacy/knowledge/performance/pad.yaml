@@ -1,0 +1,459 @@
+# 패드 성능 결정 인자 — 문헌·특허 근거. 시뮬레이터 UI 슬라이더 범위와 영향 방향의 정본.
+#
+# 규칙
+#  - range: 실제 CMP 폴리싱층 제품·특허 청구·실험 시편에서 확인된 최소~최대. UI 슬라이더 표시 범위.
+#  - ui_range(있으면): 사용자가 요구한 넓은 범위. range 밖은 "실제 제품 없음" 음영 처리 대상.
+#  - affects[].direction: "+" 인자↑→지표↑ / "-" 인자↑→지표↓ / "peaked" 정점형 / "unknown" 미검증.
+#    지표 정의: mrr(제거율), planarization(단차 제거·평탄화 효율), defects(스크래치·파티클 — ↑가 나쁨),
+#    uniformity(WIWNU 개선 — "+"는 균일도가 좋아짐), life(패드 수명), stability(시간에 따른 MRR 안정).
+#  - strength: strong / medium / weak — 문헌 효과 크기 기준(정량이 없으면 medium 이하).
+#  - engine_key: knowledge/params/base.yaml 에 실제로 있는 키만.
+#    status: wired(엔진 물리가 값에 반응) / pack_only(팩 키는 있으나 driver 기록만, 물리 미반영) / not_wired.
+#  - 출처 없는 범위·방향은 쓰지 않는다. 모르면 direction: unknown + "미검증".
+#
+# 검증: tests 없음 — 파싱 + range_source 존재 여부는 이 파일 생성 시 스크립트로 확인(2026-09-08).
+
+meta:
+  component: pad
+  schema_ref: knowledge/components/pad.yaml
+  engine_pack: knowledge/params/base.yaml
+  created: 2026-09-08
+  hardness_scale_note: >
+    Shore D 0 = 압입자가 2.54 mm 완전 침투(젤 수준), Shore D 100 = 침투 0(유리·금속 수준) —
+    ASTM D2240 스케일 정의(Wikipedia "Shore durometer", ASTM D2240 요약). 두 끝값은 스케일의 정의상
+    한계이지 패드 재료값이 아니다. 실제 폴리싱층 PU 패드는 Shore D 20~90 사이에만 존재하고,
+    서브패드·백킹층(Suba IV 등)은 Shore A 스케일로 표기되며 D로 환산하면 ≈5~16(비선형 근사)이다.
+    → UI 슬라이더는 0~100으로 두되 20~90을 '실제 폴리싱층 제품 범위', <20을 '서브패드/백킹 영역(Shore A 표기)',
+    >90을 '제품 없음'으로 표시한다.
+
+factors:
+
+  # ───────────────────────── 1. 경도 ─────────────────────────
+  - key: hardness_shore_d
+    label: "Hardness (Shore D)"
+    range: {min: 20, max: 90, unit: "Shore D"}
+    ui_range: {min: 0, max: 100, unit: "Shore D"}
+    range_source: >
+      최소 20: US7074115B2(Rohm & Haas, "Polishing pad") 청구항 "Shore D hardness of 20 to 60",
+      실시예 Table 2 실측 42~57 Shore D, 배경기술에 연질 대표로 Politex를 지목. Yim et al. 2018
+      (Microelectron. Eng. 195, 36, DOI 10.1016/j.mee.2017.12.002) 패드 B·C 실측 Shore D 20 —
+      knowledge/materials/pad-porosity-slurry-transport-mrr.md §6. 그 아래는 폴리싱층이 아니라
+      백킹층 영역: Suba IV Shore A 61(US8066552B2/US7654885B2 배경기술, Applied Materials),
+      AMAT 저압용 백킹 Shore A 1~20(US8066552B2 청구항 4). Shore A→D 환산(EPS 듀로미터 환산표,
+      근사·비선형): A 61 ≈ D 16, A 20 ≈ D 6 미만, A 100 ≈ D 58.
+      최대 90: US10391606B2(Rohm & Haas, DuPont 계열) 청구항 "Shore D 60 to 90(ASTM D2240-15)" —
+      knowledge/materials/pad-viscoelasticity-dma.md §5. 실측 최고값은 Cabot US20170087688A1
+      (US10562149) TPU 실시예 1E Shore D 80.1, 대조군 Epic D100 72 —
+      knowledge/materials/pad-viscoelasticity-temp-frequency-dma.md §3.1. 90 초과 청구·실측은 확보된
+      문헌에 없다(Shore D 100은 침투 0 = 경질 플라스틱/유리 수준으로 PU 발포 패드에서 물리적으로 도달 불가).
+      상용 IC1000 실측 폭: 52~62 Shore D(US8066552B2 배경기술), 데이터시트 60(Pureon 2024).
+      ⚠ Shore C 표기값(Chen 2024 Shore C ~90)은 D와 직접 비교 금지 —
+      knowledge/materials/pad-hardness-porosity-measurement-methods.md §2.
+    typical: 60
+    typical_source: "IC1000/IC1010 Shore D 60 — knowledge/materials/pad-hardness-porosity-measurement-methods.md §1 (Pureon 데이터시트 2024)"
+    bands:
+      - {min: 0,  max: 20, label: "서브패드/백킹 영역 (Shore A 1~61 ≈ D <5~16, 환산 근사)", source: "US8066552B2 청구항 4·배경기술; EPS Shore 환산표(근사)"}
+      - {min: 20, max: 45, label: "연질 폴리싱층 (Politex급·Kenchappa Pad-2 40D)", source: "US7074115B2; Kenchappa 2021 DOI 10.1149/2162-8777/abdc40 (pad-3dprinted-nonporous-lowdefect-review.md §5.1)"}
+      - {min: 45, max: 65, label: "표준 경질 PU (IC1000 52~62, HF2 53, Meng PUPCD 48~58)", source: "US8066552B2 배경기술; Meng 2025 DOI 10.3390/polym17050613 Table 2"}
+      - {min: 65, max: 90, label: "고경도 TPU/하드패드 (D100 72, Cabot TPU 76~80, 청구 상한 90)", source: "US10562149 Table 1B; US10391606B2 청구항"}
+      - {min: 90, max: 100, label: "제품 없음 (D100=침투 0, 유리/금속급)", source: "ASTM D2240 정의 (Wikipedia Shore durometer)"}
+    affects:
+      - metric: mrr
+        direction: "-"
+        strength: medium
+        source: >
+          엔진 채택식 MRR ∝ H^-1.5 (particle-wafer 압입 δ_p ∝ 1/H, A_f ∝ δ_p^1.5) —
+          sim/factors.py κ, knowledge/materials/pad-hardness-porosity-measurement-methods.md.
+          실측 부호는 화학계 의존: Kenchappa 2021(세리아 STI) 40D 패드가 60D 대비 RR 1.9배(경도↑→MRR↓ 일치),
+          Yim 2018(실리카, Si) 20D 패드가 49D보다 RR 낮음(반대). 단일 부호로 쓰면 안 된다는 경고 —
+          knowledge/materials/pad-3dprinted-nonporous-lowdefect-review.md §5.3, pad-porosity-slurry-transport-mrr.md §6.
+      - metric: planarization
+        direction: "+"
+        strength: medium
+        source: >
+          US7074115B2 배경기술: "planarization ability of stiffer pads such as IC1000" vs 연질 Politex.
+          knowledge/materials/pad-viscoelasticity-dma.md §6(경도↑→asperity가 요철에 덜 순응→평탄화↑).
+          ⚠ 반례: Kenchappa 2021 40D Pad-2가 STI 트렌치 손실 0~250 Å vs 상용 60D 500~750 Å —
+          asperity 높이분포 폭(8 vs 30 µm)이 경도보다 지배적일 수 있음(pad-3dprinted… §5.2). 정량 계수 미검증.
+      - metric: defects
+        direction: "+"
+        strength: medium
+        source: >
+          US7074115B2 배경기술 "pad-induced defectivity analogous to softer pads (Politex)" — 경질↑→결함↑.
+          knowledge/materials/pad-viscoelasticity-dma.md §6. 실측 카운트는 확보 문헌에 없음(Yeh et al. 2차 인용, 미검증).
+      - metric: uniformity
+        direction: unknown
+        strength: weak
+        source: "미검증 — 경도 단독 효과 실측 없음. 서브패드·두께가 지배(subpad_stiffness, thickness 항 참조)."
+    engine_key: pad_hardness_shore_d
+    status: wired
+
+  # ───────────────────────── 2. 압축률 ─────────────────────────
+  - key: compressibility_pct
+    label: "Compressibility (%)"
+    range: {min: 0.66, max: 2.25, unit: "%"}
+    range_source: >
+      최소 0.66: Meng et al. 2025 (Polymers 17(5), 613, DOI 10.3390/polym17050613) Table 2 상용 대조군 HF2,
+      실험 시편 0.78~1.51 — knowledge/materials/pad-viscoelasticity-dma.md §5.
+      최대 2.25: IC1000/IC1010 데이터시트(Pureon 2024) — pad-hardness-porosity-measurement-methods.md §1.
+      백킹층은 별도 축: 0.5 psi에서 1~30%(US8066552B2 명세) — subpad_stiffness 항.
+    typical: 2.25
+    typical_source: "IC1000 2.25% — knowledge/materials/pad-hardness-porosity-measurement-methods.md §1"
+    affects:
+      - metric: uniformity
+        direction: "+"
+        strength: medium
+        source: "US8066552B2/US7654885B2(AMAT): 압축성↑(백킹 포함)→저압(≤1 psi)에서 두께 비균일 흡수→균일도↑. 폴리싱층 단독 정량 없음."
+      - metric: planarization
+        direction: "-"
+        strength: medium
+        source: "US7654885B2 배경기술(압축성 큰 층이 장거리 순응→평탄화 손실) + Meng 2025 경향(압축률↓=경도↑·E↑). 정량 계수 미검증."
+      - metric: mrr
+        direction: unknown
+        strength: weak
+        source: "미검증 — 압축률 단독 MRR 실측 없음(경도와 공선)."
+    status: not_wired
+
+  # ───────────────────────── 3. 저장탄성률 E' ─────────────────────────
+  - key: storage_modulus_25c_mpa
+    label: "Storage modulus E' @25 °C (MPa)"
+    range: {min: 17, max: 2127, unit: "MPa"}
+    range_source: >
+      최소 17.1: Meng 2025 Neat PU 탄성계수(인장) — pad-viscoelasticity-dma.md §5. Kim 2006(2차 인용) 35 MPa@20 °C.
+      Yang 2010 IC1010 87 MPa / 솔리드 90 MPa(pad-3dprinted-nonporous-lowdefect-review.md §3.1).
+      최대 2127: Cabot US20170087688A1(US10562149) Table 1B 실시예 1A E'(25 °C, 1 Hz DMA); 상용 D100 1000 MPa —
+      pad-viscoelasticity-temp-frequency-dma.md §3.1. ⚠ 측정법(인장 정적 vs DMA 1 Hz)·재료(발포 PU vs TPU)에
+      따라 두 자릿수 차이 — 단일값으로 쓰지 말고 측정법을 함께 지정(같은 노트 §3.3).
+    typical: 1000
+    typical_source: "Epic D100 E'(25 °C) 1000 MPa — US10562149 Table 1B 대조군"
+    affects:
+      - metric: mrr
+        direction: "-"
+        strength: medium
+        source: "GW: A_r/W ∝ 1/E* → 실접촉면적↓ — knowledge/materials/hertz-gw-contact-mechanics.md; Kenchappa 2021 40D vs 60D(세리아). 화학계 의존 경고는 hardness 항과 동일."
+      - metric: planarization
+        direction: "+"
+        strength: strong
+        source: "US10391606B2 청구(G' 65 °C 125~500 MPa)·US10562149 청구(E'25 ≥1200 MPa) 모두 고강성=평탄화 전제. pad-viscoelasticity-dma.md §6."
+      - metric: uniformity
+        direction: "+"
+        strength: weak
+        source: "Lo & Lin 2005 (DOI 10.1016/j.jmatprotec.2005.01.010) FEM: 패드 E0 1.15→3.43 MPa 시 엣지 응력비 R 1.794→1.677(−6.5%) — pad-subpad-stiffness-edge-nonuniformity.md §3"
+      - metric: stability
+        direction: "-"
+        strength: medium
+        source: "Khanna 2019 (DOI 10.1149/2.0121905jss): E'25/E'90 비가 클수록 MRR 드리프트 R90s/R15s 큼 — pad-viscoelasticity-temp-frequency-dma.md §4"
+    status: not_wired
+
+  # ───────────────────────── 4. 온도 의존 강성비 (tanδ 대리) ─────────────────────────
+  - key: modulus_ratio_25_80
+    label: "E'(25 °C)/E'(80 °C) (온도 연화비, tanδ 대리)"
+    range: {min: 3.5, max: 425, unit: "-"}
+    range_source: >
+      Kim 2006(2차 인용, Materials 2025 DOI 10.3390/ma18194461 서론) 35→10 MPa(20→90 °C) ≈ 3.5;
+      Cabot US10562149 Table 1B: D100 1000/19 = 52.6, 발명 TPU 1413~2127/5~8 → 50~425 —
+      pad-viscoelasticity-temp-frequency-dma.md §3.1·§3.3. tanδ 절대값 표는 확보 문헌에 없음
+      (피크 온도 56~67 °C @1 Hz만 확인) — tanδ 자체 범위는 미검증.
+    typical: 52.6
+    typical_source: "Epic D100 1000/19 — US10562149 Table 1B"
+    affects:
+      - metric: stability
+        direction: "-"
+        strength: medium
+        source: "Khanna 2019 (DOI 10.1149/2.0121905jss) 순서 일치 검사 — pad-viscoelasticity-temp-frequency-dma.md verify(3)"
+      - metric: mrr
+        direction: unknown
+        strength: weak
+        source: "미검증 — Cabot 특허는 청구만 있고 RR 데이터 없음(노트 §3.1)."
+      - metric: defects
+        direction: unknown
+        strength: weak
+        source: "미검증"
+    status: not_wired
+
+  # ───────────────────────── 5. 기공률 ─────────────────────────
+  - key: porosity_vol_pct
+    label: "Porosity (vol%)"
+    range: {min: 15, max: 60, unit: "vol%"}
+    range_source: >
+      최소 15: Prasad et al. 2013 (J. Mater. Res. 28, 2380, DOI 10.1557/jmr.2013.173) 72D-G 15%, 실험 범위 15~45% —
+      pad-porosity-slurry-transport-mrr.md §3·§5. 청구 하한 0.1 vol%(US7074115B2)는 명목상 한계.
+      최대 60: Yang et al. 2010 (DOI 10.1016/j.ijmachtools.2010.06.007) IC1010 기술 "20–60 vol%" —
+      pad-3dprinted-nonporous-lowdefect-review.md §3.1; 3D 프린팅 특허 공극 20~80%(같은 노트 §4).
+      실험실 발포 78~84%(Chen 2024 DOI 10.3390/ma17112759)는 상용 범위 밖.
+    typical: 35
+    typical_source: "IC1000류 전형(base.yaml pad_porosity_pct, Yang 2010 IC1010 밀도 역산 ≈37%)"
+    affects:
+      - metric: mrr
+        direction: "+"
+        strength: weak
+        source: "Prasad 2013 III.D.3: 15→45%(30%p)에 평균 RR +8% — 엔진 지수 0.07(base.yaml tau_mrr_exponent)"
+      - metric: planarization
+        direction: "-"
+        strength: weak
+        source: "Prasad 2013 Fig.11a/12a: %P↑→벌크 E·경도 선형 하락(Gibson-Ashby) — pad-porosity-slurry-transport-mrr.md §5. 평탄화 직접 실측 없음(경로 추정)."
+      - metric: uniformity
+        direction: unknown
+        strength: weak
+        source: "Prasad 2013: %P 30%p 변화에 RR 프로파일 '매우 비슷' — 효과 없음에 가까움"
+      - metric: defects
+        direction: unknown
+        strength: weak
+        source: "미검증 — Yang 2010 솔리드(0%) 패드는 결함↓이나 접촉면적·컨디셔너 효과와 교락"
+    engine_key: pad_porosity_pct
+    status: wired
+
+  # ───────────────────────── 6. 기공 크기 ─────────────────────────
+  - key: mean_pore_size_um
+    label: "Mean pore size (µm)"
+    range: {min: 2, max: 106, unit: "µm"}
+    range_source: >
+      Prasad 2013 (DOI 10.1557/jmr.2013.173) 72D-D/G/H 기공 2, 47, 106 µm; 상용 IC1010·D100 평균 >40 µm —
+      pad-porosity-slurry-transport-mrr.md §4. Yang 2010 IC1010 30~80 µm(pad-3dprinted… §3.1).
+    typical: 50
+    typical_source: "Prasad 2013 '상용 표준 패드 평균기공 >40 µm', Yang 2010 30~80 µm 중앙"
+    affects:
+      - metric: uniformity
+        direction: "+"
+        strength: strong
+        source: "Prasad 2013 III.D.2: 2 µm 기공은 엣지-중심 RR 차 >2000 Å/min, 47/106 µm는 평탄 프로파일"
+      - metric: mrr
+        direction: "+"
+        strength: medium
+        source: "Yim 2018 (DOI 10.1016/j.mee.2017.12.002): V/A(공극부피) 최대 패드 D가 Si RR 최대(17.8 nm/min) — 4점 상관, 회귀식 없음"
+      - metric: defects
+        direction: "-"
+        strength: medium
+        source: "Yim 2018 Table 4: 대기공 패드 D 결함 68 vs 소기공 196~294 — ⚠ 부호는 재료계 의존(노트 §6 경고)"
+      - metric: life
+        direction: "+"
+        strength: weak
+        source: "Prasad 2013: 기공 <10 µm이면 컨디셔닝 시 기공이 뭉개져 글레이징 — pad-porosity-slurry-transport-mrr.md §4"
+    status: not_wired
+
+  # ───────────────────────── 7. 그루브 폭 ─────────────────────────
+  - key: groove_width_um
+    label: "Groove width (µm)"
+    range: {min: 300, max: 1270, unit: "µm"}
+    range_source: >
+      최소 300 / 실험 최대 900: Mu et al. 2016 (Microelectron. Eng., DOI 10.1016/j.mee.2016.02.035) 패드 A/B/C
+      W=300/600/900 µm — pad-groove-geometry-contact-area-flow-resistance.md §2.
+      상한 1270: US7198546B2(LSI) "on the order of 50 mils wide" — pad-thickness-groove-depth-monitoring-replacement-economics.md §3.
+    typical: 600
+    typical_source: "Mu 2016 패드 B, η 최대 — base.yaml groove_width_um"
+    affects:
+      - metric: mrr
+        direction: peaked
+        strength: medium
+        source: "Mu 2016 Table 3: 슬러리 이용효율 η 9.9→13.4%(300→600) 후 12.8%(900) 정체·감소 — 엔진 τ가 이 곡선을 보간(sim/factors.py)"
+      - metric: uniformity
+        direction: unknown
+        strength: weak
+        source: "미검증 — 폭 단독 균일도 실측 없음"
+      - metric: defects
+        direction: unknown
+        strength: weak
+        source: "미검증"
+    engine_key: groove_width_um
+    status: wired
+
+  # ───────────────────────── 8. 그루브 깊이 ─────────────────────────
+  - key: groove_depth_mm
+    label: "Groove depth (mm, 초기)"
+    range: {min: 0.6, max: 1.27, unit: "mm"}
+    range_source: >
+      US20120225612A1(Micron 양도) 통상 초기 깊이 30~50 mil(0.75~1.25 mm); US7198546B2 50 mil(1.27 mm) —
+      pad-thickness-groove-depth-monitoring-replacement-economics.md §3. Yang 2010 레이저 그루브 600 µm(솔리드 패드) 하한.
+    typical: 0.76
+    typical_source: "K-groove 30 mil — base.yaml groove_depth_mm"
+    affects:
+      - metric: life
+        direction: "+"
+        strength: strong
+        source: "Son & Lee 2021 (DOI 10.3390/app11083521): 그루브 소멸 = 수명 종료, 누적마모 694 µm ≈ 초기깊이 750 µm의 93% — 같은 노트 §5 verify(B)"
+      - metric: stability
+        direction: "+"
+        strength: medium
+        source: "Son & Lee 2021: 그루브 잔존 시 20 h MRR −7.4% vs 소멸 시 16 h −44.9%"
+      - metric: mrr
+        direction: unknown
+        strength: weak
+        source: "미검증 — 깊이 단독 MRR 실측 없음(τ 팩 키는 driver 기록만)"
+    engine_key: groove_depth_mm
+    status: pack_only
+
+  # ───────────────────────── 9. 그루브 피치 ─────────────────────────
+  - key: groove_pitch_mm
+    label: "Groove pitch (mm)"
+    range: {min: 1.5, max: 3.05, unit: "mm"}
+    range_source: >
+      Mu 2016 GFQ=W/P 0.200/0.333/0.429에 W 300/600/900 µm → P ≈ 1.5/1.8/2.1 mm —
+      pad-groove-geometry-contact-area-flow-resistance.md §2 verify; 120 mil(3.05 mm) 피치 — base.yaml groove_pitch_mm.
+    typical: 3.05
+    typical_source: "base.yaml groove_pitch_mm (120 mil)"
+    affects:
+      - metric: mrr
+        direction: unknown
+        strength: weak
+        source: "미검증 — Mu 2016은 폭과 피치를 동시에 바꿔 분리 불가(GFQ로만 보고)"
+      - metric: planarization
+        direction: unknown
+        strength: weak
+        source: "미검증 — 특허 '접촉면적·강성 균형 최적 GFQ 구간'은 실시예 한정(노트 §2)"
+    engine_key: groove_pitch_mm
+    status: pack_only
+
+  # ───────────────────────── 10. 그루브 패턴 ─────────────────────────
+  - key: groove_pattern
+    label: "Groove pattern"
+    range: {options: [concentric, xy_grid, radial, spiral, concentric_plus_radial, micro_pattern], unit: "enum"}
+    range_source: >
+      동심(K-groove, Kenchappa 상용)·나선(Kenchappa Pad-2) — pad-3dprinted-nonporous-lowdefect-review.md §5.1;
+      방사 추가 R0/R8/R32 — Kim (SKKU/삼성) 2022 Appl. Sci. 12, 4339 (DOI 10.3390/app12094339);
+      이산 마이크로패턴(원/타원/사각-원, DCA 5%) — Sadri Mofakham 2024 (DOI 10.1149/2162-8777/ad8fd3),
+      pad-groove-cfd-micropattern-optimal-design.md.
+    typical: concentric
+    typical_source: "IC1000 K-groove — pad-structure-groove-subpad.md"
+    affects:
+      - metric: uniformity
+        direction: "+"
+        strength: strong
+        source: "Kim 2022 (DOI 10.3390/app12094339): 방사 그루브 수 0→8→32에 300 mm NU 4.65→2.67→1.56% — pad-groove-geometry-contact-area-flow-resistance.md §3"
+      - metric: mrr
+        direction: "+"
+        strength: medium
+        source: "Sadri Mofakham 2024: 사각-원 패턴 ~1000 Å/min vs 원 745(+34%) — DICL이 지배 변수 — pad-groove-cfd-micropattern-optimal-design.md"
+      - metric: defects
+        direction: unknown
+        strength: weak
+        source: "미검증"
+    status: not_wired
+
+  # ───────────────────────── 11. 폴리싱층 두께 ─────────────────────────
+  - key: top_pad_thickness_mm
+    label: "Polishing layer thickness (mm)"
+    range: {min: 0.64, max: 2.29, unit: "mm"}
+    range_source: >
+      US8066552B2(AMAT) 폴리싱층 30~90 mil(0.76~2.29 mm), US7654885B2 저압용 ≤25 mil(0.64 mm);
+      IC1000 50 mil(1.27)/IC1010 80 mil(2.03) — pad-hardness-porosity-measurement-methods.md §1;
+      US20120225612A1 통상 50~80 mil — pad-thickness-groove-depth-monitoring-replacement-economics.md §3.
+    typical: 1.27
+    typical_source: "IC1000 50 mil"
+    affects:
+      - metric: uniformity
+        direction: "-"
+        strength: medium
+        source: "Lo & Lin 2005 (DOI 10.1016/j.jmatprotec.2005.01.010) FEM: T0 0.70→2.10 mm에 엣지 응력비 R 1.794→2.076(+15.7%, 엣지 과연마↑) — pad-subpad-stiffness-edge-nonuniformity.md §3"
+      - metric: life
+        direction: "+"
+        strength: strong
+        source: "US20120225612A1·Son & Lee 2021: 수명 = (초기 그루브 깊이/컷레이트) — 두께가 그루브 깊이 여유를 정함(pad-structure-groove-subpad.md §1)"
+      - metric: planarization
+        direction: unknown
+        strength: weak
+        source: "미검증 — 두께 단독 평탄화 실측 없음"
+    status: not_wired
+
+  # ───────────────────────── 12. 서브패드 강성 ─────────────────────────
+  - key: subpad_hardness_shore_a
+    label: "Subpad/backing hardness (Shore A)"
+    range: {min: 1, max: 61, unit: "Shore A"}
+    range_source: >
+      Suba IV(PU 함침 폴리에스터 펠트, 50 mil) Shore A 약 61 — US8066552B2/US7654885B2 배경기술;
+      AMAT 저압용 백킹 Shore A 1~10(청구항 4), ≤20(US7654885B2 청구항 6), 압축률 1~30% @0.5 psi.
+      Lo & Lin 2005 등가 패드층 E0 1.15~3.43 MPa(적층 전체 등가) — pad-subpad-stiffness-edge-nonuniformity.md §2.
+      Shore D 환산(근사): A 61 ≈ D 16, A 1~10 ≈ D <5 (EPS 환산표) — 폴리싱층 슬라이더(Shore D)의 <20 구간에 해당.
+    typical: 61
+    typical_source: "Suba IV — US8066552B2 배경기술"
+    affects:
+      - metric: uniformity
+        direction: "-"
+        strength: strong
+        source: "US8066552B2: Suba IV(61A) 적층은 ≤1 psi에서 균일도 불량, 1~10A 백킹으로 두께 비균일 흡수. Lo & Lin 2005: 등가 E0↑→R↓(엣지 피크 완화, −6.5%)는 반대 방향 — 저압/고압 영역이 다름을 노트 §4가 지적. 강한 효과이나 부호는 압력 영역 의존."
+      - metric: planarization
+        direction: "+"
+        strength: medium
+        source: "US7654885B2 배경기술: 연질 백킹이 장거리 순응을 늘려 평탄화를 해침(경질 백킹=평탄화↑). 정량 미검증."
+      - metric: mrr
+        direction: unknown
+        strength: weak
+        source: "미검증"
+    status: not_wired
+
+  # ───────────────────────── 13. 표면 조도 / asperity 높이 스케일 ─────────────────────────
+  - key: surface_roughness_ra_um
+    label: "Conditioned surface roughness Ra (µm)"
+    range: {min: 1.34, max: 8.05, unit: "µm"}
+    range_source: >
+      최소 1.34: Yang 2010 (DOI 10.1016/j.ijmachtools.2010.06.007) 70 µm 다이아 컨디셔너 — pad-3dprinted… §3.2;
+      Kim & Kang 2011 1.8~2.0 µm(cvd-diamond-disk-patterned-grit-array.md §2).
+      최대 8.05: Kwon 2013 (Tribol. Int. 67, 272, DOI 10.1016/j.triboint.2013.08.008) 17k 디스크 Ra 8.05(본문 7.89) —
+      disk-design-pad-roughness-asperity-relation.md §2.1. 엔진은 GW 높이스케일 1/β=0.3 µm(추정치)로 표현.
+    typical: 4.0
+    typical_source: "3M Pysher 2010 설계지도 180~250 µm semi-sharp 군집 surface finish 4.1~4.2 µm — disk-design-pad-roughness-asperity-relation.md §2.2"
+    affects:
+      - metric: mrr
+        direction: "+"
+        strength: medium
+        source: "Kwon 2013: Rpk↑=절삭율↑·MRR 상관(저자 명시); CR ∝ Rpk^0.85 — disk-design-cutrate-asperity-regeneration-model.md §2. ⚠ Yang 2010 솔리드 패드는 Ra↓(2.31→1.34)에 RR +20%로 반대 — 접촉면적 배분 차이"
+      - metric: defects
+        direction: "+"
+        strength: strong
+        source: "Yang 2010: Ra 2.31→1.34 µm에 스크래치/로트 5.36→1.69(−68%); Kwon 2013 거친 디스크→디브리·스크래치↑"
+      - metric: stability
+        direction: "-"
+        strength: medium
+        source: "Jeong 2024 (DOI 10.3390/ma17081817): 글레이징 = σz 4.51→3.2 µm 감소·접촉반경 2.5~4.5배 — pad-glazing-mechanism-mrr-decay.md §2 (조도 유지가 안정성)"
+    engine_key: pad_height_beta_inv_m
+    status: wired
+
+  # ───────────────────────── 14. asperity 밀도 ─────────────────────────
+  - key: asperity_density_per_mm2
+    label: "Contacting asperity density (#/mm²)"
+    range: {min: 42, max: 237, unit: "#/mm²"}
+    range_source: >
+      Sun 2009 학위논문(Univ. Arizona, hdl 10150/194898) 사파이어창 공초점 실측: D100/IC1000 × 디스크 A/B에서
+      η_c 42~237 #/mm²; McAllister 2018 (DOI 10.1149/2.0271805jss) EHWA CVD 6/10 lbf에서 82/143 #/mm² —
+      disk-design-pad-roughness-asperity-relation.md §2.3·§2.5. 엔진 팩값 1e11 /m² (=1e5 /mm²)는 GW 명목 asperity
+      (접촉 여부 무관) 기준의 추정치(confidence estimated)라 단위 정의가 다름 — 직접 비교 금지.
+    typical: 100
+    typical_source: "Sun 2009 IC1000 k-groove 80~88 #/mm² (접촉 정점 밀도)"
+    affects:
+      - metric: mrr
+        direction: "-"
+        strength: medium
+        source: "Sun 2009 p.306–308: 공격적 디스크는 η_c·A_f를 줄이지만 접촉당 압력↑로 MRR↑ — 즉 접촉밀도↑→MRR↓(같은 하중). 엔진 κ는 반대 부호(밀도↑→접촉면적↑→MRR↑, GW)로 구현 — 모순은 sim/factors.py notes로 보고할 것"
+      - metric: uniformity
+        direction: "+"
+        strength: medium
+        source: "Kenchappa 2021: asperity 높이분포 폭 8 µm(Pad-2) vs 30(상용) vs 130(Pad-1)이 압력 균일→평탄화·균일 — pad-3dprinted… §5.2"
+      - metric: defects
+        direction: unknown
+        strength: weak
+        source: "미검증"
+    engine_key: asperity_density_per_m2
+    status: wired
+
+  # ───────────────────────── 15. 흡수율 ─────────────────────────
+  - key: water_absorption_vol_pct
+    label: "Water absorption (vol%)"
+    range: {min: 3.47, max: 14.17, unit: "vol%"}
+    range_source: >
+      Chen et al. 2024 (Materials 17, 2759, DOI 10.3390/ma17112759) 무첨가 3.47 / NaHCO₃ 3wt% 6.99 / NH₄HCO₃ 1wt% 14.17 —
+      pad-hardness-porosity-measurement-methods.md §4. 상용 패드 흡수율 1차 수치는 미확보.
+    typical: 3.47
+    typical_source: "Chen 2024 대조군(무발포제)"
+    affects:
+      - metric: mrr
+        direction: "+"
+        strength: weak
+        source: "Chen 2024 §3.5: 흡수율↑ 조건에서 MRR +33.8%/+47.8% — ⚠ 기공률과 완전 교락, 흡수율 단독 효과 아님(미검증)"
+      - metric: stability
+        direction: unknown
+        strength: weak
+        source: "미검증 — 수화 연화·경도 변화(hydrolytic stability) 1차 문헌 미확보"
+      - metric: defects
+        direction: unknown
+        strength: weak
+        source: "미검증"
+    status: not_wired

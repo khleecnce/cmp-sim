@@ -1,0 +1,441 @@
+# 구리 CMP — **알칼리 step-2 계**. 억제제가 없고 벤젠술폰산이 barrier 제거를 가속한다.
+#
+# 왜 cu_h2o2_bta 에서 갈라 나왔는가 (2026-09-19)
+# ────────────────────────────────────────────
+# 전이 테스트에서 처음 보는 조성의 절대 MRR 오차 중앙값이 77% 였는데, 그 오차가
+# 전 계열에 퍼진 게 아니라 **4개 계열에 몰려** 있었다(제외하면 나머지 17개 중앙값
+# 60%). 그 4개는 전부 pack: cu_h2o2_bta 로 채점되고 있었으나 실제 조성이 다르다:
+#
+#     팩(cu_h2o2_bta)          이 데이터셋들
+#     pH 4 산성                pH 6~11 알칼리 (KOH 조정)
+#     BTA 1 mM                 **억제제 없음**
+#     알루미나                 콜로이달 실리카
+#     글리신 착화              벤젠술폰산
+#
+# US9200180B2 명세서 원문(로컬 사본 papers/patents/US9200180B2.html 에서 직접 대조,
+# 인용구 7개 전수 확인)이 이 분리를 요구한다:
+#
+#   · 벤젠술폰산은 억제제가 아니다 — corrosion inhibitor 마쿠쉬 군(1,2,4-triazole /
+#     benzotriazole / TINUVIN / CDX)에 들어 있지 않고, "benzenesulfonic acid not only
+#     serves as oxidants but complexes with tantalum ions to form tantalum sulfonate
+#     complexes, which results in high tantalum and/or tantalum nitride removal rates"
+#     로 서술된 **산화제 겸 Ta 착화제**다.
+#   · 부호가 반대다 — "both Ta and TaN removal rates are substantially increased with
+#     increasing benzenesulfonic acid concentration". 억제제라면 농도↑에 제거율↓여야 한다.
+#   · Cu 제거율이 낮은 이유도 흡착막이 아니다 — "This is possibly due to a much higher
+#     passivation rate for copper than tantalum and/or tantalum nitride in a mixture of
+#     hydrogen peroxide and benzenesulfonic acid". 즉 알칼리 H2O2 **부동태화**다.
+#   · pH 는 청구항 "a pH ranging from about 5 to 11" 이고 실시예 23개 전부 pH 6.2~11.2
+#     (중앙값 약 9)로 **산성 실시예가 하나도 없다.**
+#   · 선호 임베디먼트는 오히려 "substantially free of ... corrosion inhibitors" 다.
+#   · 대상 공정도 "most especially for step 2 copper CMP processes" — Cu 벌크 제거가
+#     아니라 barrier 단계다.
+#
+# 분리의 직접 근거(반사실 측정):
+#   알칼리 pH 스윕 5점을 부모 팩으로 예측하면 obs/pred 가 0.00502~0.00533 로
+#   **퍼짐이 1.06배**다. 형상(pH 의존성)은 이미 맞고 축척만 193배 틀렸다는 뜻이다.
+#   축척만 틀린 것은 정의상 Kp 문제이고, Kp 는 계마다 역산되는 양이므로
+#   **팩을 나누는 것이 정답이지 항을 새로 만들 일이 아니다.**
+#
+# ⚠ 이 팩에 억제제 키를 넣지 마라. 억제제가 없는 것이 이 계의 정의다.
+#   `inhibitor_mM` 을 선언하면 화학층이 흡착 항을 켜고, 그 항의 ΔG 는 BTA×Cu 쌍
+#   값이라 남의 재료로 계산한 숫자가 된다.
+base: base
+description: "Cu CMP (step-2, 알칼리): H2O2 부동태화 지배, 억제제 없음, 벤젠술폰산 + 콜로이달 실리카"
+
+params:
+  film:
+    value: cu
+    confidence: verified
+  abrasive:
+    value: silica
+    source: >
+      US9200180B2 실시예 전체 — "K-안정 콜로이달 실리카". 부모 팩(알루미나)과 다르다.
+    confidence: literature
+
+  kp_m_per_pa:
+    value: 1.9110383e-14
+    unit: m^2/N
+    note: >
+      ⚠ 2026-09-19 기준점 동반이동: cu_ph_alkaline_ref 를 6.25 → 9.0(운전점)으로
+      옮기면서 **같은 편집에서** 이 값에 0.400326 을 곱했다
+      (4.7737e-14 → 1.91104e-14). 기준점을 위로 올리면 pH 항이 운전점에서
+      0.400326 → 1.0 으로 **커지므로**, 곱을 보존하려면 Kp 는 같은 비율만큼
+      **작아져야** 한다. 그 결과 예측값은 불변이다 — 4개 Cu 검증 계열의 예측
+      벡터가 수정 전후 동일함을 실행으로 확인했다(방향을 반대로 잡았다가
+      예측이 2.5배 뛰는 것을 실행이 잡아냈다. 계산으로 주장하지 말고 돌려 보라).
+      한쪽만 옮기면 Kp 이중 계상이고, 이것이 기준배수 위반(model_hygiene L
+      심각 1건)을 회귀 없이 닫는 유일한 길이다.
+
+      이 계에서 직접 역산한 축척. US9200180B2 TABLE 4 (pH 6.2/7.1/8.7/9.4/9.9 →
+      Cu RR 73.2/57.7/33.4/26.3/21.4 nm/min) 5점에 대해 기하평균 비
+      exp(mean(ln(obs/pred))) 가 1.000 이 되도록 잡았다.
+      **자유도는 1개(축척 하나)뿐이고 형상은 건드리지 않았다** — 개별 비의 퍼짐이
+      1.06배에 불과해 5점이 한 상수로 동시에 맞는다. 이것이 계열마다 보정항을 붙이는
+      것과 다른 점이다: 여기서 맞춘 것은 Kp 하나이고, pH 의존성은 cu_ph_alkaline_k
+      (같은 표에서 독립적으로 회귀된 값)가 그대로 만든다.
+      ⚠ 그래서 us9200180b2_cu_ph_alkaline_sweep 은 이 팩에 대해
+      `used_for_calibration: true` 여야 한다 — 이미 그렇게 표시돼 있다.
+      나머지 세 계열(abrasive_series · h2o2_series · us20110165777a1)이 held-out 이다.
+      ⚠ 절대값을 신뢰하지 마라. Kp 는 이 장비(Mirra 3400, Politex, 2.0 psi)의
+      지문을 포함한다 — 고객 실측이 오면 계열 축척 층이 다시 흡수한다.
+    source: US9200180B2 (Air Products / 현 Versum·Merck) TABLE 4, Examples 15-19
+    confidence: estimated
+
+  slurry_ph:
+    value: 9.0
+    unit: pH
+    note: >
+      실시예 23개의 중앙값. 청구항 범위는 "a pH ranging from about 5 to 11"(광의
+      4.5~12, 최선호 7~10.5)이고 산성 실시예가 없다. KOH 로 조정된다.
+    source: US9200180B2 청구항 1 + 실시예 성분표
+    confidence: literature
+  ph_ref:
+    value: 4.0
+    unit: pH
+    note: >
+      **산성** 가지(cu_ph_acid_k)의 기준점이다. 이 팩의 운전점은 pH 9 이므로 산성
+      가지를 타지 않지만, 키가 없으면 로더가 폴백해 조용한 기본값이 된다.
+      부모와 같은 물리적 의미(산성역 기준)를 유지한다.
+    source: knowledge/cmp/cu-cmp-ph-mechanism.md
+    confidence: literature
+  cu_ph_acid_k:
+    value: 0.1428
+    unit: 1/pH
+    note: >
+      산성역 감쇠 계수. 이 팩의 운전 대역(pH 6~11)에서는 사용되지 않지만, 팩이
+      선언하지 않으면 부모 값이 조용히 상속돼 어느 쪽이 쓰였는지 추적이 끊긴다.
+      ⚠ 단위 불일치는 의도된 표기다 — 접미사 _k 가 검사기에서 절대온도(K)를
+      뜻하지만 여기서는 감쇠 상수 k 이고 차원은 1/pH 다. pH 는 무차원 로그량이므로
+      온도로 **환산**하는 관계 자체가 존재하지 않는다(환산 불가, 환산 대상 아님).
+      부모 팩 cu_h2o2_bta 의 같은 키와 동일한 사유다.
+    source: knowledge/cmp/cu-cmp-ph-mechanism.md
+    confidence: literature
+  cu_ph_alkaline_k:
+    value: 0.3329
+    unit: 1/pH
+    note: >
+      알칼리역 감쇠 계수. **이 값의 출신이 곧 이 팩이 존재해야 하는 이유다** —
+      US9200180B2 TABLE 4 Examples 15-19 (pH 6.2/7.1/8.7/9.4/9.9 → Cu RR
+      732/577/334/263/214 Å/min) 의 ln(RR) vs pH 최소자승에서 나왔고
+      (k=0.3329, R²=0.9971, 5점), 그 조성은 **콜로이달 실리카 10 wt% + H2O2 1 wt%
+      + 벤젠술폰산 1 wt% + BTA 없음**, 즉 정확히 이 팩의 조성이다.
+      그동안 이 값이 산성·BTA 팩 안에 세들어 있었다 — 알칼리 가지가 자기 계의
+      Kp·억제제·연마입자를 못 쓰고 남의 것을 쓰고 있었다는 뜻이고, 그것이
+      절대 MRR 이 193배 어긋난 직접 원인이다.
+      ⚠ 단위 불일치는 의도된 표기다 — 접미사 _k 는 감쇠 상수(차원 1/pH)이지
+      절대온도가 아니다. pH 는 무차원 로그량이라 온도로 **환산**하는 관계가
+      존재하지 않는다(환산 불가). 산성 가지 cu_ph_acid_k 와 동일.
+    source: US9200180B2 TABLE 4, Examples 15-19
+    confidence: literature
+  cu_ph_alkaline_ref:
+    value: 9.0
+    unit: pH
+    note: >
+      알칼리 가지의 기준점 = **이 팩의 운전점**(slurry_ph 와 동일). 2026-09-19
+      기준배수 위반 수정: 이전 값 6.25(V자 골 위치)로 두면 기준 조건에서
+      pH 항이 exp(−0.3329·(9−6.25)) = 0.4003 을 내어 **기준 조건 MRR 배수가
+      1.0 이 아니게 된다**(model_hygiene L 검사 심각). Kp 가 그 조건에서
+      역산된 값이므로 배수는 정확히 1.0 이어야 한다는 계약 위반이다.
+      ⚠ 골 위치(6.25)는 여전히 물리적 사실이지만, 그것은 **함수의 형상**이
+      아니라 좌표 원점 선택의 문제다 — exp(−k·(pH−ref)) 에서 ref 를 옮기는 것은
+      곡선 전체에 상수배를 걸 뿐 **형상(k)을 바꾸지 않는다**. 그래서 이 이동은
+      `_ref` 동반이동 규칙의 정석 적용이고, 짝인 kp_m_per_pa 를 같은 편집에서
+      1/0.4003 배 옮겨 **예측값은 비트 단위로 불변**이다(아래 kp 주석 참조).
+      실측으로 확인: 4개 Cu 검증 계열의 예측 벡터가 수정 전후 동일하다.
+    source: >
+      기준점 선택(좌표 원점) — 골 위치의 문헌 근거는 Du & Desai 2003
+      (DOI 10.1557/PROC-767-F6.6) / Ilie & Ipate 2017
+      (DOI 10.3390/lubricants5020015) 이며 k 의 출신 표와 함께 위 cu_ph_alkaline_k
+      주석에 남아 있다.
+    confidence: literature
+
+  oxidizer:
+    value: H2O2
+    source: US9200180B2 실시예 성분표
+    confidence: literature
+  oxidizer_wt_pct:
+    value: 1.0
+    unit: "wt%"
+    note: 실시예 대표 농도. 청구항 범위 0.1~10 wt%.
+    source: US9200180B2 실시예 성분표
+    confidence: literature
+  oxidizer_ref_wt_pct:
+    value: 1.0
+    unit: "wt%"
+    note: >
+      기준 농도 — 화학 배수가 1.0 이 되는 지점. Kp 를 이 농도에서 역산했으므로
+      본값과 같아야 한다. 다르면 기준 조건에서 배수 ≠ 1.0 = 이중 계상이다.
+    source: kp_m_per_pa 를 역산한 조건과 동일
+    confidence: literature
+  oxidizer_passivation_K:
+    value: 0.8232
+    unit: 1/wt%
+    note: >
+      Langmuir 부동태 피복 상수. θ(C)=K·C/(1+K·C) 이고 산화제 항은
+      f(C) = φ + (1−φ)·(1−θ(C))/(1−θ(C_ref)) — 산화제가 많을수록 Cu 표면
+      부동태막이 활성 사이트를 덮어 제거율이 **낮아지는** 방향이다.
+      **이 키가 이 팩에 와야 하는 이유**: 값의 출처가 US20110165777A1 TABLE 2
+      4점(H2O2 0/0.25/0.5/1.0 wt%)인데 그 조성이 pH 11.1 알칼리 + 벤젠술폰산
+      1.0 wt% + 콜로이달 실리카 5 wt% 로 **이 팩의 계이지 부모(pH 4 산성 + 알루미나
+      + 글리신)의 계가 아니다.** 부모에 남겨 두면 이 팩에서는 키가 없어 산화제 항이
+      통째로 꺼진다 — 실측으로 확인했다(산화제 0→7 wt% 에서 예측이 29.81 nm/min
+      으로 소수점까지 고정, 즉 그 축이 미사용 상태였다).
+      ⚠ 부동태화가 지배한다는 방향 자체가 이 계의 특징이다. 명세서가
+      "a much higher passivation rate for copper than tantalum and/or tantalum
+      nitride in a mixture of hydrogen peroxide and benzenesulfonic acid" 라고
+      적은 바로 그 메커니즘이다.
+    source: knowledge/cmp/chi-oxidizer-cu-h2o2-reparameterization.md
+    confidence: estimated
+  oxidizer_peak_wt_pct:
+    value: 1.0
+    unit: "wt%"
+    note: >
+      이 계는 산화제 증가가 제거율을 **낮추는** 부동태 지배계라 관측 창 안에
+      정점이 없다. 정점을 운전점에 두어 관측 대역 전체가 정점 이후(감소) 구간이
+      되게 한다 — 부모 팩의 3.0(산성·착화제계의 Kaufman 정점)을 물려받으면
+      이 계에 없는 상승 구간이 생긴다.
+    source: US9200180B2 명세서 (Cu 부동태 지배 서술) + US20110165777A1 TABLE 2 형상
+    confidence: estimated
+
+  abrasive_wt_pct:
+    value: 10.0
+    unit: "wt%"
+    note: US9200180B2 TABLE 4 조성(콜로이달 실리카 10 wt%). Kp 역산 조건.
+    source: US9200180B2 TABLE 4
+    confidence: literature
+  abrasive_ref_wt_pct:
+    value: 10.0
+    unit: "wt%"
+    note: >
+      본값과 동반 이동. 부모 팩 값(3.0)을 물려받으면 기준 조건에서 농도 항 배수가
+      1.0 에서 깨져 Kp 가 이중 계상된다.
+    source: kp_m_per_pa 를 역산한 조건과 동일
+    confidence: literature
+  abrasive_density_kg_m3:
+    value: 2200.0
+    unit: kg/m^3
+    note: 비정질 콜로이달 실리카 2.20 g/cm3 (CRC Handbook).
+    source: CRC Handbook of Chemistry and Physics — amorphous SiO2
+    confidence: literature
+
+  # ── κ 입경 축 (판정#71, 2026-09-19) ─────────────────────────────
+  # US9200180B2 유일 연마입자(성분 D, 전 실시예 공통)의 CHDF 실측 스펙.
+  # 부모 팩(EKC 알루미나, 100 nm)과 다른 재료·다른 값 — 반드시 own 선언해야
+  # abrasive_ref_size_nm 미동반 시 침묵(효과 없음)으로 읽히는 사고를 막는다.
+  abrasive_size_nm:
+    value: 55.0
+    unit: nm
+    note: >
+      US9200180B2 명세서 COMPONENTS 목록 D) 원문: "an approximately 30 weight %
+      potassium-stabilized dispersion in water with a particle size of 50-60
+      nanometers as measured by Capillary Hydro-Dynamic Flow using a Matec
+      Applied Sciences model number CHDF 2000 instrument." 이 성분 D 하나가
+      전 실시예(1~23)에 공통으로 쓰인다 — 이 특허는 입경을 스윕하지 않는다
+      (§3 참조, 입경 지수 판정의 전제).
+      값은 보고된 범위 [50,60]의 산술 중앙값 55.0으로 잡았다 — 분포 형태나
+      대표값(모드/평균)에 대한 추가 정보가 원문에 없어 중앙값 외에 이를
+      구체화할 근거가 없다(이 팩 slurry_ph=9.0을 "실시예 23개 중앙값"으로
+      잡은 것과 동일한 원칙).
+    source: "US9200180B2, COMPONENTS D) — 원문 직접 대조 2026-09-19"
+    confidence: literature
+  abrasive_ref_size_nm:
+    value: 55.0
+    unit: nm
+    note: >
+      본값과 동반 이동. 다르면 기준 조건에서 입경항 배수가 1.0에서 깨져
+      kp_m_per_pa가 이중 계상된다(kp_m_per_pa 주석의 cu_ph_alkaline_ref
+      사고와 동형).
+    source: "abrasive_size_nm과 동일 조건"
+    confidence: literature
+  abrasive_size_exponent:
+    value: 0.0
+    unit: "-"
+    note: >
+      **부모(cu_h2o2_bta) 판정#1 null 결과의 조건부 상속 — literature가 아니라
+      estimated로 한 단계 낮춰 상속한다.**
+
+      부모 null 결과(n=0.0)는 독립된 두 다리로 literature 등급을 받았다
+      (knowledge/cmp/abrasive-size-null-result-force-partition-theory.md):
+        ① 실측: TW202115224A(Cu, n=18) 순수 구형 부분집합(15/27/50/160nm)에서
+           Spearman ρ≈0.03~0.15(비유의) — 단 이 데이터의 조성은 **글리신
+           5.5wt%+알라닌 9.5wt%+1,2,4-트리아졸 416ppm**(부모 팩과 동일 화학,
+           `validation/datasets/tw202115224a_cu_abrasive_size_pressure.yaml`
+           원문 그대로)이다.
+        ② 이론: Chen thesis 힘분배+단층+소성압입 결합 유도가 정확히 d⁰를
+           준다(§4 verify). 이 유도는 **막(Cu, 연질→소성 압입 레짐)과 입자
+           (구형, 15~160nm 콜로이달실리카)만 쓰고 화학종(오염제거제·억제제·
+           산화제·pH)을 어디에도 참조하지 않는다** — 직접 재확인함
+           (§4 수식에 pH·억제제·산화제 항 없음).
+
+      이 팩(알칼리·벤젠술폰산·억제제 없음·pH 9)은:
+        · 막 = Cu(부모와 동일) — ②의 전제(연질 소성 레짐) 그대로 유지.
+        · 입자 = K-안정 콜로이달 실리카 50-60nm, 구형 추정(K-안정화 콜로이달
+          실리카는 통상 Stöber형 합성으로 근사 구형 — US9200180B2는 형상을
+          명시하지 않으나 "colloidal silica"라는 용어 자체가 흄드/응집형과
+          대비되는 저응집 구형 입자를 뜻하는 업계 관행 표기다) — ②의 두 번째
+          전제(구형, 15~160nm)도 유지, ①의 크기 범위(15~160nm)에도 포함.
+        · 화학 = 벤젠술폰산+H2O2+알칼리, 억제제 없음 — **①의 화학(글리신/
+          알라닌/트리아졸)과 다르다.**
+
+      즉 ②(이론, 화학무관)는 그대로 전이되지만 ①(실측, 화학특정)은 전이되지
+      않는다 — 두 독립 다리 중 하나만 남는다. EVIDENCE-RULES.md E4 정의
+      ("1차 유도지만 다른 계에서 검증된 것을 전이 — 방향만 채택, 크기는
+      미채택")에 해당하는 상황이고, 부모의 literature 등급은 ①+② 결합에서
+      나온 것이므로 ②단독 전이는 한 단계 낮춰 **estimated**로 상속한다.
+      값(0.0)은 바꾸지 않는다 — ②가 예측하는 값 자체가 0.0이고, ①이 다른
+      화학종에서도 방향을 뒤집을 만한 반대 증거를 준 적이 없다(오히려
+      Li 2021의 반대부호 사례는 산화막/탄성 레짐에서 나왔다 — 부모 노트 §7이
+      이미 그 갈림을 탄성 vs 소성으로 귀속).
+      ⚠ 이 판정이 검증하지 못한 것: 벤젠술폰산·과산화수소 부동태막이 입자
+      표면 마찰계수를 바꿔 ②의 소성압입 상수를 흔들 가능성 — 미검증, 방향도
+      모름. 이것이 estimated에 머무는 두 번째 이유다.
+    source: >
+      knowledge/cmp/abrasive-size-null-result-force-partition-theory.md
+      (이론), validation/datasets/tw202115224a_cu_abrasive_size_pressure.yaml
+      (실측 조성 대조용, 직접 채택 아님)
+    confidence: estimated
+  abrasive_conc_exponent:
+    value: 0.3333333333
+    unit: "-"
+    note: >
+      **판정#80(2026-09-20)로 estimated→literature 승격.** 코드 기본값(1/3)과
+      같은 값이지만 팩이 own 선언해야 등급이 잡힌다는 사정은 그대로다.
+
+      1차 출처(신규): Cooper, K. et al. "Effects of Particle Concentration on
+      Chemical Mechanical Planarization." Electrochem. Solid-State Lett. 5(12),
+      G109-G112 (2002). doi:10.1149/1.1517772 (find_open_access.py로 확인,
+      papers/cooper2002-cu-particle-conc-1517772.pdf 원문 4쪽 전문 판독).
+      원문이 **Cu 기판에서 직접** 농도 스윕을 수행했다: "Copper wafers were
+      polished using proprietary acidic slurries comprised of silica-based
+      particles..." (Experimental), Fig.4가 Cu 단독 removal rate vs wt%,
+      Fig.5가 Cu·SiO2 함께 wt%^(1/3) 축으로 선형 확인, §Conclusions:
+      "CMP removal rates... were found to scale linearly with wt%^1/3 for
+      dielectric and metal substrates." 알루미나가 아니라 실리카 기반 입자임도
+      원문으로 확인(알루미나였다면 입자종 전이가 새로 생겼을 것).
+
+      **이전 강등 사유(US9499721B2, TEOS/oxide 막질→Cu 막질 전이)가 이 신규
+      출처로 소멸**한다 — Cooper 2002는 막질(Cu)과 입자(silica-based)가 이
+      팩과 직접 일치하는 1차 실측이지 전이가 아니다. 코드베이스가 이미 쓰는
+      "동일 시스템=막질+입자" 정의(같은 근거 노트 §5, oxide_silica/US9499721B2
+      판정에서 확립)로 판단하면 이 전이는 필요 없어진다.
+
+      ⚠ **정직하게 남기는 잔여 불일치**: Cooper 2002의 Cu 실측 조건은
+      **산성**(pH, "proprietary acidic slurries") + **BTA 또는 TA 부식억제제**
+      함유 슬러리다(Fig.6, "corrosion inhibitor, triazole (TA) or
+      benzotriazole (BTA)") — 이는 이 팩(cu_alkaline_benzenesulfonic, pH
+      6.2~11.2 알칼리, 억제제 없음, 벤젠술폰산)이 아니라 **부모 팩
+      cu_h2o2_bta(pH 4.0 산성+BTA)와 정확히 같은 화학계**다
+      (knowledge/params/cu_h2o2_bta.yaml 참조). pH 전환(산성→알칼리)과
+      억제제 유무는 Cooper 2002에서 직접 테스트되지 않았다 — 완화 근거로는
+      (1) 지수 유도(Eq.3-15)가 순수 기하학적 충돌빈도 논증이라 화학종을
+      참조하지 않고, (2) 원문 Fig.6이 Cu 시스템 내에서 BTA↔TA 억제제 교체를
+      **실측으로 테스트**해 지수가 붕괴하지 않음을 보였다(화학 강건성의
+      정성적 실측 증거) — 두 가지가 있으나, 산-알칼리 전환 자체는 미검증으로
+      남는다. 상세: knowledge/cmp/kappa-cu-alkaline-shape-exponents-round2.md §4.
+
+      절대 wt% 스케일(x축 눈금)은 원문에 그래프로만 있고 인쇄값 없음 —
+      지수값(1/3) 자체와 함수형만 채택, 정확값 재현은 불가.
+
+      함수형 자체의 한계(고농도 포화를 순수 거듭제곱이 못 담음)는 그대로
+      남는다 — 이 팩의 abrasive_wt_pct=10 wt%가 어느 레짐에 있는지는
+      Cooper 2002도 절대 스케일을 안 주므로 판단 불가(US9499721B2의 3 wt%
+      상한 논의는 보조 근거로만 남김).
+    source: >
+      knowledge/cmp/kappa-cu-alkaline-shape-exponents-round2.md §2-4 (1차,
+      Cooper 2002, doi:10.1149/1.1517772, Cu 직접 실측);
+      knowledge/cmp/abrasive-concentration-mrr-saturation-contact-probability.md §5
+      (보조, US9499721B2, TEOS/oxide 전이 근거였던 이전 출처 — 참고용 유지)
+    confidence: literature
+
+  # ── Δ D99 꼬리·손상지수 축 (판정#71, 2026-09-19) ─────────────────
+  # 부모(cu_h2o2_bta)는 알루미나 전용 1차 특허(US7344988B2, D99.9<5×D50)로
+  # 500nm(=100×5.00)를 썼다 — 이 팩은 알루미나가 아니라 콜로이달 실리카이므로
+  # 그 배수를 그대로 쓰면 재료 전이(알루미나→실리카) 오류다.
+  abrasive_d99_nm:
+    value: 103.824688
+    unit: nm
+    note: >
+      **화학종 무관 일반비(Levitronix/Silco 2008, 5.00)를 쓰지 않은 이유**:
+      knowledge/cmp/abrasive-particle-size-distribution-d99-tail.md §5 verify
+      블록이 바로 이 코퍼스 안에서 "일반비 5.00은 실리카 실측 비율(1.887)과
+      100%p 넘게 어긋난다"를 이미 assert로 증명해 뒀다 — 실리카 팩에 5.00을
+      쓰는 것은 이 코드베이스 자신의 기존 결론과 모순된다.
+
+      대신 같은 노트 §3의 US10894906B2(Versum Materials, 실리카 코어 CMP
+      복합입자) Table 1 "No Treatment" 실측 비율 D99/D50=287.5/152.3=1.887을
+      이 팩의 abrasive_size_nm(55.0)에 곱했다: 55.0 × (287.5/152.3=1.887722) = 103.8247 nm.
+      ⚠ oxide_silica 자신은 이 비율을 재적용하지 않고 **절대값(287.5nm)을
+      그대로 이식**했다(화학종+용도 완전 일치, sti_ceria와 동일 방식) —
+      이 팩은 용도가 다르므로(oxide CMP 아님) 그 절대값 이식 방식을 그대로
+      따를 근거가 없어, 대신 비율을 이 팩의 실제 D50(55nm)에 적용하는
+      **차선책**을 썼다. 이것은 비율이 입자 크기(152nm→55nm, 약 2.8배 축소)에
+      걸쳐 불변이라는 **검증되지 않은 가정**을 추가로 얹는다.
+
+      confidence=estimated인 이유(둘 다 성립해야 literature였을 것):
+        (1) 화학종 일치(실리카)이나 **용도 불일치**(Versum 소스는 oxide/STI/
+            ILD CMP, 이 팩은 Cu CMP) — sti_ceria/oxide_silica가 literature를
+            받은 것은 화학종+용도가 **둘 다** 일치했기 때문이다.
+        (2) 세리아 코팅 복합입자의 코어 실측이라 K-안정 순수 콜로이달 실리카와
+            표면화학이 다르다(원 노트도 이미 이 한계를 명시). PSD 폭 자체는
+            코팅 전 코어 합성 단계에서 대부분 정해진다는 것이 그 노트의
+            논거이나 분리 실측은 아니다.
+        (3) 위 "비율의 입자크기 불변성" 가정이 미검증(2.8배 크기 차).
+      **미확보**: US9200180B2 자체는 D99/D90 등 분포폭 스펙을 인쇄하지 않는다
+      (COMPONENTS D) 항목에 D50 상당값 하나뿐, §2 원문 대조로 확인).
+      K-안정 콜로이달 실리카(DuPont Air Products / 현 Versum) 자체의 D99 실측은
+      이번 탐색에서 찾지 못했다(1회차) — 이번 값은 그 부재를 메우는 **차선
+      대체값**이지 직접 측정값이 아니다.
+
+      **2회차(2026-09-19) 재탐색 — 값·등급 변경 없음**:
+      knowledge/cmp/abrasive-d99-psd-width-size-dependence.md 전문 참고.
+      K-안정 콜로이달 실리카(DuPont/Versum/Fuso/Nalco) 자체의 D99 실측은 이번에도
+      확보 못 함(US9200180B2·US10894906B2/US10421890B2 재확인, EP3101076A1/
+      US10032644B2는 설계목표 서술만 있고 수치표 없음). 대신 다른 제조사(CMC
+      Materials, US11725116B2 Table 1C)의 양전하 콜로이달 실리카가 D50=37~127nm
+      구간 disc centrifuge D10/D50/D90 실측표를 제공 — 이 팩과 D50이 정확히
+      일치하는 조성(1F: D10=47/D50=55/D90=63)에서 Hatch-Choate 외삽 D99≈70.4nm로,
+      현재값(103.8nm)과 47% 차이. 화학(양전하 아미노실란 vs K-안정)·용도(W CMP vs
+      알칼리 Cu CMP)·측정량(D90 외삽 vs D99 실측) 3중 불일치라 이 대체값으로
+      교체하지 않는다 — 다만 D99/D50 비율이 입자크기와 중간 강도 음의 상관
+      (r≈-0.59, r²≈0.35)을 갖는다는 정량적 근거는 새로 확보했다(§3 "비율의
+      입자크기 불변성 미검증" 한계에 대한 부분 답변 — 완전 불변은 아니되 크기만으로
+      결정되지도 않음).
+    source: >
+      knowledge/cmp/abrasive-particle-size-distribution-d99-tail.md §3, §5
+      (비율 출처 US10894906B2 Table 1); 2회차 재탐색:
+      knowledge/cmp/abrasive-d99-psd-width-size-dependence.md
+    confidence: estimated
+  abrasive_ref_d99_nm:
+    value: 103.824688
+    unit: nm
+    note: >
+      기준 조건(Δ=1.0)의 기준점 — abrasive_d99_nm과 동일값으로 이중 계상 방지.
+    source: abrasive_d99_nm과 동일 조건
+    confidence: estimated
+  damage_exponent:
+    value: 2.54
+    unit: "-"
+    note: >
+      부모(cu_h2o2_bta)와 **동일값·동일 근거를 그대로 상속**한다 — 재적합이
+      아니라 판정 구조 자체가 이 팩에도 바뀌지 않고 적용된다는 뜻이다.
+
+      delta-damage-model-synthesis.md §3 팩별 표의 "n 출처" 열이 이미 이
+      전이를 **막질 기준**으로 분류해 왔다: sti_ceria/sic_ceria_h2o2는
+      "Hitachi 4점 회귀"(막질+화학종 일치, literature), oxide_silica는
+      "Hitachi(막질 일치·입자 불일치)"(literature — 막질만 맞아도 충분),
+      cu_h2o2_bta/w_fe_oxidizer는 "Egan & Kim"(W→Cu 또는 W 자신, W 데이터의
+      Cu 전이는 estimated). 즉 이 코퍼스에서 damage_exponent 전이 등급을
+      가르는 축은 **연마입자 화학종이 아니라 막질**이었다 — 세리아→실리카
+      막질전이(oxide_silica)는 literature를 유지했지만 텅스텐→구리
+      막질전이(cu_h2o2_bta)는 estimated로 낮아졌다.
+
+      이 팩도 막=Cu로 부모와 동일하다 — 텅스텐→구리 전이라는 근거 구조가
+      한 글자도 바뀌지 않는다(연마입자가 알루미나에서 실리카로 바뀐 것은
+      이 축의 판정 기준이 아니었으므로 영향 없음). 따라서 값과 등급을
+      그대로 상속한다. 판정#27·#30·#31(cu_h2o2_bta damage_exponent 3회차
+      미확보 종결)의 결론 — "Cu 막의 D99-스크래치 1차 대응쌍이 공개
+      코퍼스에 없다" — 도 이 팩에 화학무관하게 그대로 적용된다(코퍼스
+      자체가 안 바뀌었으므로).
+    source: knowledge/cmp/delta-scratch-damage-d99-oversize-particle-model.md §4.3
+    confidence: estimated

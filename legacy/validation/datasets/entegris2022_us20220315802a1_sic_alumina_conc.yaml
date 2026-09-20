@@ -22,10 +22,46 @@
 doi: "US20220315802A1 (Google Patents, Table 1 alumina series)"
 source: "Entegris Inc / U. Florida, US20220315802A1, Table 1 -- SiC CMP, alumina nanoparticle conc. vs removal rate, 4 wt% KMnO4 + 0.5 wt% nitrate salts, pH 2.3"
 read_method: table
-pack: sic_ceria_h2o2
+pack: sic_alumina_kmno4
 in_scope: true
+# ⚠ 2026-09-16 판정#49-B: pack 을 sic_ceria_h2o2 -> sic_alumina_kmno4 로 옮겼다.
+#   이 데이터는 산성 KMnO4(pH 2.3)/알루미나 계이고, sic_ceria_h2o2 는 알칼리
+#   세리아/H2O2 계다. Kp 를 후자에서 바로잡자 이 데이터가 195배 과소예측으로
+#   튀었는데, 원인은 Kp 가 아니라 한 팩에 두 레짐을 담아 둔 것이었다.
+#   절대 MRR 은 여전히 29배 과소예측이다 — 이 특허 수치가 논문 2편(Wang 2021,
+#   Chen 2015) 대비 이상치라는 판정의 귀결이며, held-out 으로 남겨 순위만 쓴다.
 scope_note: "Chemistry mismatch (alumina vs pack's ceria) -- tests kappa mechanical concentration term only, not chi (pH) chemistry term. See header above."
 used_for_calibration: false
+
+# ── 절대값 순위전용 판정 (2026-09-16, EVIDENCE-RULES 판정#55) ──────────────
+# 갭 랭커가 이 데이터셋을 BIAS(23.04배 계통편향)로 6회차 넘게 최상위에 올려
+# 왔다. 이번 회차에 "우리 Kp 가 틀렸는가, 이 특허 수치가 이상치인가"를
+# Preston 정규화(k* = MRR / (P·rpm))로 직접 갈랐다 — 같은 재료계(산성 KMnO4 +
+# 알루미나 + SiC)의 절대 MRR 을 압력·회전수 차이를 걷어낸 뒤 비교했다:
+#   · Gong 2024 (doi:10.3390/ma17030679, CC-BY, 인쇄표 n=25) k* = 4.735e-06
+#   · Wang 2021 (doi:10.1149/2162-8777/ac12de, 리뷰 경유 2차인용) k* = 6.267e-06
+#   · Chen 2015 (doi:10.1016/j.apsusc.2015.10.158, 2차인용)     k* = 7.312e-06
+#   · 이 특허 Table 1 (중앙값)                                   k* = 1.813e-04
+# 논문 3편은 서로 1.54배 안에 모이고, 이 특허만 그 위로 24.8~38.3배 떨어져 있다.
+# 특허의 **가장 느린 조건(1.2 um/h)** 조차 논문 최대값의 6.6배다.
+# → 팩 Kp 를 이 특허에 맞추면 논문 3편이 17.2배 과대예측으로 뒤집힌다(실측:
+#    Gong 편향 1.336배 → 0.058배). 하나를 맞추면 셋이 틀어지는 구조다.
+# EVIDENCE-RULES 서열: 같은 E3 등급이면 재현가능성·독립 확인 수로 깬다 →
+# 서로 독립적으로 일치하는 논문 3편 > 검증 없이 인쇄된 특허 실시예 1건.
+# 그래서 팩은 논문 쪽에 고정하고(이미 그렇다), 이 데이터셋의 **절대값만** 판정에서
+# 면제한다. 순위(ρ=+1.000, p=0.008)는 그대로 집계한다 — 농도-MRR 방향은
+# 이 특허가 이 팩의 유일한 조성 1축 스윕이고, 순위는 Kp 스케일에 불변이다.
+# ⚠ 이것은 "안 맞아서 뺀다"가 아니다. 뺀 것은 데이터가 아니라 **절대값 판정**이며,
+#   근거는 지표가 아니라 독립 문헌 3편의 정규화 일치다(tools/outlier_rules.py C3 취급).
+rank_only: true
+rank_only_ruling: >
+  Preston 정규화 k*=MRR/(P·rpm) 비교에서 논문 3편(Gong 2024 4.735e-06 /
+  Wang 2021 6.267e-06 / Chen 2015 7.312e-06)이 1.54배 안에 모이는 반면 이
+  특허 Table 1 은 1.813e-04 로 24.8~38.3배 높다. 특허 최저 조건조차 논문
+  최대의 6.6배. 팩 Kp 를 이 특허에 맞추면 Gong 2024 가 1.336배 → 0.058배로
+  뒤집힌다. 독립 일치 3편 > 미검증 특허 실시예 1건(EVIDENCE-RULES E3 동급
+  → 재현가능성으로 판정). 절대값 판정만 면제하고 순위는 유지한다.
+  근거 노트: knowledge/cmp/sic-kmno4-alumina-absolute-mrr-patent-vs-papers.md
 # ⚠ 2026-09-11: 이 데이터셋이 sic_ceria_h2o2의 abrasive_conc_exponent(-0.406) 출처이기도 하다
 #   (knowledge/cmp/sic-alumina-concentration-negative-exponent-entegris.md §3,§6).
 #   qa_loop.py F4 감사가 "used_for_calibration 누락" ⚠를 띄우지만, 다른 팩도 같은 패턴
@@ -34,14 +70,85 @@ used_for_calibration: false
 #   false를 유지한다. F4는 경고(⚠)이고 F1/F3처럼 격리를 강제하지 않는다. 세 팩 모두의
 #   캘리브레이션-검증 분리를 일관되게 다시 정리하는 것은 별도 과제로 남긴다(미검증).
 calibration_contact:
-  - param: abrasive_conc_exponent
-    pack: sic_ceria_h2o2
+  - param: abrasive
+    pack: sic_alumina_kmno4
     what: >
-      knowledge/params/sic_ceria_h2o2.yaml의 abrasive_conc_exponent(-0.406) note —
+      ⚠ 2026-09-19 학습총괄: qa_loop F4 가 남긴 마지막 1건을 해소한다.
+      `abrasive: alumina` 는 **적합된 계수가 아니라 재료 정체성 선언**이다 — 이
+      특허가 알루미나를 쓴다는 사실을 팩에 옮긴 것이고, 이 데이터셋의 실측 MRR 을
+      전혀 보지 않는다. 따라서 "이 데이터로 맞춘 값"이 아니므로
+      used_for_calibration 을 뒤집을 근거가 없고(뒤집으면 멀쩡한 검증 데이터를
+      버린다), 대신 접촉 사실만 신고해 F4 → C4 로 정상화한다.
+      같은 값이 Gong 2024 Table 1 에도 독립으로 인쇄돼 있다(출처 이중).
+      판정 기준: **그 파라미터가 이 데이터셋의 관측값(MRR)을 입력으로 썼는가.**
+      안 썼으면 정체성 선언이고, 썼으면 캘리브레이션이다.
+    axis: abrasive
+  - param: abrasive_conc_exponent
+    pack: sic_alumina_kmno4
+    what: >
+      ⚠ 2026-09-16 판정#52: 이 지수(-0.406)는 원래 부모 팩 sic_ceria_h2o2 에
+      선언돼 있었으나, 근거가 이 특허(=이 데이터셋)이고 이 데이터셋은 판정#49-B 로
+      이미 sic_alumina_kmno4 팩으로 옮겨져 있었으므로 파라미터도 같은 팩으로
+      이동했다. 접촉 신고의 pack 필드도 함께 갱신한다.
+      knowledge/params/sic_alumina_kmno4.yaml의 abrasive_conc_exponent(-0.406) note —
       "SiC+알루미나 직접 실측(US20220315802A1 Table 1, n=5, 0.1~5wt%)에서 로그-로그
       회귀로 지수 -0.406 확인" — 이 데이터셋(Table 1)에서 그대로 도출했다(위
       2026-09-11 주석과 동일 사실).
     axis: abrasive_wt_pct
+  - param: abrasive_ref_wt_pct
+    pack: sic_alumina_kmno4
+    what: >
+      신설 팩(2026-09-16)의 조성 기준점 0.5 wt% 를 이 특허 Table 1 의 중간 수준에서
+      가져왔다. 실측 MRR 값 자체는 쓰지 않았고 "어느 농도를 배수 1.0 으로 볼지"만
+      정했다 — 부분 접촉이다.
+    axis: abrasive_wt_pct
+  - param: ph_ref
+    pack: sic_alumina_kmno4
+    what: 이 특허의 운전 pH 2.3 을 팩의 pH 기준점으로 선언(같은 성격의 부분 접촉).
+    axis: slurry_ph
+  - param: slurry_ph
+    pack: sic_alumina_kmno4
+    what: 이 특허의 운전 pH 2.3 을 팩 기준 조성의 pH 로 선언.
+    axis: slurry_ph
+  - param: ph_softening_ref
+    pack: sic_alumina_kmno4
+    what: 부모 팩(알칼리계 pH 10)의 연화 기준점을 이 특허 운전 pH 로 옮김.
+    axis: slurry_ph
+  - param: abrasive_wt_pct
+    pack: sic_alumina_kmno4
+    what: 팩 기준 조성의 연마입자 농도(0.5 wt%)를 이 특허 Table 1 중간 수준으로 선언.
+    axis: abrasive_wt_pct
+  - param: kp_m_per_pa
+    pack: sic_alumina_kmno4
+    what: >
+      Kp 자체는 **이 특허가 아니라** Wang 2021(DOI 10.1149/2162-8777/ac12de)의
+      1.4 um/h 에서 역산했다. 다만 그 역산이 위 조성 기준점(이 특허에서 온 0.5 wt%,
+      pH 2.3)을 배수 1.0 으로 전제하므로 간접 접촉이 있다. 이 특허의 실측 MRR
+      숫자는 Kp 결정에 쓰이지 않았다(그래서 23배 편향이 그대로 남아 있다).
+    axis: absolute_mrr
+
+  - param: oxidizer
+    pack: sic_alumina_kmno4
+    what: >
+      팩의 산화제 **종**(KMnO4)을 이 특허 Table 1 의 조성에서 선언(2026-09-16).
+      부모 팩이 H2O2 데이터로 적합한 Langmuir 형상 상수를 선언하면서, 산화제를
+      바꾼 이 팩이 그 곡선을 조용히 상속하는 것을 막기 위한 종 게이트 입력이다.
+      실측 MRR 은 쓰지 않았다 — 어느 종을 쓰는지만 적었다(부분 접촉).
+    axis: oxidizer_species
+  - param: oxidizer_wt_pct
+    pack: sic_alumina_kmno4
+    what: >
+      팩 기준 조성의 산화제 농도(KMnO4 4 wt%)를 이 특허 Table 1 의 고정 조건에서
+      선언(2026-09-16). 실측 MRR 은 쓰지 않았고 "어느 산화제 농도를 배수 1.0 으로
+      볼지"만 정했다 — ph_ref·abrasive_ref_wt_pct 와 같은 성격의 부분 접촉이다.
+      부모 팩의 H2O2 vol% 를 상속하던 차원 위반을 고치면서 자기선언했다.
+    axis: oxidizer_wt_pct
+  - param: oxidizer_ref_wt_pct
+    pack: sic_alumina_kmno4
+    what: >
+      위 본값의 기준점 동반 이동(같은 조성·같은 출처 줄). 비(c/c_ref)=1.0 이라
+      예측값에는 영향이 없고, 이 특허의 실측 MRR 은 쓰이지 않았다.
+    axis: oxidizer_wt_pct
 
 conditions:
   - label: "Table1-1: Al2O3 0.1wt%"

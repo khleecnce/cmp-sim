@@ -1,0 +1,77 @@
+# Cu 배선 CMP — BTA·ADS(계면활성제) 억제제 비교, 산성 H2O2+글리신 기준 슬러리. Fig. 1 그래프 판독.
+source: >
+  Y. Hong, V. K. Devarapalli, D. Roy, S. V. Babu, "Synergistic Roles of Dodecyl
+  Sulfate and Benzotriazole in Enhancing the Efficiency of CMP of Copper",
+  J. Electrochem. Soc. 154(6) H444-H453, 2007. doi:10.1149/1.2717410
+  (전문 PDF 확보: sci-hub.ren 경유 sci.bban.top 미러, papers/hong2007-sds-bta-cu-cmp.pdf)
+  옮긴 곳: Figure 1 "Polish and dissolution rates of Cu measured using different
+  concentration of BTA, ADS, and the mixture of BTA and ADS (pH 4.0)". 5개 막대군
+  A-E 중 첫 번째 막대(Polish rate, 짙은 회색)를 판독. E 점(170 nm/min)은 본문
+  "sustaining the polish rate of Cu at ~170 nm/min"(p.H445)에 인쇄된 값과 일치 확인.
+  공정조건(Experimental 절, 전 조건 공통): IPEC Westech-372, IC-1400 k-그루브 패드,
+  2 psi, carrier/platen 75 rpm(등속 선속도 유지 목적), 슬러리 유량 120 mL/min,
+  기준 슬러리 1 wt% glycine + 5 wt% H2O2 + 3 wt% fumed silica, pH 4.0(HClO4로 조정).
+in_scope: true
+used_for_calibration: false
+pack: cu_h2o2_bta
+
+# ── 미모델링 축 선언 (정직성) ──────────────────────────────────────
+# ADS(암모늄 도데실황산염, 계면활성제)는 이 팩에 대응 파라미터가 없다. BTA와는
+# 별개 화학종(음이온 계면활성제 vs 트리아졸계 착화 억제제)이라 inhibitor_mM
+# 축에 얹지 않는다(US9200180B2 벤젠술폰산 건과 같은 함정 — 다른 억제 메커니즘을
+# 기존 키에 실으면 물리적으로 틀린 항이 켜진다). 그 결과 C·D 조건(ADS만 첨가,
+# BTA=0)은 모델 입장에서 조건 A(억제제 전무)와 입력이 동일해진다 — 모델은 세
+# 조건을 구분하지 못하는데 실측은 A(265)>C(240)>D(185)로 갈린다. 이 데이터셋의
+# ρ 상한은 그만큼 구조적으로 눌려 있다(jani2025의 옥살산 미전달과 같은 성격의
+# 정직한 한계). E(3mM ADS+0.5mM BTA)는 ADS·BTA 동시 존재라 더 복잡하다.
+excluded_axes:
+  ads_mM: >
+    ADS(도데실황산암모늄) 농도. 계면활성제 억제 메커니즘은 이 팩 미구현이다.
+    A/C/D 세 조건이 모델에는 동일 입력(BTA=0)으로 들어가 순위 지표를 구조적으로
+    누른다. 해소 경로: Cu 표면 계면활성제 흡착 억제 항의 신설(이 팩 범위 밖).
+
+conditions:
+  - label: "A: Ref (억제제 없음)"
+    pressure_psi: 2.0
+    rpm_wafer: 75
+    rpm_platen: 75
+    mrr_nm_per_min: 265.0
+    read_method: digitized
+    overrides: {slurry_ph: 4.0, oxidizer_wt_pct: 5.0, abrasive_wt_pct: 3.0, abrasive_ref_wt_pct: 3.0, chelator_species: glycine, chelator_M: 0.1332, promoter_species: oxalic_acid, promoter_M: 0.0, inhibitor_mM: 0.0, sfr_ml_min: 120.0}
+  - label: "B: Ref + BTA 10mM"
+    pressure_psi: 2.0
+    rpm_wafer: 75
+    rpm_platen: 75
+    mrr_nm_per_min: 220.0
+    read_method: digitized
+    overrides: {slurry_ph: 4.0, oxidizer_wt_pct: 5.0, abrasive_wt_pct: 3.0, abrasive_ref_wt_pct: 3.0, chelator_species: glycine, chelator_M: 0.1332, promoter_species: oxalic_acid, promoter_M: 0.0, inhibitor_mM: 10.0, sfr_ml_min: 120.0}
+  - label: "C: Ref + ADS 3mM (BTA 없음, 미모델링 축)"
+    pressure_psi: 2.0
+    rpm_wafer: 75
+    rpm_platen: 75
+    mrr_nm_per_min: 240.0
+    read_method: digitized
+    overrides: {slurry_ph: 4.0, oxidizer_wt_pct: 5.0, abrasive_wt_pct: 3.0, abrasive_ref_wt_pct: 3.0, chelator_species: glycine, chelator_M: 0.1332, promoter_species: oxalic_acid, promoter_M: 0.0, inhibitor_mM: 0.0, sfr_ml_min: 120.0}
+  - label: "D: Ref + ADS 5mM (BTA 없음, 미모델링 축)"
+    pressure_psi: 2.0
+    rpm_wafer: 75
+    rpm_platen: 75
+    mrr_nm_per_min: 185.0
+    read_method: digitized
+    overrides: {slurry_ph: 4.0, oxidizer_wt_pct: 5.0, abrasive_wt_pct: 3.0, abrasive_ref_wt_pct: 3.0, chelator_species: glycine, chelator_M: 0.1332, promoter_species: oxalic_acid, promoter_M: 0.0, inhibitor_mM: 0.0, sfr_ml_min: 120.0}
+  - label: "E: Ref + ADS 3mM + BTA 0.5mM"
+    pressure_psi: 2.0
+    rpm_wafer: 75
+    rpm_platen: 75
+    mrr_nm_per_min: 170.0
+    read_method: table
+    overrides: {slurry_ph: 4.0, oxidizer_wt_pct: 5.0, abrasive_wt_pct: 3.0, abrasive_ref_wt_pct: 3.0, chelator_species: glycine, chelator_M: 0.1332, promoter_species: oxalic_acid, promoter_M: 0.0, inhibitor_mM: 0.5, sfr_ml_min: 120.0}
+
+notes: >
+  기준 슬러리(1 wt% glycine, pH 4.0)가 팩 기본 착화제 농도(chelator_M=0.1332,
+  1 wt% 글리신 환산치)와 정확히 일치한다 — 우연이 아니라 US20080090500A1 TABLE 4의
+  같은 1 wt% 글리신 기준을 공유하는 계열이라서다. n=5 조건. ⚠ 위 excluded_axes에
+  적었듯 C·D는 ADS만으로 억제되는 조건이라 모델이 A와 구분 못 한다 — 이 데이터셋은
+  "BTA 단독 축(A→B, 0→10mM)"과 "ADS 미모델링 노출(C·D)"을 동시에 담고 있고, 후자가
+  순위 지표를 깎을 것으로 예상하고 넣었다(정직한 한계, 자기 채점 방지를 위해
+  ADS 조건을 빼지 않았다).

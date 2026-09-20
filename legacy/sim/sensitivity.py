@@ -94,14 +94,22 @@ FACTORS: List[Factor] = [
     Factor("rpm_wafer", "웨이퍼 회전수", "mechanical", "recipe", (30.0, 120.0)),
     Factor("rpm_platen", "플래튼 회전수", "mechanical", "recipe", (30.0, 120.0)),
     # 기계 — 패드 물성 (소모품 선택으로 바뀐다)
-    Factor("pad_E_star_pa", "패드 탄성률", "consumable", "pack", (3e8, 3e9),
+    # 스캔 범위는 문헌 관측 대역이다 — 근거:
+    # knowledge/pad/pad-material-gw-effective-modulus-asperity-distribution.md §2
+    # (Shi&Ring 2010 119 MPa ~ Sorooshian 2005 380 MPa, 독립 3그룹).
+    # 2026-09-15 이전 범위 (3e8, 3e9)는 팩 기본값 1.316e8 을 포함하지도 않는
+    # 근거 없는 대역이었다 — 스캔이 문헌 밖에서만 돌고 있었다.
+    Factor("pad_E_star_pa", "패드 탄성률", "consumable", "pack", (1.19e8, 3.8e8),
            "패드 종류 선택으로 바뀐다"),
     Factor("pad_asperity_density_m2", "asperity 밀도", "consumable", "pack",
            (1e10, 1e12), "패드 구조·컨디셔닝 상태"),
+    # R: Bozkaya&Muftu 2009 Table I 범위 25~100 um(base 50), Sorooshian 2005 2~50 um.
     Factor("pad_asperity_radius_m", "asperity 곡률반경", "consumable", "pack",
-           (1e-6, 2e-5)),
+           (2e-5, 1e-4)),
+    # 1/beta: 동일 분포족(지수) 1차값이 Sorooshian lambda=2.0 um 1건뿐이라 대역 근거가
+    # 약하다 — 그 값을 중심으로 ±1 오더의 절반만 연다(근거 노트 §2 ⚠ 표기).
     Factor("pad_height_beta_inv_m", "패드 조도", "consumable", "pack",
-           (1e-7, 1e-6), "컨디셔닝으로 조절"),
+           (1e-6, 5e-6), "컨디셔닝으로 조절"),
     # 화학
     Factor("oxidizer_wt_pct", "산화제 농도", "chemical", "pack", (0.5, 10.0),
            "Kaufman 단봉 — 정점 존재"),

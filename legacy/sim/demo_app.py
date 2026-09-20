@@ -23,7 +23,10 @@ from __future__ import annotations
 import os
 import sys
 
+from typing import Optional
+
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import streamlit as st
 
@@ -40,6 +43,101 @@ from wiwnu import p_uniform, p_edge_concentration  # noqa: E402
 from pattern_density import effective_density  # noqa: E402
 from wiwnu_pattern_combined import combined_removal_map, _area_weighted_2d  # noqa: E402
 
+# 탭3(캘리브레이션) 전용 — sim/calibration/ 은 읽기 전용, 여기서 공개 계약만 호출한다.
+from sim.calibration import pipeline as cal_pipeline  # noqa: E402
+from sim.calibration import predict as cal_predict  # noqa: E402
+from sim.calibration.ptw_vm_schema import PTWVMInput  # noqa: E402
+
+_CAL_VALUE_UNITS = ["angstrom", "angstrom_per_s", "psi", "rpm", "nm", "nm_per_min", "kPa", "m_per_s"]
+_CAL_NOTCH_DIRS = ["Bottom", "Right", "Top", "Left"]
+_CAL_DIAMETERS_MM = [150, 200, 300]
+_CAL_COORD_KINDS = ["polar", "cartesian"]  # 'die'는 이 업로더에서 미지원(8열 필요) — 아래 UI에서 명시 안내
+
+
+def _csv_to_record(df: "pd.DataFrame", *, coord_kind: str, value_col: Optional[str],
+                    value_unit: str, wafer_id: str, wafer_diameter_mm: int,
+                    notch_direction: str, edge_exclusion_mm: float,
+                    series_id: Optional[str] = None,
+                    r_col: Optional[str] = None, r_unit: str = "mm",
+                    theta_col: Optional[str] = None, theta_unit: str = "deg",
+                    x_col: Optional[str] = None, x_unit: str = "mm",
+                    y_col: Optional[str] = None, y_unit: str = "mm") -> dict:
+    """업로드된 CSV(DataFrame) + 사용자가 명시한 열 매핑/메타데이터 →
+    ingest.ingest_record()가 받는 record dict.
+
+    열 매핑이 비어 있거나 CSV에 실제로 없으면 조용히 기본값을 채우지 않고
+    ValueError로 실패한다(과제 지시 2번). coord_kind='die'는 이 함수가 지원하지
+    않는다 — die 좌표는 8개 열(col/row/pitch_x/pitch_y/col0/row0/x0/y0)이 필요해
+    이 단순 CSV 업로더의 범위 밖이다(감춘 제약이 아니라 명시적 미구현).
+    """
+    if not wafer_id:
+        raise ValueError("wafer_id가 비어 있다 — CSV 업로드와 별개로 사용자가 직접 입력해야 한다.")
+
+    if coord_kind == "polar":
+        required = {"value_col": value_col, "r_col": r_col, "theta_col": theta_col}
+    elif coord_kind == "cartesian":
+        required = {"value_col": value_col, "x_col": x_col, "y_col": y_col}
+    else:
+        raise ValueError(
+            f"coord_kind={coord_kind!r}는 이 CSV 변환기가 지원하지 않는다 "
+            f"(지원: {_CAL_COORD_KINDS} — die는 열 8개가 더 필요해 미구현)."
+        )
+
+    missing = [k for k, v in required.items() if not v]
+    if missing:
+        raise ValueError(f"필수 열 매핑이 비어 있다: {missing} — CSV 열을 명시적으로 선택하라.")
+
+    for field_name, col in required.items():
+        if col not in df.columns:
+            raise ValueError(
+                f"열 매핑 {field_name}='{col}'이 CSV에 없다. 실제 CSV 열: {list(df.columns)}"
+            )
+
+    if len(df) == 0:
+        raise ValueError("CSV에 데이터 행이 없다.")
+
+    _length_factor = {"mm": 1e-3, "m": 1.0}
+    _angle_factor = {"deg": np.pi / 180.0, "rad": 1.0}
+
+    points = []
+    for _, row in df.iterrows():
+        raw_value = row[value_col]
+        value = None if pd.isna(raw_value) else float(raw_value)
+        point = {"value": value, "unit": value_unit}
+        if coord_kind == "polar":
+            r_m = float(row[r_col]) * _length_factor[r_unit]
+            point["r_m"] = r_m
+            point["theta_rad"] = float(row[theta_col]) * _angle_factor[theta_unit]
+            if value_unit == "rpm":
+                point["radius_m"] = r_m
+        else:
+            x_m = float(row[x_col]) * _length_factor[x_unit]
+            y_m = float(row[y_col]) * _length_factor[y_unit]
+            point["x_m"] = x_m
+            point["y_m"] = y_m
+            if value_unit == "rpm":
+                point["radius_m"] = float(np.hypot(x_m, y_m))
+        points.append(point)
+
+    return {
+        "wafer_id": wafer_id,
+        "wafer_diameter_mm": wafer_diameter_mm,
+        "notch_direction": notch_direction,
+        "edge_exclusion_mm": edge_exclusion_mm,
+        "coord_kind": coord_kind,
+        "series_id": series_id,
+        "points": points,
+    }
+
+
+def _success_message(verdict: str) -> Optional[str]:
+    """verdict가 "calibrated"일 때만 성공 문구를 낸다 — 그 외(partial/uncalibrated/failed)는
+    None을 반환해 호출측이 st.success를 쓰지 못하게 막는다(과제 지시 3번)."""
+    if verdict == "calibrated":
+        return "보정 성공 — NPW(및 제공된 경우 PTW) 층이 물리모델 기준선을 개선했다(verdict=calibrated)."
+    return None
+
+
 st.set_page_config(page_title="FabSim — CMP MRR 데모", layout="wide")
 
 st.title("FabSim — CMP MRR 데모")
@@ -48,7 +146,9 @@ st.caption(
     "실제 공정 예측 정밀도 보증 아님"
 )
 
-tab1, tab2 = st.tabs(["Preston MRR v0", "WIWNU × 패턴밀도 결합 맵"])
+tab1, tab2, tab3 = st.tabs([
+    "Preston MRR v0", "WIWNU × 패턴밀도 결합 맵", "캘리브레이션 (CSV → NPW 보정 → PTW 예측)",
+])
 
 with tab1:
     PSI_PER_KPA = 1000.0 / 6894.757  # kPa 슬라이더(UI 관행) → Recipe.pressure_psi 단위 변환
@@ -237,4 +337,238 @@ with tab2:
         st.subheader("결합 WIWNU 지표 (면적가중)")
         st.metric("sigma_pct (CV)", f"{metrics_2d['sigma_pct']:.2f} %")
         st.metric("half_range_pct", f"{metrics_2d['half_range_pct']:.2f} %")
+
+with tab3:
+    st.caption(
+        "sim/calibration/ 사슬(ingest → prior → fit_npw → fit_ptw → predict)을 그대로 "
+        "구동한다 — 이 탭은 그 모듈들을 수정하지 않고 공개 계약만 호출한다. "
+        "improved=False나 verdict != 'calibrated'를 성공으로 포장하지 않는다."
+    )
+
+    cal_col_pack, cal_col_model = st.columns(2)
+    with cal_col_pack:
+        cal_pack_name = st.selectbox(
+            "파라미터 팩", available_packs(),
+            index=available_packs().index("oxide_silica") if "oxide_silica" in available_packs() else 0,
+            key="cal_pack",
+        )
+    with cal_col_model:
+        cal_model_names = available_models()
+        cal_default_model = "tier2.gw_physical_kp" if "tier2.gw_physical_kp" in cal_model_names else cal_model_names[0]
+        cal_model_name = st.selectbox(
+            "모델", cal_model_names, index=cal_model_names.index(cal_default_model), key="cal_model",
+        )
+
+    def _cal_record_uploader(label_prefix: str, key_prefix: str):
+        """CSV 업로드 + 열 매핑/메타데이터 위젯 → record dict (None=아직 준비 안 됨)."""
+        csv_file = st.file_uploader(f"{label_prefix} CSV", type=["csv"], key=f"{key_prefix}_file")
+        if csv_file is None:
+            return None, None
+        df = pd.read_csv(csv_file)
+        st.dataframe(df.head(10))
+
+        st.markdown(
+            f"**{label_prefix} 메타데이터 — CSV 열이 아니다. 사용자 지정값, 측정기 출력이 아님**"
+        )
+        m1, m2, m3, m4 = st.columns(4)
+        with m1:
+            wafer_id = st.text_input("wafer_id", key=f"{key_prefix}_wafer_id")
+        with m2:
+            wafer_diameter_mm = st.selectbox("wafer_diameter_mm", _CAL_DIAMETERS_MM, key=f"{key_prefix}_dia")
+        with m3:
+            notch_direction = st.selectbox("notch_direction", _CAL_NOTCH_DIRS, key=f"{key_prefix}_notch")
+        with m4:
+            edge_exclusion_mm = st.number_input(
+                "edge_exclusion_mm", min_value=0.0, value=0.0, step=0.5, key=f"{key_prefix}_ee",
+            )
+        st.caption("wafer_id/직경/notch/EE — 사용자 지정값이다. CSV에 이 정보가 없다면 측정기 로그에서 직접 확인해 입력하라.")
+        series_id_raw = st.text_input(
+            "series_id (선택 — 비우면 None)", key=f"{key_prefix}_series",
+        )
+        series_id = series_id_raw or None
+
+        coord_kind = st.selectbox(
+            "coord_kind (CSV 좌표계)", _CAL_COORD_KINDS + ["die"], key=f"{key_prefix}_coord",
+        )
+        if coord_kind == "die":
+            st.warning(
+                "coord_kind='die'는 이 업로더가 지원하지 않는다 "
+                "(col/row/pitch_x/pitch_y/col0/row0/x0/y0 8열이 더 필요) — polar 또는 cartesian을 쓰라."
+            )
+            return df, None
+
+        cols = df.columns.tolist()
+        value_col = st.selectbox("측정값 열", cols, key=f"{key_prefix}_value_col")
+        value_unit = st.selectbox("측정값 단위", _CAL_VALUE_UNITS, key=f"{key_prefix}_value_unit")
+
+        r_col = theta_col = x_col = y_col = None
+        r_unit = theta_unit = x_unit = y_unit = "mm"
+        if coord_kind == "polar":
+            cr1, cr2, cr3, cr4 = st.columns(4)
+            with cr1:
+                r_col = st.selectbox("반경 열", cols, key=f"{key_prefix}_r_col")
+            with cr2:
+                r_unit = st.selectbox("반경 단위", ["mm", "m"], key=f"{key_prefix}_r_unit")
+            with cr3:
+                theta_col = st.selectbox("각도 열", cols, key=f"{key_prefix}_theta_col")
+            with cr4:
+                theta_unit = st.selectbox("각도 단위", ["deg", "rad"], key=f"{key_prefix}_theta_unit")
+        else:
+            cx1, cx2, cx3, cx4 = st.columns(4)
+            with cx1:
+                x_col = st.selectbox("x 열", cols, key=f"{key_prefix}_x_col")
+            with cx2:
+                x_unit = st.selectbox("x 단위", ["mm", "m"], key=f"{key_prefix}_x_unit")
+            with cx3:
+                y_col = st.selectbox("y 열", cols, key=f"{key_prefix}_y_col")
+            with cx4:
+                y_unit = st.selectbox("y 단위", ["mm", "m"], key=f"{key_prefix}_y_unit")
+
+        try:
+            record = _csv_to_record(
+                df, coord_kind=coord_kind, value_col=value_col, value_unit=value_unit,
+                wafer_id=wafer_id, wafer_diameter_mm=wafer_diameter_mm,
+                notch_direction=notch_direction, edge_exclusion_mm=float(edge_exclusion_mm),
+                series_id=series_id, r_col=r_col, r_unit=r_unit, theta_col=theta_col,
+                theta_unit=theta_unit, x_col=x_col, x_unit=x_unit, y_col=y_col, y_unit=y_unit,
+            )
+        except ValueError as exc:
+            st.error(f"{label_prefix} CSV → record 변환 실패: {exc}")
+            return df, None
+        return df, record
+
+    st.subheader("NPW 측정 CSV (필수)")
+    _npw_df, npw_record = _cal_record_uploader("NPW", "cal_npw")
+    if npw_record is None:
+        st.info("NPW CSV를 업로드하고 위 필드를 채우면 캘리브레이션을 실행할 수 있다.")
+
+    st.subheader("PTW 측정 CSV (선택)")
+    _ptw_df, ptw_record = _cal_record_uploader("PTW", "cal_ptw")
+
+    ptw_input: Optional[PTWVMInput] = None
+    if ptw_record is not None:
+        st.markdown("**PTW VM 입력 메타데이터 — CSV 열이 아니다, 사용자 지정값**")
+        p1, p2, p3 = st.columns(3)
+        with p1:
+            ptw_product_id = st.text_input("product_id", key="cal_ptw_product_id")
+        with p2:
+            ptw_layer = st.text_input("layer", key="cal_ptw_layer")
+        with p3:
+            ptw_die_density_mean = st.number_input(
+                "die_density_mean (0~1)", min_value=0.0, max_value=1.0, value=0.4, step=0.01,
+                key="cal_ptw_density",
+            )
+        has_local_density = st.checkbox("local_density 있음", key="cal_ptw_has_local_density")
+        ptw_local_density = None
+        if has_local_density:
+            ptw_local_density = st.number_input(
+                "local_density (0~1)", min_value=0.0, max_value=1.0, value=0.4, step=0.01,
+                key="cal_ptw_local_density",
+            )
+        ptw_forced_flag = st.checkbox(
+            "forced_measurement_flag", key="cal_ptw_forced_flag",
+            help="Jebri 2017 §III-B 강제 실측 앵커 조건 — local_density도 mrr_lag도 없을 때 "
+                 "이걸 켜지 않으면 is_npw_equivalent=True로 거부된다.",
+        )
+        if not ptw_product_id or not ptw_layer:
+            st.warning("product_id/layer를 입력해야 PTW 예측을 실행한다.")
+        else:
+            ptw_input = PTWVMInput(
+                product_id=ptw_product_id, layer=ptw_layer,
+                die_density_mean=float(ptw_die_density_mean),
+                local_density=ptw_local_density,
+                forced_measurement_flag=bool(ptw_forced_flag),
+            )
+
+    run_clicked = st.button("캘리브레이션 실행", key="cal_run_btn", disabled=npw_record is None)
+
+    if run_clicked and npw_record is not None:
+        run = cal_pipeline.run_calibration(
+            cal_pack_name, npw_record,
+            ptw_source=ptw_record, ptw_input=ptw_input, model=cal_model_name,
+        )
+        st.session_state["cal_run"] = run
+
+        st.subheader("단계별 실행 기록 (StageRecord)")
+        stage_rows = [
+            {"stage": s.name, "status": s.status, "reason": s.reason, "metrics": s.metrics}
+            for s in run.stages
+        ]
+        st.dataframe(pd.DataFrame(stage_rows))
+
+        st.subheader(f"verdict: {run.verdict}")
+        msg = _success_message(run.verdict)
+        if msg:
+            st.success(msg)
+        else:
+            st.warning(f"{run.verdict} — {run.note}")
+
+        best_correction = run.ptw_correction if run.ptw_correction is not None else run.npw_correction
+        try:
+            probe = simulate(Recipe(pack=cal_pack_name), model=cal_model_name)
+            query_r_mm = probe.radius_m * 1000.0
+            physics_pred = cal_predict.predict_radial(
+                cal_pack_name, query_r_mm, correction=None, model=cal_model_name,
+            )
+            corrected_pred = cal_predict.predict_radial(
+                cal_pack_name, query_r_mm, correction=best_correction, model=cal_model_name,
+            )
+        except ValueError as exc:
+            st.error(f"predict_radial 실패: {exc}")
+        else:
+            layers_label = (
+                "+".join(corrected_pred.layers_applied) if corrected_pred.layers_applied
+                else "없음(물리모델만)"
+            )
+            st.subheader(f"반경 프로파일 — 적용된 보정층: {layers_label}")
+            fig4, ax4 = plt.subplots()
+            ax4.plot(query_r_mm, physics_pred.physics_nm, label="물리모델(무보정)", linestyle="--")
+            ax4.plot(query_r_mm, corrected_pred.corrected_nm, label="보정 후")
+            if corrected_pred.lo_nm is not None and corrected_pred.hi_nm is not None:
+                ax4.fill_between(
+                    query_r_mm, corrected_pred.lo_nm, corrected_pred.hi_nm,
+                    alpha=0.2, label="90% CI",
+                )
+            ax4.set_xlabel("반경 (mm)")
+            ax4.set_ylabel("제거 두께 (nm)")
+            ax4.legend()
+            ax4.grid(True, alpha=0.3)
+            st.pyplot(fig4)
+            if corrected_pred.note:
+                st.caption(corrected_pred.note)
         st.metric("평균 제거율", f"{metrics_2d['mean']:.3e} m/s")
+
+    cal_run = st.session_state.get("cal_run")
+    if cal_run is not None:
+        st.subheader("드리프트 점검 (새 로트)")
+        st.caption(
+            "sim/calibration/drift.py의 check_drift()를 evaluate_new_lot()을 통해 그대로 "
+            "호출한다 — 이 모듈은 '보고만 하고 재적합하지 않는다'는 경계를 갖는다(ORG §7.4). "
+            "이 섹션도 재적합 버튼을 두지 않는다. 아래 표는 DriftReport 필드를 그대로 보여준다 "
+            "— UI가 판정을 다시 해석하거나 미화하지 않는다."
+        )
+        _drift_df, drift_record = _cal_record_uploader("새 로트", "cal_drift")
+        if drift_record is None:
+            st.info("새 로트 CSV를 업로드하고 위 필드를 채우면 드리프트 점검을 실행할 수 있다.")
+        drift_run_clicked = st.button(
+            "드리프트 점검 실행", key="cal_drift_btn", disabled=drift_record is None,
+        )
+        if drift_run_clicked and drift_record is not None:
+            try:
+                report = cal_pipeline.evaluate_new_lot(cal_run, drift_record)
+            except ValueError as exc:
+                st.error(f"evaluate_new_lot 실패: {exc}")
+            else:
+                st.subheader(f"DriftReport.verdict: {report.verdict}")
+                report_row = {
+                    "n_points": report.n_points,
+                    "rmse_new": report.rmse_new,
+                    "rmse_reference": report.rmse_reference,
+                    "ratio": report.ratio,
+                    "frac_outside_90ci": report.frac_outside_90ci,
+                    "verdict": report.verdict,
+                    "z_scores": np.asarray(report.z_scores).tolist(),
+                    "reasons": list(report.reasons),
+                    "note": report.note,
+                }
+                st.dataframe(pd.DataFrame([report_row]))

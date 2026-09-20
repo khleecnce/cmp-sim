@@ -97,6 +97,39 @@ class ChemistryEffect:
         return f"화학 배수 {self.factor:.3f} = {parts}"
 
 
+def _oxidizer_species_gate_ok(pack, notes: List[str]) -> bool:
+    """산화제 Langmuir K 를 **적합된 산화제 종**에서만 쓰게 막는 게이트.
+
+    왜 필요한가 (2026-09-16): `oxidizer_langmuir_K` 는 재료 고유 상수다 —
+    산화제 종이 바뀌면 표준전극전위도 흡착 거동도 달라진다(H2O2 vs
+    MnO4⁻/MnO2 +1.68 V). 그런데 팩 상속은 "같은 물리를 공유한다"는 뜻이라
+    부모가 K 를 선언하면 **산화제를 바꾼 자식 팩까지 조용히 물려받는다**.
+    실제로 sic_ceria_h2o2(H2O2) 에 K 를 넣자 자식 sic_alumina_kmno4(KMnO4)가
+    그대로 상속했다 — 남의 산화제로 적합한 곡선으로 이 팩의 MRR 을 예측하게 된다.
+
+    판정#47(착화제 종 게이트)과 같은 장치다. 팩이 `oxidizer_langmuir_species`
+    (K 가 적합된 종)와 `oxidizer`(이 팩이 실제로 쓰는 종)를 둘 다 선언하고
+    서로 다르면, 지어내지 않고 이 경로를 끈다.
+    """
+    fitted = pack.get_or("oxidizer_langmuir_species", None)
+    if fitted is None:
+        return True                      # 종 선언이 없는 구버전 팩 — 기존 동작 유지
+    declared = pack.get_or("oxidizer", None)
+    if declared is None:
+        notes.append(
+            "⚠ oxidizer_langmuir_species 가 선언됐으나 팩에 oxidizer(실제 산화제 종)가 "
+            "없어 일치를 확인할 수 없다 — 지어내지 않고 Langmuir 경로를 끈다.")
+        return False
+    if str(declared) != str(fitted):
+        notes.append(
+            f"⚠ oxidizer_langmuir_K 는 {fitted} 로 적합됐는데 이 팩의 산화제는 "
+            f"{declared} 다 — 산화제 종이 다르면 곡선 형상을 전이할 수 없다"
+            "(표준전극전위·흡착 거동이 다르다). 이 팩에서는 산화제 형상 항을 "
+            "켜지 않는다 — 그 종의 데이터를 확보할 때까지 갭으로 남긴다.")
+        return False
+    return True
+
+
 def _oxidizer_term(pack, notes: List[str]) -> Optional[float]:
     """산화제 농도 → 기준 농도 대비 상대 MRR.
 
@@ -160,7 +193,82 @@ def _oxidizer_term(pack, notes: List[str]) -> Optional[float]:
         "φ 는 재료보다 기계 조건(연마재 경도·압력·속도)이 정하는 양이다. "
         "⚠ 이 계의 직접 관측이 아니므로 절대값은 신뢰하지 말 것.")
 
-    if pack.has("oxidizer_langmuir_K"):
+    # ── 레짐 게이트: 산성 × 착화제 존재, 착화제 종 특이적 (EVIDENCE-RULES
+    # 판정#41 → 판정#47, 2026-09-15 → 2026-09-16) ──────────────────────────
+    # cu_h2o2_bta 의 실제 운전점(pH 4.0 + 글리신/BTA)은 oxidizer_passivation_K
+    # 가 역산된 알칼리 × 무착화제 계와 다른 레짐이다(판정#38) — 같은 H2O2
+    # 스윕에서 부호가 반대로 관측된다(Jani 2025 Expt 30/31/32, 산성 pH3 ×
+    # 옥살산 0.08M, 실리카 6wt%: 3->6 wt% 에서 MRR +13.0%인데 현행 억제형
+    # 예측은 -35.3%). 조건은 slurry_ph<6 AND chelator_M>0 — 팩 이름이 아니라
+    # 데이터 필드로만 분기한다(판정#34 원칙). 둘 중 하나라도 팩에 선언이
+    # 없으면 지어내지 않고 기존 경로로 폴백한다.
+    #
+    # ⚠ 판정#41의 게이트는 "착화제가 아무거나 있으면" 촉진-포화형을 켰는데,
+    # `oxidizer_acid_chelator_K`(=0.7935)는 **옥살산** 데이터로만 적합됐다
+    # (Jani 2025). 판정#43이 **글리신** 1차 데이터(US5,575,885)로 이를
+    # 시험하자 부호가 반대(단조 감소 vs 이 가지의 단조 증가)로 반증됐고,
+    # 판정#45가 "옥살산·글리신을 하나의 레짐으로 묶은 것 자체가 과도한
+    # 일반화"라고 이미 기록했다 — 판정#47은 그 기록을 코드에 반영한다.
+    # 그래서 이 가지는 **이 계수가 적합된 착화제 종**(oxidizer_acid_chelator_species)
+    # 과 팩이 선언한 착화제 종(chelator_species)이 일치할 때만 켠다.
+    if pack.has("oxidizer_acid_chelator_K"):
+        if pack.has("slurry_ph") and pack.has("chelator_M"):
+            ph = float(pack.get("slurry_ph"))
+            chelator_M = float(pack.get("chelator_M"))
+            if ph < 6.0 and chelator_M > 0.0:
+                species_gate_ok = True
+                fitted_species_note = ""
+                if pack.has("oxidizer_acid_chelator_species"):
+                    fitted_species = pack.get("oxidizer_acid_chelator_species")
+                    if pack.has("chelator_species"):
+                        declared_species = pack.get("chelator_species")
+                        if declared_species != fitted_species:
+                            species_gate_ok = False
+                            notes.append(
+                                f"⚠ oxidizer_acid_chelator_K는 {fitted_species}로 "
+                                f"적합됐는데 팩 착화제는 {declared_species} — 판정#43이 "
+                                "두 종의 부호 반전(옥살산 증가/글리신 감소)을 실측했으므로 "
+                                "전이하지 않는다(판정#47). 기존 산화제 경로로 폴백한다.")
+                        else:
+                            fitted_species_note = (
+                                f"{fitted_species} 데이터로 적합됐고 이 팩의 착화제와 "
+                                "종이 일치한다 — ")
+                    else:
+                        species_gate_ok = False
+                        notes.append(
+                            "⚠ oxidizer_acid_chelator_species가 선언됐으나 팩에 "
+                            "chelator_species가 없어 착화제 종 일치를 확인할 수 없다 "
+                            "— 지어내지 않고 기존 산화제 경로로 폴백한다.")
+                else:
+                    fitted_species_note = (
+                        "⚠ oxidizer_acid_chelator_K에 적합 착화제 종 선언"
+                        "(oxidizer_acid_chelator_species)이 없는 구버전 팩이라 종 "
+                        "일치를 검증할 수 없다 — 판정#41 이전 동작대로 발동한다. ")
+
+                if species_gate_ok:
+                    K = float(pack.get("oxidizer_acid_chelator_K"))
+                    theta = float(SC.oxidizer_coverage_langmuir(C, K))
+                    theta_ref = float(SC.oxidizer_coverage_langmuir(C_ref, K))
+                    if theta_ref <= 0:
+                        return None
+                    if floor > 0 and not pack.has("oxidizer_mech_floor"):
+                        notes.append(floor_default_note)
+                    notes.append(
+                        f"산성(pH={ph:.2f}<6)×착화제({chelator_M:.4g} M) 레짐 — "
+                        "촉진-포화형 경로(판정#41). " + fitted_species_note +
+                        "confidence 상한은 estimated.")
+                    return floor + (1.0 - floor) * (theta / theta_ref)
+            else:
+                notes.append(
+                    f"산성×착화제 게이트 미충족(pH={ph:.2f}, chelator={chelator_M:.4g} M) "
+                    "— 기존 산화제 경로로 폴백한다.")
+        else:
+            notes.append(
+                "⚠ oxidizer_acid_chelator_K 가 선언됐으나 slurry_ph 또는 "
+                "chelator_M 이 없어 레짐을 판별할 수 없다 — 지어내지 않고 "
+                "기존 경로로 폴백한다.")
+
+    if pack.has("oxidizer_langmuir_K") and _oxidizer_species_gate_ok(pack, notes):
         # Langmuir 경로 — 폐형식: f(C) = φ + (1-φ)·θ(C)/θ(C_ref).
         # (레거시 경로처럼 φ를 분자·분모 양쪽에 넣고 나누는 게 아니다 — 그러면
         # 다른 함수가 되어 knowledge/params/w_fe_oxidizer.yaml의 K=0.549550
@@ -245,7 +353,16 @@ def _inhibitor_term(pack, notes: List[str]) -> Optional[float]:
     inhib = pack.get_or("inhibitor_species", None)
     subst = pack.get_or("substrate_species", None)
     if inhib and subst:
-        from sim.inhibitor_pairs import lookup_dG, K_from_dG, measurement_spec
+        from sim.inhibitor_pairs import (lookup_dG, K_from_dG, measurement_spec,
+                                          adsorption_ruled_out)
+        ruled_out = adsorption_ruled_out(str(inhib), str(subst))
+        if ruled_out:
+            # '아무도 안 쟀다'와 '그 메커니즘이 없다'는 다른 결론이다.
+            # 후자는 억제 항이 없는 것이 물리적으로 옳으므로 R8 을 발행하지
+            # 않는다 — 발행하면 다음 회차가 존재하지 않는 문헌을 찾으러 간다.
+            notes.append(f"({inhib} × {subst}) 쌍은 흡착이 일어나지 않는다고 "
+                         f"선언된 쌍이다 — 억제 항을 만들지 않는다. 근거: {ruled_out}")
+            return None
         pair = lookup_dG(str(inhib), str(subst))
         if pair is not None:
             K = K_from_dG(pair.dG_kJ_per_mol)
@@ -353,6 +470,69 @@ def _dispersant_protection_term(pack, notes: List[str]) -> Optional[float]:
             "(knowledge/cmp/abrasive-size-concentration-ph-K-additive-mrr-quantitative.md §6, "
             "Li et al. 2021 실측)")
     return rel
+
+
+def _chelator_suppression_term(pack, notes: List[str]) -> Optional[float]:
+    """착화제(글리신) 농도축 → Cu 제거율 **억제** 배수. ψ 경로(표면 흡착 보호).
+
+    왜 억제인가 (직관과 반대다): 착화제는 산화된 Cu(II)를 가용성 착물로 빼내
+    제거를 **촉진**할 것 같지만, Jani 2025 의 통제 실험쌍은 글리신을 넣을수록
+    Cu RR 이 내려간다고 말한다. 원문 결론도 같다 — "the higher Cu dissolution
+    in slurries without glycine indicates that glycine effectively functions as
+    an inhibitor rather than a dissolution promoter". 회귀표의 [glycine] 계수도
+    −440.91 (p=4.08e-7) 로 유의한 음수다.
+
+    함수형: 잔여율 = exp(-a·C) 를 기준 농도로 정규화한다.
+        f(C) = exp(-a·(C - C_ref))            → C = C_ref 에서 항등적으로 1.0
+    Langmuir/Hill 피복형(θ)을 쓰지 않은 이유: 확보된 통제쌍이 2점(0.13 / 0.26 M)
+    뿐이라 (K, k) 가 분리되지 않는다(K=0.13~32 /M 범위에서 SSE 가 7.7배 안에
+    다 들어온다 — 근거 노트 §5 축퇴 스캔). 지수 1개는 그 2점에서 식별되고
+    잔차가 -4.5% / +3.6% 다. 피복형의 포화 거동을 지어내지 않는다.
+
+    게이트: 이 항은 **적합된 착화제 종**(chelator_suppression_species)과 팩이
+    선언한 chelator_species 가 일치할 때만 켠다 — 옥살산은 같은 논문 회귀에서
+    +536.63 으로 부호가 반대라(판정#43·#45·#47) 착화제를 하나로 묶으면 안 된다.
+
+    근거 노트: knowledge/cmp/psi-glycine-chelator-suppression-cu-jani2025.md
+    """
+    if not pack.has("chelator_suppression_a"):
+        return None
+    if not pack.has("chelator_M"):
+        notes.append("⚠ chelator_suppression_a 는 있으나 chelator_M 이 없어 "
+                     "착화제 억제 항을 건너뛴다 — 농도를 지어내지 않는다.")
+        return None
+    if pack.has("chelator_suppression_species"):
+        fitted = str(pack.get("chelator_suppression_species")).strip().lower()
+        declared = str(pack.get_or("chelator_species", "")).strip().lower()
+        if not declared:
+            notes.append("⚠ chelator_suppression_species 가 선언됐으나 팩에 "
+                         "chelator_species 가 없어 종 일치를 확인할 수 없다 — "
+                         "항을 켜지 않는다.")
+            return None
+        if fitted != declared:
+            notes.append(
+                f"⚠ chelator_suppression_a 는 {fitted} 로 적합된 값이고 이 팩의 "
+                f"착화제는 {declared} 다 — 같은 논문 회귀에서 옥살산(+536.63)과 "
+                "글리신(−440.91)은 부호가 반대라 전이하지 않는다(판정#45). "
+                "착화제 억제 항을 켜지 않는다.")
+            return None
+    a = float(pack.get("chelator_suppression_a"))
+    C = float(pack.get("chelator_M"))
+    C_ref = float(pack.get_or("chelator_ref_M", C))
+    val = math.exp(-a * (C - C_ref))
+    if abs(C - C_ref) < 1e-12:
+        notes.append(
+            f"착화제 억제: {C:.4g} M = 기준 조성이라 배수 1.000 "
+            "(Kp 가 이 조성에서 역산됐다 — 절대 억제율을 다시 곱하면 이중 계상). "
+            "글리신 농도를 바꾸면 exp(-a·ΔC) 가 반영된다 "
+            "(knowledge/cmp/psi-glycine-chelator-suppression-cu-jani2025.md).")
+    else:
+        notes.append(
+            f"착화제 억제: 글리신 {C:.4g} M / 기준 {C_ref:.4g} M, a={a:.4f} /M "
+            f"→ 배수 {val:.4f}. 방향은 Jani 2025 통제쌍 2건(0.13 M: 0.861, "
+            "0.26 M: 0.651)과 회귀 계수 −440.91(p=4.08e-7)이 지지한다. "
+            "⚠ 2점 적합이라 절대 크기는 순위 목적으로만 쓸 것.")
+    return val
 
 
 def _ceria_term(pack, notes: List[str]) -> Optional[float]:
@@ -500,3 +680,90 @@ def chemistry_factor(pack) -> ChemistryEffect:
         notes.append("⚠ 화학 항들을 독립으로 보고 곱했다. 실제로는 pH-흡착, 산화제-세리아 "
                      "산화환원 같은 커플링이 있다 — 미모델링.")
     return ChemistryEffect(factor=factor, terms=terms, notes=notes, active=True)
+
+
+def _carboxylate_promoter_term(pack, notes: List[str]) -> Optional[float]:
+    """디카복실레이트 착화제(옥살산/옥살산암모늄) 농도축 → Cu 제거율 **촉진** 배수.
+
+    χ 경로(표면 반응성)다. 같은 팩의 글리신 축(ψ `_chelator_suppression_term`)과
+    **부호가 반대이고 서로 다른 팩터에 산다** — 이것은 임의 분리가 아니라
+    Jani 2025 회귀가 같은 표에서 [oxalic acid]=+536.63(p=1.7e-7) 과
+    [glycine]=−440.91(p=4.1e-7) 로 직접 갈라놓은 결과다(판정#45·#47).
+
+    함수형(멱 + 기계 바닥):
+        g(C) = phi + (1 - phi) * (C / C_anchor) ** m
+        f(C) = g(C) / g(C_ref)                 → C = C_ref 에서 항등적으로 1.0
+
+    phi 가 하는 일: 착화제가 0 이어도 제거가 0 이 되지 않는다(순수 기계 성분).
+    이 바닥이 없으면 C→0 에서 배수가 0 으로 떨어져 물리가 아니라 특이점이 된다.
+
+    값의 출처 — US6309560B1 (Cabot, Kaufman/Kistler/Wang) TABLE 1, 통제쌍 2건:
+      · 7% H2O2, wetting 50 ppm, BTA 0: 옥살산암모늄 0 → 0.5 wt% 에서
+        Cu 21.7 → 278.0 nm/min  ⇒ phi = 21.7/278.0 = 0.07806
+      · 11% H2O2, wetting 10 ppm, BTA 0: 0.5 → 1.0 wt% 에서
+        Cu 251.7 → 402.9 nm/min ⇒ 비 1.6007 ⇒ m = log2((1.6007-phi)/(1-phi)) = 0.7238
+    (NH4)2C2O4 MW 124.10 g/mol, 밀도 1.0 g/mL 근사로 wt% → mol/L 환산:
+    0.5 wt% = 0.04029 M(= C_anchor), 1.0 wt% = 0.08058 M.
+
+    독립 교차확인(적합에 쓰지 않음): Jani 2025(doi:10.1149/2162-8777/adc59e)
+    RSM 회귀로 옥살산 0.02 → 0.08 M 예상비는 (1044.65+536.63)/(1044.65−536.63)
+    = 3.113 인데 이 항은 2.515 — **19.2% 낮다**. 방향과 오더는 맞고 크기는
+    어긋난다. 어긋나는 대로 둔다(계를 덮어씌우지 않는다): 두 계는 연마입자
+    (알루미나 vs 실리카)·산 종(옥살산암모늄 vs 옥살산)·pH(7.5 자연 vs 3.0)가
+    모두 다르다.
+
+    게이트: 팩이 선언한 `promoter_species` 가 적합에 쓰인 종
+    (`promoter_fitted_species`)과 일치할 때만 켠다. 글리신을 여기로 흘리면
+    부호가 뒤집힌다.
+
+    근거 노트: knowledge/cmp/chi-carboxylate-promoter-cu-oxalate-us6309560.md
+    """
+    for k in ("promoter_M", "promoter_anchor_M", "promoter_exponent_m",
+              "promoter_floor_phi"):
+        if not pack.has(k):
+            return None
+    if pack.has("promoter_fitted_species"):
+        fitted = str(pack.get("promoter_fitted_species")).strip().lower()
+        declared = str(pack.get_or("promoter_species", "")).strip().lower()
+        if not declared:
+            notes.append("⚠ promoter_fitted_species 는 있으나 팩에 promoter_species "
+                         "가 없어 종 일치를 확인할 수 없다 — 항을 켜지 않는다.")
+            return None
+        if fitted != declared:
+            notes.append(
+                f"⚠ 카복실레이트 촉진 계수는 {fitted} 로 적합됐고 이 팩의 촉진제는 "
+                f"{declared} 다 — 같은 회귀에서 옥살산(+536.63)과 글리신(−440.91)이 "
+                "부호가 반대라 종을 넘겨 전이하지 않는다(판정#45). 항을 켜지 않는다.")
+            return None
+    C = float(pack.get("promoter_M"))
+    C_ref = float(pack.get_or("promoter_ref_M", C))
+    C_anchor = float(pack.get("promoter_anchor_M"))
+    m = float(pack.get("promoter_exponent_m"))
+    phi = float(pack.get("promoter_floor_phi"))
+    if C < 0.0 or C_ref < 0.0:
+        notes.append(f"⚠ promoter_M={C} / ref={C_ref} 에 음수가 있다 — 항을 켜지 않는다.")
+        return None
+    if C_anchor <= 0.0:
+        notes.append("⚠ promoter_anchor_M 이 0 이하라 정규화가 불가능하다 — 항 생략.")
+        return None
+
+    def _g(x: float) -> float:
+        return phi + (1.0 - phi) * (x / C_anchor) ** m
+
+    denom = _g(C_ref)
+    if denom <= 0.0:
+        notes.append("⚠ 촉진 항 분모가 0 이하 — phi 가 0 이면 C_ref=0 에서 "
+                     "정의되지 않는다. 항을 켜지 않는다.")
+        return None
+    val = _g(C) / denom
+    if abs(C - C_ref) < 1e-12:
+        notes.append(
+            f"카복실레이트 촉진: {C:.4g} M = 기준 조성이라 배수 1.000 "
+            "(Kp 가 이 조성에서 역산됐다 — 절대 촉진율을 다시 곱하면 이중 계상).")
+    else:
+        notes.append(
+            f"카복실레이트 촉진: {C:.4g} M / 기준 {C_ref:.4g} M, "
+            f"m={m:.4f}, phi={phi:.4f} → 배수 {val:.4f}. "
+            "출처 US6309560B1 TABLE 1 통제쌍 2건. ⚠ 독립 교차확인(Jani 2025 RSM)은 "
+            "0.02→0.08 M 에서 이 항보다 19.2% 큰 비를 준다 — 크기는 순위 목적으로만.")
+    return val

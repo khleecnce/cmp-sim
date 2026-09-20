@@ -1,0 +1,116 @@
+# Cu CMP — 벤젠술폰산 농도 4수준 (연마입자·산화제 고정). 특허 실시예 인쇄표.
+#
+# 왜 이 데이터셋을 새로 만들었나 (2026-09-19)
+# ──────────────────────────────────────────
+# 알칼리 Cu 계를 별도 팩(cu_alkaline_benzenesulfonic)으로 분리하면서, 그 팩의
+# held-out 이 n=3·n=2 만 남아 **순위 검정이 구조적으로 불가능**해졌다
+# (n=3 은 최소 p 가 0.167 이라 어떤 결과도 유의할 수 없다). 갭 랭커가 이것을
+# 최상위 VALIDATION 갭으로 정확히 지목했다.
+#
+# 같은 특허의 TABLE 2 가 그 구멍을 메운다:
+#   · n=4 — 순위 검정이 가능한 최소 크기(1/24 = 0.042)
+#   · 연마입자 3 wt% 고정 — 모델이 선언한 pH 항 게이트(≥2 wt%) **안쪽**이다
+#   · 캘리브레이션에 쓰인 적 없다(Kp 는 TABLE 4, 산화제 형상은 US20110165777A1)
+#
+# ⚠ 이 표의 변수는 **벤젠술폰산 농도**인데 모델에는 그 축이 없다.
+#   US9200180B2 명세서가 이 성분을 억제제가 아니라 산화제 겸 Ta 착화제로
+#   규정하므로("complexes with tantalum ions to form tantalum sulfonate
+#   complexes"), Cu 제거에 대한 직접 항이 아직 없는 것이 현재 상태다.
+#   그래서 excluded_axes 로 명시 선언한다 — 산문으로는 면제되지 않는다.
+#   즉 이 데이터셋이 실제로 시험하는 것은 **pH 축**(8.5~8.7, 좁다)이 아니라
+#   "그 축이 없을 때 모델이 얼마나 빗나가는가"이다. 정직하게 그렇게 기록한다.
+source: >
+  US9200180B2 (Air Products and Chemicals / 현 Versum·Merck), "Chemical-mechanical
+  planarization composition having benzenesulfonic acid and per-compound oxidizing
+  agents, and associated method for use", 2015.
+  https://patents.google.com/patent/US9200180B2
+  옮긴 곳: TABLE 2 (Examples 7~10) — "Controlling Tunability of Copper, PETEOS,
+  Tantalum Nitride, and Black Diamond Blanket Wafer Removal Rates ... Using
+  Different Concentration of Benzenesulfonic acid at Fixed Concentration of
+  5% Hydrogen Peroxide".
+  로컬 사본 papers/patents/US9200180B2.html 에서 인쇄값 직접 대조(전사 오류 없음):
+  Cu RR = 43 / 104 / 77 / 63 Å/min → ÷10 으로 nm/min 환산.
+  공정조건(명세서 실험 절차): Mirra 3400, Politex 패드, platen 90 rpm,
+  head 84 rpm, membrane pressure 2.0 psi, slurry 200 mL/min, ECD 구리 블랭킷.
+# ⚠ 2026-09-19 자기 감사 결과 — 이 데이터셋은 **순위 검증에 쓸 수 없다**.
+#   tools/label_vs_input_audit.py 의 구조 검사가 만들자마자 잡았다:
+#   라벨은 4종인데 모델이 받는 고유 입력은 3종이다(pH 8.6 이 Ex.9 와 Ex.10 에
+#   중복). 즉 스윕 축(벤젠술폰산)이 모델에 없으므로 예측이 거의 평평하고
+#   (9.99~10.68 nm/min) 실측은 4.3~10.4 로 2.4배 움직인다 — 같은 입력에 다른
+#   실측이 오니 ρ 가 구조적으로 달성 불가능하다.
+#
+#   그래서 rank_only 나 in_scope 로 덮지 않고 **validation_use: none** 으로
+#   선언한다. 이 파일이 존재하는 이유는 채점이 아니라 **기록**이다:
+#     ① 벤젠술폰산 축이 Cu MRR 을 2.4배 움직인다는 1차 증거(정점형: 1 wt% 최대)
+#     ② 그 축이 모델에 없다는 사실의 소재지
+#   축이 생기면 validation_use 를 지우고 held-out 으로 승격한다.
+#
+#   ⚠ 이것을 "n≥4 held-out 확보"로 세지 마라. 갭 랭커가 요구한 것은 **검정이
+#     성립하는** 데이터이고, 이 표는 점 수만 채울 뿐 그 조건을 만족하지 않는다.
+#     숫자를 맞추려고 집계에 넣으면 지표가 아니라 자기기만이 된다.
+in_scope: false
+validation_use: none
+used_for_calibration: false
+audit_verified: true
+pack: cu_alkaline_benzenesulfonic
+
+# 기계가 읽는 '의도적 미전달 축' 선언 (tools/label_vs_input_audit.py)
+excluded_axes:
+  inhibitor_mM: >
+    이 표가 스윕하는 벤젠술폰산은 **억제제가 아니다**. US9200180B2 명세서가
+    corrosion inhibitor 마쿠쉬 군(1,2,4-triazole/benzotriazole/TINUVIN/CDX)에
+    넣지 않고 "not only serves as oxidants but complexes with tantalum ions to
+    form tantalum sulfonate complexes" 로 규정하며, 농도↑에 Ta/TaN 제거율이
+    **오른다**("substantially increased with increasing benzenesulfonic acid
+    concentration") — 억제제라면 부호가 반대여야 한다. 따라서 이 축을
+    inhibitor_mM 으로 전달하면 물리적으로 틀린 항을 켜는 것이다.
+    이 팩에는 억제제가 없는 것이 정의이고, 쌍 표에도 (benzenesulfonic, cu) 가
+    '흡착 없음'으로 근거와 함께 선언돼 있다(sim/inhibitor_pairs.NO_ADSORPTION).
+    Cu 제거율이 낮은 물리는 알칼리 H2O2 부동태화가 맡는다
+    (oxidizer_passivation_K).
+
+conditions:
+  - label: "벤젠술폰산 0.5wt%, H2O2 5wt%, pH 8.7 (Example 8)"
+    pressure_psi: 2.0
+    rpm_wafer: 84
+    rpm_platen: 90
+    mrr_nm_per_min: 4.3
+    read_method: table
+    overrides:
+      abrasive_wt_pct: 3.0
+      oxidizer_wt_pct: 5.0
+      slurry_ph: 8.7
+      sfr_ml_min: 200.0
+  - label: "벤젠술폰산 1wt%, H2O2 5wt%, pH 8.6 (Example 9)"
+    pressure_psi: 2.0
+    rpm_wafer: 84
+    rpm_platen: 90
+    mrr_nm_per_min: 10.4
+    read_method: table
+    overrides:
+      abrasive_wt_pct: 3.0
+      oxidizer_wt_pct: 5.0
+      slurry_ph: 8.6
+      sfr_ml_min: 200.0
+  - label: "벤젠술폰산 2wt%, H2O2 5wt%, pH 8.5 (Example 7)"
+    pressure_psi: 2.0
+    rpm_wafer: 84
+    rpm_platen: 90
+    mrr_nm_per_min: 7.7
+    read_method: table
+    overrides:
+      abrasive_wt_pct: 3.0
+      oxidizer_wt_pct: 5.0
+      slurry_ph: 8.5
+      sfr_ml_min: 200.0
+  - label: "벤젠술폰산 3wt%, H2O2 5wt%, pH 8.6 (Example 10)"
+    pressure_psi: 2.0
+    rpm_wafer: 84
+    rpm_platen: 90
+    mrr_nm_per_min: 6.3
+    read_method: table
+    overrides:
+      abrasive_wt_pct: 3.0
+      oxidizer_wt_pct: 5.0
+      slurry_ph: 8.6
+      sfr_ml_min: 200.0

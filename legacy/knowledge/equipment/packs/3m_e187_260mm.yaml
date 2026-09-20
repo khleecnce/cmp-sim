@@ -1,0 +1,58 @@
+# 3M Diamond Pad Conditioner E187 — 260mm 캐리어. 제조사 공개 TDS 표 값만 옮긴다.
+description: "3M E187 컨디셔너 디스크, 260mm 캐리어 (제조사 TDS 실측표)"
+
+params:
+  grit_nominal_size_um:
+    value: 181
+    unit: um
+    source: knowledge/equipment/conditioner-disk-spec-recipe-industrial.md §2
+    confidence: literature
+    note: >
+      3M "3M™ Diamond Pad Conditioner E187" Technical Data, June 2014
+      (자료번호 60-5002-0211-8) 표 값. 다이아몬드 크기(공칭) 181 µm.
+  grit_type_grade:
+    value: "Type 4, semi-sharp"
+    source: knowledge/equipment/conditioner-disk-spec-recipe-industrial.md §2
+    confidence: literature
+  grit_array_pattern:
+    value: "square_array"
+    source: knowledge/equipment/conditioner-disk-spec-recipe-industrial.md §2
+    confidence: literature
+    note: TDS 원표기 "Square array"(정사각 격자).
+  carrier_diameter_mm:
+    value: 260
+    unit: mm
+    source: knowledge/equipment/conditioner-disk-spec-recipe-industrial.md §2
+    confidence: literature
+  carrier_material:
+    value: "SS304"
+    source: knowledge/equipment/conditioner-disk-spec-recipe-industrial.md §2
+    confidence: literature
+    note: TDS 원표기 "304 스테인리스".
+  carrier_form:
+    value: "ring"
+    source: knowledge/equipment/conditioner-disk-spec-recipe-industrial.md §2
+    confidence: literature
+    note: TDS 원표기 "Ring (환형)".
+  working_face_form:
+    value: "segmented"
+    source: knowledge/equipment/conditioner-disk-spec-recipe-industrial.md §2
+    confidence: literature
+  disk_flatness_max_um:
+    value: 100
+    unit: um
+    source: knowledge/equipment/conditioner-disk-spec-recipe-industrial.md §2
+    confidence: literature
+    note: TDS 원표기 "< 100 µm" — 상한값.
+  aggressiveness_value_bl_min:
+    value: 70
+    source: knowledge/equipment/conditioner-disk-spec-recipe-industrial.md §2
+    confidence: literature
+    note: >
+      TDS 원표기 "Aggressiveness Value (BL): 260mm 70–90". 무차원 정의식은
+      TDS에 없음(노트 §2 미검증 항목) — 값 자체만 옮긴다.
+  aggressiveness_value_bl_max:
+    value: 90
+    source: knowledge/equipment/conditioner-disk-spec-recipe-industrial.md §2
+    confidence: literature
+    note: 'TDS 원표기 "Aggressiveness Value (BL): 260mm 70–90"의 상한.'

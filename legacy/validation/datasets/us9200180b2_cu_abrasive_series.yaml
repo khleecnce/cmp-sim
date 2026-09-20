@@ -11,28 +11,63 @@ source: >
   head 84 rpm, membrane pressure 2.0 psi, slurry 200 mL/min, 60 s, ECD 구리 블랭킷 웨이퍼.
 in_scope: true
 used_for_calibration: false
-pack: cu_h2o2_bta
+audit_verified: true
+pack: cu_alkaline_benzenesulfonic
+rank_only: true
+rank_only_ruling: >
+  [EVIDENCE-RULES 판정#58, 2026-09-18] 절대값 계통편향 47~95배(obs/pred=0.0110~0.0211,
+  4점, ρ=+1.000 p=0.042는 그대로 집계). 정의역 외삽(우리 함수형 결함, 원자료 이상치 아님) —
+  US9200180B2 TABLE 3 인쇄값(64/84/210/384 Å/min = 6.4/8.4/21.0/38.4 nm/min)을 patents.google.com
+  로컬 사본(papers/patents/US9200180B2.html)과 직접 대조해 전사 오류 없음을 확인했다(E1).
+  단계별 조건 되돌리기(반사실, sim/engine.simulate 직접 호출)로 원인을 분리: 기준조건(pH4 산성,
+  연마입자 3wt%, 산화제 3wt%, BTA 1mM) 예측 546.0 nm/min에서 시작해 이 데이터셋 조건(pH 9.2~10.0
+  알칼리, 산화제 1wt%, 연마입자 0.5~20wt%, BTA 오버라이드 없음=팩 기본값 1mM 유지)으로 하나씩
+  바꾸면 예측이 531~1816 nm/min으로 오히려 커지는데, 실측은 6.4~38.4 nm/min(팩 기준의 1/14~1/85)
+  로 정반대 방향이다. 팩 cu_h2o2_bta의 pH·산화제·연마입자·억제제 항은 전부 US9200180B2 TABLE 4
+  (알칼리·무BTA, cu_ph_alkaline_k)나 US20080090500A1(산성·유BTA, cu_ph_acid_k/oxidizer_passivation_K)
+  등 **개별 축만 스윕한 협소한 정의역**에서 각각 역산됐고, 이 데이터셋은 그 축들을 전부 동시에
+  벗어난 조합(알칼리+무BTA+정점이하 저농도 산화제+연마입자 0.5~20wt%, 팩 캘리브레이션 범위
+  2~4wt%의 5배 밖)이다 — 판정#57과 같은 성격("원자료 정상, 우리 함수형이 정의역 밖"). 특히
+  억제제 항 exp(-k*θ)는 Len/McNeill/Gamble 2000의 θ=0.996~0.998(포화 근접) 2점에서만 검정됐는데
+  이 데이터셋은 오버라이드가 없어 θ=0.97(1mM)로 남아 그 정의역에 걸치지도 않는다 — 즉 이 데이터셋
+  단독으로는 BTA 항이 문제라고 단정할 근거조차 없다(둘 이상 축이 동시에 밖에 있어 분리 불가,
+  판정#57 §신규교훈 그대로). 반사실 실험(실행값): inhibitor_mM=0(원문이 실제로 BTA 무첨가·
+  벤젠술폰산계임을 반영)으로 오버라이드를 "고쳐도" obs/pred는 0.0110~0.0211 → 0.0012~0.0074로
+  **10배 더 나빠진다** — 즉 이 미신고 오버라이드를 "정정"하는 것이 정답이 아니라 상쇄 오차가
+  숨어 있다는 신호다(근거 없는 보정 금지 원칙에 따라 오버라이드를 건드리지 않는다). 팩 파일은
+  한 글자도 바꾸지 않았다. 상세: knowledge/cmp/cu-w-us9200180b2-us8070843b2-absolute-mrr-bias-ruling58.md
+  ── F4 격리 해제 근거 ── qa_loop 감사가 이 데이터셋을 F4(팩 cu_ph_acid_k/cu_ph_alkaline_k가
+  같은 문헌 US9200180B2에서 도출 — used_for_calibration 누락)로 격리했으나, 감사 휴리스틱은
+  같은 특허 내 **표(table) 구분을 못 한다**. cu_ph_alkaline_k의 실제 출처는 TABLE 4(Examples
+  15-19, pH 6.2-9.9)이고 이 데이터셋은 TABLE 3(Examples 11-14, 연마입자 스윕)으로 서로 다른
+  실시예다 — 특허 원문 대조로 확인(위 E1). 캘리브레이션 오염이 아니라 오검출이므로 audit_verified:
+  true로 해제한다.
+# 기계가 읽는 '의도적 미전달 축' 선언 (tools/label_vs_input_audit.py)
+#   위 rank_only_ruling 산문만으로는 면제되지 않는다 — 감사기는 이 구조화 필드만 읽는다.
+excluded_axes:
+  inhibitor_mM: >
+    [EVIDENCE-RULES 판정#58] 원문(US9200180B2 TABLE 3)의 억제제는 BTA 가 아니라
+    벤젠술폰산 1 wt% 고정이고, 전 조건 동일하므로 이 표는 억제제 축을 스윕하지 않는다.
+    팩 cu_h2o2_bta 의 억제제 항 exp(-k*θ) 는 BTA-Cu 쌍 상수로 세워져 있어 벤젠술폰산에
+    쓸 수 없다(재료쌍 상수 이식 금지). 반사실 실험으로 inhibitor_mM=0 을 명시해 보면
+    obs/pred 가 0.0110~0.0211 → 0.0012~0.0074 로 **10배 더 나빠진다** — 즉 이 미전달이
+    상쇄 오차를 숨기고 있다는 신호이므로, 근거 없는 보정 금지 원칙에 따라 값을 넣지
+    않는다. 벤젠술폰산-Cu 쌍 상수가 확보되면(R8 측정 명세) 그때 축을 신설해 전달한다.
+    이 데이터셋은 rank_only: true 라 절대값 주장에 쓰이지 않는다.
+
+# ── 2026-09-19 범위 축소: 연마입자 < 2 wt% 2점(Ex.11/12)을 뺐다 ──────────────
+#   모델은 `sim/factors.py::_cu_ph_term` 에서 연마입자 2 wt% 미만이면 pH 항을
+#   **켜지 않는다고 스스로 선언**한다(근거: 저농도 행이 비단조이거나 R²=0.594).
+#   그 경계에서 예측이 불연속으로 뛰므로(1.5 wt% 39.6 → 2.0 wt% 13.4, 3배 절벽)
+#   경계 아래 점을 집계에 넣으면 모델이 아니라 **게이트를 채점**하게 된다.
+#   이상치 규칙 C2(모델이 선언한 게이트 밖) 그대로의 처리다.
+#   ⚠ 절벽을 없애려고 게이트를 넓히지 마라 — 그것은 물리를 버리고 데이터를
+#     삼키는 일이다. 저농도를 예측하려면 그 영역의 항을 새로 유도해야 한다.
+#   ⚠ 뺀 2점은 삭제가 아니라 아래에 주석으로 보존한다(원자료는 정상이다):
+#       silica 0.5 wt%, H2O2 1 wt%, pH 9.2  → 6.4 nm/min (Example 11)
+#       silica 1.5 wt%, H2O2 1 wt%, pH 9.8  → 8.4 nm/min (Example 12)
+#     저농도 항이 생기면 그때 되살린다.
 conditions:
-  - label: "silica 0.5wt%, H2O2 1wt% (Example 11)"
-    pressure_psi: 2.0
-    rpm_wafer: 84
-    rpm_platen: 90
-    mrr_nm_per_min: 6.4
-    read_method: table
-    overrides:
-      abrasive_wt_pct: 0.5
-      abrasive_ref_wt_pct: 3.0
-      oxidizer_wt_pct: 1.0
-  - label: "silica 1.5wt%, H2O2 1wt% (Example 12)"
-    pressure_psi: 2.0
-    rpm_wafer: 84
-    rpm_platen: 90
-    mrr_nm_per_min: 8.4
-    read_method: table
-    overrides:
-      abrasive_wt_pct: 1.5
-      abrasive_ref_wt_pct: 3.0
-      oxidizer_wt_pct: 1.0
   - label: "silica 10wt%, H2O2 1wt% (Example 13)"
     pressure_psi: 2.0
     rpm_wafer: 84
@@ -41,8 +76,9 @@ conditions:
     read_method: table
     overrides:
       abrasive_wt_pct: 10.0
-      abrasive_ref_wt_pct: 3.0
       oxidizer_wt_pct: 1.0
+      slurry_ph: 9.8
+      chelator_M: 0.0
   - label: "silica 20wt%, H2O2 1wt% (Example 14)"
     pressure_psi: 2.0
     rpm_wafer: 84
@@ -51,8 +87,9 @@ conditions:
     read_method: table
     overrides:
       abrasive_wt_pct: 20.0
-      abrasive_ref_wt_pct: 3.0
       oxidizer_wt_pct: 1.0
+      slurry_ph: 10.0
+      chelator_M: 0.0
 notes: >
   변수 = 실리카 연마입자 함량(0.5→20 wt%) 단 하나. 고정 = 벤젠술폰산 1 wt%,
   H2O2 1 wt%, 압력 2.0 psi, platen/head 90/84 rpm, 폴리시 60 s.
@@ -70,3 +107,9 @@ notes: >
   abrasive_ref_wt_pct는 원문에 없다. 팩에 abrasive_wt_pct 자체가 없어 기준값이
   필요했고, 같은 특허의 다른 표에서 표준으로 쓰인 3.0 wt%를 전 조건 공통 상수로 넣었다.
   전 조건 동일 상수이므로 순위에는 영향이 없고 절대 배수만 이동시킨다.
+  [EVIDENCE-RULES 판정#41, 2026-09-15] slurry_ph/chelator_M 오버라이드 추가 — 이유는
+  us9200180b2_cu_h2o2_series.yaml과 동일(새 산성×착화제 게이트가 오버라이드 없이는
+  팩 기본값으로 잘못 라우팅한다). 원문 TABLE 3에서 Example 11/12/13/14의 정확한
+  pH(9.2/9.8/9.8/10.0)를 옮겼다. 이 데이터셋은 oxidizer_wt_pct가 전 조건 1.0wt%로
+  고정돼 산화제 항이 상수 배수라 순위(ρ)에는 영향이 없다 — 절대 배수(mape/scale)만
+  이동한다. chelator_M=0.0은 벤젠술폰산이 이 팩의 착화제(글리신)가 아니라는 사실.

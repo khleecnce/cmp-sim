@@ -1,0 +1,123 @@
+# 구리 CMP — Ihnfeldt 2008 UCSD 박사논문 Table 6.2 (pH × 산화제 × 첨가제 조합, 알루미나)
+source: >
+  T. Ihnfeldt, "Copper Chemical Mechanical Polishing: The Effects of Slurry
+  Chemistry on Copper Surface Nanohardness, Alumina Agglomeration, and Material
+  Removal Rate", Ph.D. dissertation, University of California San Diego, 2008.
+  같은 실험의 학술지판(공정 조건·측정오차 독립 재확인용):
+  R. V. Ihnfeldt and J. B. Talbot, "Modeling Copper CMP Material Removal Rates
+  Using Copper Surface Nanohardness", ECS Transactions 13(4) 43-49, 2008.
+  doi:10.1149/1.2912977 — 전문 확보: papers/ihnfeldt2008-jes-modeling-cu-cmp-nanohardness.pdf
+  전문 로컬 보관: papers/ihnfeldt2008-ucsd-dissertation-cu-cmp-alumina-colloidal.pdf
+  (텍스트 추출본 .txt 동반, corpus doc_id local:f26fd2cd11ef)
+  옮긴 곳: Table 6.2 "Experimental MRR and Luo and Dornfeld model predictions of MRR
+  using various slurries at different pH" 의 **Experimental MRR (±14 nm/min)** 열
+  (read_method: table — 인쇄값, 그래프 판독 아님). 슬러리 조성은 같은 논문
+  Table 4.2 / Table 6.1 각주 a)~f) 목록.
+
+  고정 공정(원문 §4.5.2, 전 실험 동일): Toyoda Machine Works SP46 회전식 CMP,
+  IC1000 패드(22 inch, Rohm and Haas), 100 mm Si 웨이퍼에 스퍼터 Cu 1 µm /Ta 300 Å,
+  **1.0 psi**(장비 최대), platen 30 rpm · wafer 30 rpm, 슬러리 150 mL/min, 2 min,
+  질량감량법(Sartorius 1712 MP8, ±0.5 mg → MRR 불확도 ±14 nm/min).
+  연마입자: Cabot 40 wt% α-alumina 를 희석비 0.1 → 4 wt%, 1차입경 20 nm /
+  중위 aggregate 150 nm. pH 는 KOH/HNO3 로 조정.
+
+used_for_calibration: false
+in_scope: true
+pack: cu_h2o2_bta
+
+# ── 조건 선정 규칙(결과를 보기 전에 선언) ────────────────────────────
+# 원문 Table 6.2 는 6개 조성 × 3 pH = 18 조건이다. 그 중 **실측 MRR 이 원문이
+# 스스로 명시한 측정 불확도(±14 nm/min)를 넘는 조건만** 등록한다. 이유:
+#  · 4·4·0·2·9·8·0·11·2·9·8 nm/min 같은 값들은 0 과 구분되지 않으며 서로의
+#    순위도 구분되지 않는다(불확도가 값보다 크다). 순위 지표에 넣으면 잡음으로
+#    ρ 를 흔들 뿐 모델에 대해 아무것도 검증하지 못한다.
+#  · 이 규칙은 관측 불확도만 쓰고 **우리 예측값을 참조하지 않는다** — 결과를 보고
+#    고른 부분집합이 아니다(자기채점 회피).
+# 남은 7 조건: 조성 b(pH 10.0) · c(2) · d(3) · e(pH 10.8).
+# 제외된 11 조건 중 조성 f(EDTA 계) 전 3점은 이 팩에 EDTA 축이 없어 어차피 범위 밖이고,
+# 조성 a(KNO3 단독, 산화제·착화제 없음) 전 3점은 화학이 전부 꺼진 조건이다.
+#
+# ⚠ 미모델링/근사 선언:
+#  · SDS(0.1 mM ≈ 28.8 ppm, 조성 e)는 이 팩에 계면활성제 축이 없어 미반영.
+#  · 알루미나 응집체 크기(Table 6.1: 341~1930 nm)는 조성마다 다르지만 override 하지
+#    않았다 — 이 팩의 `abrasive_size_exponent` 가 0(판정#1 null 결과)이라 어떤 값을
+#    넣어도 예측이 바뀌지 않으므로, 넣으면 '반영한 척'이 된다.
+#  · 1.0 psi 는 다마신 Cu CMP(2~4 psi)보다 낮고 팩 Kp 역산 앵커 범위 밖이다 —
+#    절대값은 보지 않고 순위만 본다.
+#  · BTA 0.01 wt% → 0.8395 mM (0.1 g/L ÷ 119.12 g/mol, 밀도 1.0 g/mL 가정).
+
+conditions:
+  - label: "b) glycine 0.1M, H2O2 0%, pH 10.0"
+    overrides: {slurry_ph: 10.0, oxidizer_wt_pct: 0.0, chelator_M: 0.1,
+                inhibitor_mM: 0.0, abrasive_wt_pct: 4.0}
+    pressure_psi: 1.0
+    rpm_platen: 30
+    rpm_wafer: 30
+    sfr_ml_min: 150
+    mrr_nm_per_min: 15.0
+    read_method: table
+  - label: "c) glycine 0.1M, H2O2 0.1%, pH 8.3"
+    overrides: {slurry_ph: 8.3, oxidizer_wt_pct: 0.1, chelator_M: 0.1,
+                inhibitor_mM: 0.0, abrasive_wt_pct: 4.0}
+    pressure_psi: 1.0
+    rpm_platen: 30
+    rpm_wafer: 30
+    sfr_ml_min: 150
+    mrr_nm_per_min: 287.0
+    read_method: table
+  - label: "c) glycine 0.1M, H2O2 0.1%, pH 10.0"
+    overrides: {slurry_ph: 10.0, oxidizer_wt_pct: 0.1, chelator_M: 0.1,
+                inhibitor_mM: 0.0, abrasive_wt_pct: 4.0}
+    pressure_psi: 1.0
+    rpm_platen: 30
+    rpm_wafer: 30
+    sfr_ml_min: 150
+    mrr_nm_per_min: 350.0
+    read_method: table
+  - label: "d) glycine 0.1M, H2O2 2.0%, pH 3.0"
+    overrides: {slurry_ph: 3.0, oxidizer_wt_pct: 2.0, chelator_M: 0.1,
+                inhibitor_mM: 0.0, abrasive_wt_pct: 4.0}
+    pressure_psi: 1.0
+    rpm_platen: 30
+    rpm_wafer: 30
+    sfr_ml_min: 150
+    mrr_nm_per_min: 113.0
+    read_method: table
+  - label: "d) glycine 0.1M, H2O2 2.0%, pH 8.3"
+    overrides: {slurry_ph: 8.3, oxidizer_wt_pct: 2.0, chelator_M: 0.1,
+                inhibitor_mM: 0.0, abrasive_wt_pct: 4.0}
+    pressure_psi: 1.0
+    rpm_platen: 30
+    rpm_wafer: 30
+    sfr_ml_min: 150
+    mrr_nm_per_min: 289.0
+    read_method: table
+  - label: "d) glycine 0.1M, H2O2 2.0%, pH 10.0"
+    overrides: {slurry_ph: 10.0, oxidizer_wt_pct: 2.0, chelator_M: 0.1,
+                inhibitor_mM: 0.0, abrasive_wt_pct: 4.0}
+    pressure_psi: 1.0
+    rpm_platen: 30
+    rpm_wafer: 30
+    sfr_ml_min: 150
+    mrr_nm_per_min: 166.0
+    read_method: table
+  - label: "e) glycine 0.1M, H2O2 0.1%, BTA 0.84mM, pH 10.8"
+    overrides: {slurry_ph: 10.8, oxidizer_wt_pct: 0.1, chelator_M: 0.1,
+                inhibitor_mM: 0.8395, abrasive_wt_pct: 4.0}
+    pressure_psi: 1.0
+    rpm_platen: 30
+    rpm_wafer: 30
+    sfr_ml_min: 150
+    mrr_nm_per_min: 242.0
+    read_method: table
+
+notes: >
+  이 데이터셋이 cu_h2o2_bta 에 대해 새로 묻는 것: **산화제 0 / 0.1 / 2.0 wt% 3 수준과
+  pH 3 / 8.3 / 10 / 10.8 를 같은 장비·같은 연마입자에서 교차**한다. 특히
+  조성 c(0.1 wt%) 대 d(2.0 wt%) 비교는 pH 8.3 에서 287 vs 289(무변화), pH 10.0 에서
+  350 vs 166(0.474 배 감소), pH 3.0 에서 8(불확도 이하) vs 113(증가)로
+  **산화제 효과의 부호가 pH 에 따라 바뀐다** — Miranda 2004(doi:10.1109/WMED.2004.1297359)
+  가 pH 4/8 2×2 로 보인 반전을 pH 3/8.3/10 3 수준에서 독립 재확인한다.
+  현행 `_oxidizer_term` 은 이 팩에서 억제형 단일 레짐이므로 이 데이터셋의 순위가
+  안 맞으면 잡음이 아니라 pH×산화제 교호작용 부재의 신고로 읽어야 한다
+  (EVIDENCE-RULES 판정#77·#88 계열).

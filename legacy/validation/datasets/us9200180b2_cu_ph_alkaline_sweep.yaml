@@ -35,7 +35,7 @@ source: >
 #   따라서 used_for_calibration: true 이고 held-out 성능 주장에 쓰면 안 된다.
 in_scope: true
 used_for_calibration: true
-pack: cu_h2o2_bta
+pack: cu_alkaline_benzenesulfonic
 
 conditions:
   - label: "pH 6.2 (Example 15)"
@@ -44,32 +44,32 @@ conditions:
     rpm_platen: 90
     mrr_nm_per_min: 73.2
     read_method: table
-    overrides: {slurry_ph: 6.2, abrasive_wt_pct: 10.0, abrasive_ref_wt_pct: 3.0, oxidizer_wt_pct: 1.0, sfr_ml_min: 200.0, inhibitor_mM: 0.0}
+    overrides: {slurry_ph: 6.2, abrasive_wt_pct: 10.0, oxidizer_wt_pct: 1.0, sfr_ml_min: 200.0, inhibitor_mM: 0.0}
   - label: "pH 7.1 (Example 16)"
     pressure_psi: 2.0
     rpm_wafer: 84
     rpm_platen: 90
     mrr_nm_per_min: 57.7
     read_method: table
-    overrides: {slurry_ph: 7.1, abrasive_wt_pct: 10.0, abrasive_ref_wt_pct: 3.0, oxidizer_wt_pct: 1.0, sfr_ml_min: 200.0, inhibitor_mM: 0.0}
+    overrides: {slurry_ph: 7.1, abrasive_wt_pct: 10.0, oxidizer_wt_pct: 1.0, sfr_ml_min: 200.0, inhibitor_mM: 0.0}
   - label: "pH 8.7 (Example 17)"
     pressure_psi: 2.0
     rpm_wafer: 84
     rpm_platen: 90
     mrr_nm_per_min: 33.4
     read_method: table
-    overrides: {slurry_ph: 8.7, abrasive_wt_pct: 10.0, abrasive_ref_wt_pct: 3.0, oxidizer_wt_pct: 1.0, sfr_ml_min: 200.0, inhibitor_mM: 0.0}
+    overrides: {slurry_ph: 8.7, abrasive_wt_pct: 10.0, oxidizer_wt_pct: 1.0, sfr_ml_min: 200.0, inhibitor_mM: 0.0}
   - label: "pH 9.4 (Example 18)"
     pressure_psi: 2.0
     rpm_wafer: 84
     rpm_platen: 90
     mrr_nm_per_min: 26.3
     read_method: table
-    overrides: {slurry_ph: 9.4, abrasive_wt_pct: 10.0, abrasive_ref_wt_pct: 3.0, oxidizer_wt_pct: 1.0, sfr_ml_min: 200.0, inhibitor_mM: 0.0}
+    overrides: {slurry_ph: 9.4, abrasive_wt_pct: 10.0, oxidizer_wt_pct: 1.0, sfr_ml_min: 200.0, inhibitor_mM: 0.0}
   - label: "pH 9.9 (Example 19)"
     pressure_psi: 2.0
     rpm_wafer: 84
     rpm_platen: 90
     mrr_nm_per_min: 21.4
     read_method: table
-    overrides: {slurry_ph: 9.9, abrasive_wt_pct: 10.0, abrasive_ref_wt_pct: 3.0, oxidizer_wt_pct: 1.0, sfr_ml_min: 200.0, inhibitor_mM: 0.0}
+    overrides: {slurry_ph: 9.9, abrasive_wt_pct: 10.0, oxidizer_wt_pct: 1.0, sfr_ml_min: 200.0, inhibitor_mM: 0.0}

@@ -14,6 +14,16 @@ in_scope: true
 used_for_calibration: false
 pack: sti_ceria
 
+# 기계가 읽는 '의도적 미전달 축' 선언 (tools/label_vs_input_audit.py)
+#   아래 notes 산문만으로는 면제되지 않는다 — 감사기는 구조화된 이 필드만 읽는다.
+excluded_axes:
+  oxidizer_wt_pct: >
+    이 데이터셋은 Fig.3a(pH 스윕)이고 H2O2 는 같은 논문의 **다른 실험**(Fig.1a)의
+    변수다. 이 pH 실험의 슬러리에는 H2O2 가 들어가지 않으며, sti_ceria 가
+    상속하는 oxidizer_wt_pct 기본값도 0.0 이라 모델이 쓰는 값과 실험 조건이
+    일치한다(부재-기본값 불일치 아님). Fig.1a 를 별도 데이터셋으로 만들려면
+    sti_ceria 에 산화제 항이 먼저 필요하다 — 팩에 그 항이 없어 지금은 통로가 없다.
+
 # ⚠ used_for_calibration 판단 근거를 남긴다:
 #   knowledge/params/sti_ceria.yaml의 ce3_fraction 주석이 이 논문(Netzband & Dunn 2020)의
 #   "H2O2 0.5wt%에서 MRR 5.5배" 서술을 인용하고 있다. 다만 그 인용은 **H2O2 실험(Fig.1a)**에

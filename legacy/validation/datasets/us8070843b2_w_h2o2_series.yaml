@@ -11,6 +11,43 @@ source: >
 in_scope: true
 used_for_calibration: false
 pack: w_fe_oxidizer
+rank_only: true
+rank_only_ruling: >
+  [EVIDENCE-RULES 판정#58, 2026-09-18] 절대값 계통편향 obs/pred 0.089~0.320(중앙값 0.28,
+  즉 예측이 실측의 ~3.6배, ρ=+1.000 p=0.008은 그대로 집계). 두 원인이 겹친다 — 둘 다 이미
+  독립적으로 확인된 것이지 이 held-out 하나에 맞추려고 새로 지어낸 게 아니다(E6 아님).
+  ① **팩 Kp 자체가 계통적으로 높다(2~3배)**: knowledge/cmp/w-cmp-preston-kp-oxidizer-rate-
+  literature-reproduction.md §3이 이미 3개 독립 1차문헌(Stojadinović 2016, Lim 2013,
+  이 데이터셋 자신의 6.1wt% 점)에서 Preston 역산 Kp*=MRR/(P·V)를 구해 median 1.07e-13 —
+  팩값 2.8e-13의 1.8~3.4배(그 노트의 verify 블록 assert로 이미 고정됨) — 를 확인했다.
+  이 held-out을 뺀 완전 독립 2문헌(Stojadinović+Lim)만으로도 median 7.85e-14로 팩값의
+  ~3.6배 낮다 — 이 데이터셋 하나에 맞춘 순환이 아니라는 뜻이다. ② **기계 메커니즘 자체가
+  팩 정의역 밖**: 이 특허(US8070843B2, 3M Mirra 3400)는 **고정연마입자(fixed-abrasive)
+  패드 + 무연마입자 용액** 방식인데(명세서 "General Polishing Procedure"), 팩 w_fe_oxidizer의
+  κ(기계) 항은 슬러리 내 유리(遊離) 알루미나 연마입자 함량(abrasive_wt_pct)을 전제로
+  설계됐다 — 이 데이터셋은 그 오버라이드가 아예 없어 팩 기본 유리연마입자 함량이 마치
+  존재하는 것처럼 계산된다. 반사실 실험(실행값, sim.engine.simulate 직접 호출): 이 held-out만
+  맞추도록 Kp를 0.28배(2.8e-13→7.84e-14)로 낮추면 이 데이터셋은 median obs/pred 1.017로
+  거의 완벽해지지만, 같은 팩의 캘리브레이션 문헌(US20110186542A1, n=15)은 median 0.585
+  (1.7배 과대)→**2.09배 과소**로 반전한다 — 하나를 맞추면 하나가 반대로 틀어진다(E6 회피
+  확인). 3문헌 median 기반 배수(0.393배, 2.8e-13→1.1e-13)를 대신 쓰면 이 held-out은 0.725,
+  캘리브레이션셋은 1.49로 **둘 다 2배 이내**로 개선되지만 어느 쪽도 완전히 맞진 않는다 —
+  고정연마입자 메커니즘 불일치가 Kp 재조정만으로 안 닫히는 잔차로 남는다는 뜻이다. 그러므로
+  이번 판정에서는 kp_m_per_pa 값 자체를 바꾸지 않는다(그 수치 교정은 별도 판정으로 미루고,
+  이 노트가 이미 confidence=estimated 유지를 권고했다) — 대신 이 데이터셋의 절대값을
+  rank_only로 면제한다. 팩 파일은 도메인 한계 주석만 추가했다(값 미변경).
+calibration_contact:
+  - param: kp_m_per_pa
+    pack: w_fe_oxidizer
+    what: >
+      [판정#58] 이 데이터셋 자체는 Kp 적합에 쓰이지 않았다(값 2.8e-13 은
+      surface-chemistry-cu-w-pourbaix-passivation.md 의 문헌범위 역산값이고,
+      used_for_calibration 는 false 그대로다). 다만 판정#58 이 팩 note 에 추가한
+      "Kp 가 3문헌 median 1.07e-13 의 1.8~3.4배" 라는 교차확인 문장의 그 3문헌에
+      **이 특허가 포함**되므로, note 가 이 문헌 ID 를 언급하게 됐다. 즉 값-도출
+      경로의 오염이 아니라 **근거 서술의 부분 접촉**이다 — 감사기가 F4(미신고
+      자기채점)로 올리는 것이 맞고, 여기 신고함으로써 C4(신고된 부분오염)로
+      격하한다. 숨기지 않고 드러내는 쪽을 택했다.
 conditions:
   - label: "H2O2 0 wt% (CE-5, Fe 1180 ppm)"
     pressure_psi: 4.0

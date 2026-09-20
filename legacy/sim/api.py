@@ -545,9 +545,17 @@ _BASIS = ROOT / "validation" / "MODEL-BASIS.md"
 
 @app.get("/demo", response_class=HTMLResponse)
 def demo_landing():
-    """비공개 데모 랜딩(영어) — 면접관용. FABSIM_DEMO=1이면 '/'도 여기로 온다."""
-    return HTMLResponse(_DEMO.read_text(encoding="utf-8"),
-                        headers={"Cache-Control": "no-store"})
+    """비공개 데모 랜딩(영어) — 면접관용. FABSIM_DEMO=1이면 '/'도 여기로 온다.
+
+    {{FABSIM_*}} 토큰은 sim.web_facts.landing_facts() 가 실제 아티팩트에서
+    산출한 값으로 치환한다 — 손으로 유지하는 숫자가 조용히 틀어지는 것을 막는다.
+    """
+    from sim.web_facts import landing_facts
+
+    body = _DEMO.read_text(encoding="utf-8")
+    for key, value in landing_facts().items():
+        body = body.replace("{{" + key + "}}", value)
+    return HTMLResponse(body, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/basis", response_class=HTMLResponse)

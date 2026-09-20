@@ -158,6 +158,15 @@ class PatternDensityModel:
 
     ⚠ NPW에서는 사용하지 않는다(패턴이 없으므로).
     ⚠ 미검증: 평활 길이 PL은 문헌 대표값. 실제 값은 툴·패드마다 다르다.
+
+    ⚠⚠ 판정#65(EVIDENCE-RULES, 2026-09-19) — **근거 등급이 낮은 쪽이다.**
+    1/ρ는 "하중이 융기 면적에만 분산된다"는 기하 가정에서 나온 폐형식(E4)이고,
+    Sorooshian(2005) §3.3은 같은 양(P_eff/P_applied)을 밀도·압력·온도별로 직접
+    실측했다(E3, 대상계 실측). 실측 대비 이 모델은 ρ=0.10에서 2.50배,
+    ρ=0.50에서 1.29배 과대예측한다(ρ=0.90에서만 0.95배로 근접).
+    → 밀도 0.10/0.50/0.90 · 3 또는 7 psi 조건이면
+      `tier1.pattern_density_effective_pressure`를 쓰라. 이 모델은 그 격자 밖
+      밀도(연속값)를 다뤄야 할 때의 폴백으로만 남긴다.
     """
     name = "tier1.pattern_density"
     RHO_MIN = 0.15   # 이 아래는 1/rho 발산 — 비압축 극한이 깨진다
@@ -176,7 +185,10 @@ class PatternDensityModel:
         rho = float(recipe.meta.get("pattern_density", 0.5) or 0.5)
         out = [
             f"PTW up-area MRR = 블랭킷/ρ_eff (ρ={rho:g}, 비압축 패드 극한, Stine 1997). "
-            "장시간 후 step height가 사라지면 이 식은 성립하지 않는다 — 초기 단계에만 유효."
+            "장시간 후 step height가 사라지면 이 식은 성립하지 않는다 — 초기 단계에만 유효.",
+            "⚠ 판정#65: 1/ρ는 기하 가정 폐형식(E4)이며 Sorooshian(2005) §3.3 실측표 대비 "
+            "ρ=0.10에서 2.50배·ρ=0.50에서 1.29배 과대예측한다. 밀도가 0.10/0.50/0.90이고 "
+            "3 또는 7 psi면 tier1.pattern_density_effective_pressure(E3 실측)를 쓰라."
         ]
         if rho < self.RHO_MIN:
             out.append(f"⚠ ρ={rho:g} < {self.RHO_MIN} — 1/ρ가 발산해 비현실적이다. "

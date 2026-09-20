@@ -332,7 +332,6 @@ params:
       산화제를 쓰는 계로 이 팩을 확장하려면 두 값을 함께 옮겨야 한다.
     source: knowledge/cmp/cu-cmp-ph-mechanism.md
     confidence: literature
-
   # ── 연마입자 밀도 (2026-09-15) ────────────────────────────────
   # 피복률 유도의 입력이다: theta_p = 1.5 * phi * h / d, phi = wt% -> 부피분율.
   # 피복률이 있어야 입자당 접촉응력이 팩마다 갈리고, 그래야 alpha(탄성/소성)

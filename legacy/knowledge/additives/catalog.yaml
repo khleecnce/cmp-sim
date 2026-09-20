@@ -1,0 +1,890 @@
+# CMP 첨가제 카탈로그 — 문헌·특허 근거만. 출처 없는 항목 금지.
+#
+# 작성: 2026-09-08. 사용자(슬러리 실무자) 지시:
+#   "Additive 따로 만들어서 각 카테고리별로 어떤 케미컬 썼는지 검색해서 적용할 수 있게.
+#    옆에 함량도 표시 → R/R booster(막질 표시) / R/R inhibitor(막질 표시) / oxidizer /
+#    corrosion inhibitor / dispersant(surfactant & polymer) / defect 저감제"
+#
+# 규칙
+#   - 모든 항목은 `source:`에 DOI 또는 특허번호를 단다. 출처 없는 케미컬은 넣지 않는다.
+#   - `typical_range`는 출처 문헌·특허 청구/실시예에 적힌 범위만. 없으면 생략 + confidence: estimated.
+#   - `engine_key`는 knowledge/params/*.yaml에 **실제로 있는 키만** 쓴다
+#     (현재 화학 관련 키: oxidizer, oxidizer_wt_pct, inhibitor, inhibitor_mM, slurry_ph,
+#      oxide_nitride_selectivity). booster_mM·dispersant_ppm 등은 엔진에 없으므로 생략 —
+#     생략 = "엔진 미연결"이고 UI는 이를 dead 배지로 표시해야 한다.
+#   - `target_films`: 이 케미컬이 그 카테고리 역할로 작용하는 막질. 카테고리가 여러 개면
+#     `roles:`에 카테고리별 막질을 따로 적는다.
+#   - source_type: patent | paper
+#   - confidence: verified(원문 실시예/표 직접 확인) | literature(문헌 서술 확인) | estimated
+#
+# 검증: .venv/bin/python -c "import yaml; d=yaml.safe_load(open('knowledge/additives/catalog.yaml'));
+#        assert all(c.get('source') for c in d['chemicals'])"
+
+version: 1
+film_codes: [Cu, W, Co, Ru, Ta, Mo, oxide, SiN, poly-Si, SiC]
+
+categories:
+  rr_booster:
+    label: "R/R Booster"
+    label_ko: "연마율 촉진제"
+    needs_target_film: true
+  rr_inhibitor:
+    label: "R/R Inhibitor"
+    label_ko: "연마율 억제제 (stopping/선택비)"
+    needs_target_film: true
+  oxidizer:
+    label: "Oxidizer"
+    label_ko: "산화제"
+    needs_target_film: false
+  corrosion_inhibitor:
+    label: "Corrosion Inhibitor"
+    label_ko: "부식 억제제"
+    needs_target_film: true
+  dispersant:
+    label: "Dispersant (Surfactant & Polymer)"
+    label_ko: "분산제 (계면활성제·고분자)"
+    needs_target_film: false
+  defect_reducer:
+    label: "Defect Reducer (Surfactant & Polymer)"
+    label_ko: "결함 저감제 (계면활성제·고분자)"
+    needs_target_film: false
+  ph_adjuster:
+    label: "pH Adjuster"
+    label_ko: "pH 조절제·완충제"
+    needs_target_film: false
+  chelator:
+    label: "Chelating Agent"
+    label_ko: "킬레이트제·착화제"
+    needs_target_film: false
+  biocide:
+    label: "Biocide"
+    label_ko: "살균제"
+    needs_target_film: false
+
+chemicals:
+
+  # ═══════════════════════════════════════════ R/R BOOSTER — Cu
+  - id: glycine
+    name: "Glycine"
+    cas: "56-40-6"
+    categories: [rr_booster, chelator]
+    target_films: [Cu, poly-Si]
+    roles:
+      rr_booster: [Cu, poly-Si]
+      chelator: [Cu, W]
+    typical_range: {min: 0.05, max: 16.0, unit: "wt%"}
+    mechanism: >
+      Cu²⁺-글리시네이트 착물 형성으로 H2O2가 만든 Cu 산화층을 용해(Aksu & Doyle 2001/2003).
+      poly-Si CMP에서는 아미노산이 TMAH 대체 촉진제(WO2021046080A1, 0.05–1 wt%).
+    source: "US8974692B2 (Air Products; chelating agent glycine 0.01–22 wt%, preferred 0.05–16 wt%); doi:10.1149/1.1344532; doi:10.1149/1.1615611; WO2021046080A1"
+    source_type: patent
+    confidence: verified
+
+  - id: dl_alanine
+    name: "DL-Alanine"
+    cas: "302-72-7"
+    categories: [rr_booster, chelator]
+    target_films: [Cu]
+    mechanism: "글리신 보조 착화제. Cu-알라닌 착물로 TSV Cu 제거율 상승"
+    source: "doi:10.1557/s43578-023-01042-5 (J. Mater. Res. 2023, DL-alanine auxiliary complexing agent TSV Cu CMP)"
+    source_type: paper
+    confidence: literature
+
+  - id: arginine
+    name: "L-Arginine"
+    cas: "74-79-3"
+    categories: [rr_booster, chelator]
+    target_films: [Cu, poly-Si]
+    roles:
+      rr_booster: [Cu, poly-Si]
+    mechanism: >
+      Cu: 구아니디노기가 Cu²⁺ 착화(MRS 2006). poly-Si: 아미노산/구아니딘 유도체가
+      TMAH-free 촉진제(WO2021046080A1, 0.05–1 wt%, pH 10–11).
+    typical_range: {min: 0.05, max: 1.0, unit: "wt%"}
+    source: "doi:10.1557/proc-0914-f12-03 (The Role of Arginine as a Complexing Agent in Copper CMP); WO2021046080A1 (CMC Materials, polysilicon accelerator)"
+    source_type: paper
+    confidence: literature
+
+  - id: citric_acid_booster
+    name: "Citric acid"
+    cas: "77-92-9"
+    categories: [rr_booster, chelator, ph_adjuster]
+    target_films: [Cu, Mo]
+    roles:
+      rr_booster: [Cu, Mo]
+      chelator: [Cu, Mo, W]
+    typical_range: {min: 0.1, max: 0.1, unit: "M"}
+    mechanism: >
+      Cu/Mo-citrate 착물이 표면 경도를 낮춰 기계제거 촉진. 0.1 M 첨가로 Mo MRR ~2.4×, Cu ~4.0×
+      (Gamagedara & Roy 2024, 무입자 대비). W 슬러리에서는 H2O2 안정제/pH 조절제로도 사용.
+    source: "doi:10.3390/ma17194905; doi:10.1149/1.1890786 (Citric Acid as a Complexing Agent in CMP of Copper); US10676647B1"
+    source_type: paper
+    confidence: verified
+
+  - id: oxalic_acid
+    name: "Oxalic acid"
+    cas: "144-62-7"
+    categories: [rr_booster, chelator]
+    target_films: [Cu]
+    mechanism: "Cu 옥살레이트 착화로 산화층 용해 촉진(ESL 2005)"
+    source: "doi:10.1149/1.1883873 (Oxalic Acid as a Complexing Agent in CMP Slurries for Copper); US20050090104A1 (listed complexing agent)"
+    source_type: paper
+    confidence: literature
+
+  - id: hedp
+    name: "HEDP (1-hydroxyethylidene-1,1-diphosphonic acid)"
+    cas: "2809-21-4"
+    categories: [rr_booster, chelator]
+    target_films: [Cu]
+    typical_range: {min: 0.01, max: 10.0, unit: "wt%"}
+    mechanism: "유기 포스포네이트 킬레이트제 — Cu 착화로 고 MRR, 산화제와 반응 안 해 pot-life 김"
+    source: "US20050090104A1 (organic phosphonate 0.01–10 wt%, preferred 0.1–2 wt%; Cu slurry example 0.05–5% HEDP)"
+    source_type: patent
+    confidence: verified
+
+  - id: choline_bicarbonate
+    name: "Choline bicarbonate"
+    cas: "78-73-9"
+    categories: [rr_booster, defect_reducer]
+    target_films: [Cu]
+    typical_range: {min: 0.0001, max: 0.5, unit: "wt%"}
+    mechanism: "특허 원문: 'choline salt as copper removal rate booster and total defect reducer' (pH 5–8)"
+    source: "US8974692B2 (Air Products; choline salt 0.0001–0.50 wt%, preferred 0.001–0.10 wt%)"
+    source_type: patent
+    confidence: verified
+
+  - id: ethylenediamine
+    name: "Ethylenediamine (EDA)"
+    cas: "107-15-3"
+    categories: [rr_booster, ph_adjuster]
+    target_films: [Cu]
+    mechanism: "유기 디아민이 Cu 제거율 촉진(US8974692B2); Lewis 염기로 pH 상승용(US20050090104A1)"
+    source: "US8974692B2 (organic amine compounds to boost copper film removal rates: ethylene diamine, propylene diamine); US20050090104A1; doi:10.1007/978-3-642-03653-8_311"
+    source_type: patent
+    confidence: literature
+
+  # ═══════════════════════════════════════════ R/R BOOSTER — W
+  - id: ferric_nitrate
+    name: "Ferric nitrate Fe(NO3)3"
+    cas: "7782-61-8"
+    categories: [rr_booster, oxidizer]
+    target_films: [W]
+    roles:
+      rr_booster: [W]
+      oxidizer: [W, Cu]
+    typical_range: {min: 0.005, max: 0.20, unit: "wt%"}
+    mechanism: >
+      H2O2와 조합 시 Fe³⁺/Fe²⁺ 다중산화상태 촉매(Fenton형)로 W→WO3 산화 가속. 특허 원문:
+      0.005–0.20 wt% (≈7–280 ppm Fe). 0.05 wt% 이하로도 충분(Table 3). 단독 고농도(수 wt%)로는
+      Cu/W 산화제로도 사용(Tribol. Int. 2008).
+    source: "US5958288A (Cabot; catalyst 0.005–0.20 wt% with H2O2); US10676647B1 (Cabot; 0.5–3000 ppm Fe); doi:10.1016/j.triboint.2007.09.009"
+    source_type: patent
+    confidence: verified
+    engine_key: oxidizer
+
+  - id: kio3
+    name: "Potassium iodate KIO3"
+    cas: "7758-05-6"
+    categories: [rr_booster, oxidizer]
+    target_films: [W]
+    typical_range: {min: 2.0, max: 3.2, unit: "wt%"}
+    mechanism: "IO3⁻가 W를 WO3로 산화(pH ~4, KHP 완충). 실시예: 알루미나 7% + KIO3 3.2% + KHP 4.4%, pH 4.1"
+    source: "WO1995024054A1 (Rodel; Example 2); doi:10.1149/1.1391617 (Stein et al. 1999, KIO3-based W CMP kinetics)"
+    source_type: patent
+    confidence: verified
+    engine_key: oxidizer
+
+  # ═══════════════════════════════════════════ R/R BOOSTER — oxide
+  - id: potassium_salts_oxide
+    name: "K⁺ salts (KOH / KCl / KNO3 / K2SO4)"
+    cas: "1310-58-3 (KOH)"
+    categories: [rr_booster, ph_adjuster]
+    target_films: [oxide]
+    roles:
+      rr_booster: [oxide]
+      ph_adjuster: [oxide, Cu, W]
+    typical_range: {min: 0.0, max: 0.4, unit: "mol/L K+"}
+    mechanism: >
+      pH 11 실리카 슬러리에서 K⁺ 0→0.4 M까지 oxide MRR 단조 증가 후 정점(Li et al. 2021 Fig.10);
+      염 종류 무관하게 K⁺ 몰농도가 지배(Fig.9, 0.2 M에서 +36%). 이중층 압축으로 입자-표면 접근 촉진.
+    source: "doi:10.1149/2162-8777/ac3e44 (Li et al. 2021, ECS JSS 10 123008); knowledge/cmp/abrasive-size-concentration-ph-K-additive-mrr-quantitative.md"
+    source_type: paper
+    confidence: verified
+    engine_key: slurry_ph
+
+  - id: h2o2_ceria_ce3
+    name: "H2O2 (ceria Ce³⁺ 활성화)"
+    cas: "7722-84-1"
+    categories: [rr_booster]
+    target_films: [oxide]
+    typical_range: {min: 0.5, max: 0.5, unit: "wt%"}
+    mechanism: "세리아 표면 Ce³⁺ 분율 제어 → 열산화막 MRR 5.5×, oxide:SiN 선택비 1→3 (Netzband & Dunn 2020)"
+    source: "doi:10.1149/2162-8777/ab8393"
+    source_type: paper
+    confidence: verified
+    engine_key: oxidizer_wt_pct
+
+  # ═══════════════════════════════════════════ R/R BOOSTER — SiN
+  - id: mercaptotriazole_sin
+    name: "3-Mercapto-1,2,4-triazole"
+    cas: "3179-31-5"
+    categories: [rr_booster]
+    target_films: [SiN]
+    typical_range: {min: 0.01, max: 5.0, unit: "wt%"}
+    mechanism: >
+      아미노/티올 치환 헤테로방향족이 SiN 표면과 반응해 SiN 제거율을 올리고 TEOS는 억제 —
+      SiN:TEOS 선택비 ≥40. 실시예: 0.5 wt% + NH4OH 0.0006 wt% + 실리카 0.75 wt%. 사용자 질문
+      "SiN 부스터가 있는가" → 있음(reverse-STI/ SiN 우선 제거용).
+    source: "US11999877B2 (Versum/Merck; SiN removal rate enhancers 0.01–5 wt%, preferred 0.1–1 wt%)"
+    source_type: patent
+    confidence: verified
+
+  # ═══════════════════════════════════════════ R/R BOOSTER — poly-Si
+  - id: tmah
+    name: "TMAH (tetramethylammonium hydroxide)"
+    cas: "75-59-2"
+    categories: [rr_booster, ph_adjuster]
+    target_films: [poly-Si]
+    roles:
+      rr_booster: [poly-Si]
+      ph_adjuster: [poly-Si, oxide, Cu]
+    typical_range: {min: 0.01, max: 5.0, unit: "wt%"}
+    mechanism: >
+      OH⁻ 화학식각 + 4급 암모늄 흡착으로 poly-Si 제거 가속. 상용 poly-Si 슬러리의 표준 촉진제
+      (WO2021046080A1 배경기술). 금속이온 무오염 염기라 pH 조절제로도 선호.
+    source: "KR102644385B1 (KC Tech; quaternary ammonium base 0.01–5 wt%); WO2021046080A1; US20050090104A1"
+    source_type: patent
+    confidence: verified
+    engine_key: slurry_ph
+
+  - id: alkanolamines_polysi
+    name: "Alkanolamines (AMP / TRIS / triisopropanolamine / ethanolamine)"
+    cas: "124-68-5 (AMP)"
+    categories: [rr_booster, ph_adjuster]
+    target_films: [poly-Si]
+    typical_range: {min: 0.01, max: 5.0, unit: "wt%"}
+    mechanism: "아민 화합물이 4급 암모늄과 병용되어 poly-Si 제거율·안정성 확보(KR102644385B1 아민 0.01–5 wt%)"
+    source: "KR102644385B1 (amine compounds incl. 2-amino-2-methyl-1-propanol, tris(hydroxymethyl)aminomethane, triisopropanolamine)"
+    source_type: patent
+    confidence: literature
+
+  # ═══════════════════════════════════════════ R/R INHIBITOR — SiN (STI 선택비)
+  - id: proline
+    name: "L-Proline"
+    cas: "147-85-3"
+    categories: [rr_inhibitor]
+    target_films: [SiN]
+    mechanism: >
+      아미노산(zwitterion)이 SiN 표면/세리아 활성점에 선택 흡착해 SiN 제거 억제 → oxide:SiN
+      선택비 증가(Penta & Babu 2015; America & Babu 2004).
+    source: "doi:10.1149/2.0061511jss (Further Investigation of Slurry Additives for Selective Polishing of SiO2 over Si3N4 Using Ceria); doi:10.1149/1.1817870"
+    source_type: paper
+    confidence: literature
+
+  - id: lysine_glutamic
+    name: "L-Lysine / L-Glutamic acid"
+    cas: "56-87-1 / 56-86-0"
+    categories: [rr_inhibitor]
+    target_films: [SiN]
+    typical_range: {min: 0.02, max: 0.02, unit: "M"}
+    mechanism: "pH 5, 라이신 0.02 M + 글루탐산 0.02 M + TEAH 0.003 M → oxide:SiN 선택비 35.5(2차 인용, 조건 의존)"
+    source: "doi:10.1149/2.0061511jss; knowledge/cmp/ceria-slurry-ce-redox-selectivity.md §5"
+    source_type: paper
+    confidence: literature
+
+  - id: paa_inhibitor
+    name: "Poly(acrylic acid) (PAA)"
+    cas: "9003-01-4"
+    categories: [rr_inhibitor, dispersant]
+    subtype: polymer
+    target_films: [SiN]
+    roles:
+      rr_inhibitor: [SiN]
+      dispersant: [oxide]
+    mechanism: >
+      음이온 폴리전해질이 세리아·SiN 표면에 흡착. 분자량·입경에 따라 SiN 억제와 oxide 유지의
+      균형이 달라져 STI 선택비를 결정(JMR 2007). 동시에 세리아 분산 안정제(JJAP 2005).
+    source: "doi:10.1557/jmr.2007.0097 (Effects of abrasive particle size and MW of PAA in ceria slurry on SiO2/Si3N4 selectivity); doi:10.1143/JJAP.44.5949"
+    source_type: paper
+    confidence: literature
+
+  - id: polyol_sorbitol_mannitol
+    name: "Organic polyols (mannitol / sorbitol / glycerol)"
+    cas: "69-65-8 (mannitol)"
+    categories: [rr_inhibitor]
+    target_films: [SiN]
+    typical_range: {min: 0.1, max: 20.0, unit: "wt%"}
+    mechanism: "폴리올 농도 증가 → SiN 제거율 감소로 oxide:SiN 고선택비(특허 원문, 최적 0.5–10 wt%)"
+    source: "US6616514B1 (High selectivity CMP slurry; organic polyol 0.1–20 wt%, mannitol preferred)"
+    source_type: patent
+    confidence: verified
+
+  - id: anionic_surfactant_sin
+    name: "Anionic surfactants (dodecyl sulfate / dodecylbenzene sulfonate)"
+    cas: "151-21-3 (SDS)"
+    categories: [rr_inhibitor, dispersant, defect_reducer]
+    subtype: surfactant
+    target_films: [SiN]
+    roles:
+      rr_inhibitor: [SiN]
+      dispersant: [oxide, SiN]
+      defect_reducer: [SiN, oxide]
+    mechanism: "콜로이달 실리카계에서 음이온 계면활성제가 SiN에 흡착해 억제 → SiO2/Si3N4 선택비 상승(Penta 2013)"
+    source: "doi:10.1016/j.apsusc.2013.07.057 (Use of anionic surfactants for selective polishing of SiO2 over Si3N4 using colloidal silica); US11999877B2 (dodecyl sulfates listed)"
+    source_type: paper
+    confidence: literature
+
+  # ═══════════════════════════════════════════ R/R INHIBITOR — oxide
+  - id: peg
+    name: "Polyethylene glycol (PEG)"
+    cas: "25322-68-3"
+    categories: [rr_inhibitor, dispersant, defect_reducer]
+    subtype: polymer
+    target_films: [oxide]
+    roles:
+      rr_inhibitor: [oxide]
+      dispersant: [oxide]
+      defect_reducer: [oxide]
+    typical_range: {min: 0.001, max: 7.0, unit: "wt%"}
+    mechanism: >
+      PEG·헤테로환·유기산 첨가제 비율로 oxide:SiN:poly-Si 선택비 1:1~50:1~50 조정(pH 3–5,
+      콜로이달 실리카). PEG가 산화막에 흡착해 oxide 제거를 억제하는 stopping 층 역할.
+    source: "US10526508B2 (KC Tech; additive 0.001–7 wt%)"
+    source_type: patent
+    confidence: verified
+
+  - id: pdadmac
+    name: "Poly(diallyldimethylammonium chloride) (polyDADMAC)"
+    cas: "26062-79-3"
+    categories: [rr_inhibitor]
+    subtype: polymer
+    target_films: [oxide]
+    typical_range: {min: 30, max: 150, unit: "ppm"}
+    mechanism: >
+      양이온 폴리머가 음전하 산화막에 흡착해 oxide 제거 억제. 실시예 Table 2: 30 ppm에서
+      SiN 125 / SiO 7 Å/min(선택비 17.9), 대조군 223/1078. poly-Si over SiO2 선택연마에도(Penta 2011).
+    source: "US20210115297A1 (Cabot; Table 2); doi:10.1021/la104257k (Role of PDADMAC in Selective Polishing of Polysilicon over SiO2)"
+    source_type: patent
+    confidence: verified
+
+  - id: polyethyleneimine
+    name: "Polyethyleneimine (PEI)"
+    cas: "9002-98-6"
+    categories: [rr_inhibitor, dispersant]
+    subtype: polymer
+    target_films: [oxide]
+    mechanism: "양이온 폴리전해질(MW 500–10,000), pH 9–11 STI 슬러리에서 산화막 억제·선택비 확보(EP0846740A1)"
+    source: "EP0846740A1 (Ronay; cited in US6616514B1 / US6491843B1 background)"
+    source_type: patent
+    confidence: literature
+
+  # ═══════════════════════════════════════════ OXIDIZER
+  - id: h2o2
+    name: "Hydrogen peroxide H2O2"
+    cas: "7722-84-1"
+    categories: [oxidizer]
+    target_films: [Cu, W, Co, Ru, Ta, oxide]
+    typical_range: {min: 0.05, max: 10.0, unit: "wt%"}
+    mechanism: >
+      Cu: Cu→Cu2O/CuO 산화층 형성, MRR이 농도에 단봉(착화제 없으면 ~1%, 글리신 있으면 ~3% 정점).
+      W: Fe³⁺ 촉매와 병용(1–10 wt%). Cu 슬러리 1–10%(alumina), 0.05–2%(silica barrier).
+    source: "US5958288A (H2O2 1–10 wt%); US20050090104A1 (1–10% / 0.05–2%); US20090057264A1; doi:10.1149/1.1615611"
+    source_type: patent
+    confidence: verified
+    engine_key: oxidizer_wt_pct
+
+  - id: kio3_oxidizer
+    name: "Potassium iodate KIO3 (oxidizer 역할)"
+    cas: "7758-05-6"
+    categories: [oxidizer]
+    target_films: [W, Cu]
+    typical_range: {min: 2.0, max: 3.2, unit: "wt%"}
+    mechanism: "W CMP 표준 산화제(Rodel 계열). Cu 슬러리에도 열거됨(US20050090104A1)"
+    source: "WO1995024054A1; doi:10.1149/1.1391617; US20050090104A1"
+    source_type: patent
+    confidence: verified
+    engine_key: oxidizer
+
+  - id: ferric_nitrate_oxidizer
+    name: "Ferric nitrate (oxidizer 역할)"
+    cas: "7782-61-8"
+    categories: [oxidizer]
+    target_films: [W, Cu]
+    typical_range: {min: 0.01, max: 0.5, unit: "wt%"}
+    mechanism: "H2O2 병용 시 0.01–0.05 wt%, 모노퍼설페이트 병용 시 0.1–0.5 wt%(US5958288A). Cu 단독 산화제 연구도(Tribol. Int. 2008)"
+    source: "US5958288A; doi:10.1016/j.triboint.2007.09.009"
+    source_type: patent
+    confidence: verified
+    engine_key: oxidizer
+
+  - id: ammonium_persulfate
+    name: "Ammonium persulfate (NH4)2S2O8"
+    cas: "7727-54-0"
+    categories: [oxidizer]
+    target_films: [Cu, W, Co, Ta]
+    typical_range: {min: 0.01, max: 10.0, unit: "wt%"}
+    mechanism: >
+      S2O8²⁻ 강산화제. Cu/배리어 슬러리 산화제로 열거(0.01–10 wt%, 바람직 0.1–1 wt%); W에서
+      K2S2O8 1% pH 4.1 → 218 Å/min(WO1995024054A1 Table 2); Co CMP 퍼설페이트 연구(ApSS 2025).
+    source: "US20050090104A1; WO1995024054A1; doi:10.1016/j.apsusc.2024.162287"
+    source_type: patent
+    confidence: verified
+    engine_key: oxidizer
+
+  - id: kmno4
+    name: "Potassium permanganate KMnO4"
+    cas: "7722-64-7"
+    categories: [oxidizer]
+    target_films: [SiC, W, Cu]
+    mechanism: >
+      SiC CMP에서 가장 널리 쓰이는 강산화제(WO2020087721A1 배경기술) — 산화 중 H⁺ 소모로 pH 상승·
+      입자 응집이 문제라 완충계 필수. W/Cu 슬러리 산화제 목록에도 열거.
+    source: "WO2020087721A1; US9368367B2 (Sinmat, SiC CMP); doi:10.1021/acs.langmuir.4c04158; US20050090104A1"
+    source_type: patent
+    confidence: literature
+    engine_key: oxidizer
+
+  - id: kio4
+    name: "Potassium periodate KIO4"
+    cas: "7790-21-8"
+    categories: [oxidizer]
+    target_films: [Ru]
+    mechanism: "Ru CMP 산화제(실리카 입자와 병용). 퍼설페이트와 시너지(MSEB 2020)"
+    source: "doi:10.1149/1.3528942 (Ruthenium Polishing Using Potassium Periodate as the Oxidizer and Silica Abrasives); doi:10.1016/j.mseb.2020.114764"
+    source_type: paper
+    confidence: literature
+    engine_key: oxidizer
+
+  - id: potassium_ferricyanide
+    name: "Potassium ferricyanide K3Fe(CN)6"
+    cas: "13746-66-2"
+    categories: [oxidizer]
+    target_films: [W]
+    mechanism: "초기 W CMP(IBM Kaufman 1991) 산화제 — Kaufman 경쟁모델(산화막 형성 vs 기계 박리)의 원전"
+    source: "doi:10.1149/1.2085434 (Kaufman et al. 1991, J. Electrochem. Soc. 138 3460)"
+    source_type: paper
+    confidence: literature
+    engine_key: oxidizer
+
+  # ═══════════════════════════════════════════ CORROSION INHIBITOR
+  - id: bta
+    name: "Benzotriazole (BTA)"
+    cas: "95-14-7"
+    categories: [corrosion_inhibitor, rr_inhibitor]
+    target_films: [Cu]
+    roles:
+      corrosion_inhibitor: [Cu]
+      rr_inhibitor: [Cu]
+    typical_range: {min: 0.005, max: 1.0, unit: "wt%"}
+    mechanism: >
+      Cu(I)-BTA 중합 피막으로 정적식각·dishing 억제. Langmuir 흡착 ΔG≈-35.4 kJ/mol, 1 mM에서
+      θ≈0.97. 특허 범위: 0–1 wt%(바람직 0.04–0.4), Cu 슬러리 예 0.02–1%, 배리어 0.005–0.2%;
+      US6821309B2는 0.0001–300 mM.
+    source: "US20050090104A1; US6821309B2; US20090057264A1; knowledge/cmp/slurry-components-overview.md §4"
+    source_type: patent
+    confidence: verified
+    engine_key: inhibitor_mM
+
+  - id: tta
+    name: "Tolyltriazole (TTA, 5-methyl-1H-benzotriazole)"
+    cas: "29385-43-1"
+    categories: [corrosion_inhibitor]
+    target_films: [Cu]
+    typical_range: {min: 0.0001, max: 300, unit: "mM"}
+    mechanism: "BTA 메틸 유도체 — 소수성 증가로 더 치밀한 Cu 보호막. BTA와 함께 '가장 바람직한' 억제제(US20050090104A1)"
+    source: "US20050090104A1; US6821309B2 (BTA or TTA 0.0001–300 mM); WO2020091242A1 (5-methylbenzotriazole)"
+    source_type: patent
+    confidence: verified
+    engine_key: inhibitor_mM
+
+  - id: triazole_124
+    name: "1,2,4-Triazole"
+    cas: "288-88-0"
+    categories: [corrosion_inhibitor]
+    target_films: [Cu, Co]
+    typical_range: {min: 0.001, max: 0.15, unit: "wt%"}
+    mechanism: >
+      아졸 N이 Cu/Co 표면에 배위. Cu 실시예: glycine 0.63 wt% + 1,2,4-triazole 0.0315 wt% + H2O2 1%
+      (US8506661B2). 트리아졸·아미노트리아졸 유도체 0.001–0.15 wt%(US8974692B2). Cu/Co 갈바닉
+      부식 억제 연구(ECS JSS 2019).
+    source: "US8506661B2; US8974692B2; US8734665B2 (0.1–5 g/L); doi:10.1149/2.0201909jss"
+    source_type: patent
+    confidence: verified
+    engine_key: inhibitor_mM
+
+  - id: imidazole
+    name: "Imidazole"
+    cas: "288-32-4"
+    categories: [corrosion_inhibitor, ph_adjuster]
+    target_films: [Cu]
+    mechanism: "N-헤테로환 흡착 부동태화제(US6821309B2). W 슬러리에서는 염기성 pH 조절제로 열거(US9994735B2)"
+    source: "US6821309B2; US8734665B2 (imidazoles as Cu corrosion inhibitor); US9994735B2"
+    source_type: patent
+    confidence: literature
+    engine_key: inhibitor
+
+  - id: mercaptobenzothiazole
+    name: "2-Mercaptobenzothiazole (MBT)"
+    cas: "149-30-4"
+    categories: [corrosion_inhibitor]
+    target_films: [Cu]
+    mechanism: "티올-아졸이 Cu에 강흡착. BTA/TTA와 함께 Cu·배리어 슬러리 억제제로 열거"
+    source: "US20050090104A1; US6821309B2 (mercaptans)"
+    source_type: patent
+    confidence: literature
+    engine_key: inhibitor
+
+  - id: nicotinic_acid
+    name: "Nicotinic acid (niacin)"
+    cas: "59-67-6"
+    categories: [corrosion_inhibitor, rr_inhibitor]
+    target_films: [Cu, Ru]
+    roles:
+      corrosion_inhibitor: [Cu, Ru]
+      rr_inhibitor: [Cu]
+    typical_range: {min: 0.0, max: 30, unit: "mM"}
+    mechanism: >
+      Cu/Ru 갈바닉 부식 억제(결합궤도 이론). Cu MRR 19.2→8.3 nm/min(0→30 mM, pH 10, silica 5 wt%,
+      H2O2 3 wt%) — validation/datasets/lee2021_cu_nicotinic_inhibitor.yaml.
+    source: "doi:10.1038/s41598-021-00689-6 (Lee et al. 2021, Sci. Rep. 11 21214, Table 3)"
+    source_type: paper
+    confidence: verified
+    engine_key: inhibitor_mM
+
+  - id: potassium_sorbate
+    name: "Potassium sorbate"
+    cas: "24634-61-5"
+    categories: [corrosion_inhibitor]
+    target_films: [Cu]
+    mechanism: "카르복실레이트 흡착으로 Cu 억제 — BTA 대체 저독성 억제제 연구(Electrochim. Acta 2007/2010)"
+    source: "doi:10.1016/j.electacta.2007.02.010; doi:10.1016/j.electacta.2009.10.086"
+    source_type: paper
+    confidence: literature
+    engine_key: inhibitor
+
+  - id: amino_acid_w_inhibitor
+    name: "Amino acid pair (glycine/valine + histidine/arginine/lysine) — W corrosion inhibitor"
+    cas: "56-40-6 / 71-00-1"
+    categories: [corrosion_inhibitor]
+    target_films: [W]
+    typical_range: {min: 1.0, max: 1.0, unit: "mM"}
+    mechanism: >
+      pI<7 아미노산 + pI>7 아미노산 쌍이 pH 1–5에서 W 표면에 흡착해 정적식각·플러그 리세스 억제.
+      실시예: 실리카 3 wt% + TBAH 0.09 wt% + Fe(NO3)3 0.002 wt% + malonic 0.004 wt% + 아미노산 1 mM.
+    source: "US10676647B1 (Cabot; Composition for tungsten CMP)"
+    source_type: patent
+    confidence: verified
+    engine_key: inhibitor_mM
+
+  # ═══════════════════════════════════════════ DISPERSANT (surfactant & polymer)
+  - id: ammonium_polyacrylate
+    name: "Ammonium polyacrylate / PAA-NH4"
+    cas: "9003-03-6"
+    categories: [dispersant]
+    subtype: polymer
+    target_films: [oxide, SiN]
+    mechanism: "음이온 폴리전해질 — 세리아 표면 흡착으로 정전+입체 반발. STI 세리아 슬러리 표준 분산제(JJAP 2005)"
+    source: "doi:10.1143/JJAP.44.5949 (Effect of Organic Additives on Ceria Slurry in STI CMP); doi:10.1149/ma2016-01/17/1044"
+    source_type: paper
+    confidence: literature
+
+  - id: eaa_copolymer
+    name: "Ethylene–acrylic acid (EAA) copolymer dispersant"
+    cas: "9010-77-9"
+    categories: [dispersant, defect_reducer]
+    subtype: polymer
+    target_films: [oxide]
+    typical_range: {min: 5.0, max: 7.0, unit: "wt% (of ceria)"}
+    mechanism: >
+      세리아 대비 5→7 wt%로 제타전위 49→52 mV, 2차 입경 281.6→227.2 nm(응집 완화), TEM ~5 nm
+      폴리머 입체장벽 — 응집 억제가 곧 스크래치 저감.
+    source: "doi:10.3390/polym16243593 (Hwang, Park, Kim, Polymers 2024, PMC11679047)"
+    source_type: paper
+    confidence: verified
+
+  - id: pvp
+    name: "Polyvinylpyrrolidone (PVP)"
+    cas: "9003-39-8"
+    categories: [dispersant, defect_reducer]
+    subtype: polymer
+    target_films: [Cu, oxide]
+    typical_range: {min: 0.1, max: 3.0, unit: "wt%"}
+    mechanism: "비이온 고분자(MW ~40,000) 입체 안정화·표면 흡착. Cu 슬러리 예 0.1–3%(US20050090104A1), 수용성 폴리머 0.001–5 wt%(US10526508B2)"
+    source: "US20050090104A1; US10526508B2"
+    source_type: patent
+    confidence: verified
+
+  - id: pva
+    name: "Polyvinyl alcohol (PVA)"
+    cas: "9002-89-5"
+    categories: [dispersant, defect_reducer]
+    subtype: polymer
+    target_films: [oxide, SiN, poly-Si]
+    typical_range: {min: 0.001, max: 5.0, unit: "wt%"}
+    mechanism: "수용성 폴리머(PVA·PVP·PAA·HEC) 0.001–5 wt% — 분산·표면 보호"
+    source: "US10526508B2 (KC Tech)"
+    source_type: patent
+    confidence: literature
+
+  - id: hec
+    name: "Hydroxyethyl cellulose (HEC)"
+    cas: "9004-62-0"
+    categories: [dispersant, defect_reducer]
+    subtype: polymer
+    target_films: [oxide, poly-Si]
+    typical_range: {min: 0.001, max: 5.0, unit: "wt%"}
+    mechanism: "비이온 셀룰로오스 에테르 — 점도·젖음성 조절 및 입자 재부착 억제"
+    source: "US10526508B2 (water-soluble polymer list)"
+    source_type: patent
+    confidence: literature
+
+  - id: sodium_octyl_sulfate
+    name: "Sodium octyl sulfate"
+    cas: "142-31-4"
+    categories: [dispersant, defect_reducer]
+    subtype: surfactant
+    target_films: [Cu, W]
+    mechanism: "음이온 계면활성제 + 옥탄올 조합 계면활성제 패키지(Cu 슬러리, 염소이온 <25 ppm 조건)"
+    source: "US8734665B2 (Slurry for CMP of copper; surfactant anion e.g. sodium octyl sulfate, octanol 0.003–3.05 mL/L)"
+    source_type: patent
+    confidence: literature
+
+  - id: naphthalene_sulfonate
+    name: "Sodium naphthalene sulfonate (condensate)"
+    cas: "130-14-3"
+    categories: [dispersant]
+    subtype: surfactant
+    target_films: [SiN, oxide]
+    typical_range: {min: 0.0001, max: 0.1, unit: "wt%"}
+    mechanism: "음이온 분산제 — SiN 슬러리 실시예 성분(0.0001–0.1 wt%)"
+    source: "US11999877B2"
+    source_type: patent
+    confidence: verified
+
+  - id: nonionic_surfactant_cu
+    name: "Nonionic surfactants (alcohol ethoxylate AEO-9 / Pluronic-type)"
+    cas: "68439-46-3 (AEO-9)"
+    categories: [dispersant, defect_reducer]
+    subtype: surfactant
+    target_films: [Cu, Ta]
+    typical_range: {min: 1, max: 1000, unit: "ppm"}
+    mechanism: "비이온 계면활성제(1–1000 ppm, US8974692B2)가 표면 젖음·입자 재부착 억제. AEO-9 배리어 슬러리 연구(CSTIC 2020)"
+    source: "US8974692B2 (surfactants 1–1000 ppm, 0.0005–0.10 wt%); doi:10.4028/www.scientific.net/amr.135.30; doi:10.1109/cstic49141.2020.9282511"
+    source_type: patent
+    confidence: literature
+
+  - id: acrylate_copolymer_ceria
+    name: "Ammonium acrylate–methyl acrylate copolymer"
+    cas: "n/a"
+    categories: [dispersant]
+    subtype: polymer
+    target_films: [oxide]
+    mechanism: "세리아 슬러리 안정화 — 장기 보관 시 2층 분리 없음(JP2000-17195, WO2006001558A1 배경)"
+    source: "WO2006001558A1 (Hanwha; background cites JP 2000-17195)"
+    source_type: patent
+    confidence: literature
+
+  # ═══════════════════════════════════════════ DEFECT REDUCER
+  - id: defoaming_polymers
+    name: "Defoaming polymers (BYK / G-336 type)"
+    cas: "n/a"
+    categories: [defect_reducer, dispersant]
+    subtype: polymer
+    target_films: [oxide, SiN]
+    mechanism: >
+      세리아 슬러리 소포 폴리머 — 기포에 의한 국소 미연마·얼룩 결함 저감. oxide 3493→5558 Å/min,
+      SiN 60→83, 선택비 59→67(BYK)/80(G-336) (Hwang & Kim 2024 Table).
+    source: "doi:10.3390/polym16060844 (Polymers 2024, 16, 844; PMC10974854)"
+    source_type: paper
+    confidence: verified
+    engine_key: oxide_nitride_selectivity
+
+  - id: saccharide_sti
+    name: "Saccharides (STI 세리아 슬러리 첨가제)"
+    cas: "n/a"
+    categories: [defect_reducer, rr_inhibitor]
+    target_films: [SiN]
+    roles:
+      rr_inhibitor: [SiN]
+      defect_reducer: [oxide]
+    typical_range: {min: 0.001, max: 5.0, unit: "wt%"}
+    mechanism: "당류 + 계면활성제(0.01–3 wt%) 조합으로 STI 고선택비·dishing 저감(Hanwha)"
+    source: "WO2006001558A1 (metal oxide 0.1–20, surfactant 0.01–3, saccharide 0.001–5 wt%)"
+    source_type: patent
+    confidence: verified
+
+  - id: octanol_defoamer
+    name: "1-Octanol (alkyl alcohol defoamer)"
+    cas: "111-87-5"
+    categories: [defect_reducer]
+    subtype: surfactant
+    target_films: [Cu]
+    typical_range: {min: 0.003, max: 3.05, unit: "mL/L"}
+    mechanism: "계면활성제 패키지의 알킬알코올 성분 — 거품 억제"
+    source: "US8734665B2"
+    source_type: patent
+    confidence: verified
+
+  # ═══════════════════════════════════════════ pH ADJUSTER
+  - id: koh
+    name: "Potassium hydroxide KOH"
+    cas: "1310-58-3"
+    categories: [ph_adjuster]
+    target_films: [oxide, Cu, poly-Si]
+    typical_range: {min: 0.05, max: 3.0, unit: "wt%"}
+    mechanism: "실리카 슬러리 표준 염기(pH 10–11). Cu 배리어 슬러리 예 0.05–3%. K⁺ 자체가 oxide MRR 부스터(Li 2021)"
+    source: "US20050090104A1; US8506661B2; doi:10.1149/2162-8777/ac3e44"
+    source_type: patent
+    confidence: verified
+    engine_key: slurry_ph
+
+  - id: nh4oh
+    name: "Ammonium hydroxide NH4OH"
+    cas: "1336-21-6"
+    categories: [ph_adjuster]
+    target_films: [Cu, W, SiN, oxide]
+    typical_range: {min: 0.0006, max: 0.0006, unit: "wt%"}
+    mechanism: "금속이온 무오염 염기. SiN 슬러리 실시예 0.0006 wt%; Cu·W 슬러리 pH 조절제로 열거"
+    source: "US11999877B2; US20050090104A1; US10676647B1"
+    source_type: patent
+    confidence: verified
+    engine_key: slurry_ph
+
+  - id: hno3
+    name: "Nitric acid HNO3"
+    cas: "7697-37-2"
+    categories: [ph_adjuster]
+    target_films: [W, Cu]
+    mechanism: "산성 W 슬러리(pH 2–5) 조절제. 단, W 정적식각 우려로 'nitric acid-free' 실시예도 있음(US9994735B2)"
+    source: "US9994735B2 (KC Tech); US10676647B1"
+    source_type: patent
+    confidence: literature
+    engine_key: slurry_ph
+
+  - id: phosphoric_acid
+    name: "Phosphoric acid H3PO4"
+    cas: "7664-38-2"
+    categories: [ph_adjuster, chelator]
+    target_films: [W, Cu]
+    mechanism: "pH 조절 + 인산염 완충 + H2O2 안정제(Fe 촉매 결합)로 열거"
+    source: "US10676647B1 (pH adjusting agents / stabilizer list); US9994735B2"
+    source_type: patent
+    confidence: literature
+    engine_key: slurry_ph
+
+  - id: khp_buffer
+    name: "Potassium hydrogen phthalate (KHP) buffer"
+    cas: "877-24-7"
+    categories: [ph_adjuster]
+    target_films: [W]
+    typical_range: {min: 4.4, max: 4.4, unit: "wt%"}
+    mechanism: "KIO3 W 슬러리 pH 4 완충(실시예 KHP 4.4 wt%, pH 4.1)"
+    source: "WO1995024054A1 (Rodel; Example 2)"
+    source_type: patent
+    confidence: verified
+    engine_key: slurry_ph
+
+  - id: acetic_acid
+    name: "Acetic acid / acetate buffer"
+    cas: "64-19-7"
+    categories: [ph_adjuster]
+    target_films: [W, Cu]
+    mechanism: "약산·완충(acetates) — 연마 중 pH 표류 방지"
+    source: "US9994735B2 (acetic acid listed); US10676647B1 (acetates buffer)"
+    source_type: patent
+    confidence: literature
+    engine_key: slurry_ph
+
+  # ═══════════════════════════════════════════ CHELATOR
+  - id: edta
+    name: "EDTA"
+    cas: "60-00-4"
+    categories: [chelator]
+    target_films: [Cu, W]
+    mechanism: >
+      logK Cu-EDTA 18.8, Fe-EDTA 25.1 — 강한 착화로 금속 이온 재석출·오염 억제. Cu 슬러리
+      착화제(US8506661B2), W 슬러리 H2O2 안정제(US10676647B1), post-CMP 세리아 제거(EDTA로 Ce³⁺ 착화).
+    source: "US8506661B2; US10676647B1; doi:10.1039/d0ra08517k; knowledge/cmp/post-cmp-adsorption-cleaning-chemistry.md"
+    source_type: patent
+    confidence: literature
+
+  - id: malonic_acid
+    name: "Malonic acid"
+    cas: "141-82-2"
+    categories: [chelator, ph_adjuster]
+    target_films: [W]
+    typical_range: {min: 0.004, max: 0.004, unit: "wt%"}
+    mechanism: "Fe 촉매에 결합하는 H2O2 안정제(실시예 0.004 wt%, Fe(NO3)3 0.002 wt% 대비 ~2 eq). 원문: 1 eq/Fe ~ 3 wt%"
+    source: "US10676647B1 (Cabot; stabilizer bound to iron accelerator)"
+    source_type: patent
+    confidence: verified
+
+  - id: tartaric_acid
+    name: "Tartaric acid"
+    cas: "87-69-4"
+    categories: [chelator, rr_booster]
+    target_films: [Ta, Cu]
+    roles:
+      chelator: [Ta, Cu]
+      rr_booster: [Ta]
+    mechanism: "Ta/Cu 선택 제거용 착화제(ESL 2008). Cu 슬러리 착화제 목록(US20050090104A1)"
+    source: "doi:10.1149/1.2980345 (Tartaric Acid as a Complexing Agent for Selective Removal of Tantalum and Copper in CMP); US20050090104A1"
+    source_type: paper
+    confidence: literature
+
+  - id: iminodiacetic_nta
+    name: "Iminodiacetic acid / Nitrilotriacetic acid (NTA)"
+    cas: "142-73-4 / 139-13-9"
+    categories: [chelator]
+    target_films: [Cu, SiN]
+    mechanism: "아미노폴리카르복실산 킬레이트제 — SiN 슬러리 보조 성분 목록"
+    source: "US11999877B2 (chelating agents list: NTA, iminodiacetic acid, CDTA, EDTA)"
+    source_type: patent
+    confidence: literature
+
+  # ═══════════════════════════════════════════ BIOCIDE
+  - id: cmit_mit
+    name: "CMIT/MIT (5-chloro-2-methyl-4-isothiazolin-3-one + 2-methyl-4-isothiazolin-3-one; Kathon)"
+    cas: "26172-55-4 / 2682-20-4"
+    categories: [biocide]
+    target_films: []
+    typical_range: {min: 1, max: 50, unit: "ppm (active)"}
+    mechanism: >
+      S·N 함유 5원환 이소티아졸리논 — 연마 성능에 영향 없이 슬러리 미생물 억제(WO2001060940A1
+      실시예: 제품 0.15 wt%). W 슬러리 1–50 ppm(US10676647B1); Cu 실시예 Kathon 0.000174 wt%
+      ≈1.7 ppm(US8506661B2).
+    source: "WO2001060940A1 (Biocides for polishing slurries); US10676647B1; US8506661B2; US8974692B2"
+    source_type: patent
+    confidence: verified
+
+  - id: mit
+    name: "MIT (2-methyl-4-isothiazolin-3-one; Neolone M50)"
+    cas: "2682-20-4"
+    categories: [biocide]
+    target_films: []
+    typical_range: {min: 0.15, max: 0.15, unit: "wt% (product)"}
+    mechanism: "염소 없는 이소티아졸리논 단독형 — 할로겐 민감 금속 슬러리용"
+    source: "WO2001060940A1 (Neolone M50 example, 0.15 wt%)"
+    source_type: patent
+    confidence: verified
+
+  - id: quaternary_ammonium_biocide
+    name: "Quaternary ammonium compounds (biocide)"
+    cas: "n/a"
+    categories: [biocide]
+    target_films: []
+    mechanism: "SiN 슬러리 살균제 목록(과산화수소·4급 암모늄)"
+    source: "US11999877B2 (biocides: hydrogen peroxide, quaternary ammonium compounds)"
+    source_type: patent
+    confidence: literature
+
+  - id: preservative_sti
+    name: "Preservative (STI ceria slurry, Hanwha)"
+    cas: "n/a"
+    categories: [biocide]
+    target_films: []
+    typical_range: {min: 0.0001, max: 1.0, unit: "wt%"}
+    mechanism: "0.0001 wt% 미만이면 방부 효과 없음, 1 wt% 초과 시 연마 성능 저하·폐수 처리 곤란(원문)"
+    source: "WO2006001558A1"
+    source_type: patent
+    confidence: verified

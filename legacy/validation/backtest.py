@@ -113,6 +113,11 @@ class BacktestResult:
     scale_factor: Optional[float]     # 계통 편향: 실측/예측 중앙값
     in_scope: bool = True             # 팩이 이 재료계를 실제로 다루는가
     used_for_calibration: bool = False
+    # 절대값 판정에서만 빼는 경우 — 순위는 그대로 쓴다(제거가 아니다).
+    # outlier_rules.py 의 C3(rank_only)과 같은 성격이며, 데이터셋 자신이
+    # `rank_only: true` + `rank_only_ruling:` 로 **근거를 적었을 때만** 켜진다.
+    rank_only: bool = False
+    rank_only_ruling: str = ""
     calibration_contact: bool = False  # 이 데이터셋에서 팩 파라미터를 뽑은 이력(부분 오염) 신고 여부
     source: str = ""
     notes: List[str] = field(default_factory=list)
@@ -141,6 +146,10 @@ class BacktestResult:
             return "판정불가(분산 없음)"
         if self.used_for_calibration:
             return "참고용(캘리브레이션에 쓴 데이터 — 검증 아님)"
+        if self.rank_only:
+            # 절대값은 이 데이터셋 자체가 다른 문헌과 어긋난다는 판정이 있다.
+            # 순위 판정은 그대로 이어서 낸다 — 아래 로직을 막지 않는다.
+            pass
         # ⚠ 유의성을 먼저 본다. ρ가 아무리 높아도 우연과 구분이 안 되면
         #   '사용 가능'이라 말할 수 없다 — n=3의 ρ=1.000이 정확히 그 경우다.
         if not self.significant:
@@ -155,9 +164,10 @@ class BacktestResult:
     def line(self) -> str:
         m = f"{self.mape_pct:.1f}%" if self.mape_pct is not None else "—"
         p = f"p={self.p_value:.3f}" if self.p_value is not None else "p=—"
+        flag = " [순위전용]" if self.rank_only else ""
         return (f"{self.dataset:34s} n={self.n:3d}  ρ={self.spearman:+.3f}  "
                 f"τ={self.kendall:+.3f}  {p:>9s}  "
-                f"MAPE={m:>7s}  {self.verdict()}")
+                f"MAPE={m:>7s}  {self.verdict()}{flag}")
 
 
 def perm_p_value(rho: float, n: int, iters: int = 20000,
@@ -249,11 +259,26 @@ def run_dataset(path: Path, model: str = "tier2.gw_physical_kp") -> BacktestResu
                "overrides로 옮기지 않으면 압력·rpm만 모델에 전달된다."))
 
     has_contact = bool(raw.get("calibration_contact"))
+
+    # ── 절대값 순위전용 판정 ─────────────────────────────────
+    # ⚠ 이 플래그는 "안 맞는 데이터를 빼는" 스위치가 아니다. 켜려면 데이터셋에
+    #   `rank_only_ruling:` 로 **왜 절대값을 못 쓰는지의 근거**를 적어야 하고,
+    #   근거가 없으면 켜지지 않는다(아래 경고). outlier_rules.py C3 과 같은 취급:
+    #   순위는 그대로 집계하고 절대값 판정에서만 뺀다.
+    rank_only = bool(raw.get("rank_only", False))
+    rank_only_ruling = str(raw.get("rank_only_ruling", "") or "").strip()
+    if rank_only and not rank_only_ruling:
+        notes.append("⚠ rank_only: true 인데 rank_only_ruling(근거)이 없다 — "
+                     "근거 없는 절대값 면제는 인정하지 않는다. 플래그를 무시한다.")
+        rank_only = False
+    elif rank_only:
+        notes.append("순위전용 판정: " + rank_only_ruling.split("\n")[0][:160])
     if len(obs) < 3:
         notes.append(f"조건 {len(obs)}개 — 순위 지표는 3개 이상 필요")
         return BacktestResult(path.stem, len(obs), float("nan"), float("nan"),
                               float("nan"), None, None, in_scope,
                               bool(raw.get("used_for_calibration", False)),
+                              rank_only, rank_only_ruling,
                               has_contact, raw.get("source", ""), notes)
 
     rho = spearman_rho(pred, obs)
@@ -262,7 +287,8 @@ def run_dataset(path: Path, model: str = "tier2.gw_physical_kp") -> BacktestResu
     scale = float(np.median([o / p for p, o in zip(pred, obs) if p]))
     if scale < 0.5 or scale > 2.0:
         notes.append(f"⚠ 계통 편향 {scale:.2f}배 — 절대값은 신뢰 불가. "
-                     "순위 지표만 근거로 쓸 것.")
+                     "순위 지표만 근거로 쓸 것."
+                     + (" (판정 완료: 원자료 쪽 이상치 — rank_only)" if rank_only else ""))
     digit = sum(1 for c in conds if c.get("read_method") == "digitized")
     if digit:
         notes.append(f"{digit}/{len(conds)} 조건이 그래프 판독값(digitized) — 오차 포함")
@@ -270,6 +296,7 @@ def run_dataset(path: Path, model: str = "tier2.gw_physical_kp") -> BacktestResu
     return BacktestResult(path.stem, len(obs), rho, tau, (1 + tau) / 2,
                           mape, scale, in_scope,
                           bool(raw.get("used_for_calibration", False)),
+                          rank_only, rank_only_ruling,
                           has_contact, raw.get("source", ""), notes,
                           p_value=perm_p_value(rho, len(obs)),
                           observed=[float(x) for x in obs],
@@ -361,7 +388,12 @@ def main() -> int:
                   "조건 수를 늘리거나 여러 데이터셋을 합쳐야 한다.")
         # 절대값 사용 금지 경고 — 계통 편향이 큰 데이터셋이 다수다
         biased = [r for r in held if r.scale_factor is not None
-                  and (r.scale_factor < 0.5 or r.scale_factor > 2.0)]
+                  and (r.scale_factor < 0.5 or r.scale_factor > 2.0)
+                  and not r.rank_only]
+        ro = [r for r in held if r.rank_only]
+        if ro:
+            emit(f"  └ 순위전용 {len(ro)}개(절대값 판정 면제, 근거 기록됨): "
+                 + ", ".join(r.dataset for r in ro))
         if biased:
             emit(f"  └ ⚠ 계통 편향 2배 초과 {len(biased)}/{len(held)}개 — "
                   "**절대 MRR은 어디에도 쓰지 마라.** 순위 전용이다.")

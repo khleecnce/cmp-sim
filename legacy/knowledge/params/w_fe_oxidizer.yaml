@@ -21,6 +21,16 @@ params:
     note: >
       ⚠ 문헌 W MRR 범위(300~600 nm/min @ 3psi)에서 역산한 대표값. 미재현.
       W는 Fe(III)/H2O2 산화 후 기계적 제거라 산화막과 메커니즘이 다르다.
+      [EVIDENCE-RULES 판정#58, 2026-09-18] knowledge/cmp/w-cmp-preston-kp-oxidizer-rate-
+      literature-reproduction.md §3이 독립 3문헌(Stojadinović 2016, Lim 2013,
+      US8070843B2)의 Kp=MRR/(P·V) 역산 median 1.07e-13을 이미 확인 — 이 값의 1.8~3.4배로
+      계통적으로 높다(그 노트 verify 블록에서 assert됨, R_cc 불확실도 안에서도 견고).
+      다만 R_cc(중심간거리)가 어느 문헌에도 안 보고돼 있어 그 median 자체가 추정 가정을
+      낀 값이므로 이번 판정에서는 값을 바꾸지 않는다(confidence=estimated 유지 — 교체는
+      별도 판정 대상). 정의역 한계: 이 Kp·κ항은 **유리(遊離) 알루미나 연마입자 슬러리**를
+      전제로 검증됐고, 고정연마입자(fixed-abrasive) 패드 공정(예: US8070843B2, 3M Mirra
+      3400)은 이 팩의 검증 정의역 밖이다 — 그 데이터셋은 rank_only로 면제돼 있다
+      (validation/datasets/us8070843b2_w_h2o2_series.yaml).
     source: knowledge/cmp/surface-chemistry-cu-w-pourbaix-passivation.md
     confidence: estimated
 

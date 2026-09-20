@@ -1,0 +1,150 @@
+{
+  "ts": 1789894985.8761768,
+  "complete": false,
+  "cells_done": 70,
+  "cells_total": 70,
+  "fails": [
+    "C4 cu_h2o2_bta: 유의 평균 ρ 0.7175 < 0.85 (구조적 상한 0.7175 < 0.85 — tw202115224a_cu_abrasive_size_pressure(0.7175) — 이 held-out 집합으로는 어떤 모델도 도달 불가, 판정#91)"
+  ],
+  "closed": [
+    "Γ gamma/cu_alkaline_benzenesulfonic: estimated(종결 판정#22·판정#22-종결)",
+    "Γ gamma/cu_h2o2_bta: estimated(종결 판정#22·판정#22-종결)",
+    "Γ gamma/oxide_silica: estimated(종결 판정#22·판정#22-종결)",
+    "Γ gamma/sic_alumina_kmno4: estimated(종결 판정#22·판정#22-종결)",
+    "Γ gamma/sic_ceria_h2o2: estimated(종결 판정#22·판정#22-종결)",
+    "Γ gamma/sti_ceria: estimated(종결 판정#22·판정#22-종결)",
+    "Γ gamma/w_fe_oxidizer: estimated(종결 판정#22·판정#22-종결)",
+    "κ kappa/cu_alkaline_benzenesulfonic: estimated(종결 판정#71·판정#80·판정#82)",
+    "χ chi/cu_alkaline_benzenesulfonic: estimated(종결 판정#74·판정#81·판정#83)",
+    "χ chi/cu_h2o2_bta: estimated(종결 판정#20·판정#29·판정#38·판정#41·판정#45·판정#47)",
+    "χ chi/sic_alumina_kmno4: estimated(종결 판정#61·판정#69·판정#69-종결)",
+    "χ chi/sic_ceria_h2o2: estimated(종결 판정#50·판정#53·판정#56·판정#56-종결)",
+    "ψ psi/cu_h2o2_bta: unverified(종결 판정#24B·판정#24C·판정#26·판정#25)",
+    "ψ psi/sti_ceria: estimated(종결 판정#28·판정#32)",
+    "ψ psi/w_fe_oxidizer: unverified(종결 판정#24A·판정#25)",
+    "Δ delta/cu_alkaline_benzenesulfonic: estimated(종결 판정#71·판정#79)",
+    "Δ delta/cu_h2o2_bta: estimated(종결 판정#27·판정#30·판정#31)"
+  ],
+  "sensitivity": {
+    "chi": true,
+    "kappa": true,
+    "psi": true,
+    "tau": true
+  },
+  "heldout": {
+    "oxide_silica": {
+      "n_sig": 2,
+      "rhos": [
+        1.0,
+        0.9920948616600791
+      ],
+      "n_total": 7,
+      "mean_rho": 0.996
+    },
+    "sti_ceria": {
+      "n_sig": 2,
+      "rhos": [
+        0.9333333333333333,
+        0.9666666666666667
+      ],
+      "n_total": 5,
+      "mean_rho": 0.95
+    },
+    "sic_alumina_kmno4": {
+      "n_sig": 1,
+      "rhos": [
+        1.0
+      ],
+      "n_total": 2,
+      "mean_rho": 1.0
+    },
+    "cu_h2o2_bta": {
+      "n_sig": 1,
+      "rhos": [
+        0.7174500322602797
+      ],
+      "n_total": 9,
+      "mean_rho": 0.7175
+    },
+    "sic_ceria_h2o2": {
+      "n_sig": 1,
+      "rhos": [
+        1.0
+      ],
+      "n_total": 3,
+      "mean_rho": 1.0
+    },
+    "cu_alkaline_benzenesulfonic": {
+      "n_sig": 1,
+      "rhos": [
+        1.0
+      ],
+      "n_total": 5,
+      "mean_rho": 1.0
+    },
+    "w_fe_oxidizer": {
+      "n_sig": 1,
+      "rhos": [
+        1.0
+      ],
+      "n_total": 2,
+      "mean_rho": 1.0
+    }
+  },
+  "c5_notes": {
+    "lambda": [
+      "knowledge/cmp/preston-luo-dornfeld-mrr.md",
+      "knowledge/physics/cmp-kinematics-rotary.md"
+    ],
+    "pi": [
+      "knowledge/equipment/cmp-multizone-carrier-radial-response.md"
+    ],
+    "theta": [
+      "knowledge/equipment/cmp-rpm-ratio-flowrate-temperature-mrr-stability.md",
+      "knowledge/equipment/cmp-theta-platen-coolant-temperature-driver.md",
+      "knowledge/physics/cmp-theta-retaining-ring-pressure-heat-channel.md",
+      "knowledge/physics/cmp-theta-rotation-convective-cooling-driver.md",
+      "knowledge/physics/frictional-heating-temperature-arrhenius-coupling.md"
+    ],
+    "gamma": [
+      "knowledge/equipment/conditioner-disk-pad-cutting-model.md",
+      "knowledge/equipment/disk-rpm-load-radius-pcr.md",
+      "knowledge/equipment/gamma-conditioning-load-confidence-basis.md"
+    ],
+    "kappa": [
+      "knowledge/cmp/abrasive-concentration-mrr-saturation-contact-probability.md",
+      "knowledge/cmp/abrasive-size-concentration-ph-K-additive-mrr-quantitative.md",
+      "knowledge/cmp/abrasive-size-null-result-force-partition-theory.md",
+      "knowledge/materials/pad-hardness-porosity-measurement-methods.md"
+    ],
+    "chi": [
+      "knowledge/cmp/ceria-slurry-ce-redox-selectivity.md",
+      "knowledge/cmp/particle-wafer-interaction-mechanical-chemical-balance.md"
+    ],
+    "psi": [
+      "knowledge/cmp/abrasive-size-concentration-ph-K-additive-mrr-quantitative.md",
+      "knowledge/cmp/chi-oxidizer-cu-h2o2-reparameterization.md",
+      "knowledge/cmp/cu-electrochemistry-pourbaix-bta-oxidizer-inhibitor.md",
+      "knowledge/cmp/inhibitor-chelator-adsorption-isotherm-passivation.md",
+      "knowledge/cmp/psi-adsorption-shield-oxide-systems.md",
+      "knowledge/cmp/psi-surface-adsorption-shield-oxide-ceria.md",
+      "knowledge/slurry/psi-cu-alkaline-h2o2-passivation.md"
+    ],
+    "tau": [
+      "knowledge/cmp/slurry-turnover-ratio-mrt-preston-constant.md",
+      "knowledge/materials/pad-porosity-slurry-transport-mrr.md"
+    ],
+    "delta": [
+      "knowledge/cmp/abrasive-d99-scratch-hitachi-us8439995.md",
+      "knowledge/cmp/delta-damage-model-synthesis.md",
+      "knowledge/cmp/lpc-scratch-density-tail-correlation.md",
+      "knowledge/slurry/colloidal-destabilization-lpc-defect-mechanism.md"
+    ],
+    "stab": [
+      "knowledge/equipment/conditioner-disk-pad-cutting-model.md",
+      "knowledge/equipment/disk-insitu-exsitu-conditioning-mrr-stability.md",
+      "knowledge/materials/pad-glazing-mechanism-mrr-decay.md",
+      "knowledge/materials/pad-steady-state-glazing-conditioning-balance.md"
+    ]
+  }
+}
