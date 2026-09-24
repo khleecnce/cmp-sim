@@ -1527,3 +1527,52 @@ boundary the model does not represent, and the honest statement is that the
 corpus contains two velocity datasets, in different regimes, that cannot be
 reconciled by an exponent. Pinned in `tests/test_velocity_exponent_unresolvable.py`,
 including a guard that fails if any pack ever declares `velocity_exponent`.
+
+## The lubrication regime cannot be gated yet — what is missing, named
+
+The velocity diagnosis ended at a regime the Preston form has no channel for:
+US 6,918,821 B2 measures copper rate *falling* as speed rises at 1.5 psi. Since
+`core/regime.py` already classifies lubrication, the question was whether an
+existing flag separates those rows — and if not, whether a published criterion
+does, with the missing quantity named rather than a threshold invented.
+
+### The flag genuinely cannot fire
+`classify_lubrication` splits λ = film thickness / pad roughness at
+`LAMBDA_BOUNDARY = 1.0` and `LAMBDA_FULL_FILM = 3.0`. Every row of both
+velocity datasets lies between **λ = 0.0135 and 0.187** — one to two orders of
+magnitude below the first threshold. All fifteen classify as `boundary`,
+including the three whose rate falls with speed.
+
+That is not a mis-tuned flag. A Stribeck criterion correctly places all of
+these in boundary contact, which is where CMP is supposed to operate. Lowering
+the threshold to catch the 1.5 psi rows would relabel most of the corpus as
+mixed-film — an invented threshold dressed as physics.
+
+### The ordering, however, is real
+Ranking each dataset's rows by λ against how badly the model over-predicts:
+
+| dataset | n | Spearman ρ | λ range |
+|---|---:|---:|---|
+| US 6,918,821 B2 | 6 | **−0.714** | 0.021 – 0.187 |
+| Mariscal 2020 | 9 | **−0.517** | 0.014 – 0.063 |
+
+Both negative, independently, in different films, labs and abrasives: **the
+thicker the modelled slurry film relative to pad roughness, the more the model
+over-predicts.** The worst-predicted row in the corpus (1.5 psi, 200 rpm,
+measured/predicted = 0.027) is also the highest-λ row. The lubrication effect is
+visible exactly where the physics says it should be.
+
+But a monotone trend is not a threshold, and two datasets cannot calibrate one.
+
+### What is missing
+λ here is **computed, not measured**: a modelled film thickness — itself a
+function of an assumed slurry viscosity and sliding speed — divided by an
+assumed pad roughness. Neither source reports viscosity, pad roughness, or a
+measured film thickness, so the absolute λ scale is uncalibrated and only its
+*ordering* can be trusted.
+
+To gate this regime honestly the corpus needs **one dataset reporting measured
+film thickness (or viscosity *and* pad roughness) alongside a rate-versus-speed
+sweep**. Until then the model keeps over-predicting these rows rather than
+declining them, which is recorded in STATUS.md BLOCKED and pinned by
+`tests/test_lubrication_gate_not_yet_justified.py`.

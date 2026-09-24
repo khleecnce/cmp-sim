@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **668 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **673 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -84,22 +84,27 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-Three diagnoses now end in the same place: a REGIME the model has no channel
-for (velocity's negative exponent at 1.5 psi = lubrication; netzband's V =
-ceria oxidation state; the anionic pH-6 upturn = hydrolysis taking over).
-`core/regime.py` already picks models by situation, so check whether it can
-DECLINE on the lubrication case the way the oxidizer pH-window gate declines:
-does any existing regime flag fire on us6918821b2's 1.5 psi rows, and if not,
-is there a published Sommerfeld/Stribeck criterion (pressure, speed, viscosity,
-groove) that separates them from the 4 psi rows? If yes, gate it and report
-declined; if the criterion needs numbers the corpus lacks, write it in BLOCKED
-with the missing quantity named. Do not invent a threshold.
+BLOCKED-1 now names exactly what would unblock the lubrication gate: one
+dataset reporting measured film thickness (or slurry viscosity AND pad
+roughness) beside a rate-vs-speed sweep. Go and look for it — Sohn/Philipossian
+and the Araca group published dual-emission UV fluorescence film-thickness
+measurements with matched Stribeck curves, and Mariscal 2020 is already from
+that lineage. If such a dataset exists and is readable, register it and
+calibrate the λ scale; if it exists but is paywalled/unreadable, record the
+citation and the blocking reason in BLOCKED-1 so the next session does not
+repeat the search. Do not calibrate λ from a number that is not measured.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp
    rests on one Seidel 1990 point. Needs a second Si-substrate point.
-1. λ scale — the 2nd transfer's literature pad stats (σ 0.3 → 2.0 µm) broke the
-   US6918821B2 lubrication result. Diagnostic fix known, not applied. 3 parked.
+1. λ scale — UNCALIBRATED, and it now blocks a real gate. λ ORDERING predicts
+   over-prediction in both velocity datasets independently (Spearman ρ −0.714
+   us6918821b2, −0.517 mariscal2020: thicker modelled film ⇒ worse miss), but
+   every row sits at λ 0.014–0.187 against LAMBDA_BOUNDARY 1.0, so no Stribeck
+   flag can separate the rows where rate FALLS with speed. λ is computed from
+   an assumed viscosity and an assumed pad roughness; neither source reports
+   either. NEEDED: one dataset with measured film thickness (or viscosity AND
+   pad roughness) beside a rate-vs-speed sweep. Threshold NOT invented.
 2. `sti_ceria` 7,235 Å/min vs a 200–6,000 envelope; pack and envelope both
    cited, one is wrong for this recipe. 1 parked.
 3. Size exponent splits by ABRASIVE, not film; packs must scope and cite it.
