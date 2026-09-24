@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **675 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **680 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -84,16 +84,16 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-BLOCKED-1 now points the velocity inversion at pad CONTACT, not fluid film:
-down force enters us6918821b2 and mariscal2020 with opposite sign while both
-stay boundary-lubricated. Test that directly with what is already in the model
-— `models/contact_gw.py` gives real contact area and summit count per row, and
-`situation.metrics` already exposes `summit_saturation` and `plasticity_index`.
-Compute them across both velocity datasets and check whether either separates
-the inverting rows the way λ failed to. If one does, that is the regime flag
-worth gating; if neither does, record it and stop — the inversion then needs a
-pad property (asperity density under load, or glazing) that no dataset in the
-corpus reports, and BLOCKED-1 should name THAT. Do not invent a threshold.
+The velocity inversion is now fully characterised as unexplainable from the
+corpus, so stop probing it and convert the session's findings into the
+deliverable the project is graded on: README's validation table is stale. It
+must state the CURRENT numbers (43/49 datasets, 394 pts, median 20.2% trend /
+22.6% LOO, per-axis: size 11.2%, oxidizer 20.2%, loading 22.9%, pressure 25.3%,
+pH 32.1%, velocity 44.1%) and, next to velocity, the honest one-line reason it
+is worst (a measured rate INVERSION no term in the model can express, with two
+candidate criteria shown to be the operating point relabelled). Also verify
+`cmp-sim run examples/*.yaml` still succeeds for all six films — that is a
+Definition-of-Done item and has not been re-run this session.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp
@@ -107,9 +107,17 @@ corpus reports, and BLOCKED-1 should name THAT. Do not invent a threshold.
    that range. A threshold would need to be below .056 and above .070 at once.
    (This corrects the earlier entry asking for a film-thickness dataset.)
    Surviving evidence: λ ORDERING predicts over-prediction independently in
-   both datasets (ρ −0.714, −0.517). Down force enters the two with OPPOSITE
-   sign ⇒ next suspect is pad CONTACT (asperity population / real area), not
-   fluid film.
+   both datasets (ρ −0.714, −0.517). Pad CONTACT was then tested and also
+   fails: `plasticity_index`/`pad_limited_plasticity_lambda` are constant
+   within each dataset (consumable properties) and differ between them the
+   WRONG way (inverting set is MORE plastic ⇒ predicts more removal), while
+   `summit_saturation` = 0.00739·P exactly — down force relabelled. Its clean
+   separation (0.0111 inverting vs ≥0.0148) is therefore just "P < 2 psi"
+   fitted to one patent's low-force arm. Twice now the candidate criterion was
+   the operating point in disguise (λ=V/p, saturation=P).
+   NEEDED: pad surface stats (asperity density/radius by confocal or AFM, or
+   glazing state) measured beside a rate-vs-speed sweep. Nothing in the corpus
+   reports them.
 2. `sti_ceria` 7,235 Å/min vs a 200–6,000 envelope; pack and envelope both
    cited, one is wrong for this recipe. 1 parked.
 3. Size exponent splits by ABRASIVE, not film; packs must scope and cite it.

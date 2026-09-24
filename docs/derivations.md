@@ -1600,3 +1600,61 @@ Both negative, independently, in different films, labs and abrasives: the higher
 *V/p*, the more the model over-predicts, and the corpus's worst-predicted row
 (1.5 psi / 200 rpm, measured/predicted = 0.027) is its highest-λ row. That is a
 monotone trend, not a threshold — enough to keep, not enough to gate on.
+
+## Pad contact does not separate the velocity inversion either
+
+The lubrication result pointed here: both velocity datasets stay
+boundary-lubricated, yet down force enters them with opposite sign, so the
+discriminating variable looked like pad contact rather than fluid film. The
+model already exposes three contact quantities, so the test was direct — does
+any of them separate the inverting rows the way λ could not?
+
+### Two are properties of the consumable set
+`plasticity_index` and `pad_limited_plasticity_lambda` are constant **within**
+each dataset: they describe the pad and film pair, not the operating point, so
+they cannot separate rows that differ only in speed or down force.
+
+They do differ *between* the datasets — plasticity index 0.0219 for
+US 6,918,821 B2 against 0.0029 for Mariscal 2020 — but that points the **wrong
+way**. The inverting dataset has the *more plastic* contact, which predicts more
+removal, not the collapse actually measured.
+
+### The third separates perfectly, and must still be refused
+`summit_saturation` orders every row, and a threshold in 0.0111 < t < 0.0148
+catches the inverting rows and nothing else:
+
+| rows | summit_saturation |
+|---|---|
+| US 6,918,821 B2, 1.5 psi — rate **falls** | 0.01108 |
+| Mariscal 2020, 2.0 psi — never inverts | 0.01478 |
+| Mariscal 2020, 3.0 psi | 0.02217 |
+| both datasets, 4.0 psi — rate **rises** | 0.02956 |
+
+But across all fifteen rows, to six digits:
+
+```
+summit_saturation = 0.007390 × pressure_psi
+```
+
+It is down force rescaled by a pad constant — the same constant in both, because
+both use the same pad stack. So *"gate when summit_saturation < 0.0148"* is
+exactly *"gate when pressure < 2 psi"*: a threshold fitted to one patent's
+low-pressure arm, wearing a contact-mechanics name.
+
+That fails the standard already applied to the oxidizer pH window, which was
+accepted only because the pack's constants were **measured** inside a stated
+range. Here there is no measurement — one dataset inverts below 2 psi, the other
+never goes below 2 psi, and nothing says which fact is causal.
+
+This is the second time the same trap has appeared: λ looked like a lubrication
+criterion and was V/p; `summit_saturation` looked like a contact criterion and
+is P. Both are the operating point relabelled.
+
+### What is missing, named
+The inversion must come from how the asperity **population** changes under load
+and sliding — density, radius, and whether the pad glazes at low force. No
+dataset in the corpus reports pad surface statistics (asperity density or
+radius, by confocal or AFM) alongside a rate-versus-speed sweep, so the
+discriminating variable cannot be computed from what we have. That is the
+BLOCKED-1 requirement, and `tests/test_contact_metrics_do_not_separate_the_inversion.py`
+fails if a pressure-like gate is ever reintroduced under a contact alias.
