@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **798 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **803 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -26,6 +26,15 @@
   _ti 2.7%), and nothing-stated. That separates bouvet2002_w (2.3% vs 1.0% floor,
   finished) from bouvet2002_ti (30.7% vs 2.7%, a real miss) — previously
   indistinguishable. `at_noise_floor` is None, never False, when unmeasured.
+- **Inherited Kp is NOT the problem — hypothesis falsified.** Backed out the scale
+  each pack's data implies (11 datasets excluded, each by its own 'absolute values
+  incomparable' flag). The 2 packs that INHERIT kp unchanged are among the best
+  calibrated (anionic 0.51x, aminosilane 2.04x); the worst is their PARENT
+  oxide_silica at 38.7x. Cause: pH position, not Kp — inside the pack's fitted
+  range [10,12.5] li2021=0.60x / taguchi=0.85x, but at pH 3-4.7 the same pack is
+  39x/98x/139x. The pH term drives the prediction to its floor and the deficit
+  lands on Kp, the last free scale. Refitting Kp would bake in an extrapolation
+  error. First measurement of this limit's MAGNITUDE (2 orders, not a few %).
 - **What a pack split buys (limit 10).** The 2 thinnest packs are justified — but
   in pH ONLY. Re-scoring their datasets with the parent oxide_silica: anionic
   32.1%->94.7%, aminosilane 25.3%->126.6%. So keep the split. But the diff vs
@@ -225,16 +234,15 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-Limit 10 says the variant packs inherit kp_m_per_pa unchanged, and
-oxide_silica_aminosilane already carries a "DISCLOSED MISMATCH" note admitting
-its Kp comes from the parent. Kp sets absolute rate, so this is the one inherited
-constant whose borrowing is directly checkable: every dataset's measured A/min is
-right there. For each pack, back out the Kp its own data implies (fit scale on
-the absolute rates, not the shape) and compare with the declared value. Report
-the ratio per pack. Expect large factors for the borrowers — that is the finding.
-Do NOT refit any Kp; several datasets are explicitly flagged absolute-value-
-incomparable (benchtop coupons, scaled units, SRP), so exclude those and say
-which were excluded and why.
+The Kp audit found three oxide datasets running at pH 3-4.7 on a pack fitted at
+pH 10-12.5 (ep3161098b1 139x, us9499721b2 98x, bouvet2002_oxide 39x). They are
+acidic colloidal-silica oxide polishing — the same slurry FAMILY as the anionic
+variant, which already carries a pH 2 peak and scores 0.51x. Check whether these
+three belong to oxide_silica_anionic rather than oxide_silica: re-score each with
+the anionic pack and report shape error and scale ratio both ways. If they fit
+the anionic pack markedly better, the finding is that they are mis-assigned, not
+that the model is wrong — but verify the abrasive charge actually matches before
+moving anything, and do NOT reassign a dataset whose source does not state it.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp

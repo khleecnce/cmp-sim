@@ -2399,3 +2399,53 @@ demonstrably disagree is a broken diff, not a finding, and
 
 Recorded as limit 10 in `docs/limits.md`; enforced by
 `tests/test_silica_variant_packs_earn_their_split.py` (6).
+
+## The inherited Kp is not the problem — an out-of-range pH term is
+
+Kp sets absolute rate, so it is the one inherited constant whose borrowing is
+directly checkable: back out the scale each pack's own data implies and compare
+with the declared value. The expected finding was large factors for the packs
+that inherit `kp_m_per_pa` unchanged. The measurement says otherwise:
+
+    pack                          median measured / predicted    datasets
+    oxide_silica                            38.73x                  8
+    sic_alumina_kmno4                       12.24x                  2
+    sic_ceria_h2o2                           2.13x                  5
+    oxide_silica_aminosilane                 2.04x                  1
+    w_fe_oxidizer                            1.13x                  3
+    cu_alkaline_benzenesulfonic              1.12x                  2
+    cu_h2o2_bta                              0.70x                  8
+    oxide_silica_anionic                     0.51x                  1
+    sti_ceria                                0.37x                  6
+
+The two packs that inherit Kp — `oxide_silica_anionic` (0.51×) and
+`oxide_silica_aminosilane` (2.04×) — are among the best calibrated in the corpus.
+The worst is their **parent**.
+
+Splitting `oxide_silica`'s datasets by the pH they ran at explains it:
+
+    ep3161098b1_teos_silica_pressure_sweep      pH 4.0        139.24x
+    us9499721b2_teos_colloidal_silica           pH 4.7         98.25x
+    bouvet2002_oxide_silica_size_sweep          pH 3.0         39.21x
+    us6564116b2_oxide_taguchi_L25               not varied      0.85x
+    li2021_oxide_silica_ph                      pH 10.0-12.5    0.60x
+
+The pack peaks at pH 11 with `ph_valid_range: [10.0, 12.5]`. Datasets inside that
+range are calibrated to within a factor of two; those at pH 3–4.7 miss by 40–139×,
+because the pH term multiplies the prediction down toward its mechanical floor
+and the deficit lands on Kp — the last free scale in the chain.
+
+Refitting Kp here would bake an extrapolation error into a constant that is
+currently correct. This is the same limit recorded twice before (out-of-range pH
+is a warning not a gate; a score can be real and validate nothing you assumed),
+now measured on **absolute rates** rather than shapes — and it is the first
+evidence of its magnitude: not a few per cent but two orders.
+
+Eleven datasets are excluded because their own notes forbid absolute comparison
+(`in_scope: false`, benchtop coupons, scaled units, shear-rheological polishing
+rather than CMP); each exclusion phrase is listed in the test. The pH split
+additionally drops the Pt and Ti datasets, whose deficit comes from being
+unsupported films rather than from pH.
+
+No Kp was refitted. Enforced by
+`tests/test_inherited_kp_is_not_the_problem.py` (5).
