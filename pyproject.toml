@@ -17,6 +17,10 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=7.4,<9"]
+# The 3D tool UI is tested by driving a real browser (tests/test_tool_ui_3d.py).
+# Those tests skip themselves when playwright is absent, so this stays optional:
+#   pip install -e '.[ui-test]' && playwright install chromium
+ui-test = ["playwright>=1.40"]
 
 [project.scripts]
 cmp-sim = "cmp_sim.cli:main"

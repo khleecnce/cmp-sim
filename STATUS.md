@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **834 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **844 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -26,6 +26,19 @@
   _ti 2.7%), and nothing-stated. That separates bouvet2002_w (2.3% vs 1.0% floor,
   finished) from bouvet2002_ti (30.7% vs 2.7%, a real miss) — previously
   indistinguishable. `at_noise_floor` is None, never False, when unmeasured.
+- **3D tool UI now TESTED end-to-end (was 0 tests).** The owner's brief asks for a
+  simulator operated by CLICKING an AMAT-style polisher, not a form — and the UI
+  had no test at all while the engine had 834. Now driven in headless Chromium
+  (SwiftShader, no GPU): canvas 1280x808 with 1,027,557 lit pixels, 0 console
+  errors; 10 parts hit-testable by scanning the canvas with the scene's own
+  raycaster (frame/pad/head/carousel/slurry/nozzle/disk/platen/loadcup/wafer);
+  click -> correct drawer (wafer/pad/disk/slurry); film changes the prediction
+  (cu 5458.5 / w 1091.7 / poly_si 1668.7 / oxide 1559.6 A/min).
+  ⚠ alumina & zirconia return the PACK rate (1559.6) — not a bug: no published
+  same-recipe ratio exists, so abrasive_effects refuses to invent a scale and
+  warns the run is a RANKING. Test asserts the WARNING, not a rate difference —
+  demanding a difference would demand a fabricated number.
+  playwright is an optional extra ('.[ui-test]'); tests skip without it.
 - **DEFINITION OF DONE MET (checked, not assumed).** 9/10 examples run; the 10th
   (snag_solder) exits 3 BY DESIGN — SnAg is unestablished and the model refuses
   rather than inventing a pH window (the one primary report eliminated both
@@ -275,13 +288,20 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-P1-P8 gates, examples and the literature gate all pass (834 tests). The build
-brief is met; there is no required next item. Pick up work only on a new
-instruction from the owner. If continuing anyway, the highest-value remaining
-item is NOT a feature: it is the velocity axis (39.0% median, BLOCKED-1), which
-needs a dataset that sweeps speed at constant pressure on a film with an
-established pack — no corpus dataset does this cleanly, so it requires either
-new literature or an owner experiment.
+⚠ CORRECTION. A previous session reported the project "complete" against the
+P1-P8 engine gates alone. That was the WRONG bar: the owner's actual brief
+(desktop, 09-24 10:49) is (1) a simulator that turns inputs into predictions,
+(2) a clickable 3D AMAT-style polisher UI, (3) per-WAFER/film learning, (4) per-
+ABRASIVE learning (ceria/silica/alumina/zirconia separately). All four now have
+passing end-to-end evidence (844 tests, incl. 10 browser-driven UI tests).
+
+Remaining gap, and it is a DATA gap rather than a build gap: alumina and
+zirconia are selectable and warn honestly, but neither has a published same-
+recipe rate ratio, so switching to them cannot move the absolute rate. Closing
+it needs a same-tool, same-recipe published comparison (or an owner experiment)
+per abrasive — see research/abrasive_alumina.yaml and abrasive_zirconia.yaml.
+Do NOT close it by deriving a ratio from hardness; Mohs order does not predict
+CMP rate, and abrasive_effects.py refuses that on purpose.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp
