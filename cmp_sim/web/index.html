@@ -59,6 +59,15 @@
          border-radius:9px}
   .err{background:#2a1618;border:1px solid var(--bad);color:#ffb3b3;padding:12px;
        border-radius:8px;white-space:pre-wrap;font-size:12.5px}
+  /* Anchoring callouts. The ranking-only case must read as a warning at a
+     glance: it is the difference between a predicted rate and a ranking. */
+  .warnbox{background:#221c12;border-left:3px solid var(--warn,#ffb454);
+           color:#ffd79a;padding:11px 13px;border-radius:7px;font-size:12.5px;
+           margin-bottom:9px}
+  .okbox{background:#12211a;border-left:3px solid var(--good,#3ecf8e);
+         color:#a8e9cb;padding:11px 13px;border-radius:7px;font-size:12.5px;
+         margin-bottom:9px}
+  p.small{font-size:12px;color:var(--muted);margin:9px 0 4px}
   .hint{color:var(--muted);font-size:11.5px;margin-top:4px}
   details{margin-top:8px}
   summary{cursor:pointer;color:var(--accent);font-size:12.5px}
@@ -491,6 +500,35 @@ function render(r){
 
   if(r.slurry_supply){
     h += `<h2>Slurry supply &amp; lubrication</h2>${kvTable(r.slurry_supply,["notes","warnings"])}`;
+  }
+  if(r.abrasive_type){
+    // The abrasive anchoring state belongs NEXT TO the rate, not buried in a
+    // table. When the pack was calibrated with a different abrasive than the
+    // one entered, the absolute number is a ranking, and a user who scrolls
+    // past that fact will quote it as a prediction.
+    const a = r.abrasive_type;
+    const wd = Object.entries(a.withdrawn || {});
+    h += `<h2>Abrasive &mdash; is this rate anchored?</h2>`;
+    if(a.ranking_only){
+      h += `<div class="warnbox"><b>Ranking only.</b> This pack's rate scale was
+        calibrated with <code>${a.reference_kind || "?"}</code>, and no published
+        same-recipe rate ratio exists for <code>${a.kind || "?"}</code> on this
+        film. The absolute A/min is still anchored to
+        <code>${a.reference_kind || "?"}</code> &mdash; use it to COMPARE recipes,
+        do not quote it as a predicted rate.</div>`;
+    } else {
+      h += `<div class="okbox">Anchored: the entered abrasive is either the
+        pack's own or carries a published rate ratio
+        (&times;${a.relative_rate ?? 1}) measured against it.</div>`;
+    }
+    h += kvTable({kind: a.kind || "(pack default)",
+                  pack_calibrated_with: a.reference_kind || "not declared",
+                  rate_ratio_applied: a.relative_rate ?? "none"});
+    if(wd.length){
+      h += `<p class="small">${wd.length} axis/axes withdrawn on this swap, because
+        the pack's measured exponent belongs to its own abrasive:</p><ul>` +
+        wd.map(([k,v]) => `<li><b>${k}</b>: ${v}</li>`).join("") + `</ul>`;
+    }
   }
   if(r.abrasive_regime){
     h += `<h2>Abrasive regime (exponents are computed, not tabulated)</h2>

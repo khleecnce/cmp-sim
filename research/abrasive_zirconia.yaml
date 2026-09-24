@@ -1,0 +1,1994 @@
+
+# =====================================================================
+# CMP-Sim research dossier: ZIRCONIA (ZrO2) as a CMP abrasive
+# + abrasive hardness / modulus comparison table (ranking fallback basis)
+# =====================================================================
+# Contract for every numeric entry:
+#   value / unit / source (DOI | patent no | URL) / confidence / note
+#   literature  - read from a peer-reviewed / standards source actually fetched
+#   vendor      - manufacturer or supplier datasheet / technical compilation
+#   derived     - computed from a sourced value by an explicit stated relation
+#   unverified  - NOT sourced. value is null, note starts with TODO(owner)
+#
+# Nothing here was interpolated or invented. Where a number was wanted but
+# could not be pinned to a source that was actually opened and read, the value
+# is null with a TODO(owner) note naming exactly what is missing.
+# =====================================================================
+
+meta:
+  schema_version: 1
+  compiled_on: "2026-09-24"
+  compiled_by: "CMP-Sim literature pass (open-access + Wayback-recovered sources only)"
+  scope: "zirconia abrasive dossier + cross-abrasive hardness/modulus table"
+  do_not_edit_note: >
+    This file is additive research input. It deliberately does NOT modify
+    cmp_sim/data/params/abrasives.yaml. The zirconia block there currently has
+    density/hardness/modulus = null; the values in this file are candidates for
+    the owner to promote, WITH their polymorph labels intact.
+  search_provenance: >
+    Local corpus /Users/khleecnce/fab-sim/papers (306 files, PDF/TXT/XML/HTML
+    incl. patents/) was full-text scanned with pymupdf for
+    /ZrO2|zirconi|Zirconi|YSZ/. 13 files matched. Of those, only THREE carry
+    zirconia-as-abrasive data: US5575885 (Cu rate table), overpolish-dishing-jss
+    (= Srinivasan STI review, zirconia reverse selectivity 78), and prasad2006
+    (qualitative "high nitride rates with ZrO2"). The other 10 hits are zirconia
+    MILLING MEDIA, zirconia as a tribology composite, or reference lists citing
+    the Hanyang ZrO2/W papers. Local /Users/khleecnce/fab-sim/knowledge mentions
+    zirconia only as a slurry TYPE enum option and in the high-k note (ZrO2 as
+    FILM, not abrasive). Web pass then used MDPI / IOP / Springer /
+    ScienceDirect / PMC / NIST / NTRS with Wayback recovery for 403 walls.
+    Conclusion: zirconia IS a minor CMP abrasive. Two groups dominate the
+    primary literature (Hanyang / Park J-G on W-CMP; Clarkson / Babu on nitride
+    reverse selectivity). No vendor datasheet with CMP-grade D50 and no
+    published concentration or size series for ZrO2 abrasive was found.
+
+# =====================================================================
+zirconia:
+
+  material: ZrO2
+  cmp_status: >
+    Minor / niche CMP abrasive. Documented production-relevant use is tungsten
+    CMP (harder than colloidal silica, so it cuts the WO3 passivation layer
+    faster) and nitride-selective (reverse-selectivity) dielectric slurries.
+    It is NOT a mainstream oxide abrasive; ZrO2 far more often appears in the
+    CMP literature as MILLING MEDIA or as the POLISHED SUBSTRATE.
+  cmp_status_sources:
+    - "https://doi.org/10.1149/2162-8777/ab915c"
+    - "https://doi.org/10.1149/2.0071511jss"
+    - "https://doi.org/10.5772/intechopen.75408"
+
+  # -------------------------------------------------------------------
+  # 1. PHYSICAL PROPERTIES, KEPT SEPARATE PER POLYMORPH
+  # -------------------------------------------------------------------
+  polymorph_warning:
+    severity: critical
+    rule: >
+      Never merge monoclinic (m, baddeleyite, P2_1/c), tetragonal (t, incl.
+      3Y-TZP) and cubic / high-yttria (4Y, 5Y) zirconia into one 'zirconia'
+      property row. Hardness spans roughly 12-14.4 GPa and modulus roughly
+      199-220 GPa across the stabilised phases, and the published CMP abrasives
+      are specifically MONOCLINIC while nearly all published hardness/modulus
+      data are for SINTERED TETRAGONAL (dental/structural) ceramics. Polishing
+      itself drives t -> m transformation at the surface, so a measured hardness
+      is a function of surface history, not of the bulk label.
+    polishing_induced_transformation:
+      finding: >
+        All four commercial Y-TZP grades tested contained ZERO monoclinic phase
+        before polishing and 5.3-10.8 vol% monoclinic after polishing, with a
+        corresponding reduction in the cubic fraction. Polished surfaces of
+        3Y / 4Y / 5Y grades then converged to similar Vickers hardness because
+        the surface phase was predominantly monoclinic in every case.
+      source: "https://pmc.ncbi.nlm.nih.gov/articles/PMC12299099/"
+      confidence: literature
+
+  polymorphs:
+
+    monoclinic:
+      aliases: [m-ZrO2, baddeleyite]
+      space_group: P2_1/c
+      relevance: >
+        THIS is the phase used in the published ZrO2 CMP abrasives - both
+        Hanyang W-CMP papers state 'monoclinic crystallized' /
+        'monoclinic crystal structure'.
+      relevance_sources:
+        - "https://doi.org/10.1149/2162-8777/ab915c"
+        - "https://pmc.ncbi.nlm.nih.gov/articles/PMC8706925/"
+      properties:
+
+        density_kg_m3:
+          value: 5680
+          unit: kg/m^3
+          source: "https://doi.org/10.3762/bjnano.6.4"
+          confidence: literature
+          note: >
+            5.68 g/cm3 quoted as the bulk monoclinic-phase density, used in that
+            paper as the reference against which the measured nanoparticle
+            densities are compared.
+
+        density_nanoparticle_kg_m3:
+          value: [5220, 5870]
+          unit: kg/m^3
+          source: "https://doi.org/10.3762/bjnano.6.4"
+          confidence: literature
+          note: >
+            MEASURED, size-dependent: 5.22 +/- 0.07 g/cm3 at 11 nm crystallite
+            (97 m2/g) rising to 5.87 +/- 0.02 g/cm3 at 72 nm. Cause is a
+            Zr(OH)x surface layer ~0.62 nm thick (hydroxide density 3.25 g/cm3)
+            which becomes a large volume fraction below ~50 nm. CRITICAL for
+            CMP: a 23-40 nm CMP abrasive does NOT have bulk density. Use
+            ~5.2-5.5 g/cm3 for number-density / volume-fraction conversions at
+            CMP sizes, not 5.68, or particle counts will be biased high.
+
+        hardness_gpa:
+          value: null
+          unit: GPa
+          source: null
+          confidence: unverified
+          note: >
+            TODO(owner): no indentation hardness for PHASE-PURE monoclinic ZrO2
+            was found in an accessible source. What IS sourced and adjacent:
+            (a) polished Y-TZP surfaces whose top layer is predominantly
+            monoclinic give Vickers hardness in the same band as the tetragonal
+            parent (https://pmc.ncbi.nlm.nih.gov/articles/PMC12299099/);
+            (b) the CMP paper that uses monoclinic ZrO2 abrasive states its
+            hardness only on the MOHS scale (8.0) - see mohs_hardness below.
+            Measure by nanoindentation on your own abrasive lot before using a
+            hardness-ratio model.
+
+        mohs_hardness:
+          value: 8.0
+          unit: Mohs
+          source: "https://doi.org/10.1149/2162-8777/ab915c"
+          confidence: literature
+          note: >
+            Stated as the reason to choose ZrO2 over silica for W CMP:
+            colloidal crystalline ZrO2 Mohs 8.0 vs colloidal amorphous SiO2
+            Mohs 6.0-7.0, W film Mohs 7.5, WO3 layer Mohs 5.0-7.0. CAUTION: the
+            published sentence writes these Mohs numbers with the unit 'GPa'
+            ('Mohs hardness of 8.0 GPa'), which is a unit error in the paper -
+            Mohs is dimensionless. Treat as an ORDINAL ranking
+            (ZrO2 > W > SiO2 > WO3), never as a GPa value.
+
+        youngs_modulus_gpa:
+          value: 217.3
+          unit: GPa
+          source: "https://doi.org/10.2991/emim-17.2017.206"
+          confidence: derived
+          note: >
+            DERIVED from the DFT-GGA polycrystalline moduli of m-ZrO2 in that
+            paper (B = 177.267 GPa, G = 83.841 GPa) via the isotropic identity
+            E = 9BG/(3B+G) = 217.3 GPa (implied Poisson ratio 0.296). This is a
+            CALCULATED, not measured, modulus; GGA typically overestimates cell
+            volume and so softens elastic constants slightly.
+
+        bulk_modulus_gpa:
+          value: 177.3
+          unit: GPa
+          source: "https://doi.org/10.2991/emim-17.2017.206"
+          confidence: literature
+
+        shear_modulus_gpa:
+          value: 83.8
+          unit: GPa
+          source: "https://doi.org/10.2991/emim-17.2017.206"
+          confidence: literature
+
+        poissons_ratio:
+          value: 0.296
+          unit: dimensionless
+          source: "https://doi.org/10.2991/emim-17.2017.206"
+          confidence: derived
+          note: "nu = (3B-2G)/(2(3B+G)) from the same B and G."
+
+    tetragonal_3y_tzp:
+      aliases: [t-ZrO2, 3Y-TZP, yttria-tetragonal-zirconia-polycrystal]
+      stabiliser: "3 mol% Y2O3"
+      relevance: >
+        Best-measured zirconia mechanical properties, but this is a SINTERED
+        STRUCTURAL ceramic, not a CMP abrasive particle.
+      properties:
+
+        density_kg_m3:
+          value: null
+          unit: kg/m^3
+          source: null
+          confidence: unverified
+          note: >
+            TODO(owner): the source reports RELATIVE density (99% of
+            theoretical), not an absolute g/cm3. Theoretical t-ZrO2 density was
+            not verified from a primary source in this pass.
+
+        hardness_gpa:
+          value: 14.4
+          unit: GPa
+          source: "https://www.mdpi.com/2571-6131/3/1/7"
+          confidence: literature
+          note: >
+            Vickers HV = 14.4 +/- 0.3 GPa, monolithic 3Y-TZP at 99% of
+            theoretical density, spark-plasma-sintered, 10 indents averaged
+            (Table 1). Polished surface was 99 vol% tetragonal / 1 vol%
+            monoclinic, so this is a genuinely tetragonal measurement.
+
+        hardness_alt_gpa:
+          value: 14
+          unit: GPa
+          source: "https://www.mdpi.com/2079-4991/10/11/2097"
+          confidence: literature
+          note: >
+            Independent 3Y-TZP pellet: hardness ~14 GPa, elastic modulus
+            ~220 GPa. Consistent with the 14.4 / 199 pair above.
+
+        youngs_modulus_gpa:
+          value: 199
+          unit: GPa
+          source: "https://www.mdpi.com/2571-6131/3/1/7"
+          confidence: literature
+          note: >
+            199 +/- 4 GPa measured on the same 99%-dense monolithic 3Y-TZP. The
+            same paper also quotes E_ZrO2 = 200 GPa as a literature input value,
+            and an independent pellet gives ~220 GPa (10.3390/nano10112097) -
+            carry 199-220 GPa as the real band.
+
+        youngs_modulus_band_gpa:
+          value: [199, 220]
+          unit: GPa
+          source: "https://www.mdpi.com/2079-4991/10/11/2097"
+          confidence: literature
+
+        fracture_toughness_mpa_m05:
+          value: 3.8
+          unit: MPa*m^0.5
+          source: "https://www.mdpi.com/2571-6131/3/1/7"
+          confidence: literature
+          note: >
+            3.8 +/- 0.1 MPa*m^0.5, SENB. Relevant to whether the abrasive
+            fractures or ploughs.
+
+        flexural_strength_mpa:
+          value: 1071
+          unit: MPa
+          source: "https://www.mdpi.com/2571-6131/3/1/7"
+          confidence: literature
+          note: "1071 +/- 99 MPa biaxial."
+
+    yttria_stabilised_high_y:
+      aliases: [4Y-TZP, 5Y-TZP, YSZ, partially-cubic zirconia]
+      relevance: >
+        Higher-yttria grades - softer and more cubic. Included because 'YSZ' in
+        a slurry spec could mean any of these.
+      properties:
+
+        hardness_gpa:
+          value: [12.2, 12.9]
+          unit: GPa
+          source: "https://pmc.ncbi.nlm.nih.gov/articles/PMC12299099/"
+          confidence: literature
+          note: >
+            Vickers hardness 12.2-12.9 GPa quoted for 4Y-TZP and 5Y-TZP (stated
+            in that paper's introduction as a comparison against tooth enamel
+            3-6 GPa, i.e. it is a SECONDARY citation inside an open-access
+            paper, not that paper's own measurement). Lower than the 14.4 GPa of
+            3Y-TZP - consistent with more cubic phase. Grain size AND porosity
+            both increase with yttria content in the same study.
+
+        youngs_modulus_gpa:
+          value: null
+          unit: GPa
+          source: null
+          confidence: unverified
+          note: >
+            TODO(owner): no modulus for 4Y/5Y specifically was verified. Do not
+            copy the 3Y value - the phase fraction differs.
+
+        density_kg_m3:
+          value: null
+          unit: kg/m^3
+          source: null
+          confidence: unverified
+          note: >
+            TODO(owner): not sourced. Porosity rises with yttria content in the
+            cited study, so an as-sintered density would not transfer to a
+            particle anyway.
+
+  # -------------------------------------------------------------------
+  # 2. SURFACE CHARGE
+  # -------------------------------------------------------------------
+  surface_charge:
+
+    iep_ph_model:
+      value: [10.0, 11.0]
+      unit: pH
+      source: "https://doi.org/10.1039/d6ra00388e"
+      confidence: literature
+      note: >
+        Modelled / compiled point of zero charge for ZrO2 given as pH 10.0-11.0
+        (dominant surface species Zr(OH)4). Doping shifts it by up to ~1 pH unit.
+
+    iep_ph_measured_undispersed:
+      value: 8.96
+      unit: pH
+      source: "https://doi.org/10.1186/s11671-015-1130-x"
+      confidence: literature
+      note: >
+        MEASURED by electrokinetic sonic amplitude on a 2 vol% nano-ZrO2
+        suspension with NO dispersant: pH_IEP = 8.96. Lower than the modelled
+        10-11 band. Use the measured value for slurry work.
+
+    iep_ph_with_dispersant:
+      value: [3.61, 4.83]
+      unit: pH
+      source: "https://doi.org/10.1186/s11671-015-1130-x"
+      confidence: literature
+      note: >
+        SAME powder, same instrument: adding an anionic polyelectrolyte
+        (Dolapix CE64) moved pH_IEP from 8.96 to 4.83 (1.0 mass%) and to 3.61
+        (1.4 mass%). A 5 pH-unit shift from the dispersant alone. ENGINE
+        IMPLICATION: for a real dispersed ZrO2 CMP slurry the bare-oxide IEP is
+        nearly meaningless - the adsorbed polycarboxylate sets the charge. Both
+        published ZrO2 W-CMP slurries use exactly such a polycarboxylic-acid
+        dispersant.
+
+    zeta_potential_in_w_cmp_slurry_mv:
+      value: 5.09
+      unit: mV
+      source: "https://doi.org/10.1149/2162-8777/ab915c"
+      confidence: literature
+      note: >
+        +5.09 mV for the 23 nm monoclinic ZrO2 abrasive in the actual W-CMP
+        slurry titrated to pH 2.3 with no catalyst. Only weakly positive despite
+        being ~6 pH units below the bare-oxide IEP, because of the adsorbed
+        anionic dispersant. Adding K3Fe(C2O4)3 drives it through zero to
+        negative as (C2O4)2- adsorbs.
+
+    zeta_potential_second_study_mv:
+      value: [5.5, -13.5]
+      unit: mV
+      source: "https://pmc.ncbi.nlm.nih.gov/articles/PMC8706925/"
+      confidence: literature
+      note: >
+        Independent confirmation on a 40 nm monoclinic ZrO2 W-CMP slurry at
+        pH 2: zeta of the ZrO2 goes +5.5 -> +1.4 -> -13.5 mV as scavenger
+        (etidronic acid) rises 0 -> 0.25 wt%. W-film (WO3) zeta tracks it:
+        +20.3 -> +1.4 -> -10.4 mV. Removal rate follows the electrostatic force,
+        not the particle count.
+
+  # -------------------------------------------------------------------
+  # 3. PARTICLE SIZE ACTUALLY USED
+  # -------------------------------------------------------------------
+  particle_size:
+
+    typical_d50_nm:
+      value: null
+      unit: nm
+      source: null
+      confidence: unverified
+      note: >
+        TODO(owner): no vendor datasheet D50 for a CMP-grade zirconia slurry was
+        obtained (Saint-Gobain's zirconia CMP particle page is behind a
+        Cloudflare browser check with no Wayback copy; the SEMITECH zirconia CMP
+        page likewise has no archive copy). What IS sourced are the as-used
+        sizes below. Do not invent a 'typical' D50.
+
+    primary_size_used_in_literature_nm:
+      value: [23, 40]
+      unit: nm
+      source: "https://doi.org/10.1149/2162-8777/ab915c"
+      confidence: literature
+      note: >
+        23 nm average PRIMARY diameter, monoclinic, rounded crystalline fringe
+        (Seo 2020). The companion study used 40 nm primary
+        (10.3390/nano11123296 / PMC8706925). Both are colloidal, both
+        monoclinic, both W-CMP.
+
+    secondary_agglomerate_size_nm:
+      value: 114
+      unit: nm
+      source: "https://doi.org/10.1149/2162-8777/ab915c"
+      confidence: literature
+      note: >
+        Secondary (agglomerate) size stayed ~114 nm independent of catalyst
+        concentration, which the authors read as good dispersion stability. So
+        the working ZrO2 population is a 23 nm primary inside a ~114 nm
+        secondary - a ~5x ratio. Feeding 23 nm as the contact radius will
+        overestimate particle count by ~2 orders of magnitude.
+
+    coarse_abrasive_size_nm:
+      value: 1100
+      unit: nm
+      source: "US5575885"
+      confidence: literature
+      note: >
+        1100 nm mean grain size zirconia in the 1996 Toshiba Cu-slurry patent -
+        a lapping-grade size, not a modern CMP colloid. Keep separate from the
+        23-40 nm colloids.
+
+    oxidizer_pot_life_coupling:
+      finding: >
+        The ZrO2 secondary size is unstable once H2O2 is mixed in: it grows
+        abruptly after a characteristic 'H2O2 pot lifetime', which rose linearly
+        from 47 h to 1401 h as a phosphite scavenger went 0 -> 0.25 wt%.
+      source: "https://pmc.ncbi.nlm.nih.gov/articles/PMC8706925/"
+      confidence: literature
+      note: >
+        Model implication: for ZrO2 + Fenton chemistry, D50 is time-dependent.
+        A static PSD input is wrong beyond the pot lifetime.
+
+  # -------------------------------------------------------------------
+  # 4. MEASURED BLANKET REMOVAL-RATE ANCHORS
+  # -------------------------------------------------------------------
+  film_anchors:
+
+    - id: seo2020_w_zro2_peak
+      film: w
+      abrasive: "monoclinic colloidal ZrO2"
+      rate:
+        value: 987
+        unit: A/min
+        source: "https://doi.org/10.1149/2162-8777/ab915c"
+        confidence: literature
+      rate_nm_per_min:
+        value: 98.7
+        unit: nm/min
+        source: "https://doi.org/10.1149/2162-8777/ab915c"
+        confidence: derived
+        note: "987 A/min / 10. Peak W rate at the optimum catalyst concentration."
+      conditions:
+        abrasive_conc_wt_pct:
+          value: 1.2
+          unit: wt%
+          source: "https://doi.org/10.1149/2162-8777/ab915c"
+          confidence: literature
+        d50_nm:
+          value: 23
+          unit: nm
+          source: "https://doi.org/10.1149/2162-8777/ab915c"
+          confidence: literature
+          note: "average PRIMARY diameter; secondary ~114 nm"
+        ph:
+          value: 2.3
+          unit: pH
+          source: "https://doi.org/10.1149/2162-8777/ab915c"
+          confidence: literature
+          note: "titrated with HNO3"
+        oxidizer:
+          value: "H2O2 1.5 wt%"
+          unit: wt%
+          source: "https://doi.org/10.1149/2162-8777/ab915c"
+          confidence: literature
+        catalyst:
+          value: "K3Fe(C2O4)3 0.03 wt% (potassium ferric oxalate, Fenton)"
+          unit: wt%
+          source: "https://doi.org/10.1149/2162-8777/ab915c"
+          confidence: literature
+        dispersant:
+          value: "polycarboxylic-acid anionic polymer 0.2 wt%"
+          unit: wt%
+          source: "https://doi.org/10.1149/2162-8777/ab915c"
+          confidence: literature
+        pressure_psi:
+          value: 6
+          unit: psi
+          source: "https://doi.org/10.1149/2162-8777/ab915c"
+          confidence: literature
+        platen_rpm:
+          value: 70
+          unit: rpm
+          source: "https://doi.org/10.1149/2162-8777/ab915c"
+          confidence: literature
+        carrier_rpm:
+          value: 70
+          unit: rpm
+          source: "https://doi.org/10.1149/2162-8777/ab915c"
+          confidence: literature
+        velocity_m_s:
+          value: null
+          unit: m/s
+          source: null
+          confidence: unverified
+          note: >
+            TODO(owner): not derivable - the samples were 6 cm x 6 cm coupons
+            cut from 8-inch wafers, and no head-to-platen centre offset is
+            given, so relative velocity cannot be computed from 70/70 rpm alone.
+        pad:
+          value: "IC1000/Suba IV (Rohm and Haas)"
+          unit: null
+          source: "https://doi.org/10.1149/2162-8777/ab915c"
+          confidence: literature
+        slurry_flow_ml_min:
+          value: 100
+          unit: mL/min
+          source: "https://doi.org/10.1149/2162-8777/ab915c"
+          confidence: literature
+        polish_time_s:
+          value: 60
+          unit: s
+          source: "https://doi.org/10.1149/2162-8777/ab915c"
+          confidence: literature
+        tool:
+          value: "POLI-300 (G&P Technology), 6x6 cm coupons from 8-inch wafers"
+          unit: null
+          source: "https://doi.org/10.1149/2162-8777/ab915c"
+          confidence: literature
+        film_stack:
+          value: "Si / SiO2 100 nm / TiN 100 nm / W 600 nm"
+          unit: null
+          source: "https://doi.org/10.1149/2162-8777/ab915c"
+          confidence: literature
+      rate_measurement_method: "sheet resistance by four-point probe (W); ellipsometry (SiO2)"
+      companion_points:
+        w_rate_low_catalyst_A_min:
+          value: 55
+          unit: A/min
+          source: "https://doi.org/10.1149/2162-8777/ab915c"
+          confidence: literature
+          note: "at 0.001 wt% catalyst"
+        w_rate_high_catalyst_A_min:
+          value: 300
+          unit: A/min
+          source: "https://doi.org/10.1149/2162-8777/ab915c"
+          confidence: literature
+          note: "at 1.0 wt% catalyst - corrosion-dominant regime, rate collapses"
+        sio2_rate_A_min:
+          value: 448
+          unit: A/min
+          source: "https://doi.org/10.1149/2162-8777/ab915c"
+          confidence: literature
+          note: >
+            SAME slurry, SAME tool, blanket 700 nm SiO2 wafer: 448 A/min
+            sustained at 0.001-0.005 wt% catalyst, falling to 104 A/min at
+            0.1 wt% and saturating at 91 A/min. This is a genuine ZrO2-on-oxide
+            blanket anchor at pH 2.3.
+        static_etch_rate_w_A_min:
+          value: [212, 336]
+          unit: A/min
+          source: "https://doi.org/10.1149/2162-8777/ab915c"
+          confidence: literature
+          note: >
+            W static etch rate at 70 C, 3 min, over the catalyst range - i.e. a
+            large fraction of the W 'removal' is chemical, not abrasive. Do not
+            attribute all 987 A/min to mechanics.
+        roughness_at_peak:
+          value: "Rq 2.0 nm, Rp-to-v 20.3 nm (AFM 2x2 um) at 0.03 wt%; Rq 1.5 nm at 0.05 wt%"
+          unit: nm
+          source: "https://doi.org/10.1149/2162-8777/ab915c"
+          confidence: literature
+      derived_selectivity_w_over_oxide:
+        value: 2.2
+        unit: dimensionless
+        source: "https://doi.org/10.1149/2162-8777/ab915c"
+        confidence: derived
+        note: >
+          987 / 448 = 2.2 at the W-rate peak. CAUTION: the two rates peak at
+          DIFFERENT catalyst concentrations, so the true maximum selectivity in
+          that paper is higher than this single-point ratio; the paper plots
+          selectivity as its own curve.
+      caveat: >
+        Rate is Fenton-catalyst-limited, NOT abrasive-limited. Abrasive
+        concentration was FIXED at 1.2 wt% throughout, so this paper yields no
+        concentration exponent.
+
+    - id: kim2021_w_zro2_no_scavenger
+      film: w
+      abrasive: "monoclinic colloidal ZrO2"
+      rate:
+        value: 110.1
+        unit: nm/min
+        source: "https://pmc.ncbi.nlm.nih.gov/articles/PMC8706925/"
+        confidence: literature
+        note: >
+          W rate with zero scavenger; falls linearly to 17.8 nm/min at 0.25 wt%
+          scavenger.
+      conditions:
+        abrasive_conc_wt_pct:
+          value: 1.0
+          unit: wt%
+          source: "https://pmc.ncbi.nlm.nih.gov/articles/PMC8706925/"
+          confidence: literature
+          note: "then diluted 1:1 with DIW before use, so ~0.5 wt% at the pad"
+        d50_nm:
+          value: 40
+          unit: nm
+          source: "https://pmc.ncbi.nlm.nih.gov/articles/PMC8706925/"
+          confidence: literature
+          note: "primary abrasive size"
+        ph:
+          value: 2
+          unit: pH
+          source: "https://pmc.ncbi.nlm.nih.gov/articles/PMC8706925/"
+          confidence: literature
+          note: "HNO3 titrant"
+        oxidizer:
+          value: "H2O2 1.5 wt%"
+          unit: wt%
+          source: "https://pmc.ncbi.nlm.nih.gov/articles/PMC8706925/"
+          confidence: literature
+        catalyst:
+          value: "Fe(NO3)3 0.15 wt%"
+          unit: wt%
+          source: "https://pmc.ncbi.nlm.nih.gov/articles/PMC8706925/"
+          confidence: literature
+        pressure_psi:
+          value: 3
+          unit: psi
+          source: "https://pmc.ncbi.nlm.nih.gov/articles/PMC8706925/"
+          confidence: literature
+        platen_rpm:
+          value: 87
+          unit: rpm
+          source: "https://pmc.ncbi.nlm.nih.gov/articles/PMC8706925/"
+          confidence: literature
+        carrier_rpm:
+          value: 93
+          unit: rpm
+          source: "https://pmc.ncbi.nlm.nih.gov/articles/PMC8706925/"
+          confidence: literature
+        pad:
+          value: "IC1000/Suba IV (DuPont)"
+          unit: null
+          source: "https://pmc.ncbi.nlm.nih.gov/articles/PMC8706925/"
+          confidence: literature
+        slurry_flow_ml_min:
+          value: 200
+          unit: mL/min
+          source: "https://pmc.ncbi.nlm.nih.gov/articles/PMC8706925/"
+          confidence: literature
+        polish_time_s:
+          value: 60
+          unit: s
+          source: "https://pmc.ncbi.nlm.nih.gov/articles/PMC8706925/"
+          confidence: literature
+        tool:
+          value: "AP-300 (CTS), full 12-inch wafers"
+          unit: null
+          source: "https://pmc.ncbi.nlm.nih.gov/articles/PMC8706925/"
+          confidence: literature
+        film_stack:
+          value: "Si / SiO2 100 nm / TiN 100 nm / W 250 nm ; and Si / SiO2 450 nm"
+          unit: null
+          source: "https://pmc.ncbi.nlm.nih.gov/articles/PMC8706925/"
+          confidence: literature
+      companion_points:
+        sio2_rate_peak_nm_min:
+          value: 44.3
+          unit: nm/min
+          source: "https://pmc.ncbi.nlm.nih.gov/articles/PMC8706925/"
+          confidence: literature
+          note: >
+            Peak blanket SiO2 rate, same ZrO2 slurry, at 0.10 wt% etidronic
+            acid. Other scavengers peaked lower (PA 27.0, MPP 26.3, MAP 24.9
+            nm/min).
+      cross_check_note: >
+        TWO independent ZrO2/W datasets bracket each other consistently:
+        98.7 nm/min at 6 psi with 1.2 wt% / 23 nm (Seo 2020) and 110.1 nm/min at
+        3 psi with ~0.5 wt% / 40 nm (Kim 2021). Higher rate at HALF the pressure
+        and half the loading - so the ZrO2/W rate is NOT Prestonian in the
+        mechanical term over this range; the Fenton chemistry dominates. Do not
+        fit a pressure exponent across these two papers.
+
+    - id: us5575885_cu_abrasive_comparison
+      film: cu
+      abrasive: "zirconia grains, 1100 nm mean"
+      rate:
+        value: 22.1
+        unit: nm/min
+        source: "US5575885"
+        confidence: literature
+        note: >
+          Table 1 of the patent. Units printed as 'rim/min' - an OCR corruption
+          of nm/min.
+      conditions:
+        abrasive_conc_wt_pct:
+          value: 9
+          unit: wt%
+          source: "US5575885"
+          confidence: literature
+          note: "'about 9 wt%' of abrasive grains added"
+        d50_nm:
+          value: 1100
+          unit: nm
+          source: "US5575885"
+          confidence: literature
+          note: "mean grain size"
+        ph:
+          value: null
+          unit: pH
+          source: null
+          confidence: unverified
+          note: >
+            TODO(owner): pH not stated for the Table 1 abrasive comparison. The
+            patent separately teaches pH 9-14 by KOH addition for the
+            oxide-barrier effect, and the Table 1 base solution is 0.1 wt%
+            aminoacetic acid + 13 wt% H2O2 with no alkali mentioned - so it is
+            probably acidic, but this is inference, not text.
+        oxidizer:
+          value: "H2O2 13 wt%"
+          unit: wt%
+          source: "US5575885"
+          confidence: literature
+        complexant:
+          value: "aminoacetic acid (glycine) 0.1 wt%"
+          unit: wt%
+          source: "US5575885"
+          confidence: literature
+        pressure_psi:
+          value: 5.69
+          unit: psi
+          source: "US5575885"
+          confidence: derived
+          note: >
+            Patent states a load of 400 g/cm2 = 0.4 kgf/cm2 = 39.2 kPa
+            = 5.69 psi.
+        rpm:
+          value: 100
+          unit: rpm
+          source: "US5575885"
+          confidence: literature
+          note: "turntable and holder counter-rotating at 100 rpm"
+        pad:
+          value: "SUBA800 (Rodel Nitta)"
+          unit: null
+          source: "US5575885"
+          confidence: literature
+        slurry_flow_ml_min:
+          value: 12.5
+          unit: mL/min
+          source: "US5575885"
+          confidence: literature
+      caveat: >
+        1996 patent, 1.1 um abrasive, 12.5 mL/min flow. Useful as a RELATIVE
+        anchor only (see comparative_studies), not as an absolute modern rate.
+
+    - id: park2008_zro2_mas_oxide
+      film: oxide
+      abrasive: "ZrO2 mixed into 1:10 diluted silica slurry (ZrO2-MAS)"
+      rate:
+        value: 204
+        unit: nm/min
+        source: "https://doi.org/10.1016/j.mee.2007.12.049"
+        confidence: literature
+        note: >
+          Highest TEOS-oxide rate, at 1 wt% added ZrO2, versus 149 nm/min for
+          the diluted silica slurry (DSS) alone. The authors state this is
+          'comparable to the original (undiluted) silica slurry'.
+      conditions:
+        abrasive_conc_wt_pct:
+          value: 1.0
+          unit: wt%
+          source: "https://doi.org/10.1016/j.mee.2007.12.049"
+          confidence: literature
+          note: >
+            ADDED ZrO2 on top of a 1:10 diluted silica base - this is a MIXED
+            abrasive, not pure ZrO2.
+        ph:
+          value: [11, 12]
+          unit: pH
+          source: "https://doi.org/10.1016/j.mee.2007.12.049"
+          confidence: literature
+          note: "zirconia + silica dispersed in DIW at pH 11-12"
+        d50_nm:
+          value: null
+          unit: nm
+          source: null
+          confidence: unverified
+          note: >
+            TODO(owner): PSD was measured in the paper but the numbers are
+            behind the paywall. Only the abstract + section-snippet text was
+            recoverable (Wayback snapshot 2023-05-29 of the ScienceDirect
+            landing page).
+        pressure_psi:
+          value: null
+          unit: psi
+          source: null
+          confidence: unverified
+          note: "TODO(owner): full text paywalled."
+        velocity:
+          value: null
+          unit: null
+          source: null
+          confidence: unverified
+          note: "TODO(owner): full text paywalled."
+        pad:
+          value: null
+          unit: null
+          source: null
+          confidence: unverified
+          note: "TODO(owner): full text paywalled."
+        oxidizer:
+          value: null
+          unit: null
+          source: null
+          confidence: unverified
+          note: >
+            TODO(owner): dielectric CMP, likely none; not stated in the
+            recoverable text.
+      caveat: >
+        MIXED abrasive slurry. The rate gain (149 -> 204 nm/min, +37%) is
+        attributable to ZrO2 addition only in the sense that ZrO2 was the added
+        species; the paper explicitly notes the rate 'did not show a great
+        difference' across ZrO2 content. Weak anchor. ACCESS: abstract + section
+        snippets only, via Wayback; the process table was not obtained.
+
+    - id: natarajan2007_nitride_reverse_selectivity
+      film: sin
+      abrasive: "zirconia dispersion, no additives"
+      rate:
+        value: null
+        unit: nm/min
+        source: null
+        confidence: unverified
+        note: >
+          TODO(owner): the absolute nitride and oxide rates are in the ICPT 2007
+          conference paper (A. Natarajan, P. R. V. Dandu, S. V. Babu, Int. Conf.
+          Planarization/CMP Tech., 1 (2007)), which is not open access and has
+          no archive copy. Only the SELECTIVITY survived into the review.
+      reverse_selectivity_sin_over_oxide:
+        value: 78
+        unit: dimensionless
+        source: "https://doi.org/10.1149/2.0071511jss"
+        confidence: literature
+        note: >
+          Zirconia with NO additives gave a reverse selectivity (Si3N4 : SiO2)
+          of 78 at pH 4 - reported in Table II of the STI CMP review as a
+          secondary citation of Natarajan et al. For comparison in the same
+          table: 2 wt% arginine in 10 wt% silica at pH 8 gives only 7, and ceria
+          + cationic polymers reach 12-200. So bare zirconia is one of the
+          strongest additive-free nitride-selective abrasives known. The review
+          states 'the exact mechanism of silicon nitride polishing with these
+          slurries was not explained'.
+      conditions:
+        ph:
+          value: 4
+          unit: pH
+          source: "https://doi.org/10.1149/2.0071511jss"
+          confidence: literature
+        abrasive_conc_wt_pct:
+          value: null
+          unit: wt%
+          source: null
+          confidence: unverified
+          note: "TODO(owner): not carried into the review."
+        pressure_psi:
+          value: null
+          unit: psi
+          source: null
+          confidence: unverified
+          note: "TODO(owner): not carried into the review."
+      supporting_mechanism_note: >
+        Independent corroboration that this is real and not a typo: 'High polish
+        rates of silicon nitride are also observed with zirconium dioxide and to
+        a lesser extent with titanium dioxide abrasives', attributed to Zr and
+        Ti having multiple valencies / uncoordinated valence electrons that can
+        interact with the hydrolysed nitride surface - the same 'chemical tooth'
+        family of argument used for ceria.
+      supporting_mechanism_source: "https://doi.org/10.1149/1.2351957"
+
+    - id: cook_chemical_tooth_classification
+      film: oxide
+      abrasive: zirconia
+      rate:
+        value: null
+        unit: nm/min
+        source: null
+        confidence: unverified
+        note: >
+          TODO(owner): no rate. Recorded because it is the CLASSIFICATION claim
+          that matters for the engine.
+      classification_claim: >
+        Cook's classic framework groups zirconia WITH ceria as a
+        'chemical tooth' abrasive - particles with 'a great affinity toward the
+        oxide' that help break bonds on the silica surface - as distinct from
+        silica-on-silica physisorption. Silicon dioxide is stated to be
+        polishable by cerium oxide, zirconium oxide, titanium oxide and thorium
+        oxide as well as by silica itself.
+      source: "https://doi.org/10.1149/2.0071511jss"
+      confidence: literature
+      engine_implication: >
+        If zirconia is chemical-tooth-like, then per the global
+        cross_abrasive_transfer warning it must NOT inherit silica's
+        concentration/size exponents. The nitride reverse selectivity of 78
+        without additives is behavioural evidence for a chemical, not purely
+        mechanical, interaction.
+
+    - id: dai2021_reverse_direction_zirconia_as_substrate
+      film: "ZrO2 ceramic (zirconia is the WORKPIECE here, silica is the abrasive)"
+      abrasive: "colloidal silica"
+      rate:
+        value: null
+        unit: nm/min
+        source: null
+        confidence: unverified
+        note: >
+          TODO(owner): absolute MRR values are in the paywalled Table 1.
+          Abstract + section snippets recovered via Wayback (snapshot
+          2026-03-27); the numbers themselves were not.
+      why_recorded: >
+        This is the INVERSE experiment and is the only place a zirconia
+        concentration / pressure / pH series exists at all. It constrains the
+        SiO2-ZrO2 interface chemistry that would also operate if the roles were
+        swapped.
+      sourced_findings:
+        conc_saturation_wt_pct:
+          value: 30
+          unit: wt%
+          source: "https://doi.org/10.1016/j.ceramint.2021.04.177"
+          confidence: literature
+          note: >
+            MRR rises with silica abrasive concentration then 'tends to be
+            stable when the concentration exceeds 30 wt%'. A measured saturation
+            knee - for silica-on-zirconia.
+        pressure_law:
+          value: "Preston (MRR linear in pressure)"
+          unit: null
+          source: "https://doi.org/10.1016/j.ceramint.2021.04.177"
+          confidence: literature
+          note: >
+            'the influence of pressure on the polishing rate conforms to the
+            Preston formula' - i.e. pressure exponent = 1 for this pair.
+        ph_optimum:
+          value: 6
+          unit: pH
+          source: "https://doi.org/10.1016/j.ceramint.2021.04.177"
+          confidence: literature
+          note: >
+            Highest removal rate at pH 6. A later study on the same system
+            attributes this to pH 6 being the isoelectric point of the zirconia
+            SURFACE, maximising SiO2-ZrO2 reactivity. CAUTION: pH 6 conflicts
+            with the 8.96 measured / 10-11 modelled IEP for ZrO2 POWDER - the
+            polished stabilised-zirconia ceramic surface is not the same surface
+            as a bare nanoparticle. Keep them separate.
+        interfacial_bond:
+          value: "Si-O-Zr (Zr-O-Si) bond detected by XPS on the polished surface"
+          unit: null
+          source: "https://doi.org/10.1016/j.ceramint.2021.04.177"
+          confidence: literature
+          note: >
+            Direct spectroscopic evidence for a bridging bond between SiO2 and
+            ZrO2, i.e. the structural analogue of the Si-O-Ce chemical tooth.
+            The authors could not confirm whether the residue is zirconium
+            silicate.
+        acid_damage:
+          value: "corrosion pits from dissolution of the stabiliser under acidic polishing"
+          unit: null
+          source: "https://doi.org/10.1016/j.ceramint.2021.04.177"
+          confidence: literature
+          note: >
+            Defect mode specific to stabilised zirconia: the Y stabiliser
+            leaches at low pH.
+        phase_stability:
+          value: "polishing does not change the zirconia crystal structure (XRD)"
+          unit: null
+          source: "https://doi.org/10.1016/j.ceramint.2021.04.177"
+          confidence: literature
+          note: >
+            CONFLICTS with the dental finding that polishing induces 5-11 vol%
+            monoclinic (PMC12299099). Different loads and abrasives; do not
+            treat either as universal.
+      process_context:
+        tool:
+          value: "UNIPOL-1000S"
+          unit: null
+          source: "https://doi.org/10.1016/j.ceramint.2021.04.177"
+          confidence: literature
+        pad:
+          value: "SUBA600 (Dow)"
+          unit: null
+          source: "https://doi.org/10.1016/j.ceramint.2021.04.177"
+          confidence: literature
+        carrier_rpm:
+          value: 30
+          unit: rpm
+          source: "https://doi.org/10.1016/j.ceramint.2021.04.177"
+          confidence: literature
+        platen_rpm:
+          value: 60
+          unit: rpm
+          source: "https://doi.org/10.1016/j.ceramint.2021.04.177"
+          confidence: literature
+        sample:
+          value: "tetragonal zirconia ceramic wafer, 50 x 50 mm, ~1.2 mm thick"
+          unit: null
+          source: "https://doi.org/10.1016/j.ceramint.2021.04.177"
+          confidence: literature
+        control_result:
+          value: "MRR negligible with water only (acidic, alkaline or neutral) and very low with ethanol as solvent - abrasive is required"
+          unit: null
+          source: "https://doi.org/10.1016/j.ceramint.2021.04.177"
+          confidence: literature
+
+  films_with_no_zirconia_data:
+    note: >
+      Explicit negative result after the corpus scan and web search. NO
+      zirconia-abrasive removal-rate data of any kind was found for: sic,
+      sapphire, poly_si, si (bulk), glass, hard-disk (NiP) substrate, snag. For
+      sic and sapphire the abrasive-hardness literature discusses alumina, SiC,
+      diamond and ceria composites and simply does not include zirconia. Do not
+      fabricate a zirconia entry for these films; use the hardness-ratio
+      fallback and label it as such.
+
+  # -------------------------------------------------------------------
+  # 5. EXPONENTS
+  # -------------------------------------------------------------------
+  conc_exponent:
+    value: null
+    unit: dimensionless
+    source: null
+    confidence: unverified
+    note: >
+      TODO(owner): NO published concentration series exists for zirconia AS THE
+      ABRASIVE. Both ZrO2 W-CMP papers deliberately FIX the abrasive at 1.2 wt%
+      (Seo 2020) or 1.0 wt% (Kim 2021) and sweep the catalyst / scavenger
+      instead. The 30 wt% saturation knee in 10.1016/j.ceramint.2021.04.177 is
+      for SILICA abrasive on a ZIRCONIA WORKPIECE and must not be transferred -
+      that is exactly the cross_abrasive_transfer error the main knowledge base
+      forbids. Options that ARE defensible: (a) leave null and refuse to predict
+      a concentration response for ZrO2; (b) use the generic
+      global_models.concentration_dependence regime switch and flag the output
+      as unanchored.
+
+  size_exponent:
+    value: null
+    unit: dimensionless
+    source: null
+    confidence: unverified
+    note: >
+      TODO(owner): no size series. The only two sizes in the literature (23 nm
+      at 1.2 wt% / 6 psi and 40 nm at ~0.5 wt% / 3 psi on W) differ in THREE
+      variables at once, so no exponent can be extracted - the naive reading
+      (40 nm gives 110.1 vs 23 nm gives 98.7 nm/min, i.e. bigger is faster) is
+      confounded by pressure and loading moving the opposite way. Do NOT fit it.
+      Also note the 23 nm primary sits inside a ~114 nm secondary, so the
+      mechanically active size is ambiguous.
+
+  pressure_exponent:
+    value: null
+    unit: dimensionless
+    source: null
+    confidence: unverified
+    note: >
+      TODO(owner): not measurable from the available ZrO2 data (see
+      film_anchors.kim2021 cross_check_note - higher rate at lower pressure
+      across studies). Preston exponent 1 IS sourced for the inverse pair
+      (silica abrasive on zirconia workpiece,
+      10.1016/j.ceramint.2021.04.177) and must not be transferred.
+
+  # -------------------------------------------------------------------
+  # 6. COMPARATIVE STUDIES (same tool, same recipe) -> RELATIVE RATE FACTOR
+  # -------------------------------------------------------------------
+  comparative_studies:
+
+    - id: us5575885_four_abrasive_cu_comparison
+      status: >
+        STRONGEST comparative anchor found. Same tool, same pad, same load, same
+        chemistry, four abrasives + a no-abrasive control.
+      source: "US5575885"
+      confidence: literature
+      film: cu
+      fixed_conditions: "0.1 wt% aminoacetic acid + 13 wt% H2O2; ~9 wt% abrasive; SUBA800 pad; 400 g/cm2 (5.69 psi); 100 rpm counter-rotation; 12.5 mL/min"
+      rates_nm_per_min:
+        alumina:
+          value: 98.5
+          unit: nm/min
+          source: "US5575885"
+          confidence: literature
+          note: "740 nm mean grain size"
+        colloidal_silica:
+          value: 35.3
+          unit: nm/min
+          source: "US5575885"
+          confidence: literature
+          note: "30 nm mean grain size"
+        ceria:
+          value: 31.1
+          unit: nm/min
+          source: "US5575885"
+          confidence: literature
+          note: "1300 nm mean grain size"
+        zirconia:
+          value: 22.1
+          unit: nm/min
+          source: "US5575885"
+          confidence: literature
+          note: "1100 nm mean grain size"
+        none:
+          value: 10.0
+          unit: nm/min
+          source: "US5575885"
+          confidence: literature
+          note: >
+            abrasive-free control - so ~45% of the zirconia 'rate' is pure
+            chemistry.
+      relative_rate_factor_vs_silica:
+        alumina:
+          value: 2.79
+          unit: dimensionless
+          source: "US5575885"
+          confidence: derived
+          note: "98.5/35.3"
+        colloidal_silica:
+          value: 1.00
+          unit: dimensionless
+          source: "US5575885"
+          confidence: derived
+          note: "reference"
+        ceria:
+          value: 0.88
+          unit: dimensionless
+          source: "US5575885"
+          confidence: derived
+          note: "31.1/35.3"
+        zirconia:
+          value: 0.63
+          unit: dimensionless
+          source: "US5575885"
+          confidence: derived
+          note: >
+            22.1/35.3 - on Cu, zirconia is the SLOWEST of the four abrasives
+            tested.
+      abrasive_attributable_factor_vs_silica:
+        method: "(rate_abrasive - rate_none) / (rate_silica - rate_none), i.e. subtract the 10.0 nm/min chemical floor first"
+        alumina:
+          value: 3.50
+          unit: dimensionless
+          source: "US5575885"
+          confidence: derived
+          note: "88.5/25.3"
+        colloidal_silica:
+          value: 1.00
+          unit: dimensionless
+          source: "US5575885"
+          confidence: derived
+        ceria:
+          value: 0.83
+          unit: dimensionless
+          source: "US5575885"
+          confidence: derived
+          note: "21.1/25.3"
+        zirconia:
+          value: 0.48
+          unit: dimensionless
+          source: "US5575885"
+          confidence: derived
+          note: >
+            12.1/25.3 - zirconia contributes less than half of silica's
+            mechanical increment on Cu.
+      hard_caveat: >
+        THE PARTICLE SIZES ARE NOT MATCHED: silica 30 nm vs zirconia 1100 nm vs
+        alumina 740 nm vs ceria 1300 nm. At equal mass loading (~9 wt%) the
+        30 nm silica has a vastly larger particle NUMBER and total surface area
+        than the 1100 nm zirconia. So this comparison conflates abrasive
+        CHEMISTRY with abrasive SIZE and the ordering cannot be read as a pure
+        hardness ranking. Note the internal evidence for that: alumina (740 nm)
+        beats silica (30 nm) anyway, while ceria (1300 nm) loses to silica -
+        consistent with hardness mattering on a metal and with size penalising
+        the coarse powders. Use these factors as a ROUGH prior for Cu only, and
+        label any simulator output that leans on them.
+
+    - id: seo2020_zro2_vs_silica_hardness_rationale
+      status: "Design-rationale comparison, not a head-to-head rate measurement."
+      source: "https://doi.org/10.1149/2162-8777/ab915c"
+      confidence: literature
+      claim: >
+        The stated reason for choosing ZrO2 over colloidal silica in W CMP is
+        hardness: crystalline ZrO2 (Mohs 8.0) is harder than amorphous colloidal
+        SiO2 (Mohs 6.0-7.0), while the W film is Mohs 7.5 and the WO3 layer it
+        must cut is Mohs 5.0-7.0. So ZrO2 is the only one of the two that is
+        reliably harder than BOTH the oxidised layer and the metal.
+      what_is_missing: >
+        TODO(owner): the paper does not run a silica control on the same tool,
+        so no ZrO2:silica rate ratio on W can be extracted. That is the single
+        most valuable missing measurement for this abrasive.
+
+    - id: srinivasan2015_nitride_selectivity_table
+      status: "Cross-abrasive comparison of REVERSE SELECTIVITY, compiled in one table by one review."
+      source: "https://doi.org/10.1149/2.0071511jss"
+      confidence: literature
+      film_pair: "Si3N4 / SiO2"
+      values:
+        zirconia_no_additive:
+          value: 78
+          unit: dimensionless
+          source: "https://doi.org/10.1149/2.0071511jss"
+          confidence: literature
+          note: "pH 4, NO additive"
+        silica_with_arginine:
+          value: 7
+          unit: dimensionless
+          source: "https://doi.org/10.1149/2.0071511jss"
+          confidence: literature
+          note: "2 wt% arginine in 10 wt% silica, pH 8"
+        ceria_with_cationic_polymers:
+          value: [4, 200]
+          unit: dimensionless
+          source: "https://doi.org/10.1149/2.0071511jss"
+          confidence: literature
+          note: "range across PEI, pDADMAC, PVP, PAD systems, pH 3.5-4.9"
+        phosphate_functionalised_silica:
+          value: [10, 30]
+          unit: dimensionless
+          source: "https://doi.org/10.1149/2.0071511jss"
+          confidence: literature
+          note: "pH 3-7, no additive"
+      reading: >
+        Zirconia is the best ADDITIVE-FREE reverse-selective abrasive in the
+        table by a wide margin. This is the one film where zirconia has a
+        genuine, documented competitive advantage over silica and ceria.
+      caveat: >
+        Selectivities only - the underlying absolute rates are in a non-open
+        conference paper. Different tools per row; the review does not normalise.
+
+    - id: park2008_mas_vs_dss
+      status: "Within-paper comparison: diluted silica slurry with vs without added ZrO2."
+      source: "https://doi.org/10.1016/j.mee.2007.12.049"
+      confidence: literature
+      film: oxide
+      values:
+        diluted_silica_alone_nm_min:
+          value: 149
+          unit: nm/min
+          source: "https://doi.org/10.1016/j.mee.2007.12.049"
+          confidence: literature
+        with_1wt_pct_zro2_nm_min:
+          value: 204
+          unit: nm/min
+          source: "https://doi.org/10.1016/j.mee.2007.12.049"
+          confidence: literature
+        gain_pct:
+          value: 36.9
+          unit: "%"
+          source: "https://doi.org/10.1016/j.mee.2007.12.049"
+          confidence: derived
+          note: "(204-149)/149"
+      caveat: >
+        Mixed abrasive; the paper itself says rate 'did not show a great
+        difference' across ZrO2 content, so the 204 figure is a maximum, not a
+        trend.
+
+    - id: missing_comparisons
+      note: >
+        NOT FOUND, despite targeted searching: any study polishing blanket
+        oxide, W, Cu, SiC or sapphire with zirconia AND silica AND ceria AND
+        alumina at matched particle size, matched loading, same tool and same
+        recipe. The US5575885 table is the closest thing that exists and its
+        sizes are unmatched. Treat the absence of a size-matched cross-abrasive
+        study as the headline gap for this abrasive.
+
+  defect_character:
+    value: null
+    unit: null
+    source: null
+    confidence: unverified
+    note: >
+      TODO(owner): no scratch/defectivity study of zirconia abrasive was found.
+      Sourced adjacent facts only: (a) at the W-rate optimum the ZrO2 slurry
+      gave AFM Rq 2.0 nm / Rp-to-v 20.3 nm, improving to Rq 1.5 nm at slightly
+      higher catalyst, i.e. it can finish well
+      (https://doi.org/10.1149/2162-8777/ab915c); (b) the number of ZrO2
+      abrasives remaining adsorbed on the W surface after CMP FALLS as the
+      catalyst concentration rises, because the abrasive-film electrostatic
+      force turns repulsive - so post-CMP particle defectivity for ZrO2 is
+      chemistry-tunable (same source). Zirconia is harder than every film in the
+      CMP-Sim film list except SiC and sapphire, so scratch risk should be
+      assumed comparable to alumina until measured.
+
+# =====================================================================
+# SECOND DELIVERABLE: cross-abrasive hardness / modulus / density / IEP
+# Underpins the hardness-ratio ranking fallback used when no rate anchor exists.
+# =====================================================================
+abrasive_property_table:
+
+  usage_rule: >
+    This table is for a RELATIVE ranking fallback only. A hardness ratio
+    H_abrasive / H_film predicts whether indentation is even possible; it does
+    NOT predict a rate, because chemical-tooth abrasives (ceria, and by
+    classification zirconia) remove material faster than their hardness implies
+    while inert hard abrasives (SiC, diamond) scratch rather than polish. Never
+    rank ceria against silica on hardness alone - ceria is SOFTER than silica by
+    Mohs yet polishes oxide ~3x faster.
+  measurement_caveat: >
+    Hardness values below are a MIXTURE of Vickers, Knoop and nanoindentation on
+    BULK or SINTERED specimens. Nanoparticles are not bulk: hydrated surface
+    layers, size effects and porosity all shift the numbers (measured directly
+    for zirconia - see zirconia.polymorphs.monoclinic density entries). Treat
+    every value as an upper bound on the effective particle hardness, and never
+    compare a Knoop number to a Vickers number as if they were the same
+    quantity.
+
+  colloidal_silica:
+    material: SiO2 (amorphous)
+    hardness_gpa:
+      value: 5.12
+      unit: GPa
+      source: "https://valleydesign.com/Datasheets/Corning-Fused-Silica-7980.pdf"
+      confidence: derived
+      note: >
+        From Knoop 522 kg/mm^2 (100 g load) x 9.807e-3 GPa per kg/mm^2. KNOOP,
+        not Vickers. Colloidal nanoparticles are more hydrated than bulk fused
+        silica and are likely softer.
+    youngs_modulus_gpa:
+      value: 72.7
+      unit: GPa
+      source: "https://valleydesign.com/Datasheets/Corning-Fused-Silica-7980.pdf"
+      confidence: vendor
+      note: >
+        Corning HPFS 7980. Cross-checked: an independent indentation paper
+        tabulates SiO2 as E = 71 GPa, nu = 0.17, H = 9 GPa
+        (https://doi.org/10.3390/cryst7120369) - note their 9 GPa hardness is
+        higher than the Knoop-derived 5.12, a real method spread.
+    density_kg_m3:
+      value: 2201
+      unit: kg/m^3
+      source: "https://valleydesign.com/Datasheets/Corning-Fused-Silica-7980.pdf"
+      confidence: vendor
+    iep_ph:
+      value: 1.80
+      unit: pH
+      source: "https://doi.org/10.1039/d6ra00388e"
+      confidence: literature
+      note: >
+        Experimental PZC for SiO2. CMP vendor literature commonly quotes 2-3;
+        carry 1.8-3 as the band.
+    mohs_hardness:
+      value: [6.0, 7.0]
+      unit: Mohs
+      source: "https://doi.org/10.1149/2162-8777/ab915c"
+      confidence: literature
+      note: >
+        Colloidal AMORPHOUS SiO2 quoted as Mohs 6.0-7.0 in the ZrO2 W-CMP paper,
+        for direct comparison with ZrO2 at 8.0.
+
+  fumed_silica:
+    material: SiO2 (pyrogenic, fused aggregates)
+    hardness_gpa:
+      value: 5.12
+      unit: GPa
+      source: "https://valleydesign.com/Datasheets/Corning-Fused-Silica-7980.pdf"
+      confidence: derived
+      note: >
+        Same amorphous-SiO2 skeletal value (Knoop 522 kg/mm^2). Separately
+        sourced: fumed AGGREGATES behave as HARDER contacts than polymer-core
+        composites (https://doi.org/10.1149/1.2901864) because load concentrates
+        on a few protruding primaries - effective contact stress, not material
+        hardness, is what differs.
+    youngs_modulus_gpa:
+      value: 72.7
+      unit: GPa
+      source: "https://valleydesign.com/Datasheets/Corning-Fused-Silica-7980.pdf"
+      confidence: vendor
+    density_kg_m3:
+      value: 2201
+      unit: kg/m^3
+      source: "https://valleydesign.com/Datasheets/Corning-Fused-Silica-7980.pdf"
+      confidence: vendor
+      note: >
+        SKELETAL density. An aggregate's effective density is lower because of
+        internal voids - do not use this for settling or for aggregate number
+        density.
+    iep_ph:
+      value: 1.80
+      unit: pH
+      source: "https://doi.org/10.1039/d6ra00388e"
+      confidence: literature
+
+  ceria:
+    material: CeO2
+    hardness_gpa:
+      value: 6.44
+      unit: GPa
+      source: "https://doi.org/10.3390/ma19102134"
+      confidence: literature
+      note: >
+        Room-temperature nanoindentation, 6.44 +/- 0.72 GPa, dense sintered
+        CeO2 (falls to 5.08 GPa at 400 C).
+    youngs_modulus_gpa:
+      value: 167.6
+      unit: GPa
+      source: "https://doi.org/10.3390/ma19102134"
+      confidence: literature
+      note: >
+        167.6 +/- 12.5 GPa by nanoindentation. Independent fully-dense
+        measurements give 213 +/- 6 GPa (nanoindentation) and 207 GPa (resonant
+        ultrasound) - https://www.osti.gov/servlets/purl/1469554. The spread is
+        porosity.
+    density_kg_m3:
+      value: 7215
+      unit: kg/m^3
+      source: "https://www.osti.gov/servlets/purl/1469554"
+      confidence: literature
+      note: >
+        Theoretical density from the measured lattice parameter of
+        stoichiometric CeO2.
+    iep_ph:
+      value: 8.0
+      unit: pH
+      source: "https://doi.org/10.5772/intechopen.75408"
+      confidence: literature
+      note: >
+        ~pH 8 (positive below, negative above). Other compilations put it
+        nearer 7.
+    ranking_warning: >
+      Ceria is SOFTER than alumina and comparable to silica, yet gives ~3x the
+      oxide rate of silica because of the Si-O-Ce chemical tooth (~24
+      abrasive-substrate collisions per SiO4 removed vs ~5e8 for silica,
+      https://doi.org/10.1021/acs.langmuir.3c00304). This single row is the
+      proof that a hardness-ratio ranking must be a FALLBACK, not a model.
+
+  alpha_alumina:
+    material: alpha-Al2O3 (corundum)
+    hardness_gpa:
+      value: 15.0
+      unit: GPa
+      source: "https://srdata.nist.gov/CeramicDataPortal/Pds/Scdaos"
+      confidence: literature
+      note: >
+        NIST SRD 150, sintered alpha-Al2O3, Vickers 1 kg load, 20 C:
+        15 +/- 2 GPa. Cross-check: an independent indentation study tabulates
+        Al2O3 as E 400 GPa / H 22 GPa (https://doi.org/10.3390/cryst7120369) -
+        single-crystal vs sintered.
+    youngs_modulus_gpa:
+      value: 416
+      unit: GPa
+      source: "https://srdata.nist.gov/CeramicDataPortal/Pds/Scdaos"
+      confidence: literature
+      note: >
+        416 +/- 30 GPa at 20 C. Poisson 0.231, K_Ic 3.5 MPa*m^0.5 from the same
+        source.
+    density_kg_m3:
+      value: 3984
+      unit: kg/m^3
+      source: "https://srdata.nist.gov/CeramicDataPortal/Pds/Scdaos"
+      confidence: literature
+      note: >
+        3.984 +/- 0.002 g/cm3 at 20 C (Munro, J. Am. Ceram. Soc. 80:1919, 1997).
+    iep_ph:
+      value: 9.5
+      unit: pH
+      source: "https://doi.org/10.1016/j.mtcomm.2024.109962"
+      confidence: literature
+      note: >
+        Zero zeta potential of washed alpha-Al2O3 at pH ~9.5; unwashed commonly
+        8.5-9. Anionic additives shift it down.
+
+  gamma_alumina:
+    material: gamma-Al2O3 (defect-spinel transition alumina)
+    hardness_gpa:
+      value: 0.433
+      unit: GPa
+      source: "https://doi.org/10.1007/s42452-023-05388-7"
+      confidence: literature
+      note: >
+        Nanoindentation (Berkovich, 200-400 uN) on GRANULAR gamma-alumina:
+        0.433 GPa, i.e. ~35x SOFTER than alpha-Al2O3's 15 GPa. The same study
+        reports a plasticity index of 0.83 (highly plastic, deforms without
+        fracturing). CAVEAT: the specimen is a 1.7 mm granule built from ~17 nm
+        nanoparticles, so this measures a POROUS GRANULE, not the intrinsic
+        gamma-Al2O3 lattice - the true single-crystal gamma hardness is higher.
+        It is nonetheless the right number for a porous transition-alumina
+        agglomerate, and it confirms the qualitative rule that gamma must never
+        inherit alpha's numbers.
+    youngs_modulus_gpa:
+      value: 12.6
+      unit: GPa
+      source: "https://doi.org/10.1007/s42452-023-05388-7"
+      confidence: literature
+      note: >
+        12.6 GPa from the same nanoindentation set - ~33x lower than alpha's
+        416 GPa. Same porous-granule caveat. Both H and E vary NON-monotonically
+        with load over 200-400 uN.
+    density_kg_m3:
+      value: null
+      unit: kg/m^3
+      source: null
+      confidence: unverified
+      note: >
+        TODO(owner): not verified. It is lower than alpha's 3984 kg/m^3 and, for
+        a granule, lower again because of porosity. Do not reuse the alpha value.
+    iep_ph:
+      value: 7.5
+      unit: pH
+      source: "https://doi.org/10.1039/d6ra00388e"
+      confidence: literature
+      note: >
+        PROXY: experimental PZC of gamma-AlO(OH) (boehmite, the hydrated
+        gamma-route surface) is pH 7.5 (alpha-AlO(OH) is 7.7). This is the
+        OXYHYDROXIDE, not anhydrous gamma-Al2O3. Flagged as a substitution, not
+        a measurement of gamma-Al2O3.
+
+  zirconia:
+    material: ZrO2
+    polymorph_note: >
+      SEE zirconia.polymorphs above - these single cells are lossy by
+      construction. The CMP abrasive is MONOCLINIC; the well-measured hardness
+      is TETRAGONAL.
+    hardness_gpa:
+      value: 14.4
+      unit: GPa
+      source: "https://www.mdpi.com/2571-6131/3/1/7"
+      confidence: literature
+      note: >
+        Vickers 14.4 +/- 0.3 GPa for monolithic TETRAGONAL 3Y-TZP at 99% of
+        theoretical density. Use for ranking with an explicit label. For higher
+        yttria (4Y/5Y) it is 12.2-12.9 GPa
+        (https://pmc.ncbi.nlm.nih.gov/articles/PMC12299099/). The MONOCLINIC
+        hardness - the phase actually used as the abrasive - is NOT sourced.
+        Ordinal placement for monoclinic IS sourced: Mohs 8.0, above SiO2 (6-7)
+        and W (7.5), below alpha-Al2O3.
+    youngs_modulus_gpa:
+      value: 199
+      unit: GPa
+      source: "https://www.mdpi.com/2571-6131/3/1/7"
+      confidence: literature
+      note: >
+        199 +/- 4 GPa measured on 3Y-TZP; independent pellet ~220 GPa
+        (https://www.mdpi.com/2079-4991/10/11/2097); DFT-derived monoclinic
+        value 217 GPa (see zirconia.polymorphs.monoclinic). All three land in
+        199-220 GPa, so the modulus is robust across polymorph even though
+        hardness is not.
+    density_kg_m3:
+      value: 5680
+      unit: kg/m^3
+      source: "https://doi.org/10.3762/bjnano.6.4"
+      confidence: literature
+      note: >
+        Bulk MONOCLINIC. For CMP-sized particles use the measured size-dependent
+        values 5220-5870 kg/m^3 (11-72 nm) from the same source - at 23-40 nm
+        the true density is near 5.3-5.5 g/cm3 because of the Zr(OH)x surface
+        layer.
+    iep_ph:
+      value: 8.96
+      unit: pH
+      source: "https://doi.org/10.1186/s11671-015-1130-x"
+      confidence: literature
+      note: >
+        MEASURED (electroacoustic, ESA) on dispersant-free nano-ZrO2. Modelled
+        PZC is 10.0-11.0 (https://doi.org/10.1039/d6ra00388e); a polycarboxylate
+        dispersant drops the measured IEP to 3.6-4.8. Carry the dispersant state
+        with the number or it is meaningless.
+
+  titania:
+    material: TiO2
+    polymorph_note: >
+      Rutile and anatase differ substantially. Specify the polymorph or the row
+      is meaningless.
+    hardness_gpa:
+      value: null
+      unit: GPa
+      source: null
+      confidence: unverified
+      note: >
+        TODO(owner): no clean STOICHIOMETRIC rutile or anatase indentation
+        hardness in GPa was obtained. What IS sourced: Vickers microhardness of
+        H2-reduced single-crystal rutile (110) peaks at 1500 kg/mm^2 at 25 C for
+        an O/Ti ratio of 1.85 (= 14.71 GPa by the paper's own conversion
+        1 kg/mm^2 = 9.807 MPa), falling to 1100 kg/mm^2 at 500 C
+        (https://ntrs.nasa.gov/api/citations/19930017015/downloads/19930017015.pdf).
+        That value is for a REDUCED, sub-stoichiometric crystal - stoichiometric
+        rutile is plotted lower in their Fig. 3 but no stoichiometric number is
+        tabulated, only graphed. Do not promote 14.71 GPa as 'TiO2 hardness'.
+    hardness_reduced_rutile_25c_gpa:
+      value: 14.71
+      unit: GPa
+      source: "https://ntrs.nasa.gov/api/citations/19930017015/downloads/19930017015.pdf"
+      confidence: derived
+      note: >
+        1500 kg/mm^2 x 9.807e-3 = 14.71 GPa. Vickers, (110) face, H2-reduced
+        single crystal at O/Ti = 1.85, 25 C. Reported separately from
+        hardness_gpa on purpose: the stoichiometry is non-standard.
+    youngs_modulus_gpa:
+      value: null
+      unit: GPa
+      source: null
+      confidence: unverified
+      note: >
+        TODO(owner): not verified. Only BULK modulus was obtained, from DFT:
+        222.5 GPa (rutile) and 198.5 GPa (anatase), via the Birch-Murnaghan
+        equation of state (https://etasr.com/index.php/ETASR/article/view/8393).
+        Converting B to E needs the shear modulus, which that paper does not
+        report, so no Young's modulus is derivable. Do not guess.
+    bulk_modulus_rutile_gpa:
+      value: 222.5
+      unit: GPa
+      source: "https://etasr.com/index.php/ETASR/article/view/8393"
+      confidence: literature
+    bulk_modulus_anatase_gpa:
+      value: 198.5
+      unit: GPa
+      source: "https://etasr.com/index.php/ETASR/article/view/8393"
+      confidence: literature
+    density_kg_m3:
+      value: null
+      unit: kg/m^3
+      source: null
+      confidence: unverified
+      note: >
+        TODO(owner): not verified from a primary source in this pass. Rutile and
+        anatase differ (commonly quoted ~4.25 vs ~3.9 g/cm3) and no source that
+        was actually opened stated either value, so both are left null rather
+        than quoted from memory.
+    iep_ph:
+      value: 6.0
+      unit: pH
+      source: "https://doi.org/10.1039/d4en00332b"
+      confidence: literature
+      note: >
+        TiO2 nanoparticle pH_IEP spans 5-7 depending on electrolyte and particle
+        properties; pristine TiO2 aggregates fastest near pH 6.5. Carry the 5-7
+        range, not the point.
+    iep_ph_range:
+      value: [5, 7]
+      unit: pH
+      source: "https://doi.org/10.1039/d4en00332b"
+      confidence: literature
+
+  silicon_carbide:
+    material: SiC (as the abrasive)
+    hardness_gpa:
+      value: 32
+      unit: GPa
+      source: "https://srdata.nist.gov/CeramicDataPortal/Pds/Scdscs"
+      confidence: literature
+      note: >
+        NIST SRD 150, sintered alpha-SiC, Vickers 1 kg load, 20 C: 32 GPa
+        (+/-15%). Harder than alumina - extreme scratch risk on every film in
+        the CMP-Sim list.
+    youngs_modulus_gpa:
+      value: 415
+      unit: GPa
+      source: "https://srdata.nist.gov/CeramicDataPortal/Pds/Scdscs"
+      confidence: literature
+      note: "Poisson 0.16, K_Ic 3.1 MPa*m^0.5 from the same source."
+    density_kg_m3:
+      value: 3160
+      unit: kg/m^3
+      source: "https://srdata.nist.gov/CeramicDataPortal/Pds/Scdscs"
+      confidence: literature
+      note: "3.16 g/cm3 (+/-1%), sintered alpha-SiC at 20 C."
+    iep_ph:
+      value: 3.8
+      unit: pH
+      source: "https://doi.org/10.3390/ma17010056"
+      confidence: literature
+      note: >
+        IEP 3.8 for unmodified SiC powder. Below pH 6 the surface charge is too
+        low to prevent van der Waals agglomeration.
+
+  diamond:
+    material: C (sp3)
+    hardness_gpa:
+      value: 79.7
+      unit: GPa
+      source: "https://doi.org/10.3390/cryst7120369"
+      confidence: literature
+      note: >
+        Vickers HV = 79.7 GPa, (111) face of type-Ib synthetic single-crystal
+        diamond at 4.91 N, with the indent contact area measured by AFM and
+        corrected for elastic deformation of the indenter and for the concave
+        indent shape. Meyer hardness HM = 81.7 GPa on the same indent. The
+        authors note that earlier optical-microscopy values of 100-115 GPa for
+        (001)/(111) diamond are likely too high because the concave shape was
+        not accounted for; a separate critical review puts the highest Knoop
+        values for type-IIa at ~130-145 GPa. So 'diamond hardness' is
+        method-dependent over 80-145 GPa - use 79.7 with the method stated.
+    hardness_mohs:
+      value: 10
+      unit: Mohs
+      source: "http://www.ioffe.ru/SVA/NSM/Semicond/Diamond/mechanic.html"
+      confidence: literature
+    youngs_modulus_gpa:
+      value: 1136
+      unit: GPa
+      source: "https://doi.org/10.3390/cryst7120369"
+      confidence: literature
+      note: >
+        E = 1136 GPa with Poisson 0.07, tabulated for diamond in Table 1 of that
+        paper as the input used to correct the indenter's elastic deformation.
+        It is a QUOTED literature value in an open-access paper, not that
+        paper's own measurement - secondary. Ioffe independently gives the BULK
+        modulus as 442 GPa.
+    bulk_modulus_gpa:
+      value: 442
+      unit: GPa
+      source: "http://www.ioffe.ru/SVA/NSM/Semicond/Diamond/mechanic.html"
+      confidence: derived
+      note: "44.2e11 dyn/cm^2 x 0.1 Pa per dyn/cm^2."
+    density_kg_m3:
+      value: 3515
+      unit: kg/m^3
+      source: "http://www.ioffe.ru/SVA/NSM/Semicond/Diamond/mechanic.html"
+      confidence: literature
+    iep_ph:
+      value: null
+      unit: pH
+      source: null
+      confidence: unverified
+      note: >
+        TODO(owner): nanodiamond surface charge is set by surface TERMINATION
+        (carboxyl vs hydrogen vs hydroxyl), not by a bulk oxide IEP, so a single
+        IEP is not a property of the material. Measure per product lot.
+
+  organic_polymer:
+    material: "polystyrene (PS) / poly(methyl methacrylate) (PMMA), optionally shelled with SiO2 or CeO2"
+    hardness_gpa:
+      value: 0.41
+      unit: GPa
+      source: "https://bangslabs.com/technical-library/material-properties-of-polystyrene-and-polymethyl-methacrylate-pmma-microspheres/"
+      confidence: vendor
+      note: >
+        0.41 GPa for PMMA, from the Bangs Laboratories microsphere property
+        compilation, which attributes it to Bhushan & Burton, Nanotechnology 16
+        (2005) 467-478. The same compilation lists PS hardness as 'n/a' - no PS
+        hardness was found. ~12x softer than colloidal silica: this is the whole
+        point of a compliant abrasive. Retrieved via Wayback snapshot 2025-11-27.
+    hardness_ps_gpa:
+      value: null
+      unit: GPa
+      source: null
+      confidence: unverified
+      note: >
+        TODO(owner): polystyrene hardness explicitly listed as 'n/a' in the
+        source compilation. Also note the core's mechanical properties are
+        TUNABLE by synthesis (crosslink density), so a single value would be
+        wrong anyway (https://doi.org/10.1149/1.2949085).
+    youngs_modulus_gpa:
+      value: 3.3
+      unit: GPa
+      source: "https://bangslabs.com/technical-library/material-properties-of-polystyrene-and-polymethyl-methacrylate-pmma-microspheres/"
+      confidence: vendor
+      note: >
+        PS tensile modulus 3200-3400 MPa (unoriented) -> 3.3 GPa midpoint; the
+        same table gives PS shear modulus 700-800 MPa and Poisson 0.325-0.33.
+        PMMA is quoted inconsistently in the same table as 5.0 GPa (Bhushan &
+        Burton) and 1800-3100 MPa (IDEMAT) - carry PMMA as a range, not a point.
+        Compiled from Polymer Handbook 2nd ed. and other secondary sources, so
+        vendor-compilation confidence, not primary.
+    youngs_modulus_ps_range_gpa:
+      value: [3.0, 3.5]
+      unit: GPa
+      source: "https://bangslabs.com/technical-library/material-properties-of-polystyrene-and-polymethyl-methacrylate-pmma-microspheres/"
+      confidence: vendor
+    youngs_modulus_pmma_range_gpa:
+      value: [1.8, 5.0]
+      unit: GPa
+      source: "https://bangslabs.com/technical-library/material-properties-of-polystyrene-and-polymethyl-methacrylate-pmma-microspheres/"
+      confidence: vendor
+      note: >
+        Genuine disagreement between the two cited secondary sources; do not
+        average them silently.
+    density_kg_m3:
+      value: 1050
+      unit: kg/m^3
+      source: "https://bangslabs.com/technical-library/material-properties-of-polystyrene-and-polymethyl-methacrylate-pmma-microspheres/"
+      confidence: vendor
+      note: >
+        Amorphous PS 1.04-1.065 g/cm3; PMMA 1.188 g/cm3 at 25 C (1.190 at 20 C,
+        1.195 at 0 C) from the same table. ~2x lighter than silica and ~5x
+        lighter than zirconia, so at equal wt% a polymer slurry has far more
+        particles.
+    density_pmma_kg_m3:
+      value: 1188
+      unit: kg/m^3
+      source: "https://bangslabs.com/technical-library/material-properties-of-polystyrene-and-polymethyl-methacrylate-pmma-microspheres/"
+      confidence: vendor
+    iep_ph:
+      value: null
+      unit: pH
+      source: null
+      confidence: unverified
+      note: >
+        TODO(owner): set by the SHELL or by surface functionalisation (sulfate,
+        carboxyl, amine), not by the polymer bulk. If shelled with SiO2 inherit
+        silica's IEP; if shelled with CeO2 inherit ceria's. A bare-polymer IEP
+        is not a meaningful CMP input.
+
+  ranking_summary:
+    hardness_order_as_sourced: >
+      diamond 79.7 (Vickers, AFM-corrected) > SiC 32 > alpha-Al2O3 15 >
+      TiO2 (reduced rutile) 14.7 ~ ZrO2 (3Y-TZP) 14.4 > YSZ (4Y/5Y) 12.2-12.9 >
+      CeO2 6.44 > SiO2 5.12 (Knoop) > gamma-Al2O3 granule 0.433 > PMMA 0.41 ;
+      PS, stoichiometric TiO2 and monoclinic ZrO2 unmeasured.
+    modulus_order_as_sourced: >
+      diamond ~1136 (secondary) > alpha-Al2O3 416 ~ SiC 415 > ZrO2 199-220 >
+      CeO2 167.6-213 > SiO2 72.7 > gamma-Al2O3 granule 12.6 > PS ~3.3 ;
+      TiO2 Young's modulus unknown (bulk modulus only).
+    method_mixing_warning: >
+      The hardness order above mixes Vickers (Al2O3, SiC, ZrO2, TiO2, diamond),
+      Knoop (SiO2), and nanoindentation (CeO2, gamma-Al2O3). HV, HK and
+      nanoindentation H are NOT interchangeable - the same silica appears as
+      5.12 GPa (Knoop 522) and as 9 GPa in an indentation-mechanics table
+      (https://doi.org/10.3390/cryst7120369), a factor of 1.8. Any ratio built
+      across methods carries at least that much uncertainty, so use the ORDER,
+      not the ratio magnitude, and never let a hardness-ratio fallback outrank a
+      measured anchor.
+    cell_count:
+      core_fields: "hardness_gpa, youngs_modulus_gpa, density_kg_m3, iep_ph"
+      abrasives: 10
+      total_core_cells: 40
+      sourced_cells: 34
+      null_cells: 6
+      null_cell_list:
+        - "gamma_alumina.density_kg_m3"
+        - "titania.hardness_gpa (stoichiometric; a reduced-rutile value IS sourced separately)"
+        - "titania.youngs_modulus_gpa (bulk modulus only)"
+        - "titania.density_kg_m3"
+        - "diamond.iep_ph (not a material property - termination-dependent)"
+        - "organic_polymer.iep_ph (shell-determined, not a polymer property)"
+      note: >
+        Of the 6 nulls, 2 (diamond IEP, polymer IEP) are nulls of PRINCIPLE -
+        the quantity is not a property of the material - and 4 are genuine
+        literature gaps, all of them in titania plus gamma-alumina density.
+
+# =====================================================================
+gaps:
+
+  - id: G1
+    severity: critical
+    gap: "No monoclinic-ZrO2 indentation hardness in GPa."
+    why_it_matters: >
+      The published CMP abrasive is monoclinic; the only GPa hardness values are
+      for sintered tetragonal / stabilised ceramics. Any hardness-ratio model
+      for ZrO2 currently mixes phases.
+    what_would_close_it: >
+      Nanoindentation on a consolidated monoclinic ZrO2 compact, or on the
+      abrasive powder itself; failing that, a published m-ZrO2 nanoindentation
+      study.
+
+  - id: G2
+    severity: critical
+    gap: >
+      No size-matched head-to-head comparison of zirconia against silica /
+      ceria / alumina on the same tool and recipe.
+    why_it_matters: >
+      This is the single measurement that would give a defensible RELATIVE rate
+      factor for zirconia. The best available (US5575885, Cu) has abrasive sizes
+      spanning 30-1300 nm, which confounds chemistry with size and surface area.
+    what_would_close_it: >
+      One in-house DOE: blanket W and blanket oxide, 4 abrasives at matched D50
+      and matched wt%, one pad, one pressure, one velocity.
+
+  - id: G3
+    severity: high
+    gap: >
+      No concentration series and no size series for zirconia as the abrasive -
+      conc_exponent and size_exponent are both null.
+    why_it_matters: >
+      Both published ZrO2/W papers FIX the abrasive loading and sweep the Fenton
+      chemistry instead, so the simulator has no anchored concentration response
+      for this abrasive. The 30 wt% saturation knee that does exist is for
+      silica-on-zirconia and is forbidden to transfer.
+    what_would_close_it: >
+      A 4-5 point wt% sweep at fixed chemistry, plus a 3-point D50 sweep at
+      fixed total surface area.
+
+  - id: G4
+    severity: high
+    gap: >
+      The ZrO2/W rate is chemistry-limited, so the two available W anchors
+      cannot be reconciled by Preston scaling (110.1 nm/min at 3 psi / ~0.5 wt%
+      vs 98.7 nm/min at 6 psi / 1.2 wt%).
+    why_it_matters: >
+      Fitting a pressure or concentration exponent across those two papers would
+      produce a wrong sign. The Fenton catalyst, not the abrasive, is the
+      rate-setting variable.
+    what_would_close_it: >
+      Hold the catalyst and oxidizer fixed and sweep pressure alone on one tool.
+
+  - id: G5
+    severity: medium
+    gap: "No vendor datasheet D50 / PSD for a CMP-grade zirconia slurry."
+    why_it_matters: >
+      typical_d50_nm is null. Only two research sizes (23 and 40 nm primary,
+      ~114 nm secondary) are available, both from one group.
+    blocked_by: >
+      Saint-Gobain's zirconia CMP particle page is behind a Cloudflare browser
+      check with no Wayback copy; the SEMITECH zirconia CMP slurry page likewise
+      has no archive copy. A live browser session or a direct vendor request is
+      needed.
+
+  - id: G6
+    severity: medium
+    gap: >
+      Absolute nitride and oxide rates behind the reverse-selectivity figure of
+      78 are unobtainable.
+    why_it_matters: >
+      Selectivity 78 at pH 4 with no additive is zirconia's strongest published
+      advantage, but with no absolute rate it cannot be turned into a simulator
+      anchor.
+    blocked_by: >
+      Natarajan, Dandu & Babu, Int. Conf. Planarization/CMP Tech. (2007) p.1 -
+      conference proceedings, not open access, no archive copy.
+
+  - id: G7
+    severity: medium
+    gap: >
+      Zirconia IEP is reported over pH 3.6 to 11 depending on dispersant and on
+      whether the surface is a powder or a polished stabilised ceramic.
+    why_it_matters: >
+      An electrostatics model keyed on a single ZrO2 IEP will be wrong by up to
+      7 pH units. Sourced values: 10.0-11.0 modelled PZC; 8.96 measured
+      dispersant-free; 4.83 and 3.61 with 1.0 and 1.4 mass% polycarboxylate;
+      pH 6 inferred for the polished ceramic SURFACE. All four are cited above.
+    what_would_close_it: >
+      Measure zeta vs pH on YOUR dispersed slurry. Treat IEP as a formulation
+      output, not a material constant.
+
+  - id: G8
+    severity: medium
+    gap: >
+      Titania is the weakest row in the property table: hardness
+      (stoichiometric), Young's modulus and density are all null.
+    why_it_matters: >
+      3 of the 6 null core cells are titania. The hardness-ratio fallback cannot
+      rank TiO2 at all.
+    what_would_close_it: >
+      A single open nanoindentation study on dense stoichiometric rutile and on
+      anatase, plus an XRD-derived density for each polymorph.
+
+  - id: G9
+    severity: low
+    gap: >
+      gamma-Al2O3 density unknown; its hardness/modulus come from a porous
+      1.7 mm granule, not the lattice.
+    why_it_matters: >
+      0.433 GPa / 12.6 GPa are right for a porous transition-alumina agglomerate
+      but will understate a dense gamma particle.
+    what_would_close_it: >
+      Nanoindentation on a dense gamma-Al2O3 film, plus a measured skeletal
+      density.
+
+  - id: G10
+    severity: low
+    gap: "No defectivity or scratch study of zirconia abrasive on any film."
+    why_it_matters: >
+      ZrO2 at 14.4 GPa (tetragonal) is harder than W, WO3, Cu, SiO2 and Si3N4,
+      so scratch risk should be assumed alumina-like, but that is engineering
+      judgement, not data.
+    what_would_close_it: >
+      LPC and post-CMP defect counts on blanket W and oxide against a silica
+      control.
+
+  - id: G11
+    severity: low
+    gap: >
+      Park 2008 ZrO2-MAS process conditions (pressure, velocity, pad, PSD) not
+      obtained.
+    why_it_matters: >
+      The 149 -> 204 nm/min oxide gain is the only ZrO2 oxide-rate datapoint
+      outside the Hanyang W papers, and it cannot be placed in the engine
+      without its process point.
+    blocked_by: >
+      Elsevier paywall; only the abstract and section snippets were recoverable
+      from a Wayback snapshot of the landing page.
+
+# =====================================================================
+key_sources:
+  - "https://doi.org/10.1149/2162-8777/ab915c  # Seo et al., ECS JSS 9:054001 (2020) - PRIMARY. 23 nm monoclinic colloidal ZrO2 on W; W 55->987->300 A/min vs K3Fe(C2O4)3; SiO2 448->91 A/min; 6 psi, 70/70 rpm, IC1000/SubaIV, pH 2.3, 1.2 wt%, H2O2 1.5 wt%; zeta +5.09 mV; Mohs ranking ZrO2 8.0 > W 7.5 > SiO2 6-7 > WO3 5-7"
+  - "https://pmc.ncbi.nlm.nih.gov/articles/PMC8706925/  # Kim et al., Nanomaterials 11:3296 (2021) - PRIMARY. 40 nm monoclinic ZrO2 on W, 3 psi, 87/93 rpm, pH 2, Fe(NO3)3 0.15 wt%; W 110.1 -> 17.8 nm/min vs scavenger; SiO2 peak 44.3 nm/min; ZrO2 zeta +5.5 -> -13.5 mV; H2O2 pot lifetime 47 -> 1401 h"
+  - "US5575885  # Hirabayashi et al. (Toshiba, 1996) - PRIMARY. Cu rates at ~9 wt%, 400 g/cm2 (5.69 psi), 100 rpm, SUBA800, glycine/H2O2: alumina 98.5, silica 35.3, ceria 31.1, ZIRCONIA 22.1, none 10.0 nm/min. Local copy: fab-sim/papers/hirabayashi1996-us5575885-cu-polishing-aminoacetic-acid.pdf"
+  - "https://doi.org/10.1149/2.0071511jss  # Srinivasan, Dandu & Babu, ECS JSS 4:P5029 (2015) STI CMP review - zirconia reverse selectivity 78 at pH 4 with no additive (Table II, citing Natarajan ICPT 2007); Cook's chemical-tooth classification includes zirconia. Local copy: fab-sim/papers/overpolish-dishing-jss.pdf"
+  - "https://doi.org/10.1016/j.mee.2007.12.049  # Park, Seo & Lee, Microelectron. Eng. 85:682 (2008) - ZrO2-MAS in 1:10 diluted silica, pH 11-12; TEOS oxide 149 -> 204 nm/min. Abstract+snippets only (Wayback 2023-05-29)"
+  - "https://doi.org/10.1016/j.ceramint.2021.04.177  # Dai et al., Ceram. Int. (2021) - INVERSE pair (silica on zirconia ceramic): MRR saturates >30 wt%, Preston in pressure, max at pH 6, Si-O-Zr bond by XPS, stabiliser dissolution pits. Abstract+snippets (Wayback 2026-03-27)"
+  - "https://doi.org/10.1149/1.2351957  # Prasad & Babu, JES 153:G1026 (2006) - 'high polish rates of silicon nitride are also observed with zirconium dioxide'; multiple-valency argument. Local copy: fab-sim/papers/prasad2006-jes-aminoacid-adsorption-silica-nitride-sti.pdf"
+  - "https://doi.org/10.3762/bjnano.6.4  # Opalinska et al., Beilstein J. Nanotechnol. 6:27 (2015) - size-dependent ZrO2 nanoparticle density 5.22-5.87 g/cm3 (11-72 nm) vs 5.68 bulk monoclinic; Zr(OH)x surface layer"
+  - "https://doi.org/10.2991/emim-17.2017.206  # EMIM (2017) - DFT elastic constants of m-ZrO2: B 177.27, G 83.84 GPa (E 217.3 GPa derived here)"
+  - "https://www.mdpi.com/2571-6131/3/1/7  # Diaz et al., Ceramics 3:7 (2020) - 3Y-TZP at 99% density: HV 14.4 GPa, E 199 GPa, K_Ic 3.8, sigma_f 1071 MPa"
+  - "https://www.mdpi.com/2079-4991/10/11/2097  # Nanomaterials 10:2097 (2020) - independent 3Y-TZP pellet E ~220 GPa, H ~14 GPa"
+  - "https://pmc.ncbi.nlm.nih.gov/articles/PMC12299099/  # surface hardness of polished dental zirconia - 4Y/5Y-TZP HV 12.2-12.9 GPa; polishing induces 5.3-10.8 vol% monoclinic from zero"
+  - "https://doi.org/10.1186/s11671-015-1130-x  # dispersion quality of ZrO2 nanoparticles (Nanoscale Res. Lett.) - ESA pH_IEP 8.96 bare, 4.83 / 3.61 with 1.0 / 1.4 mass% Dolapix CE64"
+  - "https://doi.org/10.1039/d6ra00388e  # PZC modelling of metal oxides - ZrO2 10.0-11.0, SiO2 1.80, AlO(OH) 7.5-7.7"
+  - "https://doi.org/10.1007/s42452-023-05388-7  # granular gamma-alumina nanoindentation - E 12.6 GPa, H 0.433 GPa, plasticity index 0.83"
+  - "https://doi.org/10.3390/cryst7120369  # Dub et al., Crystals 7:369 (2017) - diamond (111) HV 79.7 / HM 81.7 GPa by AFM-corrected Vickers; Table 1 tabulates SiO2 E 71 H 9, Al2O3 E 400 H 22, diamond E 1136 nu 0.07"
+  - "https://ntrs.nasa.gov/api/citations/19930017015/downloads/19930017015.pdf  # DellaCorte & Deadmore, NASA TM-105959 (1993) - Vickers microhardness of reduced single-crystal rutile (110), 1500 kg/mm2 max at O/Ti 1.85, 25 C"
+  - "https://etasr.com/index.php/ETASR/article/view/8393  # DFT bulk moduli: rutile 222.5 GPa, anatase 198.5 GPa"
+  - "https://bangslabs.com/technical-library/material-properties-of-polystyrene-and-polymethyl-methacrylate-pmma-microspheres/  # Bangs Labs PS/PMMA microsphere property compilation - PS density 1.04-1.065, E 3.2-3.4 GPa, nu 0.325-0.33; PMMA density 1.188, H 0.41 GPa, E 1.8-5.0 GPa"
+  - "https://srdata.nist.gov/CeramicDataPortal/Pds/Scdaos  # NIST SRD 150 sintered alpha-Al2O3 - 3984 kg/m3, HV 15 GPa, E 416 GPa"
+  - "https://srdata.nist.gov/CeramicDataPortal/Pds/Scdscs  # NIST SRD 150 sintered alpha-SiC - 3160 kg/m3, HV 32 GPa, E 415 GPa"
+  - "https://valleydesign.com/Datasheets/Corning-Fused-Silica-7980.pdf  # Corning HPFS 7980 - 2201 kg/m3, E 72.7 GPa, Knoop 522 kg/mm2"
+  - "https://www.osti.gov/servlets/purl/1469554  # CeO2 thermal/mechanical properties - density 7.215 g/cm3, E 213/207 GPa"
+  - "https://doi.org/10.3390/ma19102134  # high-temperature nanoindentation of CeO2 - RT H 6.44 GPa, E 167.6 GPa"
+  - "http://www.ioffe.ru/SVA/NSM/Semicond/Diamond/mechanic.html  # Ioffe NSM diamond - 3515 kg/m3, Mohs 10, B 442 GPa"
+  - "https://doi.org/10.1039/d4en00332b  # TiO2 nanomaterial suspension review - pH_IEP 5-7"
+  - "https://doi.org/10.3390/ma17010056  # SiC powder dispersion - IEP 3.8"
+  - "https://doi.org/10.1016/j.mtcomm.2024.109962  # washed alpha-Al2O3 zeta - IEP ~9.5"
+  - "https://doi.org/10.1021/acs.langmuir.3c00304  # ceria/silica chemical tooth - 24 vs 5e8 collisions per SiO4 (context for why hardness ranking is only a fallback)"
+  - "https://doi.org/10.5772/intechopen.75408  # Kim, IntechOpen (2018) - ceria IEP ~8; zirconium among W-CMP candidate abrasives"
+  - "https://doi.org/10.1149/1.2901864  # fumed aggregates are harder contacts than polymer-core composites"
+  - "https://doi.org/10.1149/1.2949085  # polymer-core mechanical properties tunable by synthesis"
