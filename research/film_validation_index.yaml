@@ -1,0 +1,942 @@
+# ============================================================================
+# CMP-Sim — PER-FILM QUANTITATIVE VALIDATION DATASET INDEX
+# ============================================================================
+# Purpose: for EACH supported film/wafer type, list published removal-rate
+# datasets that are usable to validate a Preston-type model, i.e. that carry
+#   removal rate + pressure + velocity (or rpm + tool) + slurry description.
+# Sweeps are prioritised over single points: a sweep validates model SHAPE.
+#
+# HONESTY RULES APPLIED (owner's requirement):
+#   * Every number below was READ IN THE SOURCE during this pass. Nothing is
+#     estimated, interpolated or reconstructed.
+#   * Where the source could not be opened, or where the numeric table could
+#     not be extracted cleanly, the entry is marked candidate_unverified and
+#     carries NO rate values.
+#   * Films with no acceptable public dataset get an explicit empty
+#     `datasets: []` plus the search record. An honest null beats a guess.
+#
+# `already_in_repo: true` means a dataset YAML for this exact source already
+# exists under cmp_sim/data/validation/datasets/ (name given in `repo_file`).
+#
+# Existing repo inventory at the time of writing (14 files incl. _TEMPLATE):
+#   oxide : bouvet2002_oxide_silica_size_sweep, son2021_oxide_ceria_size_sweep,
+#           us20190127607a1_teos_ceriasilica_size_sweep,
+#           us20190127607a1_hdpoxide_ceriasilica_size_sweep,
+#           us6564116b2_oxide_taguchi_L25_pressure_platenspeed
+#   cu    : du2004_cu_h2o2_concentration_sweep, lai2001_cu_alumina_size_sweep,
+#           us6918821b2_cu_ic1000_pressure_speed_2x3
+#   w     : bouvet2002_w_silica_size_sweep
+#   sic   : su2011_sic_alumina_size_sweep, wei2026_sic_silica_size_sweep
+#   other : bouvet2002_ti_silica_size_sweep, us8142675b2_pt_alumina_pressure_sweep
+#   sti / poly_si / si / snag : NOTHING. Zero datasets. (Confirmed by listing.)
+#
+# generated: 2026-09-24
+# corpus used: ~/fab-sim/papers (397 PDFs + ~700 patent HTML captures),
+#              full-text extracted and searched; plus targeted web/Crossref
+#              verification of DOIs and two original patent PDFs.
+# ============================================================================
+
+films:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  oxide:
+    pack: oxide_silica
+    reference_abrasive: colloidal_silica
+    datasets:
+      - source: "US 9,422,456 B2 (Cabot Microelectronics Corp., granted 2016-08-23)"
+        title: "Colloidal silica chemical-mechanical polishing composition"
+        abrasive: {kind: colloidal_silica_aminosilane_core_shell, size_nm: 54, wt_pct: 3.0}
+        chemistry: {ph: "2.5 -> 11.0 (11 levels)", oxidizer: none, inhibitor: none}
+        pad: "IC1010"
+        tool: "Applied Materials Mirra, 200 mm TEOS wafers, 100 rpm platen, 150 ml/min"
+        swept_variable: pH
+        sweep_range: "pH 2.5, 3.0, 3.5, 4.0, 4.6, 4.9, 5.8, 8.4, 9.0, 10.0, 11.0 — each at BOTH 2.0 and 4.0 psi"
+        rate_range_A_per_min: "30 - 1720 (2 psi); 60 - 2950 (4 psi)"
+        n_points: 22
+        data_origin: table
+        already_in_repo: false
+        note: >
+          ⭐ BEST NEW OXIDE DATASET. TABLE 3 of the patent prints, for each of 11 pH
+          values, the TEOS rate at 2 psi AND at 4 psi with everything else fixed
+          (same 54 nm abrasive, 3 wt%, same pad/tool/speed). That makes it
+          simultaneously a pH sweep AND a 2-point pressure check at 11 chemistries —
+          exactly what separates the chemical prefactor from the Preston P term.
+          Verbatim rows (pH, 2 psi Å/min, 4 psi Å/min):
+            2.5 130 130 | 3.0 240 230 | 3.5 1100 1000 | 4.0 1680 2800 |
+            4.6 1660 2950 | 4.9 1720 2950 | 5.8 1670 2100 | 8.4 30 200 |
+            9.0 30 60 | 10.0 30 80 | 11.0 80 160
+          ⚠ Non-Prestonian at low pH: at pH 2.5 and 3.0 the rate does NOT increase
+          when pressure doubles (130->130, 240->230). Above pH 3.5 it does. Keep the
+          low-pH rows — they mark where P-scaling breaks, like the existing
+          us6918821b2 negative control.
+          Table also prints zeta potential (+36 mV at pH 3 -> -51 mV at pH 8.4) and
+          conductivity per composition, so the IEP crossing is pinned.
+
+      - source: "10.1149/2162-8777/ab89bc — Mariscal et al., ECS J. Solid State Sci. Technol. 9, 044008 (2020)"
+        title: "Tribological, Thermal and Kinetic Characterization of SiO2 and Si3N4 Polishing for STI CMP on Blanket and Patterned Wafers"
+        abrasive: {kind: colloidal_ceria, size_nm: null, wt_pct: "low (not printed; 'low colloidal ceria nano-particle content')"}
+        chemistry: {ph: null, oxidizer: none, inhibitor: "proprietary rate inhibitor (Versum DP1062)"}
+        pad: "DowDuPont IC1010, Morgan Phoenix II CVD conditioning disc, in-situ, 6 lbf"
+        tool: "Araca APD-800 polisher+tribometer, 200 mm PETEOS blanket, 200 ml/min"
+        swept_variable: PV
+        sweep_range: "3x3 full factorial: P = 2, 3, 4 psi x sliding velocity v = 0.75, 1.25, 1.75 m/s"
+        rate_range_A_per_min: "one anchor value read: 2528 Å/min on PETEOS blanket (the paper's quoted measured RR). Per-cell RR values are PLOTTED ONLY."
+        n_points: 9
+        data_origin: graph_digitized
+        already_in_repo: false
+        note: >
+          ⚠ READ THIS BEFORE USING. This is the single most valuable *design* in the
+          whole survey — a clean 3x3 pressure x velocity grid on ONE slurry, with COF
+          and pad temperature measured simultaneously at 1 kHz, plus a fitted
+          two-step Langmuir-Hinshelwood model. BUT: the per-cell removal rates are
+          only in Figures 12/13; the paper prints no RR table. The ONLY rate number
+          printed in the text is 2528 Å/min for PETEOS blanket. Therefore the nine
+          (P,v,RR) triples must be DIGITIZED from Fig. 13 before this can become a
+          dataset YAML — do not enter it as a table.
+          What IS printed as a table (Table I), and is directly reusable as fitted
+          physics rather than as data:
+            SiO2  : Ea 1.40 eV, A 9.77e-4 mol m^-2 s^-1, beta 2.61e+3, cp 1.46e-9,
+                    e 15.1, RMS 98 Å/min (4.6%)
+            Si3N4 : Ea 1.47 eV, A 8.47e-6, beta 1.62, cp 3.95e-6, e 0.333,
+                    RMS 4 Å/min (11.9%)
+          The paper states SiO2 polishing here is MECHANICALLY limited (k1 an order
+          of magnitude above k2), which is the regime the Preston harness assumes.
+
+      - source: "10.1149/2.0081905jss (Korkmaz & Babu, cited within) — threshold-pressure claim for ceria+DADMAC oxide slurries"
+        title: "Non-Prestonian silicon dioxide polish rates with ceria + DADMAC (threshold pressure ~2 psi)"
+        abrasive: {kind: ceria, size_nm: null, wt_pct: null}
+        chemistry: {ph: null, oxidizer: none, inhibitor: DADMAC}
+        pad: null
+        tool: null
+        swept_variable: pressure
+        sweep_range: "threshold reported at 2 psi"
+        rate_range_A_per_min: null
+        n_points: null
+        data_origin: prose
+        already_in_repo: false
+        note: >
+          candidate_unverified — this is a SECONDARY citation seen inside the Lagudu
+          2019 paper, not read in the original. No rates recorded. Listed only so the
+          owner knows a published oxide threshold-pressure (non-Prestonian) dataset
+          exists and can be chased: Korkmaz & Babu, ref. 17 of 10.1149/2.0081905jss.
+    gaps: >
+      Oxide is the BEST-COVERED film and gets better with US9422456B2 (pH x 2-point
+      pressure, printed table). Still missing: a true single-slurry VELOCITY sweep at
+      fixed pressure from a printed table. us6564116b2 sweeps pressure and platen speed
+      but inside an L25 array with solid content and polish time varying too, so P and V
+      are not cleanly separated; Mariscal has the clean 3x3 but only as a graph. If the
+      owner can run one in-house experiment for oxide, it should be:
+      fixed slurry, fixed 3 psi, platen speed 30/60/90/120 rpm, printed rates — that
+      single series would close the last structural hole in the oxide Preston fit.
+
+  # ─────────────────────────────────────────────────────────────────────────
+  sti:
+    pack: sti_ceria
+    reference_abrasive: ceria
+    datasets:
+      - source: "Dawkins, O., PhD thesis, University of Alberta (2019) — 'Mixed abrasive slurries of ceria and silica nanoparticles joined by electrostatic attraction for STI CMP'"
+        title: "Ceria/silica mixed-abrasive-slurry (MAS) STI CMP — oxide and nitride rates vs ceria:silica weight ratio, and vs down pressure"
+        abrasive: {kind: ceria_on_silica_composite, size_nm: "silica EB6040 81 nm (also EB6080 125 nm); ceria size not printed", wt_pct: "silica fixed 5 wt%, ceria varied via Ce/Si weight ratio 0.02 - 0.3"}
+        chemistry: {ph: "4 ± 0.6", oxidizer: none, inhibitor: "L-proline 0 / 0.5 / 2 wt% (nitride suppressant)"}
+        pad: "not named in the extracted section"
+        tool: "200 mm PECVD oxide (1000 nm) and PECVD nitride (100-200 nm) wafers; 60 s polish, 4 psi down force, 60 rpm table / 60 rpm chuck, 1 psi back pressure, 200 ml/min (Table 3-1)"
+        swept_variable: concentration
+        sweep_range: "Ce/Si weight ratio 0.02, 0.1, 0.2, 0.3 — x three proline conditions (none / 0.5 wt% into MAS / 0.5 wt% into ceria first)"
+        rate_range_A_per_min: "oxide 635 - 4016 Å/min (63.55 - 401.57 nm/min); nitride 85 - 785 Å/min (8.51 - 78.46 nm/min)"
+        n_points: 24
+        data_origin: table
+        already_in_repo: false
+        note: >
+          ⭐ BEST NEW STI DATASET, and STI previously had ZERO datasets in the repo.
+          Table 6-1 is a printed table (12 oxide + 12 nitride values). Verbatim, all
+          nm/min, columns = (no proline | 0.5 wt% proline into MAS | 0.5 wt% proline
+          into ceria first), rows = Ce/Si ratio:
+            0.02 : ox 125.97 / 101.75 / 63.55   nit 23.13 / 34.84 / 26.53
+            0.10 : ox 377.17 / 370.00 / 304.53  nit 78.46 / 55.68 / 69.67
+            0.20 : ox 377.06 / 376.34 / 401.57  nit 31.92 / 11.50 / 47.50
+            0.30 : ox 276.73 / 274.97 / 258.41  nit 17.70 /  8.51 / 14.59
+          ⚠ NON-MONOTONIC in abrasive ratio: oxide rate rises to a plateau at
+          ratio 0.1-0.2 then FALLS at 0.3. Same interior-maximum shape as the
+          existing su2011 SiC size sweep — a single power law will not fit it.
+          Also usable: nitride/oxide selectivity in the SAME runs (needed for any
+          STI stop-layer model), peaking near 33x at ratio 0.2 with 0.5 wt% proline.
+          ⚠ A SECOND series exists in the same thesis (Fig. 7-3): oxide and nitride
+          polish rate vs down pressure at 2 / 4 / 6 psi, with the optimum slurry
+          (Ce/Si 0.3, EB6040 81 nm, pH 4). Rates are PLOTTED ONLY (y-axis 0-350
+          nm/min, selectivity 0-60 on the right axis) — that pressure sweep must be
+          graph-digitized, so it is recorded here but NOT given numbers.
+          Independently corroborating conditions: the thesis states nitride polish at
+          4 and 6 psi produced loud stick-slip noise (tool shutdown at 6 psi at ~25 s)
+          while 2 psi was quiet — i.e. the 6 psi point is a partial run. Treat with care.
+
+      - source: "10.1149/2162-8777/ab89bc — Mariscal et al., ECS J. Solid State Sci. Technol. 9, 044008 (2020)"
+        title: "Same paper as listed under `oxide` — Si3N4 half of the STI pair"
+        abrasive: {kind: colloidal_ceria, size_nm: null, wt_pct: "low, not printed"}
+        chemistry: {ph: null, oxidizer: none, inhibitor: "proprietary (Versum DP1062)"}
+        pad: "DowDuPont IC1010"
+        tool: "Araca APD-800, 200 mm Si3N4 blanket"
+        swept_variable: PV
+        sweep_range: "P = 2, 3, 4 psi x v = 0.75, 1.25, 1.75 m/s"
+        rate_range_A_per_min: "not printed — RR only plotted; the paper's own RMS of 4 Å/min implies rates of order tens of Å/min"
+        n_points: 9
+        data_origin: graph_digitized
+        already_in_repo: false
+        note: >
+          The Si3N4 stop-layer counterpart of the oxide entry. Needs digitizing.
+          Its fitted Ea = 1.47 eV and e = 0.333 (vs 15.1 for SiO2) is the quantitative
+          statement that nitride removal in this slurry is NOT mechanically dominated —
+          directly relevant if the owner models selectivity rather than just rate.
+
+      - source: "Kang, H.-G. et al., ECS (2008) — local corpus 'kang2008-ecs-organic-additive-oxide-nitride-selectivity-ceria-sti'"
+        title: "Effect of organic additives on oxide/nitride selectivity in ceria STI slurries"
+        abrasive: {kind: ceria, size_nm: null, wt_pct: null}
+        chemistry: {ph: null, oxidizer: none, inhibitor: "organic additive (anionic polymer)"}
+        pad: "IC1000/Suba IV stacked (Rohm and Haas)"
+        tool: "Strasbaugh 6EC; SiO2 7000 Å / Si3N4 1500 Å films; 70 rpm head = 70 rpm table; relative velocity 0.539 m/s; 100 cm3/min; 0 psi back pressure"
+        swept_variable: pressure
+        sweep_range: "down force 2 - 6 psi (13.8 - 41.4 kPa)"
+        rate_range_A_per_min: null
+        n_points: null
+        data_origin: graph_digitized
+        already_in_repo: false
+        note: >
+          candidate_unverified FOR RATES. The experimental section is fully explicit
+          and excellent (pad, tool, exact relative velocity 0.539 m/s, pressure range
+          2-6 psi) but the rate-vs-pressure results in the extracted text are in
+          figures, not tables, so NO rate values are recorded here. Worth digitizing:
+          it is a 3-level-plus pressure sweep on a named pad at a known sliding
+          velocity, which is rare. Same group/tool as the Kim 2003 and Park 2007
+          entries below, so the three are mutually consistent in kinematics.
+
+      - source: "Kim, S.-K. et al., Jpn. J. Appl. Phys. 42, 5420-5425 (2003) — local corpus 'kim2003-jjap-surfactant-oxide-nitride-selectivity-ceria'"
+        title: "Surfactant effect on oxide/nitride removal selectivity with ceria slurry"
+        abrasive: {kind: ceria, size_nm: null, wt_pct: null}
+        chemistry: {ph: null, oxidizer: none, inhibitor: "surfactant 0 - 0.8 wt%"}
+        pad: "IC1000/Suba IV stacked (Rodel)"
+        tool: "Strasbaugh 6EC; PETEOS 7000 Å / LPCVD nitride 1500 Å; 100 cm3/min; 30 s; no back pressure"
+        swept_variable: PV
+        sweep_range: "down force 4, 5, 6 psi x table speed 50, 60, 70 rpm (head speed = table speed) — a 3x3 grid, PLUS a surfactant concentration series 0 - 0.8 wt%"
+        rate_range_A_per_min: "oxide axis 0 - 6000; nitride axis 0 - 50 (axis limits read off Fig. 8; individual cell values NOT readable as text)"
+        n_points: 9
+        data_origin: graph_digitized
+        already_in_repo: false
+        note: >
+          Fig. 8(a)/(b) is a genuine 3x3 pressure x table-speed surface for oxide AND
+          nitride with one fixed ceria+surfactant slurry — structurally the ideal
+          Preston test for STI. It is a 3-D bar/surface plot, so digitizing is harder
+          and less reliable than a 2-D line plot; flagged accordingly.
+          ⚠ TRANSCRIPTION TRAP IN THE SOURCE ITSELF: the paper's text states "the
+          relative velocity between the pad and wafer was 76.2 m/s", which is
+          physically impossible for a 70 rpm 6EC (the companion papers from the same
+          tool state 0.539 m/s). Do NOT propagate 76.2 m/s. Recompute velocity from
+          rpm and geometry, or use the 0.539 m/s value from the sister papers.
+    gaps: >
+      STI went from ZERO to two usable entries, but only ONE (Dawkins Table 6-1) is a
+      printed table, and it is a CONCENTRATION sweep — not a pressure or velocity
+      sweep. Every STI pressure/velocity sweep found (Dawkins Fig. 7-3, Kang 2008,
+      Kim 2003 Fig. 8) is graph-only. So STI currently has NO table-quality
+      Preston P*V data. What the owner would need to measure: one ceria slurry at
+      fixed concentration and pH, oxide AND nitride blanket wafers, 2/3/4/5 psi x
+      two platen speeds, rates reported as a table. Also missing entirely: ceria
+      PARTICLE SIZE sweep on nitride (the oxide-side size dependence is covered by
+      son2021 and us20190127607a1, the nitride side is not), and any STI dataset with
+      pH swept while abrasive is held fixed.
+
+  # ─────────────────────────────────────────────────────────────────────────
+  cu:
+    pack: cu_h2o2_bta
+    reference_abrasive: alumina
+    datasets:
+      - source: "US 7,955,520 B2 (Cabot Microelectronics Corp.) — 'Copper-passivating CMP compositions and methods'. Family members in corpus: KR101173753B1, TWI384061B."
+        title: "Copper-passivating CMP compositions — Cu removal rate at 1 psi and 3 psi for 9 formulations"
+        abrasive: {kind: colloidal_silica, size_nm: 80, wt_pct: "0.1 / 0.55 / 1.0"}
+        chemistry: {ph: "5, 6, 7", oxidizer: "H2O2 0.8 wt%", inhibitor: "salicylhydroxamic acid (SHA) 50 / 275 / 500 ppm + 1 wt% iminodiacetic acid"}
+        pad: "D100"
+        tool: "Logitech Model II CDP, 4-inch Cu blanket wafers, 85 rpm platen / 93 rpm carrier, 120 ml/min"
+        swept_variable: pressure
+        sweep_range: "1 psi and 3 psi, for each of 9 compositions (SHA 50-500 ppm x pH 5-7 x abrasive 0.1-1.0 wt%)"
+        rate_range_A_per_min: "184 - 5273"
+        n_points: 18
+        data_origin: table
+        already_in_repo: false
+        note: >
+          ⭐ STRONGEST NEW Cu DATASET. TABLE 1 verified against the ORIGINAL US patent
+          PDF (patentimages .../US7955520.pdf), not just the Korean/Taiwanese family
+          translations. Verbatim (Ex#, SHA ppm, pH, % abrasive, Cu RR @1 psi, @3 psi):
+            1A 500 5 1.0   1082 1847
+            1B 275 6 0.55  2636 4303
+            1C  50 5 0.1   2832 4004
+            1D  50 7 1.0   3376 5273
+            1E  50 5 1.0   3074 4863
+            1F 500 7 1.0    258  443
+            1G 500 7 0.1    184  246
+            1H  50 7 0.1   2964 4162
+            1I 500 5 0.1   2825 3974
+          ⚠ THE PATENT'S OWN PROSE MISQUOTES ITS OWN TABLE. The text says "1082 at
+          1 psi and 1847 at 3 psi" for 1 wt% and "2825 at 1 psi and 3974 at 3 psi"
+          for 0.1 wt%, but those two rows differ in SHA/pH too, so it is not a clean
+          abrasive-loading comparison — read the table, not the prose.
+          Why this is good for a Preston fit: pressure triples 1->3 psi at NINE
+          different chemistries, so the pressure exponent can be fitted 9 times
+          independently. Measured ratio RR(3psi)/RR(1psi) = 1.34 to 1.71 (mean ~1.5),
+          i.e. clearly SUB-linear in P, not the 3.0x Preston demands. That is a
+          quantitative, reproducible non-Prestonian signature across all 9 formulations
+          and it is consistent in sign with the low-pressure behaviour already
+          documented in us6918821b2. High value as a model-shape constraint.
+          Also printed: static etch rate 17 Å/min with 250 ppm SHA vs 1342 Å/min
+          without — pins the chemical (no-abrasive) floor for the same chemistry.
+
+      - source: "Ihnfeldt, R., PhD dissertation, UC San Diego (2008) — Cu CMP with alumina and colloidal slurries"
+        title: "Experimental Cu MRR vs pH with measured surface nanohardness and agglomerate size (Table 6.2)"
+        abrasive: {kind: alumina, size_nm: "agglomerate xavg 510-800+ nm (measured, pH dependent)", wt_pct: null}
+        chemistry: {ph: "~2.6 - 10.9 across six additive solutions (a-f)", oxidizer: "H2O2 0.1 wt%", inhibitor: "glycine 0.1 M, KNO3 1 mM (varies by solution)"}
+        pad: null
+        tool: null
+        swept_variable: pH
+        sweep_range: "three pH levels per additive solution, six solutions (a-f)"
+        rate_range_A_per_min: null
+        n_points: 18
+        data_origin: table
+        already_in_repo: false
+        note: >
+          candidate_unverified — DO NOT USE THE NUMBERS YET. Table 6.2 IS a printed
+          table with 18 experimental MRR values plus Luo-Dornfeld model predictions,
+          and the thesis also prints measured surface nanohardness Hw and particle
+          concentration C0 per condition, which is unusually complete. BUT the PDF
+          text layer for this table is CORRUPTED on extraction: cells come out as
+          't2.9', 'tt4', 'ttt343**' etc., where digits have been replaced by 't'
+          characters. Only a few values survive unambiguously in the surrounding
+          prose: MRR < 8 nm/min for all solutions at pH < 3.1 EXCEPT solution c at
+          113 nm/min (pH 3.0), and Hw = 4.6 GPa for solution a at pH 2.9.
+          To use this the owner must re-extract Table 6.2 from the original page
+          images (OCR or manual). Flagged, not fabricated. High potential value:
+          it is one of very few Cu datasets that reports hardness and agglomerate
+          size measured IN THE SAME RUNS as the rate, which is what a Luo-Dornfeld
+          or contact-mechanics term needs.
+
+      - source: "US 2008/0090500 A1 — 'Process for reducing dishing and erosion during chemical mechanical planarization'"
+        title: "Two-phase Cu polish, removal rate vs phase-2 time"
+        abrasive: {kind: silica, size_nm: null, wt_pct: 11}
+        chemistry: {ph: 5, oxidizer: "H2O2 3-8 wt%", inhibitor: "benzotriazole 1-3 mM + glycine 1 wt%"}
+        pad: "polyurethane (blanket); pucks polished on Struers LabPol-V"
+        tool: "3 psi, table 70 rpm, carrier 68 rpm, 0 psig back pressure, 190 ml/min; Cu rates by Prometrix RS-35 4-pt probe, 49 points/wafer"
+        swept_variable: temperature
+        sweep_range: "not a P or V sweep — phase-2 DURATION series at fixed 3 psi"
+        rate_range_A_per_min: null
+        n_points: null
+        data_origin: table
+        already_in_repo: false
+        note: >
+          Recorded for completeness, LOW PRIORITY for Preston validation: the swept
+          variable is polish time / second-step chemistry, not pressure or velocity.
+          Conditions are unusually well specified (3 psi, 70/68 rpm, 190 ml/min,
+          pH 5, 11 wt% silica, 1 mM BTA, 1 wt% glycine, H2O2 3-8 wt%) so it is a
+          good single-point CHEMISTRY anchor for the cu_h2o2_bta pack, and its
+          9.8 psi / 60 rpm Cu-puck sub-experiment gives a high-pressure comparison
+          point. Rate values in Tables 5/8 were not transcribed in this pass.
+    gaps: >
+      Cu is now well covered for pressure (US7955520B2: 9 independent 1->3 psi pairs,
+      printed) and for oxidizer concentration (du2004) and abrasive size (lai2001).
+      The hole is VELOCITY: not one Cu dataset in the repo or in this survey sweeps
+      platen/carrier speed at fixed pressure from a printed table — us6918821b2 does
+      vary rpm but its low-pressure branch inverts and it is kept as a negative
+      control. Also missing: a Cu BTA-concentration series at fixed everything else
+      (the inhibitor term is currently unconstrained by data), and any Cu dataset
+      above ~5 psi other than the 9.8 psi puck point.
+
+  # ─────────────────────────────────────────────────────────────────────────
+  w:
+    pack: w_fe_oxidizer
+    reference_abrasive: alumina
+    datasets:
+      - source: "EP 3,161,098 B1 (CMC Materials LLC / Cabot Microelectronics, B1 published 2022-10-26) — 'Tungsten chemical-mechanical polishing composition'"
+        title: "Fe/malonic-acid tungsten slurry — W and TEOS rates at three down-forces for six formulations (Table 5B), plus a second grid in Table 6B"
+        abrasive: {kind: colloidal_silica_aminosilane_core_shell, size_nm: 55, wt_pct: 2.0}
+        chemistry: {ph: 4.0, oxidizer: "H2O2 2.0 wt%", inhibitor: "W etch inhibitor 37 / 50 / 63 ppm; Fe(NO3)3·9H2O 45 / 60 ppm; malonic acid:Fe molar ratio fixed 8:1"}
+        pad: "IC1010"
+        tool: "Applied Materials Reflexion, 300 mm wafers, platen 100 rpm, 200 ml/min"
+        swept_variable: pressure
+        sweep_range: "1.5, 2.0, 3.0 psi (Table 5B) for six compositions 1A-1F; and 1.0, 1.5, 2.0 psi (Table 6B) for five compositions 6A-6E"
+        rate_range_A_per_min: "W 270 - 2730; TEOS 1060 - 2320 (Table 5B). Table 6B: W 690 - 2490, TEOS 1070 - 2150."
+        n_points: 36
+        data_origin: table
+        already_in_repo: false
+        note: >
+          ⭐ BEST NEW W DATASET — and the only clean multi-level W pressure sweep found.
+          Verified against the ORIGINAL EPO PDF (patentimages .../EP3161098B1.pdf),
+          not just the Google Patents HTML. Table 5B verbatim, W rate | TEOS rate at
+          1.5 / 2.0 / 3.0 psi:
+            1A  380  980 2130 | 1090 1750 2090
+            1B  720 1070 2010 | 1070 1710 2320
+            1C 1270 1340 2610 | 1060 1710 2200
+            1D  480 1140 2730 | 1080 1640 2060
+            1E  270  800 1390 | 1100 1600 2070
+            1F  300  850 1660 | 1100 1670 2000
+          ⚠ TWO HEADER INCONSISTENCIES IN THE PATENT ITSELF, both confirmed in the PDF:
+            (1) paragraph [0090] says the downforces were "1.0, 2.0, and 3.0 psi" but
+                the Table 5B column headers read 1.5 / 2.0 / 3.0 psi. Trust the table
+                headers (the 1.5 psi column is also what Table 5C's selectivities use).
+            (2) Table 6B is printed with SIX rate columns (1.0/1.5/2.0 psi for W and
+                for TEOS) but most rows contain only FOUR numbers, so the column
+                assignment for 6A-6E is AMBIGUOUS. Use Table 5B; treat 6B as
+                unusable until resolved against the figures.
+          Why it is valuable: W rate rises steeply and SUPER-linearly with pressure
+          (1A: 380 -> 980 -> 2130, i.e. 5.6x over a 2x pressure change) while the
+          TEOS rate on the SAME wafers over the SAME range rises only ~1.9x
+          (1090 -> 1750 -> 2090, near-Preston). Two films, one slurry, one tool, one
+          pressure axis — that is a direct measurement of film-dependent pressure
+          exponent, which is exactly the owner's "learn each film separately" premise.
+          Also in the same patent: Table 3B gives W rate at 3.5 psi and 2.0 psi for
+          nine inhibitor chemistries (3A 1440/440, 3B 1490/520, 3C 1740/620,
+          3D 1810/820, 3E 2900/1450, 3F 1220/390, 3G 1290/390, 3H 2190/NA,
+          3I 2290/NA) with TEOS at 1.5 psi (16-28 Å/min) — a second, independent
+          2-point pressure series at W:TEOS selectivity >40:1. Table 2 gives W STATIC
+          etch rate (57-207 Å/min) per inhibitor, i.e. the chemical floor.
+
+      - source: "US 8,114,775 B2 (DuPont Air Products NanoMaterials LLC, granted 2012-02-14)"
+        title: "Dihydroxy enol compounds in W CMP compositions — W rate vs lactic-acid (chelator) concentration"
+        abrasive: {kind: "iron-surface-modified silica + unmodified silica mixture", size_nm: null, wt_pct: null}
+        chemistry: {ph: 3.4, oxidizer: "H2O2 4 wt%", inhibitor: "lactic acid 0 / 0.1 / 0.3 / 0.5 wt%"}
+        pad: "Rodel IC1000/Suba IV, Rodel DF200 carrier film"
+        tool: "Strasbaugh 6EC; down force 5 psi, back pressure 2.5 psi, ring 5.5 psi, table 110 rpm, carrier 105 rpm, 150 ml/min"
+        swept_variable: concentration
+        sweep_range: "lactic acid 0, 0.1, 0.3, 0.5 wt%"
+        rate_range_A_per_min: "3710 - 4380"
+        n_points: 4
+        data_origin: table
+        already_in_repo: false
+        note: >
+          Printed table, exact values: 0% -> 4060 Å/min, 0.1% -> 4300, 0.3% -> 4380,
+          0.5% -> 3710. Single pressure (5 psi) so it constrains chemistry only, NOT
+          Preston. ⚠ Interior maximum at 0.3 wt% then a drop — same peaked shape as
+          du2004's H2O2 series, so it is a good second test of the peaked-additive
+          term. Note the separate Example-2 conditions in the same patent use a Mirra
+          with membrane 3.5 psi / inner tube 6.3 psi / ring 6.8 psi, platen 120 rpm,
+          head 130 rpm, 120 ml/min — different tool, do not pool.
+    gaps: >
+      W now has a real pressure sweep (EP3161098B1) on top of the existing
+      bouvet2002 size sweep. Missing: (a) any W VELOCITY sweep at all — every W
+      source found fixes platen speed at 100-120 rpm; (b) a W abrasive-CONCENTRATION
+      series (2.0 wt% is the only loading in EP3161098B1, 16.3 wt% the only one in
+      bouvet2002 — two points 8x apart with different abrasives, chemistries and
+      tools, so not a series); (c) an Fe-oxidizer concentration series with rates —
+      EP3161098B1 varies Fe 45/60/75/90 ppm but its rate table (6B) is the ambiguous
+      one. Highest-value in-house experiment for W: fix composition 1A, sweep platen
+      speed at 2.0 psi.
+
+  # ─────────────────────────────────────────────────────────────────────────
+  poly_si:
+    pack: poly_si_alkaline
+    reference_abrasive: colloidal_silica
+    datasets:
+      - source: "10.1149/2.0081905jss — Lagudu, Korkmaz, Gowda, Penta & Babu, ECS J. Solid State Sci. Technol. 8 (5) P3040-P3046 (2019), Clarkson University"
+        title: "Reactive Liquids for Non-Prestonian Chemical Mechanical Polishing of Polysilicon Films"
+        abrasive: {kind: "none (abrasive-free reactive liquid); native-oxide pre-polish uses 1 wt% silica at pH 3.5", size_nm: null, wt_pct: 0.0}
+        chemistry: {ph: 10, oxidizer: none, inhibitor: "cetylpyridinium bromide (CPB) 0 / 25 / 50 / 100 / 250 ppm, on 250 ppm PDADMAC / DADMAC / guanidine carbonate"}
+        pad: "IC-1000 k-groove, 20 inch, ex-situ 3M-S60 diamond conditioning"
+        tool: "G&P Poli-500, 87 rpm platen / 93 rpm carrier, ~200 ml/min, 1 min, 200 mm wafers, Filmetrics F20 at 32 points/wafer"
+        swept_variable: pressure
+        sweep_range: "1, 1.5, 2, 3, 4 psi (stated as 1 to 4 psi), repeated for each CPB concentration and each of three base additives"
+        rate_range_A_per_min: "~0 (suppressed, at 1 and 1.5 psi) up to ~3200 (320 nm/min at 4 psi); plateau values quoted in text: ~0, 260, 3000-3500"
+        n_points: 20
+        data_origin: graph_digitized
+        already_in_repo: false
+        note: >
+          ⭐ BEST NEW poly_si DATASET, and poly_si had ZERO datasets in the repo.
+          This is a DELIBERATELY non-Prestonian pressure sweep and that makes it a
+          high-value model-shape test, not a Preston calibration set.
+          Values that ARE printed in the prose (so these are safe to quote):
+            * 250 ppm PDADMAC + 25 ppm CPB, pH 10: RR ~0 nm/min at 1 and 1.5 psi,
+              then LINEAR in pressure above the 1.5 psi threshold, reaching
+              ~320 nm/min at 4 psi.
+            * 250 ppm PDADMAC + 250 ppm CPB: RR = 0 nm/min across the ENTIRE 1-4 psi
+              range (fully passivated — a true zero, useful as a null control).
+            * 250 ppm PDADMAC + 250 ppm Brij 35, 1 psi: RR = 26 nm/min.
+            * DADMAC and GC with 25 ppm CPB: ~300-350 nm/min at 4 psi.
+            * PDADMAC/DADMAC/GC without surfactant at 1-2 psi: 80-270 nm/min.
+          The per-point (P, RR) values are in Figures 1, 3 and 4 and must be
+          DIGITIZED — hence data_origin graph_digitized despite the numeric prose.
+          ⚠ A threshold-pressure model (RR = 0 below Pth, linear above) is REQUIRED;
+          Preston with a single Kp cannot represent it. Threshold = 1.5 psi here and
+          is tunable by CPB concentration, which is itself a testable prediction.
+          Literature context printed in the same paper (secondary, not measured here):
+          PEI-based silica/ceria slurries ~500 nm/min poly-Si with <2 nm/min oxide and
+          nitride; alpha-amino-acid abrasive-free solutions >650 nm/min poly-Si with
+          ~0 nm/min oxide/nitride; cationic polymers 500-600 nm/min.
+
+      - source: "Pirayesh, H., PhD thesis, University of Alberta (2014) — 'Chemical mechanical polishing of boron doped polysilicon'"
+        title: "Boron-doped polysilicon CMP — Preston coefficient vs pressure, velocity and slurry flow rate"
+        abrasive: {kind: colloidal_silica, size_nm: "bimodal 30-40 and 70-80 nm (Fujimi Planerlite 6103, 17.3 wt%, diluted 10:1); plus Akzo Nobel Bindzil 300/30 and 30/50 at 6 and 12 wt% for the size study", wt_pct: "1.7 (diluted commercial) / 6 / 12"}
+        chemistry: {ph: "11 - 11.8 commercial; 3 - 13 explored with KOH / citric acid", oxidizer: none, inhibitor: "proprietary (Fujimi, undisclosed)"}
+        pad: "NexPlanar E7070-30S polyurethane, concentric + radial grooves, in-situ diamond conditioning"
+        tool: "Axus 372M, 6-inch wafers, 1 min polish, back pressure = 1/3 of down force, wafer rpm = pad rpm"
+        swept_variable: PV
+        sweep_range: "pressure 3 / 4.5 / 6 psi x pad rotation 30-120 rpm x slurry flow 100 / 200 / 350 ml/min (full PV product series at each flow rate)"
+        rate_range_A_per_min: "not printed as a table; Preston intercept stated as 0.1-0.2 um/min (1000-2000 Å/min) at zero PV"
+        n_points: 9
+        data_origin: table
+        already_in_repo: false
+        note: >
+          ⭐ UNUSUAL AND VERY USEFUL: Table 3-1 prints the fitted PRESTON COEFFICIENT
+          itself (not the rates) for nine conditions, separately for the low/moderate
+          velocity branch and the high-velocity branch. Verbatim K values:
+            3 psi   : flow 100 -> 0.0029 | 200 -> 0.0036 | 350 -> 0.0008
+                      (high-velocity branch: -0.0074, -0.0027, -0.0037)
+            4.5 psi : flow 100 -> 0.0047 | 200 -> 0.0064 | 350 -> 0.0066
+                      (high-velocity branch: +0.0054, -0.0036, -0.0136)
+            6 psi   : flow 100 -> 0.0067 | 200 -> 0.0064 | 350 -> 0.0077
+                      (high-velocity branch: +0.0075, +0.0001, -0.0066)
+          ⚠ UNITS NOT STATED for K in the extracted table — the owner must recover
+          them from the thesis figures before using these numbers dimensionally.
+          Three findings the simulator can be tested against directly:
+            1. Kp is NOT a constant: it rises ~2.3x from 3 psi to 6 psi at fixed flow.
+               A pressure-independent Kp is falsified by this dataset.
+            2. NEGATIVE Kp at high velocity in 7 of 9 conditions = hydroplaning /
+               hydrodynamic lift. Same physics as the us6918821b2 Cu low-pressure
+               collapse already in the repo, but here it is mapped systematically
+               across pressure AND flow rate. This is the best available dataset for
+               validating cmp_sim/core/regime.py's lambda-based regime classifier,
+               because flow rate (the thing that sets film thickness) is the swept axis.
+            3. Non-zero Preston intercept 0.1-0.2 um/min at zero PV, which the thesis
+               attributes to alkaline static etching at pH 11.4 — i.e. poly-Si needs an
+               additive chemical-etch term, not pure P*V.
+          Rates themselves are in Figures 3-1/3-2 (graph) — digitize if absolute rates
+          are needed. Optimum flow 200 ml/min; 350 ml/min gives no further gain.
+
+      - source: "Park, K.-W. et al., J. Korean Phys. Soc. 51 (1) 215-220 (2007) — local corpus 'park2007-jkps-tmah-abrasive-poly-oxide-selectivity'"
+        title: "Effects of the size and concentration of the abrasive and TMAH on poly-Si / oxide CMP"
+        abrasive: {kind: colloidal_silica, size_nm: "30 and 70", wt_pct: "up to 5.3"}
+        chemistry: {ph: "varied via TMAH", oxidizer: none, inhibitor: "TMAH (alkaline agent), concentration series incl. 0.12 wt%"}
+        pad: "IC1000/Suba IV stacked (Rohm and Haas), ex-situ diamond conditioning"
+        tool: "Strasbaugh 6EC; relative velocity 0.539 m/s; 30 s polish; NanoSpec 8300 metrology"
+        swept_variable: concentration
+        sweep_range: "TMAH concentration series x abrasive size (30, 70 nm) x abrasive concentration (up to 5.3 wt%); pressure stated as 2-6 psi (13.8-41.4 kPa)"
+        rate_range_A_per_min: "oxide film stated as < 60 Å/min throughout the TMAH range, for both 30 and 70 nm abrasive"
+        n_points: null
+        data_origin: graph_digitized
+        already_in_repo: false
+        note: >
+          candidate_unverified FOR POLY-Si RATES — only the OXIDE bound (<60 Å/min) is
+          printed as a number; the poly-Si rates are in Fig. 5(a)-(d) and must be
+          digitized. Recorded because the experimental design is exactly what a
+          poly_si_alkaline pack needs: abrasive SIZE (30 vs 70 nm) x abrasive
+          CONCENTRATION x alkaline-agent CONCENTRATION, all at a known 0.539 m/s and
+          a named pad/tool. Qualitative shape, stated in text and testable: poly-Si
+          rate rises then FALLS with TMAH concentration (interior maximum) at BOTH
+          abrasive sizes and ALL loadings, and the rate curve is the inverse of the
+          measured water contact angle (37 deg at 0.12 wt% TMAH, rising to 51.5 deg).
+    gaps: >
+      poly_si went from ZERO to two strong entries, but BOTH have their rates in
+      figures. There is currently NO printed-table poly-Si rate dataset at all.
+      Also note the two entries are chemically disjoint: Lagudu is ABRASIVE-FREE
+      (0 wt%) and Pirayesh is abrasive-driven at 1.7-12 wt% — so nothing constrains
+      the abrasive-concentration dependence of poly-Si in between. Highest-value
+      in-house measurement: one alkaline silica slurry, fixed pH, 2/3/4/5/6 psi at
+      two platen speeds and two flow rates, rates tabulated — this would both close
+      the Preston hole and independently check Pirayesh's negative-Kp hydroplaning
+      claim. Second priority: a poly-Si abrasive wt% series at fixed pH and pressure.
+
+  # ─────────────────────────────────────────────────────────────────────────
+  si:
+    pack: si_substrate_alkaline
+    reference_abrasive: colloidal_silica
+    datasets:
+      - source: "10.3390/nano12213893 — Bae, Han, Lee, Kim, Lee, Lee, Park & Park, Nanomaterials 12, 3893 (2022), Hanyang University"
+        title: "Silicon Wafer CMP Slurry Using a Hydrolysis Reaction Accelerator with an Amine Functional Group Remarkably Enhances Polishing Rate"
+        abrasive: {kind: colloidal_silica, size_nm: "60 primary / 83.3 secondary (80-85 nm across the EDA series)", wt_pct: 1.0}
+        chemistry: {ph: "9.70 (silica only) up to 10.90", oxidizer: none, inhibitor: "hydrolysis accelerator: NaOH 0-0.125 wt%, KOH 0-0.069 wt%, EDA / DETA / TETA 0-0.10 wt%"}
+        pad: "SUBA 600 (Nitta Haas), rectangular groove, 30 min DI + diamond-disc conditioning, 3 dummy wafers pre-polish"
+        tool: "POLI-300 (G&P Tech), 8-inch (100) Si cut to 4x4 cm, 5.7 psi head pressure, 69 rpm platen / 71 rpm carrier, 100 ml/min, 5 min; rate by mass loss"
+        swept_variable: concentration
+        sweep_range: "five accelerators x concentration 0 -> 0.10-0.125 wt% (the 0 wt% point is shared: 139.5 nm/min)"
+        rate_range_A_per_min: "1395 - 8720 (139.5 - 872 nm/min)"
+        n_points: 12
+        data_origin: prose
+        already_in_repo: false
+        note: >
+          ⭐ BEST NEW bulk-Si DATASET, and si had ZERO datasets in the repo.
+          Values printed in the text (safe to quote directly):
+            baseline (no accelerator, silica only, pH 9.70) : 139.5 nm/min
+            NaOH 0.125 wt% (pH 10.90)                       : 177.1 nm/min
+            KOH  0.069 wt% (pH 10.90)                       : 193.2 nm/min
+            EDA  0.10 wt%  (pH 10.90)                       : 552.8 nm/min
+            DETA 0.10 wt%                                   : 617.2 nm/min
+            TETA 0.10 wt% (peak 526.0, saturating ~499.1)   : 526.0 nm/min
+            highest reported with extended EDA              : ~872 nm/min
+            commercial Si CMP slurries, same rig (Table S1)  : 316.7 - 372.3 nm/min
+          Shape statements the simulator can be tested against: NaOH and KOH give
+          LINEAR rate-vs-concentration; EDA and DETA give SQUARE-ROOT-like growth;
+          TETA SATURATES. Three different functional forms on one rig with one
+          abrasive — a strong discriminator for the chemical term.
+          ⚠ SINGLE PRESSURE (5.7 psi) and single speed (69/71 rpm), so this dataset
+          constrains CHEMISTRY ONLY and cannot validate Preston. Note also an internal
+          inconsistency in the paper: the methods section states 5.7 psi head pressure
+          while the discussion refers to "a low head pressure (i.e., 4 psi)" when
+          comparing to Table S2 — use 5.7 psi, the methods value.
+          ⚠ Rates are from MASS LOSS on 4x4 cm coupons, not film metrology on full
+          wafers; small-coupon edge effects are not quantified.
+
+      - source: "10.1016/j.wear.2010.11.006 — Wang Y.G., Zhang L.C. & Biddut A., Wear 270, 312-316 (2011), UNSW"
+        title: "Chemical effect on the material removal rate in the CMP of silicon wafers"
+        abrasive: {kind: "Al2O3 and CeO2 (compared side by side)", size_nm: 50, wt_pct: "2.5 vol%"}
+        chemistry: {ph: "swept, incl. 7, 10, 11 and beyond (NaOH / HCl adjusted)", oxidizer: "H2O2, 0 - >0.4 vol% swept", inhibitor: none}
+        pad: "Logitech Chemicloth SKU:0CON-352 urethane, 300 mm diameter"
+        tool: "Logitech PM5 auto-lap, 20 x 15 mm samples, 20 kPa (2.9 psi), rate by mass loss (1e-5 g balance), 3 repeats per point"
+        swept_variable: pH
+        sweep_range: "THREE separate single-variable sweeps at fixed 20 kPa: (a) slurry flow rate 20-100 ml/min, saturating at 70; (b) H2O2 concentration 0->0.4+ vol% with an interior maximum; (c) pH, with a minimum at low pH and no further gain beyond pH 11"
+        rate_range_A_per_min: "no numeric MRR values are printed — all three sweeps are figures only. The only number in the text is a LITERATURE comparison (~30 nm/min for Al2O3/DI-water/SUBA IV, ref. 12), which is NOT this paper's own measurement."
+        n_points: 15
+        data_origin: graph_digitized
+        already_in_repo: false
+        note: >
+          candidate_unverified FOR RATES — deliberately no numbers recorded. The
+          experimental section is complete and quotable (2.5 vol% abrasive, 50 nm,
+          20 kPa, 70 ml/min optimum, named pad and tool, mass-loss method, n=3), and
+          the sweep DESIGN is excellent: three orthogonal single-variable sweeps
+          (flow, oxidizer, pH) at one fixed pressure. But every MRR value lives in
+          Figs. 1-3. Digitize before use.
+          Shape claims that are safe to test qualitatively: MRR saturates above
+          70 ml/min flow; MRR has an interior maximum in H2O2 concentration; Al2O3
+          beats CeO2 below 0.4% H2O2 (attributed to CeO2 agglomerating because pH 7
+          sits at the ceria IEP ~6-7, while the alumina IEP ~9-10 keeps it dispersed);
+          MRR does not improve beyond pH 11 at fixed abrasive loading.
+          ⚠ FILENAME WARNING for whoever works the corpus: this paper is stored
+          locally as 'zhou2004-chemical-effect-mrr-si-cmp' but it is Wang/Zhang/Biddut
+          2011, Wear 270, 312-316. The local slug is wrong. DOI verified via Crossref.
+          ⚠ This is a LAPPING-style bench rig (20x15 mm coupon on a Logitech PM5),
+          not a wafer polisher. Do NOT pool its absolute rates with Bae 2022's
+          200 mm-tool rates — see `disagreements`.
+    gaps: >
+      si went from ZERO to one usable chemistry dataset (Bae 2022, prose-printed
+      values) plus one graph-only sweep set. There is NO bulk-Si pressure sweep and
+      NO bulk-Si velocity sweep anywhere in this survey — both sources fix pressure
+      (5.7 psi and 20 kPa respectively). So the si_substrate_alkaline pack currently
+      has ZERO Preston constraint. It is the weakest film in the index together with
+      snag. What the owner must measure: one alkaline colloidal-silica slurry, fixed
+      pH and abrasive loading, pressure sweep at 3/4/5/6 psi and a platen-speed sweep
+      at fixed pressure, on real 200/300 mm Si with film-thickness or mass metrology.
+      Also missing: any bulk-Si abrasive SIZE series (both sources use ~50-83 nm only).
+
+  # ─────────────────────────────────────────────────────────────────────────
+  sic:
+    pack: sic_ceria_h2o2
+    reference_abrasive: ceria
+    datasets:
+      - source: "10.1088/1674-4926/33/10/106003 — Su Jianxiu et al., J. Semicond. 33 (10), 106003 (2012)"
+        title: "Material removal rate of 6H-SiC crystal substrate CMP using an alumina (Al2O3) abrasive"
+        abrasive: {kind: alumina, size_nm: "1500 - 3500 (1.5 - 3.5 um)", wt_pct: "8-10 g per 500 ml"}
+        chemistry: {ph: "9 - 13 swept", oxidizer: "H2O2, 5 / 10 / 15 / 20 ml per 500 ml", inhibitor: "benzyl alcohol dispersant, 2 / 4 / 8 / 14 / 20 ml per 500 ml"}
+        pad: "not named"
+        tool: "2 psi, carrier nw = 65 r/min, platen np = 60 r/min (np swept separately)"
+        swept_variable: pressure
+        sweep_range: "SIX separate single-variable sweeps: pH; oxidant content; dispersant content; abrasive size; carrier speed nw; platen speed np (up to 80+ r/min); and polishing PRESSURE"
+        rate_range_A_per_min: "0.75 - 6.7 (45 - 404.5 nm/HOUR — note the unit)"
+        n_points: 24
+        data_origin: graph_digitized
+        already_in_repo: "partially — su2011_sic_alumina_size_sweep.yaml covers the SIZE axis from the companion 2011 paper"
+        note: >
+          The single most complete parameter study for SiC found, and it covers the
+          two axes the repo lacks: PLATEN SPEED and PRESSURE. Values printed in text
+          (these are safe; the rest are figures):
+            dispersant 14 ml optimum : Si-face 59.3 nm/h, C-face 404.5 nm/h
+            dispersant 20 ml         : Si-face 45 nm/h,   C-face 353.5 nm/h
+            oxidant 15 ml            : Si-face max 95 nm/h
+            oxidant 20 ml            : Si-face 52.1 nm/h, C-face max 395.7 nm/h
+            platen speed optimum     : Si-face max ~65 nm/h at np 80 r/min;
+                                       C-face max ~360 nm/h at np 60 r/min
+            optimal slurry (Table 2) : Si-face pH 10, oxidant 15, dispersant 14,
+                                       size 2.5 um, 8 g/500 ml
+                                       C-face pH 11, oxidant 20, dispersant 14,
+                                       size 3.5 um, 8 g/500 ml
+          ⭐ DIRECT PRESTON STATEMENT: for the pressure sweep the paper states MRR is
+          "basically proportional to the polishing pressure" and that "the curve of
+          the MRR is consistent with the classic Preston equation". That is an
+          explicit published Preston validation for SiC — but the per-point values
+          are in Fig. 8, so digitizing is required to use it quantitatively.
+          ⚠ CARRIER SPEED HAS ALMOST NO EFFECT (stated explicitly, Fig. 6) while
+          PLATEN SPEED has an interior maximum (Fig. 7). A model that lumps both into
+          one relative velocity will get this wrong. Important for the engine.
+          ⚠ C-face removes 4-5x faster than Si-face under identical conditions. If
+          the simulator treats 'sic' as one film, it is averaging over a 5x anisotropy.
+          Consider splitting the pack by crystal face.
+
+      - source: "10.3390/ma17030679 — Gong J., Wang W., Liu W., Song Z., Materials 17 (3), 679 (2024)"
+        title: "4H-SiC CMP with alumina abrasive and permanganate oxidizer — L25 orthogonal design"
+        abrasive: {kind: alumina, size_nm: 500, wt_pct: "5 levels (levels 1-5; absolute wt% per level not printed)"}
+        chemistry: {ph: "2, 3, 4, 5, 6", oxidizer: "KMnO4 (hypermanganate), 5 levels", inhibitor: "nitric acid / KOH for pH adjust"}
+        pad: "Suba 800"
+        tool: "Bruker CP-4, 2-inch 4H-SiC, load 4 psi, head 100 r/min, platen 90 r/min, 90 ml/min, 60 min"
+        swept_variable: pH
+        sweep_range: "L25 orthogonal array: pH (2-6) x oxidant content (5 levels) x abrasive content (5 levels), 25 runs"
+        rate_range_A_per_min: "76.7 - 138.0 (0.4599 - 0.8278 um/h); optimised combination reported at 1.2 um/h = 200 Å/min"
+        n_points: 25
+        data_origin: table
+        already_in_repo: false
+        note: >
+          ⭐ BEST NEW SiC DATASET — a complete printed L25 table, 25 rows, MRR and Ra
+          for every run. Structurally the same kind of artifact as the existing
+          us6564116b2 oxide Taguchi L25 file, so it slots straight into the harness.
+          Table 2 verbatim (run, pH level, oxidant level, abrasive level, MRR um/h, Ra nm):
+            1 2 1 1 0.5212 0.348 | 2 2 2 3 0.7665 1.277 | 3 2 3 5 0.7972 0.365
+            4 2 4 2 0.4906 0.122 | 5 2 5 4 0.6439 0.113 | 6 3 1 5 0.5519 0.248
+            7 3 2 2 0.4599 0.311 | 8 3 3 4 0.7052 0.355 | 9 3 4 1 0.6439 0.123
+            10 3 5 3 0.6439 1.358 | 11 4 1 4 0.4906 0.176 | 12 4 2 1 0.7052 0.809
+            13 4 3 3 0.5212 1.828 | 14 4 4 5 0.7052 0.129 | 15 4 5 2 0.7358 2.468
+            16 5 1 3 0.5212 0.225 | 17 5 2 5 0.7052 0.766 | 18 5 3 2 0.7052 0.408
+            19 5 4 4 0.8278 0.149 | 20 5 5 1 0.7972 1.970 | 21 6 1 2 0.5825 0.268
+            22 6 2 4 0.7358 0.264 | 23 6 3 1 0.6745 0.210 | 24 6 4 3 0.7665 0.110
+            25 6 5 5 0.7052 0.116
+          Range analysis printed in Table 3: oxidant content dominates MRR
+          (R = 0.1717), then pH (R = 0.1104), then abrasive content (R = 0.0978).
+          Optimum: pH 4, oxidant 5 wt%, Al2O3 5 wt% -> 1.2 um/h, Ra 0.093 nm.
+          ⚠ LEVEL-TO-VALUE MAPPING IS INCOMPLETE. The table gives LEVEL INDICES
+          (1-5) for oxidant and abrasive content, and the text only reveals that
+          level 5 = 5 wt% for both. The intermediate levels are NOT printed in the
+          extracted text. Before this becomes a dataset YAML the owner must recover
+          the level definitions from the paper's figures/SI — otherwise only the pH
+          axis (explicitly 2,3,4,5,6) is usable as a real variable.
+          ⚠ SINGLE PRESSURE (4 psi) and single speed — no Preston content. This is a
+          chemistry/abrasive-loading dataset.
+          ⚠ Ra varies 20x across the array (0.11 to 2.47 nm) at nearly constant MRR,
+          i.e. MRR alone does not rank these slurries.
+
+      - source: "10.1016/j.apsusc.2015.10.158 — Chen G. et al., 'Performance of colloidal silica and ceria based slurries on CMP of Si-face 6H-SiC substrates', Appl. Surf. Sci. 359, 664-668 (2015)"
+        title: "Colloidal silica vs colloidal ceria with KMnO4 on Si-face 6H-SiC"
+        abrasive: {kind: "colloidal ceria (2 wt%) vs colloidal silica (Nexsil 85A, 50 nm, 30 wt% acid-stabilised stock, used at 6 wt% for pre-polish)", size_nm: 50, wt_pct: "2 (ceria) / 6 (silica)"}
+        chemistry: {ph: "2 (strong acid) and alkaline comparison", oxidizer: "KMnO4 0.05 M", inhibitor: none}
+        pad: "IC-1000 (K-groove), ex-situ conditioning"
+        tool: "CETR CP-4, 2-inch Si-face 6H-SiC, 4 psi, 90/90 rpm platen/carrier, 90 ml/min, 20 min; MRR by mass loss (0.01 mg balance), 3 repeats"
+        swept_variable: pH
+        sweep_range: "abrasive type (ceria vs silica) x pH (acid vs base) at fixed 4 psi"
+        rate_range_A_per_min: "1.0 - 18.2 (6 - 1089 nm/HOUR)"
+        n_points: 4
+        data_origin: prose
+        already_in_repo: false
+        note: >
+          Values printed in the abstract/text: maximum MRR 1089 nm/h with 2 wt%
+          colloidal ceria + 0.05 M KMnO4 at pH 2, Ra 0.11 nm. Cited within the same
+          corpus (Chen 2020, RJAC): colloidal-silica base slurries gave 153 nm/h
+          (Si-face) and 6 nm/h (C-face). Also cited there: mixed silica+nanodiamond
+          at pH 11 gives 200-550 nm/h; silica+H2O2+piperazine on 4H-SiC gives 106 nm/h.
+          Process conditions are fully printed (Table 1), so this is a solid
+          single-pressure ANCHOR POINT for the ceria reference abrasive of the
+          sic_ceria_h2o2 pack — which is notable because BOTH existing repo SiC files
+          (su2011, wei2026) use alumina and silica, NOT ceria. This is the only
+          ceria-on-SiC rate found.
+          ⚠ Single pressure, so no Preston content. n_points counts the
+          abrasive x pH comparison cells, not a sweep.
+    gaps: >
+      SiC has the most sources but they disagree badly in absolute rate (see
+      `disagreements`) and NONE of them sweeps pressure with a printed table —
+      Su 2012 sweeps pressure and platen speed but only in figures, Gong 2024 and
+      Chen 2015 are fixed at 4 psi. So sic still has no table-grade Preston data.
+      Also missing: any SiC dataset that separates Si-face from C-face in the SAME
+      table with the SAME slurry over a pressure range (the 4-5x face anisotropy is
+      currently unmodelled), and any ceria-on-SiC CONCENTRATION or SIZE series.
+      Highest-value action: digitize Su 2012 Fig. 8 (pressure) and Fig. 7 (platen
+      speed) — that single paper would give sic both missing axes.
+
+  # ─────────────────────────────────────────────────────────────────────────
+  snag:
+    pack: snag_solder
+    reference_abrasive: null
+    datasets: []
+    gaps: >
+      ⛔ NO PUBLIC DATASET FOUND. This is an honest empty entry, not an oversight.
+      snag is the single weakest film in the simulator: the pack has no validation
+      data of any kind, and this survey could not find any.
+
+      What was searched, and what came back:
+        * Local corpus (~700 patent captures, 397 papers) grepped for
+          \\bSnAg\\b, 'tin[- ]silver', 'solder bump.{0,40}polish', 'Sn CMP',
+          'solder CMP'. The ONLY hits were passing mentions of SnAg as a BUMP
+          MATERIAL in interconnect-structure patents (e.g. KR102101377B1, where
+          'PbSn, Sn, SnAg, Cu, In, SnAgCu, SnCu, Au' appears in a list of possible
+          C4 bump materials). Zero removal-rate data. Zero slurry compositions
+          aimed at solder.
+        * Web searches run: 'SnAg solder CMP removal rate slurry polishing
+          pressure'; 'solder bump CMP chemical mechanical polishing removal rate
+          Sn Ag patent'; 'CMP of SnAg micro-bump planarization removal rate slurry
+          hybrid bonding'; 'planarization of electroplated solder SnAg bumps fly
+          cutting vs CMP removal rate'; 'CMP slurry for tin solder Sn planarization
+          removal rate nm/min oxidizer pH study'; 'patents "polishing composition"
+          "solder" "Sn" "removal rate" CMP bump planarization site:patents.google.com';
+          'Kim "solder CMP" OR "Sn CMP" removal rate slurry ECS Journal Solid State'.
+          Results were about bump FORMATION (electroplating, multilayer plating,
+          wet seed etching), bump UNDERCUT characterisation, fine-pitch BONDING,
+          and Cu-Cu hybrid bonding — not solder CMP rates.
+        * A PMC article and an RIT thesis surfaced as possible leads but could not
+          be opened (PMC returned 403/empty to both the extractor and curl with a
+          browser UA), so nothing from them is recorded.
+
+      Why the literature is thin, and it is probably structural rather than a search
+      failure: SnAg micro-bumps are normally planarized by DIAMOND FLY-CUTTING /
+      surface planers (DISCO-type) rather than by CMP, because solder is soft,
+      smears, and embeds abrasive. The published process literature therefore sits
+      in the packaging/bonding community and reports bump height uniformity and
+      coplanarity, not Å/min removal rate at a given psi.
+
+      What the owner would need to measure — there is no shortcut here:
+        1. Blanket electroplated SnAg film (not bumps) on a carrier, so thickness
+           metrology is meaningful.
+        2. Pressure sweep at LOW pressure (solder is soft: try 0.5 / 1 / 1.5 / 2 psi)
+           at one fixed platen speed, then a speed sweep at one pressure.
+        3. Report abrasive type/size/wt%, pH, oxidizer, and the static etch rate
+           separately — for a soft solder the chemical (etch) component is likely to
+           dominate and must be measured with abrasive absent.
+        4. Expect and check for smearing/embedding: report post-CMP Ra and abrasive
+           residue, not just rate.
+      Until that exists, any snag_solder simulation output is UNVALIDATED and should
+      be labelled as such in the tool.
+
+# ============================================================================
+disagreements:
+
+  sic:
+    severity: ">10x — far beyond the 3x flag threshold"
+    detail: >
+      Published SiC removal rates span more than an order of magnitude and the
+      spread is NOT explained by pressure, which is 2-4 psi in every source.
+        * Su 2012 (10.1088/1674-4926/33/10/106003), alumina 1.5-3.5 um, 2 psi,
+          60/65 r/min : Si-face 45 - 95 nm/HOUR, C-face 353 - 404 nm/hour.
+        * Gong 2024 (10.3390/ma17030679), alumina 500 nm + KMnO4, 4 psi, 90/100 r/min
+          : 460 - 828 nm/hour across the L25, 1200 nm/hour optimised.
+        * Chen 2015 (10.1016/j.apsusc.2015.10.158), ceria 2 wt% + 0.05 M KMnO4, pH 2,
+          4 psi, 90/90 rpm : 1089 nm/hour; silica-based comparison 153 nm/hour
+          Si-face, 6 nm/hour C-face.
+      Si-face-to-Si-face, Su 2012's 95 nm/h vs Gong 2024's 1200 nm/h is ~13x, and
+      vs Chen 2015's 1089 nm/h is ~11x, at only a 2x pressure difference.
+    likely_causes: >
+      (a) OXIDIZER IDENTITY dominates. Su used H2O2; Gong and Chen used permanganate
+      (KMnO4/MnO2). Chen 2015 and Chen 2020 both report permanganate at acid pH is
+      far more aggressive on SiC. Gong 2024's own range analysis says oxidant content
+      is the single largest factor (R = 0.1717, above pH and abrasive). A pack that
+      does not distinguish H2O2 from permanganate cannot span these sources.
+      (b) CRYSTAL FACE. C-face polishes 4-5x faster than Si-face in Su 2012 and
+      ~25x faster in the silica case cited by Chen 2020. Sources that do not state
+      the face are not comparable.
+      (c) POLYTYPE (6H vs 4H) and abrasive size (500 nm vs 1.5-3.5 um) differ too.
+    action_for_owner: >
+      Do NOT pool SiC sources into one Kp. Split sic at minimum by oxidizer class
+      (peroxide vs permanganate) and preferably by crystal face. The existing repo
+      files su2011 (alumina) and wei2026 (silica + Fenton H2O2/Fe3O4) are already in
+      two different chemical regimes; adding Gong 2024 (permanganate) makes three.
+      Treat the 3x+ spread as a pack-partitioning signal, not as measurement noise.
+
+  si:
+    severity: ">3x, and possibly much more — but the comparison is tool-limited"
+    detail: >
+      Bae 2022 (10.3390/nano12213893) reports 139.5 nm/min for 1 wt% colloidal
+      silica with NO alkaline accelerator, rising to 552-872 nm/min with amine
+      accelerators, on a POLI-300 with a SUBA 600 pad at 5.7 psi. The same paper
+      states commercial Si CMP slurries measured on the same rig give
+      316.7 - 372.3 nm/min.
+      Wang/Zhang/Biddut 2011 (10.1016/j.wear.2010.11.006) cites ~30 nm/min for
+      Al2O3 + DI water on a SUBA IV pad, and its own measurements are on a Logitech
+      PM5 lapping rig at 20 kPa (2.9 psi) with 20x15 mm coupons.
+      139.5 vs ~30 nm/min is ~4.6x at roughly a 2x pressure difference.
+    likely_causes: >
+      Different machine class (300 mm-capable polisher vs bench lapping rig),
+      different metrology (film thickness vs coupon mass loss), different chemistry
+      (alkaline silica vs alumina in DI water), and a 2x pressure difference. The
+      ~30 nm/min figure is additionally a SECONDARY citation inside Wang 2011, not
+      that paper's own measurement.
+    action_for_owner: >
+      Do not treat this as a contradiction to be reconciled by tuning. It is a
+      reminder that bulk-Si rates are meaningless without the chemistry and the
+      rig. Because si has NO pressure sweep at all, the pack's Kp is currently
+      unconstrained and any absolute si prediction carries an unknown scale factor.
+      Calibrate si only against a single self-consistent source, and prefer Bae 2022
+      (real polisher, explicit conditions, 12 printed values).
+
+  oxide_low_pH_pressure_response:
+    severity: "not a magnitude disagreement — a SHAPE contradiction with Preston"
+    detail: >
+      In US9422456B2 Table 3 the TEOS rate is INSENSITIVE to a doubling of pressure
+      at low pH (pH 2.5: 130 -> 130 Å/min; pH 3.0: 240 -> 230 Å/min from 2 to 4 psi)
+      while at pH 4.0-4.9 the same doubling gives a 1.7-1.8x rise
+      (1680 -> 2800, 1660 -> 2950, 1720 -> 2950). At pH 8.4 it rises 6.7x
+      (30 -> 200).
+      Independently, in US7955520B2 Table 1 the Cu rate ratio RR(3 psi)/RR(1 psi)
+      is 1.34-1.71 across all nine formulations where Preston demands 3.0.
+    likely_causes: >
+      The pressure exponent is chemistry-dependent, not a universal 1.0. Where the
+      surface reaction is rate-limiting (low pH for silica-on-oxide, strong
+      passivation for SHA-on-Cu) additional mechanical drive buys little; where
+      mechanical removal limits, the response approaches or exceeds linear.
+    action_for_owner: >
+      This is the most actionable model finding in the survey. Two independent
+      printed patent tables, two different films, both show sub-Prestonian pressure
+      response at the passivated/chemically-limited end and near-linear response in
+      the mechanically-limited regime — and Mariscal 2020's fitted parameters say the
+      same thing in Langmuir-Hinshelwood language (SiO2 mechanically limited,
+      k1 >> k2; Si3N4 not). A single global pressure exponent will be wrong for at
+      least one end of every film's chemistry range.
+
+# ============================================================================
+search_log:
+
+  method: >
+    Extracted full text from the entire local corpus (~/fab-sim/papers: 397 PDFs
+    via PyMuPDF, plus ~700 Google Patents HTML captures tag-stripped), then
+    regex-scored every document for co-occurrence of a removal-rate unit
+    (Å/min, nm/min, nm/h, um/h) with a pressure token (psi, kPa) and a
+    multi-level pressure or speed pattern. Ranked candidates were then read
+    in context. DOIs were verified against the Crossref REST API (title,
+    journal, volume, pages, year) rather than being copied from filenames.
+    Two patents were re-verified against their ORIGINAL PDFs
+    (US7955520.pdf, EP3161098B1.pdf) because the HTML captures had
+    inconsistencies.
+
+  yielded_nothing:
+    - "snag / SnAg / Sn solder CMP: seven distinct web queries plus corpus regex.
+       Only bump-fabrication and bonding literature. See the snag entry."
+    - "Google Patents direct HTML fetch for US7955520B2: HTTP 503 bot wall.
+       Worked around via patentimages PDF, which succeeded."
+    - "patentimages 'pdfs/EP3161098B1.pdf' short path: HTTP 403. The hashed path
+       (8a/22/2f/...) returned 200 — use hashed paths for EP documents."
+    - "PMC article PMC11522676 and an RIT thesis PDF: both returned empty/403 to
+       the extractor and to curl with a browser UA. Nothing recorded from them."
+    - "Sorooshian 2005, Liao 2014, McAllister 2019, Wei 2010 (Arizona dissertations):
+       present in the corpus and rich in tribology/COF data, but the sections read
+       did not yield a printed rate-vs-pressure or rate-vs-velocity table that was
+       not already better covered by Mariscal 2020 from the same group. McAllister
+       2019 does contain blanket CVD-W polishing work worth a second pass."
+    - "Praveen 2014 (Microelectronic Engineering, STI abrasive+additive selectivity):
+       extracted text contained no psi/kPa token at all — process conditions are
+       absent from the machine-readable layer. Cannot be used without the original."
+    - "Hwang 2026 (Polymers, PAA-ceria STI): single condition only (4 psi,
+       300/150 rpm, IC1000, 28.5 ml/min, 60 s). No sweep, so not indexed."
+    - "Dandu 2009 (JES, ceria SiO2/SiN selectivity): Table hits in the text layer
+       did not resolve to a rate-vs-pressure table in the sections read."
+    - "US9200180B2 (benzenesulfonic acid CMP): all reported rates are at a single
+       2.0 psi membrane pressure on a Mirra/Politex. Rich multi-film table
+       (Cu, PETEOS, Ta, TaN, Black Diamond) but NO pressure axis, so it is a
+       chemistry anchor only and was not indexed as a sweep."
+    - "Lee 2019 / Egan 2019 (JSS, W abrasive size): identified as candidates for the
+       w pack's size axis but not read in this pass — bouvet2002_w already covers
+       size, and the pressure gap was the priority."
+    - "arXiv: no CMP removal-rate datasets of the required form were pursued;
+       the domain's experimental data is in ECS/Elsevier/patents, not arXiv."
+
+  verification_notes:
+    - "Crossref-confirmed DOIs: 10.1149/2.0081905jss (ECS JSS 8, P3040-P3046, 2019);
+       10.3390/nano12213893 (Nanomaterials 12, 3893, 2022);
+       10.1149/2162-8777/ab89bc (ECS JSS 9, 044008, 2020);
+       10.1088/1674-4926/33/10/106003 (J. Semicond. 33, 106003, 2012);
+       10.3390/ma17030679 (Materials 17, 679, 2024);
+       10.1016/j.wear.2010.11.006 (Wear 270, 312-316, 2011);
+       10.1016/j.apsusc.2015.10.158 (Appl. Surf. Sci. 359, 664-668, 2015)."
+    - "Assignees read from the patent records: US9422456B2 -> Cabot Microelectronics
+       Corp (granted 2016-08-23); EP3161098B1 -> CMC Materials LLC (B1 2022-10-26);
+       US8114775B2 -> DuPont Air Products NanoMaterials LLC (granted 2012-02-14);
+       US7955520B2/KR101173753B1/TWI384061B -> Cabot Microelectronics
+       (KR B1 published 2012-08-13, priority 2007-11-27)."
+    - "The local corpus slug 'zhou2004-chemical-effect-mrr-si-cmp' is MISNAMED; the
+       file is Wang, Zhang & Biddut, Wear 270 (2011) 312-316. Fix the slug."
+    - "Every rate quoted in this file was copied from source text or a source table
+       during this pass. Where a value existed only in a figure, no value was
+       written and data_origin is graph_digitized. Where a table was present but
+       its text layer was corrupted (Ihnfeldt 2008 Table 6.2) or its level
+       definitions incomplete (Gong 2024 oxidant/abrasive levels), that is stated
+       explicitly instead of filling the gap."

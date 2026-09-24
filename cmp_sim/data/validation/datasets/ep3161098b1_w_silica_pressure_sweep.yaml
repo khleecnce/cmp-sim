@@ -1,0 +1,235 @@
+# Tungsten CMP — Fe/malonic-acid/H2O2 slurry, six inhibitor·Fe combinations × 1.5/2.0/3.0 psi.
+# EP3161098B1 Example 5, Table 5B (printed table, 18 W values).
+#
+# Why this dataset matters more than its size suggests
+# ----------------------------------------------------
+# The same table also prints the TEOS rate measured on the SAME wafers with the
+# SAME slurry over the SAME pressure axis (see the companion dataset
+# ep3161098b1_teos_silica_pressure_sweep.yaml). Over a 2× pressure change:
+#
+#     W    rises 2.06×  …  5.69×   (composition-dependent)
+#     TEOS rises 1.82×  …  2.17×   (near-Preston, composition-independent)
+#
+# One slurry, one tool, one pressure axis, two films — so the difference cannot
+# be a tool or a chemistry artefact. It is a direct measurement of a
+# FILM-DEPENDENT pressure response, and the strongest evidence in this repo for
+# keeping a separate pressure exponent per film rather than one global Preston
+# exponent. W is strongly super-Prestonian here because the rate is limited by
+# the passivating WOx film: more pressure removes passivation faster, which
+# feeds back into the chemical term. TEOS has no such feedback.
+#
+# W is also the film where the pack's pressure behaviour was previously
+# unconstrained — bouvet2002 (the existing W dataset) is a particle-SIZE sweep
+# at fixed pressure. This is the first W pressure sweep in the repo.
+
+source: >
+  EP 3 161 098 B1 (Cabot Microelectronics Corp), "Tungsten chemical mechanical
+  polishing composition for reduced oxide erosion", granted 2019.
+  Numbers taken from: EXAMPLE 5, paragraphs [0089]-[0090] and TABLE 5B,
+  "Tungsten Rate (Å/min)" columns at 1.5 / 2.0 / 3.0 psi, compositions 5A-5F.
+
+  VERIFIED AGAINST THE ORIGINAL EPO PDF, not a Google Patents HTML rendering:
+  https://data.epo.org/publication-server/rest/v1.2/patents/EP3161098NWB1/document.pdf
+  (Google Patents returns a bot-wall stub for this document; the EPO
+  publication server serves the real 608 KB PDF.)
+
+  TWO INTERNAL INCONSISTENCIES IN THE PATENT, both confirmed by reading the PDF
+  text directly, both resolved in favour of the TABLE:
+
+   1. Paragraph [0090] says the downforces were "1.0, 2.0, and 3.0 psi" while
+      the Table 5B column headers read "1.5 psi / 2.0 psi / 3.0 psi".
+      The table headers are used here, for two independent reasons: Table 5C
+      computes TEOS:Tungsten selectivities under the same 1.5/2.0/3.0 headers,
+      and Example 4 in the same patent also polishes at 1.5 psi, so 1.5 is a
+      pressure this work actually used. Taking 1.0 psi instead would inflate
+      every apparent pressure exponent — the quantity this dataset exists to
+      measure — so the ambiguity is recorded rather than silently resolved.
+      If the owner judges [0090] to be correct, only the pressure_psi values
+      change; the rates are unaffected.
+
+   2. Table 5A labels the compositions 5A-5F, but the Table 5B rows are printed
+      as 1A-1F. Same six compositions in the same order (5A/1A = 45 ppm Fe,
+      50 ppm inhibitor, and so on); the row labels below use the 5x form from
+      Table 5A and note the 1x label the rate table prints.
+
+  Composition (paragraph [0089], identical for all six except Fe and inhibitor):
+  2.0 wt% core-shell colloidal silica with an internal aminopropyl trialkoxysilane,
+  mean particle size ~55 nm; 2.0 wt% H2O2; malonic acid : Fe(NO3)3·9H2O molar
+  ratio fixed at 8:1; pH 4.0.
+  Process (paragraph [0090]): 300 mm wafers, Applied Materials Reflexion CMP
+  tool, IC1010 pad, platen 100 rpm, slurry flow 200 mL/min.
+
+  Fe(NO3)3·9H2O and tungsten etch inhibitor, from TABLE 5A (ppm):
+    5A 45/50   5B 45/37   5C 60/37   5D 60/50   5E 45/63   5F 60/63
+
+film: w
+pack: w_fe_oxidizer
+in_scope: true
+used_for_calibration: false
+
+# Head rpm is not stated in the patent → rpm_wafer omitted, pack default used.
+# The six compositions differ in Fe and inhibitor concentration, which the
+# overrides carry so the fit groups them rather than treating the spread as noise.
+
+conditions:
+  # ---- 5A (printed as 1A): 45 ppm Fe, 50 ppm inhibitor -------------------
+  - label: "5A Fe45/inh50, 1.5 psi"
+    pressure_psi: 1.5
+    rpm_platen: 100
+    mrr_nm_per_min: 38.0
+    read_method: table
+    overrides: &c5A
+      sfr_ml_min: 200
+      abrasive_wt_pct: 2.0
+      abrasive_size_nm: 55.0
+      slurry_ph: 4.0
+      oxidizer_wt_pct: 2.0
+      fe_ppm: 45
+      inhibitor_ppm: 50
+  - label: "5A Fe45/inh50, 2.0 psi"
+    pressure_psi: 2.0
+    rpm_platen: 100
+    mrr_nm_per_min: 98.0
+    read_method: table
+    overrides: *c5A
+  - label: "5A Fe45/inh50, 3.0 psi"
+    pressure_psi: 3.0
+    rpm_platen: 100
+    mrr_nm_per_min: 213.0
+    read_method: table
+    overrides: *c5A
+
+  # ---- 5B (printed as 1B): 45 ppm Fe, 37 ppm inhibitor -------------------
+  - label: "5B Fe45/inh37, 1.5 psi"
+    pressure_psi: 1.5
+    rpm_platen: 100
+    mrr_nm_per_min: 72.0
+    read_method: table
+    overrides: &c5B
+      sfr_ml_min: 200
+      abrasive_wt_pct: 2.0
+      abrasive_size_nm: 55.0
+      slurry_ph: 4.0
+      oxidizer_wt_pct: 2.0
+      fe_ppm: 45
+      inhibitor_ppm: 37
+  - label: "5B Fe45/inh37, 2.0 psi"
+    pressure_psi: 2.0
+    rpm_platen: 100
+    mrr_nm_per_min: 107.0
+    read_method: table
+    overrides: *c5B
+  - label: "5B Fe45/inh37, 3.0 psi"
+    pressure_psi: 3.0
+    rpm_platen: 100
+    mrr_nm_per_min: 201.0
+    read_method: table
+    overrides: *c5B
+
+  # ---- 5C (printed as 1C): 60 ppm Fe, 37 ppm inhibitor -------------------
+  - label: "5C Fe60/inh37, 1.5 psi"
+    pressure_psi: 1.5
+    rpm_platen: 100
+    mrr_nm_per_min: 127.0
+    read_method: table
+    overrides: &c5C
+      sfr_ml_min: 200
+      abrasive_wt_pct: 2.0
+      abrasive_size_nm: 55.0
+      slurry_ph: 4.0
+      oxidizer_wt_pct: 2.0
+      fe_ppm: 60
+      inhibitor_ppm: 37
+  - label: "5C Fe60/inh37, 2.0 psi"
+    pressure_psi: 2.0
+    rpm_platen: 100
+    mrr_nm_per_min: 134.0
+    read_method: table
+    overrides: *c5C
+  - label: "5C Fe60/inh37, 3.0 psi"
+    pressure_psi: 3.0
+    rpm_platen: 100
+    mrr_nm_per_min: 261.0
+    read_method: table
+    overrides: *c5C
+
+  # ---- 5D (printed as 1D): 60 ppm Fe, 50 ppm inhibitor -------------------
+  - label: "5D Fe60/inh50, 1.5 psi"
+    pressure_psi: 1.5
+    rpm_platen: 100
+    mrr_nm_per_min: 48.0
+    read_method: table
+    overrides: &c5D
+      sfr_ml_min: 200
+      abrasive_wt_pct: 2.0
+      abrasive_size_nm: 55.0
+      slurry_ph: 4.0
+      oxidizer_wt_pct: 2.0
+      fe_ppm: 60
+      inhibitor_ppm: 50
+  - label: "5D Fe60/inh50, 2.0 psi"
+    pressure_psi: 2.0
+    rpm_platen: 100
+    mrr_nm_per_min: 114.0
+    read_method: table
+    overrides: *c5D
+  - label: "5D Fe60/inh50, 3.0 psi"
+    pressure_psi: 3.0
+    rpm_platen: 100
+    mrr_nm_per_min: 273.0
+    read_method: table
+    overrides: *c5D
+
+  # ---- 5E (printed as 1E): 45 ppm Fe, 63 ppm inhibitor -------------------
+  - label: "5E Fe45/inh63, 1.5 psi"
+    pressure_psi: 1.5
+    rpm_platen: 100
+    mrr_nm_per_min: 27.0
+    read_method: table
+    overrides: &c5E
+      sfr_ml_min: 200
+      abrasive_wt_pct: 2.0
+      abrasive_size_nm: 55.0
+      slurry_ph: 4.0
+      oxidizer_wt_pct: 2.0
+      fe_ppm: 45
+      inhibitor_ppm: 63
+  - label: "5E Fe45/inh63, 2.0 psi"
+    pressure_psi: 2.0
+    rpm_platen: 100
+    mrr_nm_per_min: 80.0
+    read_method: table
+    overrides: *c5E
+  - label: "5E Fe45/inh63, 3.0 psi"
+    pressure_psi: 3.0
+    rpm_platen: 100
+    mrr_nm_per_min: 139.0
+    read_method: table
+    overrides: *c5E
+
+  # ---- 5F (printed as 1F): 60 ppm Fe, 63 ppm inhibitor -------------------
+  - label: "5F Fe60/inh63, 1.5 psi"
+    pressure_psi: 1.5
+    rpm_platen: 100
+    mrr_nm_per_min: 30.0
+    read_method: table
+    overrides: &c5F
+      sfr_ml_min: 200
+      abrasive_wt_pct: 2.0
+      abrasive_size_nm: 55.0
+      slurry_ph: 4.0
+      oxidizer_wt_pct: 2.0
+      fe_ppm: 60
+      inhibitor_ppm: 63
+  - label: "5F Fe60/inh63, 2.0 psi"
+    pressure_psi: 2.0
+    rpm_platen: 100
+    mrr_nm_per_min: 85.0
+    read_method: table
+    overrides: *c5F
+  - label: "5F Fe60/inh63, 3.0 psi"
+    pressure_psi: 3.0
+    rpm_platen: 100
+    mrr_nm_per_min: 166.0
+    read_method: table
+    overrides: *c5F

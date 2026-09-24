@@ -1,0 +1,724 @@
+# rate_ratios_matched.yaml
+#
+# PURPOSE
+#   Abrasive-swap rate ratios for cmp_sim/data/params/abrasives.yaml `relative_rate:`.
+#   A ratio here is ONLY admissible if it comes from ONE table / ONE study in which
+#   the tool, pad, pressure, velocity, pH, oxidizer, complexant and abrasive wt%
+#   were held constant and ONLY the abrasive chemistry changed.
+#
+# TWO ADMISSIBILITY GATES (both must pass for `usable_as_rate_ratio: true`)
+#   GATE 1 - matched recipe: same tool, same table, abrasive-only swap.
+#   GATE 2 - matched SIZE:   the two abrasives must have comparable d50. The engine
+#            already carries an explicit particle-size term, so a ratio that
+#            silently contains a size difference double-counts the size penalty.
+#            Precedent: US5575885's Cu table is a perfect GATE-1 pass and a hard
+#            GATE-2 fail (silica 30 nm vs alumina 740 nm vs zirconia 1100 nm vs
+#            ceria 1300 nm). Its 0.358 silica/alumina factor pushed the Cu example
+#            to 677.9 A/min, below the published 1,000-12,000 A/min Cu floor, and
+#            the plausibility gate rejected it. Numbers kept, value set to null.
+#
+# WHAT THIS PASS PRODUCED
+#   0 of 15 requested pairs pass both gates. 15 honest nulls.
+#   The single closest miss - and the one worth chasing - is US20090047870A1
+#   Example 2 vs Comparative Example 4 (see sti.colloidal_silica): a genuine
+#   abrasive-only swap, SIZE-MATCHED (ceria 200 nm vs silica 180 nm), same tool,
+#   same pad, same 2 psi, same 0.5 wt%, same pH. It fails on a third confound the
+#   task brief did not anticipate: both legs carry 100 ppm poly(4-vinylpyridine),
+#   an oxide suppressant that cuts the ceria TEOS rate from 2150 to 28 A/min. The
+#   5/28 = 0.18 ratio is therefore measured inside a 77x-inhibited regime and does
+#   not transfer to a bare STI slurry. Recorded in full rather than dropped.
+#
+# CONFIDENCE VOCABULARY
+#   measured    - ratio taken from one matched, size-matched table (none qualified)
+#   literature  - an approximate ratio stated in prose by the authors
+#   unverified  - value is null
+#
+# Abrasive keys are exactly: colloidal_silica, fumed_silica, ceria, alumina,
+# gamma_alumina, zirconia, titania, diamond, silicon_carbide_abrasive.
+
+relative_rate:
+
+  # ===================================================================
+  # TUNGSTEN   (reference abrasive: alumina)
+  # ===================================================================
+  w:
+
+    colloidal_silica:
+      value: null
+      reference: alumina
+      unit: dimensionless
+      source: "no qualifying source found; closest = Kaufman et al., J. Electrochem. Soc. 138(11) 3460 (1991), DOI 10.1149/1.2085434 (local copy papers/kaufman1991-w-cmp-mechanism.pdf)"
+      confidence: unverified
+      derived_from:
+        abrasive_rate: null
+        reference_rate: null
+        held_constant: "n/a - no paired table exists"
+      d50_abrasive_nm: null
+      d50_reference_nm: null
+      size_matched: unknown
+      usable_as_rate_ratio: false
+      note: >
+        Kaufman 1991 is the foundational W-CMP mechanism paper and it DOES run both
+        abrasives, but it never prints a paired rate. Verbatim: "We observed that
+        when the chemical formulations were combined with silica or alumina abrasive
+        particles, W films could be chemical-mechanically polished at removal rates
+        as high as 400 nm/min." One ceiling quoted for BOTH abrasives - no per-
+        abrasive number, so no ratio. The paper also states both were used in the
+        0.2-2.0 um range with the alumina nominally 0.05 um but light-scattering
+        showing it much coarser in the flowing state, so even if rates existed the
+        size term would be uncontrolled. Searched: Google Patents full text for W
+        comparative-example tables carrying both an alumina and a silica leg (see
+        search_log), and every W paper in the local 405-document corpus. Every W
+        patent found varies the CHEMISTRY (activator, stabiliser, fluoride,
+        oxidiser) on a FIXED abrasive - e.g. US20090250656A1 Table 7 holds 180 g
+        silica constant across five legs, US5993686 holds 3.0 wt% alumina constant
+        across all of Tables I-3. That is the industry's normal experimental design
+        and it is exactly the wrong shape for this question.
+
+    ceria:
+      value: null
+      reference: alumina
+      unit: dimensionless
+      source: "no source exists; negative result already recorded in research/abrasive_ceria.yaml gaps list"
+      confidence: unverified
+      derived_from:
+        abrasive_rate: null
+        reference_rate: null
+        held_constant: "n/a"
+      d50_abrasive_nm: null
+      d50_reference_nm: null
+      size_matched: unknown
+      usable_as_rate_ratio: false
+      note: >
+        There is no ceria-on-tungsten blanket rate in the literature at any
+        pressure or velocity, let alone a matched pair against alumina. The
+        repo's own ceria file states this independently: "film_anchors.w - NO
+        ceria tungsten blanket rate at any P/v. Tungsten CMP is alumina/silica
+        territory; ceria appears only in patent Markush lists with no ceria
+        example table." This pass confirms it: ceria appears in W-slurry patents
+        only inside boilerplate abrasive lists. Related and worth knowing -
+        EP3101076B1 Table 11 shows a ceria-COATED-silica composite gives W = 2
+        A/min where plain colloidal silica gives 57 A/min in the same barrier
+        chemistry, i.e. ceria surfaces actively SUPPRESS W. That is a composite
+        particle, not pure ceria, and the abrasive loadings differ 13x (0.15 vs
+        3.1 wt%), so it is not a usable ratio - but it says the true pure-ceria
+        value is probably well below 1.0, not above it.
+
+  # ===================================================================
+  # COPPER   (reference abrasive: alumina)
+  # ===================================================================
+  cu:
+
+    colloidal_silica:
+      value: null
+      reference: alumina
+      unit: dimensionless
+      source: "US5575885 (Hirabayashi et al., 1996) TABLE 1; local copy papers/hirabayashi1996-us5575885-cu-polishing-aminoacetic-acid.pdf"
+      confidence: unverified
+      derived_from:
+        abrasive_rate: "35.3 nm/min (colloidal silica, 30 nm mean grain)"
+        reference_rate: "98.5 nm/min (alumina, 740 nm mean grain)"
+        held_constant: "0.1 wt% aminoacetic acid (glycine) + 13 wt% H2O2; ~9 wt% abrasive; SUBA800 (Rodel Nitta) pad; 400 g/cm2 = 39.2 kPa = 5.69 psi; platen and holder counter-rotating at 100 rpm; 12.5 mL/min slurry flow; pH not stated"
+      d50_abrasive_nm: 30
+      d50_reference_nm: 740
+      size_matched: false
+      usable_as_rate_ratio: false
+      note: >
+        GATE 1 PASS, GATE 2 FAIL - this is the reference case for why the size
+        gate exists. Four abrasives plus an abrasive-free control, one tool, one
+        pad, one load, one chemistry: alumina 98.5, colloidal silica 35.3, ceria
+        31.1, zirconia 22.1, none 10.0 nm/min (printed as "rim/min", an OCR
+        corruption of nm/min). Arithmetic: 35.3 / 98.5 = 0.358. Subtracting the
+        10.0 nm/min chemical floor first gives 25.3 / 88.5 = 0.286.
+        REJECTED because the sizes are 30 nm vs 740 nm - a 24.7x span. At equal
+        ~9 wt% mass loading the 30 nm silica carries far more particles and much
+        more total surface area, so 0.358 is a size+chemistry product, not a
+        chemistry factor. Feeding it forward drove the Cu example to 677.9 A/min,
+        under the 1,000-12,000 A/min published Cu range, and the plausibility gate
+        caught it.
+        Also dated: 1996 patent, 1.1 um-class powders, 12.5 mL/min flow.
+        WHAT WOULD FIX THIS: any Cu table running silica and alumina at the same
+        d50. Not found in this pass.
+
+    ceria:
+      value: null
+      reference: alumina
+      unit: dimensionless
+      source: "US5575885 TABLE 1 (same table as above)"
+      confidence: unverified
+      derived_from:
+        abrasive_rate: "31.1 nm/min (ceria, 1300 nm mean grain)"
+        reference_rate: "98.5 nm/min (alumina, 740 nm mean grain)"
+        held_constant: "identical to the colloidal_silica entry above - same table, same tool, same pad, same load, same chemistry"
+      d50_abrasive_nm: 1300
+      d50_reference_nm: 740
+      size_matched: false
+      usable_as_rate_ratio: false
+      note: >
+        GATE 1 PASS, GATE 2 FAIL. Arithmetic: 31.1 / 98.5 = 0.316; floor-corrected
+        21.1 / 88.5 = 0.238. The size mismatch here is milder than the silica leg
+        (1300 vs 740 nm, 1.8x) but runs the OTHER way - the ceria is the coarser
+        powder, so at fixed mass loading it has FEWER particles, and some of the
+        0.316 deficit is a particle-count deficit rather than a chemistry deficit.
+        Cannot separate the two from one row, so null. Direction is informative:
+        on a metal, ceria loses to alumina, consistent with ceria's chemical-tooth
+        mechanism being specific to Si-O networks and doing nothing for Cu.
+        A second, independent Cu ceria anchor exists (US20050003744A1, pure CeO2
+        1004 A/min on blanket Cu) but it has no alumina leg on the same tool, so
+        it cannot be divided into anything.
+
+  # ===================================================================
+  # OXIDE / ILD   (reference abrasive: colloidal_silica)
+  # ===================================================================
+  oxide:
+
+    fumed_silica:
+      value: null
+      reference: colloidal_silica
+      unit: dimensionless
+      source: "searched; no matched oxide table found. Nearest: H. Lee et al., Int. J. Precis. Eng. Manuf. 16, 2611-2616 (2015), DOI 10.1007/s12541-015-0334-4 (abstract only - paywalled); A. Krueger et al., 'Comparison of fumed Silica- and colloidal Silica Slurry for CMP' (ICPT 2019, ResearchGate 338038555 - PDF blocked)"
+      confidence: unverified
+      derived_from:
+        abrasive_rate: null
+        reference_rate: null
+        held_constant: "n/a - no numeric pair retrievable"
+      d50_abrasive_nm: null
+      d50_reference_nm: null
+      size_matched: unknown
+      usable_as_rate_ratio: false
+      note: >
+        The DIRECTION is well established and stated by authors in prose: fumed
+        silica out-polishes colloidal silica on oxide at equal loading because of
+        its branched, non-spherical aggregate shape. Lee 2015 abstract: "To
+        compensate the lower removal rate (RR) of colloidal silica slurry compared
+        to the one of fumed silica slurry..." and reports that engineered
+        NON-spherical colloidal silica reaches an RR "similar to the one of fumed
+        silica slurry". No MAGNITUDE is in the abstract and the full text is
+        paywalled; the ResearchGate copies of both Krueger comparison papers
+        return an HTML interstitial rather than the PDF.
+        Structural problem even if the numbers arrive: fumed silica has no
+        meaningful d50 - it is a fractal aggregate of 10-30 nm primaries with an
+        aggregate size of 100-200 nm and a shape factor far from 1. Comparing it
+        to a spherical 30-100 nm colloid can never satisfy GATE 2 in the sense the
+        engine needs; the difference IS the shape/aggregate structure. Recommend
+        the owner treat fumed vs colloidal as a separate shape/structure term
+        rather than forcing it through the size-matched rate-ratio path.
+
+    alumina:
+      value: null
+      reference: colloidal_silica
+      unit: dimensionless
+      source: "searched; nothing qualifying. Off-film near-miss: KR20130060211A Example 1 vs Comparative Example 2 (sapphire, not SiO2)"
+      confidence: unverified
+      derived_from:
+        abrasive_rate: null
+        reference_rate: null
+        held_constant: "n/a"
+      d50_abrasive_nm: null
+      d50_reference_nm: null
+      size_matched: unknown
+      usable_as_rate_ratio: false
+      note: >
+        No oxide-film table anywhere in this pass runs alumina and colloidal
+        silica side by side. Alumina is not used on oxide in production (it
+        scratches and has poor SiO2:SiN selectivity), so the comparison is
+        commercially pointless and nobody publishes it.
+        The closest matched pair found is on SAPPHIRE, not SiO2: KR20130060211A
+        Example 1 (alpha-alumina, 250 nm, 2 wt%, pH 12.55, SUBA600, 4.267 psi,
+        60 rpm platen) = 3.4 um/hr vs Comparative Example 2 (Compol 80 colloidal
+        silica, Fujimi, 62-82 nm, diluted 1:1, pH 12.55, same pad, same P and V)
+        = 0.6 um/hr, i.e. 5.7x, with identical Ra (0.503 vs 0.496 nm). Rejected
+        twice over: (a) wrong film - sapphire is single-crystal Al2O3, whose
+        removal chemistry has nothing to do with amorphous SiO2; (b) 250 nm vs
+        72 nm is a GATE-2 fail. Recorded only so nobody re-derives it.
+
+    zirconia:
+      value: null
+      reference: colloidal_silica
+      unit: dimensionless
+      source: "J.-H. Park et al., Microelectron. Eng. 85, 649-654 (2008), DOI 10.1016/j.mee.2007.12.049"
+      confidence: unverified
+      derived_from:
+        abrasive_rate: "204 nm/min (1 wt% ZrO2 ADDED INTO 1:10-diluted silica slurry - a MIXED abrasive, not pure zirconia)"
+        reference_rate: "149 nm/min (the 1:10-diluted silica slurry alone, DSS)"
+        held_constant: "same tool, same pad, TEOS film, pH 11-12, abrasives dispersed in DIW"
+      d50_abrasive_nm: null
+      d50_reference_nm: null
+      size_matched: unknown
+      usable_as_rate_ratio: false
+      note: >
+        NOT AN ABRASIVE SWAP. This is a mixed-abrasive-slurry (MAS) study: the
+        zirconia leg is 1 wt% ZrO2 ADDED ON TOP OF the silica base, so the 204 vs
+        149 nm/min pair measures the zirconia INCREMENT to a silica slurry, not
+        pure zirconia against pure silica. 204/149 = 1.37 is an additive effect
+        and must not be used as a relative_rate. Neither d50 is printed. The
+        authors' own framing is cost, not chemistry - they add cheap zirconia to
+        recover the rate lost by diluting expensive silica, and note the result is
+        "comparable to the original (undiluted) silica slurry".
+        The repo's abrasive_zirconia.yaml already carries the matching negative
+        finding: "No size-matched head-to-head comparison of zirconia against
+        silica / ceria..." That conclusion is unchanged by this pass.
+
+  # ===================================================================
+  # STI / OXIDE-CERIA   (reference abrasive: ceria)
+  # ===================================================================
+  sti:
+
+    colloidal_silica:
+      value: null
+      reference: ceria
+      unit: dimensionless
+      source: "US20090047870A1 (DuPont Air Products NanoMaterials / Versum lineage), TABLE 1, Example #2 vs Comparative Example #4"
+      confidence: unverified
+      derived_from:
+        abrasive_rate: "5 A/min PETEOS (Comparative Example #4: silica D50 = 180 nm, 0.5 wt%, pH 4.0)"
+        reference_rate: "28 A/min PETEOS (Example #2: calcined ceria D = 200 nm, 0.5 wt%, pH 3.8)"
+        held_constant: "Applied Materials Mirra tool; IC1000/Politex pad broken in with 25 dummy PETEOS wafers; 2 psi down force; 0.5 wt% abrasive in BOTH legs; 100 ppm poly(4-vinylpyridine) in BOTH legs; tetramethylammonium hydroxide in both; pH 3.8 vs 4.0; film = 15,000 A PETEOS on Si"
+      d50_abrasive_nm: 180
+      d50_reference_nm: 200
+      size_matched: true
+      usable_as_rate_ratio: false
+      note: >
+        *** BEST-MATCHED CANDIDATE FOUND IN THIS ENTIRE PASS - AND THE ONLY ONE
+        THAT PASSES THE SIZE GATE. *** The patent states the swap explicitly:
+        "Comparative Example 4 was the same as example 2 in table 1, except that
+        ceria particles were replaced with silica (180 nanometers) particles."
+        One table, one tool, one pad, one pressure, equal 0.5 wt% loading, and
+        d50 200 nm vs 180 nm - a 10% size difference, genuinely size-matched.
+        Arithmetic: 5 / 28 = 0.18 on PETEOS. (Companion Si3N4 leg, same two rows:
+        37 / 740 = 0.05.)
+        REJECTED ON A THIRD CONFOUND, not on size: both legs carry 100 ppm
+        poly(4-vinylpyridine), a deliberate oxide suppressant. The same table's
+        Example #1 - identical to #2 but with ZERO polymer - gives PETEOS
+        2150 A/min against #2's 28 A/min. The polymer therefore suppresses the
+        ceria oxide rate by 77x, and 0.18 is a ratio measured deep inside an
+        additive-dominated regime where the abrasive is no longer rate-limiting.
+        It cannot be read as the bare silica:ceria oxide-rate ratio, and applying
+        it to an uninhibited STI recipe would understate silica by a large and
+        unknown factor. There is no silica-without-polymer row to pair against
+        Example #1, so the uninhibited ratio is not recoverable from this patent.
+        OWNER ACTION: this is the shape of source to hunt - a selective-STI patent
+        whose comparative example swaps ceria for a same-size silica in the SAME
+        bare (polymer-free) base chemistry. US20090047870A1 shows such tables
+        exist; this one just has the inhibitor in both legs.
+
+  # ===================================================================
+  # POLYSILICON   (reference abrasive: colloidal_silica)
+  # ===================================================================
+  poly_si:
+
+    ceria:
+      value: null
+      reference: colloidal_silica
+      unit: dimensionless
+      source: "searched; no matched pair. Related: Penta/Natarajan/Dandu amino-acid poly-Si series (DOI 10.1021/la200945p, 10.1021/am2002603); Lagudu et al., ECS J. Solid State Sci. Technol. (2019), DOI 10.1149/2.0102005jss"
+      confidence: unverified
+      derived_from:
+        abrasive_rate: null
+        reference_rate: null
+        held_constant: "n/a - the two abrasives appear in different papers/tools"
+      d50_abrasive_nm: null
+      d50_reference_nm: null
+      size_matched: unknown
+      usable_as_rate_ratio: false
+      note: >
+        This literature reports poly-Si rates of ~500-550 nm/min for BOTH
+        silica-based and ceria-based slurries once arginine/lysine amino acids are
+        added - Lagudu 2019 verbatim: "obtained high poly-Si removal rates (RRs)
+        of ~500 nm/min and very low silicon dioxide (<2 nm/min) and silicon
+        nitride (<2 nm/min) RRs using silica-based and ceria-based slurries,
+        respectively." That sentence is the trap this file exists to avoid: the
+        two numbers come from DIFFERENT experiments in DIFFERENT papers on
+        DIFFERENT tools, and the clause structure pairs silica with the oxide
+        result and ceria with the nitride result, not both with poly-Si. Dividing
+        them would be exactly the error mode the brief warns about. The only
+        legitimate reading is qualitative: on poly-Si with amino-acid additives
+        the abrasive chemistry is NOT the dominant term - the mechanochemical
+        amino-acid surface reaction is - so the true ratio is plausibly near 1.0,
+        but "plausibly near 1.0" is not a measurement.
+
+    alumina:
+      value: null
+      reference: colloidal_silica
+      unit: dimensionless
+      source: "searched; nothing found"
+      confidence: unverified
+      derived_from:
+        abrasive_rate: null
+        reference_rate: null
+        held_constant: "n/a"
+      d50_abrasive_nm: null
+      d50_reference_nm: null
+      size_matched: unknown
+      usable_as_rate_ratio: false
+      note: >
+        Alumina is not used on poly-Si (gate poly and 3D-NAND channel poly both
+        demand very low defectivity, which rules out a Mohs-9 abrasive), so no
+        matched table exists. Checked the local poly-Si corpus specifically -
+        park2007-jkps-tmah-abrasive-poly-oxide-selectivity,
+        kim2008-iop-polysilicon-alkaline-slurry,
+        kim-nccavs-icpt-poly-si-mechanochemical-selective,
+        lagudu2019-ecsjss-nonprestonian-poly-reactive-liquids,
+        penta2011-langmuir / penta2011-acsami,
+        pirayesh2014-ualberta-thesis-boron-doped-polysilicon-cmp,
+        ijmmm2016-annealing-polysilicon-cmp - none contains an alumina leg.
+
+  # ===================================================================
+  # BULK SILICON   (reference abrasive: colloidal_silica)
+  # ===================================================================
+  si:
+
+    alumina:
+      value: null
+      reference: colloidal_silica
+      unit: dimensionless
+      source: "Y.G. Wang, L.C. Zhang, A. Biddut, Wear 270, 312-316 (2011), DOI 10.1016/j.wear.2010.11.006 (local copy papers/zhou2004-chemical-effect-mrr-si-cmp.pdf)"
+      confidence: unverified
+      derived_from:
+        abrasive_rate: "alumina leg exists but is plotted only (Figs. 1-3), never tabulated"
+        reference_rate: "NO colloidal-silica leg in this study - the silica reference is absent"
+        held_constant: "Logitech PM5 lapping/polishing machine; Chemicloth urethane pad SKU 0CON-352; 20 kPa; 2.5 vol% abrasive; 50 nm nominal particle size for BOTH abrasives used; H2O2 0.4 vol%; 70 mL/min; NaOH/HCl for pH"
+      d50_abrasive_nm: 50
+      d50_reference_nm: null
+      size_matched: unknown
+      usable_as_rate_ratio: false
+      note: >
+        FRUSTRATINGLY CLOSE AND STILL UNUSABLE. This paper is the best-designed
+        abrasive-swap experiment found in the whole pass: Al2O3 vs CeO2 on Si(100),
+        BOTH at a nominal 50 nm diameter (a real GATE-2 pass), both at 2.5 vol%,
+        same machine, same pad, same 20 kPa, same H2O2, same flow, pH swept 7-11.
+        Two reasons it still cannot be used here:
+        (1) WRONG PAIR - it compares alumina against CERIA. This film's reference
+        abrasive is colloidal_silica, and the paper runs no silica control
+        ("colloid abrasive SiO2 is the commercially used slurry for silicon CMP"
+        appears only in the introduction as context). Chaining alumina/ceria onto
+        a ceria/silica ratio from another paper is exactly the cross-paper
+        division the brief forbids.
+        (2) NO NUMBERS - every MRR value lives in Figs. 1, 2 and 3. Nothing is
+        tabulated and the figures are raster, so no rate can be quoted.
+        The paper's qualitative conclusion is still worth recording: "The MRR with
+        the Al2O3 slurry is much higher than with the CeO2 slurry" at pH 7, which
+        the authors attribute NOT to hardness but to agglomeration - pH 7 sits on
+        the ceria IEP (~6-7) while alumina's IEP is ~9-10, so the ceria
+        agglomerates and loses effective particle count. Read that as a warning:
+        on silicon the abrasive ranking is dispersion-state-driven and flips with
+        pH (alumina minimum at pH 9, ceria minimum at pH 7), so ANY single-pH
+        ratio for this film would be misleading even if it were measured.
+        OWNER ACTION: digitising Figs. 1-3 would yield a size-matched
+        alumina:ceria ratio on Si. Useful only if a silica leg is found later.
+
+    ceria:
+      value: null
+      reference: colloidal_silica
+      unit: dimensionless
+      source: "Wang/Zhang/Biddut, Wear 270, 312-316 (2011), DOI 10.1016/j.wear.2010.11.006 - same study, same missing silica control"
+      confidence: unverified
+      derived_from:
+        abrasive_rate: "ceria leg exists (50 nm, 2.5 vol%) but figure-only"
+        reference_rate: "NO colloidal-silica leg in this study"
+        held_constant: "as above - Logitech PM5, Chemicloth pad, 20 kPa, 2.5 vol%, 50 nm, 0.4 vol% H2O2, 70 mL/min"
+      d50_abrasive_nm: 50
+      d50_reference_nm: null
+      size_matched: unknown
+      usable_as_rate_ratio: false
+      note: >
+        Same blocker as si.alumina: the study is size-matched and recipe-matched
+        but contains no colloidal-silica arm, and its rates are figure-only. Also
+        note the pH sensitivity documented there - the ceria MRR rises to pH 10
+        then falls, driven by the Ce3+/Ce4+ balance (confirmed by the paper's own
+        transmittance spectra at 340/360 nm) rather than by anything mechanical.
+        A ceria:silica factor for bulk Si would need to be pH-resolved, not a
+        scalar.
+
+  # ===================================================================
+  # SILICON CARBIDE   (reference abrasive: ceria)
+  # ===================================================================
+  sic:
+
+    alumina:
+      value: null
+      reference: ceria
+      unit: dimensionless
+      source: "TWO SEPARATE PAPERS - deliberately not divided. Alumina leg: G. Chen et al., Russ. J. Appl. Chem. 93(6) 832-837 (2020), DOI 10.1134/S1070427220060099. Ceria leg: G. Chen et al., Appl. Surf. Sci. 359, 664-668 (2015), DOI 10.1016/j.apsusc.2015.10.158"
+      confidence: unverified
+      derived_from:
+        abrasive_rate: "1554 nm/h = 25.9 nm/min (alumina, JingRui, 100 nm mean, 2 wt%, 0.05 M KMnO4, pH 2, Si-face 6H-SiC)"
+        reference_rate: "1089 nm/h = 18.15 nm/min (ceria, Tizox 9872 Ferro, 140 nm mean, 2 wt%, 0.05 M KMnO4, pH 2, Si-face 6H-SiC)"
+        held_constant: "ACROSS PAPERS, NOT WITHIN ONE: same group (Jiangnan University), same IC-1000 K-Groove pad (Dow), same 4 psi, same 90/90 rpm, same 20 min, same 90 mL/min, same 2 wt% abrasive, same 0.05 M KMnO4, same pH 2, same Si-face 6H-SiC from the same supplier (TanKeBlue), same mass-loss metrology (Mettler Toledo AG285). DIFFERENT POLISHER: UNIPOL-1200S (2020) vs CETR CP-4 (2015)."
+      d50_abrasive_nm: 100
+      d50_reference_nm: 140
+      size_matched: true
+      usable_as_rate_ratio: false
+      note: >
+        This is the most tantalising near-miss in the file and it is STILL a null,
+        on principle. Everything lines up: same lab, same pad, same pressure,
+        same velocity, same oxidiser molarity, same pH, same loading, same film
+        and face, same balance - and 100 nm vs 140 nm is arguably size-matched.
+        Arithmetic would be 1554 / 1089 = 1.43.
+        REFUSED because the two rates come from TWO DIFFERENT PUBLICATIONS run on
+        TWO DIFFERENT POLISHERS (UNIPOL-1200S vs CETR CP-4), five years apart.
+        That is precisely the "two rates from two papers divided by each other"
+        error the brief identifies as the single biggest failure mode. Pad
+        break-in state, conditioner wear, carrier compliance and platen
+        calibration are all uncontrolled between the two machines, and on SiC -
+        where absolute rates are ~20 nm/min and a 4x face-polarity swing exists on
+        the SAME tool - a 43% gap is well inside cross-tool noise.
+        For scale, the same 2020 alumina paper reports C-face = 6412 nm/h against
+        Si-face = 1554 nm/h on ONE tool, i.e. crystal face alone is a 4.1x factor,
+        far larger than the 1.43 this ratio would claim. Any SiC abrasive factor
+        must be face-resolved before it means anything.
+        OWNER ACTION: if you want this number, the fix is one experiment, not more
+        searching - run alumina and ceria at matched d50 on one tool at pH 2 with
+        0.05 M KMnO4.
+
+    colloidal_silica:
+      value: null
+      reference: ceria
+      unit: dimensionless
+      source: "G. Chen, Z. Ni, L. Xu, Q. Li, Y. Zhao, Appl. Surf. Sci. 359, 664-668 (2015), DOI 10.1016/j.apsusc.2015.10.158 - ONE paper, both abrasives (local copy papers/chen2015-apsusc-colloidal-silica-ceria-6hsic-kmno4.pdf)"
+      confidence: unverified
+      derived_from:
+        abrasive_rate: "185 nm/h = 3.08 nm/min (Nexsil 85A colloidal silica, 50 nm mean, 6 wt%, 0.05 M KMnO4, pH 6 - the maximum of the paper's pH 4-10 silica series)"
+        reference_rate: "1089 nm/h = 18.15 nm/min (Tizox 9872 colloidal ceria, 140 nm mean, 2 wt%, 0.05 M KMnO4, pH 2 - the maximum of the paper's pH 2-8 ceria series)"
+        held_constant: "CETR CP-4 polisher; IC-1000 K-Groove pad (Dow), ex-situ diamond conditioned; 4 psi; 90/90 rpm platen/carrier; 90 mL/min; 20 min; Si-face (0001) 6H-SiC 2-inch n-type; 0.05 M KMnO4; mass-loss metrology; all wafers identically pre-polished with 6 wt% silica at pH 8. NOT held constant: pH (6 vs 2) and abrasive loading (6 vs 2 wt%)."
+      d50_abrasive_nm: 50
+      d50_reference_nm: 140
+      size_matched: false
+      usable_as_rate_ratio: false
+      note: >
+        One paper, one tool, two abrasives - GATE 1 nearly passes - but this fails
+        on THREE separate confounds and each one alone is disqualifying.
+        Arithmetic would be 185 / 1089 = 0.17 (the paper itself notes ceria is
+        ~5.9x faster).
+        (1) SIZE: 50 nm silica vs 140 nm ceria, 2.8x. GATE 2 fail.
+        (2) LOADING: 6 wt% silica vs 2 wt% ceria - a 3x concentration difference
+        baked into the ratio. The authors chose each abrasive's own optimum from a
+        prior orthogonal array, which is good slurry engineering and fatal for a
+        chemistry-only ratio.
+        (3) pH: each rate is the MAXIMUM of its own pH sweep, and the maxima sit
+        at OPPOSITE ends - silica peaks at pH 6, ceria at pH 2. So 0.17 compares
+        two different chemical operating points, not one recipe.
+        The physics behind (3) is the interesting part and is worth carrying into
+        the model as a sign rather than a number: below pH 5 the Si-face 6H-SiC
+        surface is positively charged (SiC IEP ~5) while silica is negative across
+        the whole range, so silica ELECTROSTATICALLY STICKS to the wafer and masks
+        it from the KMnO4, collapsing the rate. Ceria is positive from pH 2-8
+        (IEP ~8) and is repelled, leaving the surface open to oxidation - and it
+        additionally forms Si-O-Ce chemical-tooth bonds. Ceria wins on SiC for
+        electrostatic and chemical reasons, NOT hardness; the paper notes ceria is
+        the SOFTER abrasive and still gives the smoother surface (Ra 0.11 vs
+        0.25 nm).
+        PARTIAL FIX AVAILABLE, NOT USED: the same group's follow-up (Chen et al.,
+        RSC Adv. 7, 16938-16952 (2017), DOI 10.1039/C6RA28315B, local copy
+        papers/chen2017-rsc-adv-ceria-silica-6hsic-particle-interaction.pdf) runs
+        silica (80 nm, 6 wt%) against ceria (120 nm, 2 wt%) AT THE SAME pH VALUES
+        (2, 4, 10) on one tool - 1200S polisher, IC-1000 pad, 4 psi, 80/80 rpm,
+        20 min, 90 mL/min - which removes confound (3) and narrows (1) to 1.5x.
+        Confound (2) remains and, decisively, the MRR values appear only in a
+        figure; nothing is printed, so no rate can be quoted. Digitising that
+        figure would give the best silica:ceria SiC pair available in the open
+        literature, still with a 3x loading confound to argue about.
+
+    diamond:
+      value: null
+      reference: ceria
+      unit: dimensionless
+      source: "searched; no matched pair found"
+      confidence: unverified
+      derived_from:
+        abrasive_rate: null
+        reference_rate: null
+        held_constant: "n/a"
+      d50_abrasive_nm: null
+      d50_reference_nm: null
+      size_matched: unknown
+      usable_as_rate_ratio: false
+      note: >
+        Diamond and ceria are never compared head to head on SiC because they
+        occupy different PROCESS STEPS, not competing slurry formulations:
+        diamond is the lapping/grinding abrasive that removes bulk material and
+        leaves subsurface damage, ceria (or silica) is the final CMP abrasive that
+        removes the KMnO4/H2O2-grown oxide layer and delivers sub-nm Ra. Patent
+        language throughout the SiC corpus reflects this - "instead of lapping
+        with diamond abrasive grains", "instead of grinding using diamond abrasive
+        grains" (CN118974199A, WO2023189512A1) - i.e. the two are alternatives at
+        the ROUGHING step, not at CMP. A diamond "CMP" rate and a ceria CMP rate
+        also differ by 2-3 orders of magnitude and are limited by different
+        physics (fracture vs oxide-layer abrasion), so even a matched-tool pair
+        would not be a meaningful multiplicative factor in a CMP rate model.
+        One relevant same-table datum, on the wrong axis: WO2020160286A1 compares
+        polycrystalline against monocrystalline diamond powder and 3 um against
+        smaller grades - a diamond-vs-diamond size/morphology study with no ceria
+        leg. RECOMMENDATION: leave sic.diamond null permanently and let the
+        simulator refuse rather than extrapolate; a diamond "rate ratio" in a CMP
+        model is a category error.
+
+# =====================================================================
+# SEARCH LOG - queries and sources checked that produced NOTHING usable.
+# Recorded so this ground is not re-covered.
+# =====================================================================
+search_log:
+
+  local_corpus_mined:
+    - path: "/Users/khleecnce/CMP-Sim/research/abrasive_alumina.yaml (1453 lines)"
+      result: >
+        Only cross-abrasive content is (a) the sapphire alumina-vs-silica pair
+        from KR20130060211A (5.7x, wrong film, size-mismatched 250 vs 72 nm) and
+        (b) the Saint-Gobain transition-vs-alpha alumina W statement from ESL
+        13(6) H182 (2010), DOI 10.1149/1.3358135 - prose only, "polished tungsten
+        at a low rate compared to the other abrasives tested", no ratio, full text
+        paywalled. No alumina-vs-silica or alumina-vs-ceria numeric pair on any
+        target film.
+    - path: "/Users/khleecnce/CMP-Sim/research/abrasive_ceria.yaml (994 lines)"
+      result: >
+        Contains the Chen 2015 SiC ceria anchor and its own note that the
+        same-paper silica peak was 185 nm/h (the pair recorded above as
+        sic.colloidal_silica, rejected on size + loading + pH). Its gaps list
+        already states no ceria W rate exists. No usable pair added.
+    - path: "/Users/khleecnce/CMP-Sim/research/abrasive_silica.yaml (915 lines)"
+      result: >
+        All matched pairs inside it are silica-vs-silica (size series from
+        US10676647B1 Table 5B: PL-2 40 nm / PL-5 100 nm / PL-7 120 nm at identical
+        chemistry) or additive-vs-no-additive. No cross-abrasive comparison.
+    - path: "/Users/khleecnce/CMP-Sim/research/abrasive_zirconia.yaml (1994 lines)"
+      result: >
+        Already carries the full US5575885 four-abrasive Cu table WITH its own
+        hard_caveat naming the exact size confound (30/740/1100/1300 nm) - the
+        precedent this file is built on. Also carries the Park 2008 ZrO2-MAS
+        mixed-abrasive data and the negative finding that no size-matched
+        zirconia comparison exists. Confirmed, nothing new.
+    - path: "/Users/khleecnce/fab-sim/papers/ - 405 PDFs/TXT/XML, full text extracted and regex-scanned"
+      result: >
+        Scanned every sentence containing 2 or more abrasive families AND a rate
+        with units (nm/min, A/min, nm/h). Six sentences matched across the whole
+        corpus; all six were either prose rankings without numbers, cross-paper
+        citations, or mixed/coated-abrasive results. Named hits and why each
+        failed: kaufman1991 (one ceiling for both abrasives); dawkins2019 thesis
+        (ceria:silica MASS RATIO in a mixed slurry, not an abrasive swap);
+        lagudu2019 and penta2011 (cross-paper poly-Si numbers, see poly_si.ceria);
+        srinivasan2015 review and overpolish-dishing-jss (both quote Lu et al.'s
+        silica ~400 nm vs ceria ~20 nm vs hematite 400/750 nm study - a 20x size
+        spread, and the ceria/silica nano legs gave "negligible" rates with no
+        number).
+    - path: "/Users/khleecnce/fab-sim/papers/patents/ - 475 patent HTML files, all tables parsed"
+      result: >
+        Parsed every table element and matched rows whose label cell names an
+        abrasive against rows reporting a rate. Only six patents had 2 or more
+        abrasive families as ROW LABELS together with a rate row. Outcome of each:
+        US20130000214A1 and US20150114928A1 (W.R. Grace) - Tables I-II compare
+        poly-dispersed colloidal / mono-dispersed colloidal / colloidal alumina /
+        fumed silica / precipitated silica in ONE lactic-acid slurry with printed
+        nm/min rates. Genuinely matched, but the FILM IS NiP (hard-disk nickel-
+        phosphorus), not any target film, and concentrations differ (3% alumina vs
+        5% silica) with sizes 120 vs 49.5 vs 22 vs 130 nm. Unusable.
+        US20210238448A1 and US20220315802A1 - alumina/zirconia/titania appear in
+        Markush lists only, no per-abrasive rate table.
+        US9410063B2 and KR101546695B1 - zirconia slurry patents whose text says
+        silica "replaced with zirconia particles ... without adversely affecting
+        the polishing characteristics"; qualitative, no paired rates.
+        EP3101076B1 / US10032644B2 / CN106244021B - ceria-coated-silica vs
+        colloidal silica (Table 11: TEOS 1195 vs 557, Co 468 vs 168, SiN 452 vs
+        147, W 2 vs 57 A/min). Same tool and films, but the abrasive is a
+        COMPOSITE not pure ceria, loadings differ 13x (0.15 vs 3.1 wt%), and the
+        chemistries differ substantially (KOH + benzene sulfonic acid + Dynol vs
+        potassium silicate + imidazole + ammonium polyacrylate). Not an
+        abrasive-only swap.
+    - path: "/Users/khleecnce/fab-sim/papers/patents/ - phrase scan for explicit swaps"
+      result: >
+        Regex-scanned all 475 for "instead of / in place of / replaced with /
+        substituted" within 220 characters of an abrasive name, to find the
+        comparative-example language that marks a true swap. About 45 matches; all
+        but US20090047870A1 were silica-for-silica substitutions (size, surface
+        modification, sodium content), solvent exchanges, or process-step
+        substitutions. JP2017108118A is the one interesting qualitative find:
+        "If softer fumed silica (Mohs hardness 7) or spherical silica was used in
+        the slurry with the same concentration of chlorite, the removal rate would
+        be ... greatly reduced to about 1/5 or more" versus alpha-alumina on SiC,
+        and "replacing the alpha alumina with a softer gamma alumina of similar
+        particle size results in poor SiC removal". Prose only - "about 1/5 or
+        more" is a bound, not a measurement, no table, no sizes for the silica
+        legs - so it cannot fill sic.colloidal_silica. It does independently
+        support alumina much greater than silica on SiC and the alpha/gamma phase
+        distinction.
+
+  google_patents:
+    queries:
+      - '"tungsten removal rate" "alumina" "silica" comparative example A/min'
+      - '"tungsten" "removal rate" "cerium oxide" "alumina" comparative example'
+      - '"copper removal rate" "alumina" "colloidal silica" comparative example'
+      - '"fumed silica" "colloidal silica" "oxide removal rate" comparative example A/min'
+      - '"ceria" "colloidal silica" "silicon oxide removal rate" comparative example'
+      - '"polysilicon removal rate" "ceria" "colloidal silica" comparative'
+      - '"silicon wafer" "removal rate" "alumina" "colloidal silica" comparative example'
+      - '"silicon carbide" "removal rate" "diamond" "cerium oxide" comparative example'
+      - '"zirconia" "colloidal silica" "oxide removal rate" comparative example'
+      - '"same average particle size" "cerium oxide" "colloidal silica" polishing rate comparative example'
+      - '"average particle size of 100 nm" abrasive "alumina" "silica" removal rate comparative example'
+    outcome: >
+      236 unique patent full texts fetched and table-parsed. The dominant
+      experimental design in CMP patents is CHEMISTRY-varied at FIXED abrasive -
+      the abrasive is the applicant's product and is held constant by commercial
+      necessity. Comparative examples overwhelmingly swap oxidiser, inhibitor,
+      complexant, surfactant, polymer or pH, not abrasive chemistry. When an
+      abrasive IS swapped it is nearly always same-material/different-size or
+      same-material/different-surface-treatment - the opposite of what this table
+      needs. The two size-targeted queries returned zero results, and Google
+      Patents began rate-limiting (HTTP "Sorry..." interstitial) after roughly 250
+      fetches; the remaining size-phrase query space was not exhausted.
+
+  web:
+    queries:
+      - "SiC CMP ceria versus silica versus alumina removal rate same slurry KMnO4"
+      - "tungsten CMP alumina versus silica abrasive removal rate same slurry comparative example patent"
+      - "copper CMP alumina versus colloidal silica removal rate same slurry comparative"
+      - "oxide CMP fumed silica versus colloidal silica removal rate same conditions comparison"
+      - "STI CMP ceria versus silica slurry oxide removal rate comparison same tool"
+      - "polysilicon CMP ceria versus colloidal silica removal rate comparison"
+      - "silicon wafer CMP alumina versus colloidal silica removal rate same conditions"
+      - "zirconia versus silica abrasive oxide CMP removal rate same slurry comparison"
+      - "Stein Hetherington tungsten CMP silica alumina abrasive removal rate comparison JES"
+      - "4H-SiC CMP diamond versus ceria abrasive removal rate same conditions comparison"
+      - "CMP oxide removal rate ceria silica alumina same particle size same concentration"
+      - '"same particle size" abrasive comparison ceria silica oxide CMP removal rate'
+      - "abrasive type effect CMP removal rate silica alumina ceria zirconia titania identical size 100 nm"
+      - "Cook 1990 glass polishing abrasive comparison removal rate ceria silica alumina zirconia same size"
+      - "copper CMP abrasive comparison alumina silica ceria titania same size 100 nm removal rate"
+    outcome: >
+      Search results were dominated by vendor/SEO content (jeez-semicon.com,
+      grish.com and similar) that presents abrasive "head-to-head comparison"
+      tables with no tool, no recipe and no citation. Those are unusable by
+      construction and were discarded on sight - they are secondary compilations,
+      not measurements, and several quote ranges ("5-20x higher per unit abrasive
+      concentration") with no source. Genuine primary sources surfaced were
+      already in the local corpus or paywalled.
+
+  specific_sources_blocked_or_paywalled:
+    - source: "A. Krueger et al., 'Comparison of fumed Silica- and colloidal Silica Slurry for CMP' (ICPT 2019) - ResearchGate 338038555"
+      why: "ResearchGate returns a 20 KB HTML interstitial instead of the PDF for both direct and referer-spoofed requests. This is the single most on-target title found for oxide.fumed_silica."
+    - source: "A. Krueger et al., 'Comparison of Silica- and Ceria-Slurry for Direct STI-CMP' (ICPT 2018) - ResearchGate 328450176"
+      why: "Same interstitial. Most on-target title found for sti.colloidal_silica; the abstract confirms both slurries were run on the SAME DSTI module against Cabot SS12 as the silica leg, so the paired numbers very likely exist in it."
+    - source: "H. Lee et al., Int. J. Precis. Eng. Manuf. 16, 2611 (2015), DOI 10.1007/s12541-015-0334-4"
+      why: "Springer paywall; abstract confirms colloidal is slower than fumed on oxide but gives no absolute rates and no reference d50."
+    - source: "IBM, 'A comparative study of ceria-based and silica-based slurries for 32 nm STI CMP' (2008)"
+      why: "IBM Research listing only, no accessible full text. Abstract discusses planarization efficiency and active/field oxide removal rates - would likely yield the sti pair. Not retrievable in this pass."
+    - source: "Chen et al., RSC Adv. 7, 16938 (2017), DOI 10.1039/C6RA28315B"
+      why: "PDF is local and readable, but the pH-matched silica-vs-ceria MRR comparison exists only as a raster figure. Not paywalled - undigitised. Highest-value digitisation target in this file."
+    - source: "Wang/Zhang/Biddut, Wear 270, 312 (2011), DOI 10.1016/j.wear.2010.11.006"
+      why: "PDF is local and readable, but all MRR values are figure-only (Figs. 1-3). Size-matched 50 nm alumina vs 50 nm ceria on Si - second-highest digitisation target, though it lacks a silica leg."
+    - source: "J. Wang, I. K. Cherian, A. G. Haerle, Electrochem. Solid-State Lett. 13(6) H182 (2010), DOI 10.1149/1.3358135"
+      why: "IOPscience paywall. Abstract compares transition alumina, alpha alumina and silicon carbide on W and oxide on one tool but quotes no rates."
+
+  structural_conclusion: >
+    The reason this table is almost entirely null is not insufficient searching -
+    it is that the experiment barely exists in the published record. Abrasive
+    chemistry is the one variable a slurry supplier does not vary: it is the
+    product identity, the cost driver and the IP. Academic groups do compare
+    abrasives, but they legitimately optimise each abrasive's own size, loading
+    and pH before comparing (Chen 2015 is the textbook case: 6 wt% silica at pH 6
+    against 2 wt% ceria at pH 2), which produces a best-vs-best comparison that is
+    useful to a process engineer and useless as a chemistry-only factor.
+    PRACTICAL RECOMMENDATION: treat 'ranking_only' as the correct long-term state
+    for most cells and keep warning the user, rather than filling cells with
+    size-confounded ratios. The two cheapest routes to real numbers are
+    (1) digitise Chen 2017 RSC Adv. figure for SiC silica:ceria at matched pH, and
+    (2) run the swap in-house at matched d50 - two wafers per pair.

@@ -1,6 +1,6 @@
 # CMP-Sim
 
-[![tests](https://img.shields.io/badge/tests-587%20passing-brightgreen)](#)
+[![tests](https://img.shields.io/badge/tests-603%20passing-brightgreen)](#)
 [![validation](https://img.shields.io/badge/literature%20gate-4%20datasets%20within%20%C2%B115%25-brightgreen)](#validation)
 [![accuracy](https://img.shields.io/badge/prediction-20.3%25%20median%2C%20330%20points-blue)](#2-how-accurate-is-it-on-every-axis-cmp-sim-accuracy)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -115,19 +115,33 @@ speed at fixed chemistry therefore tests the *shape* the model predicts, with
 `Kp` fitted by least squares within each chemistry group. Reported error is the
 residual of that fit.
 
+A dataset that splits into several chemistry groups is judged on **all** its
+points, not on its best group — `cmp-sim validate` prints both. Selecting the
+best group is a cherry-pick, and it had been flattering two datasets here
+(see *A gate that could be passed by picking a subset* below).
+
 | dataset | n | read | MAPE | max | notes |
 |---|---:|---|---:|---:|---|
-| US9499721B2 TEOS / colloidal silica | 4 | table | **1.9%** | 2.8% | patent example table |
+| EP3161098B1 TEOS / silica, 6 chem × 3 psi | 18 | table | **7.0%** | 14.9% | one group; verified against the EPO PDF |
+| US9499721B2 TEOS / colloidal silica | 22 | table | **7.1%** | — | 6 groups; best group 1.9% over 4 pts |
 | US8142675B2 Pt / alumina, pure pressure sweep | 4 | table | **12.3%** | 20.9% | verified against the patent PDF |
-| US6564116B2 oxide Taguchi L25 | 5 | table | **12.6%** | 27.2% | response table reproduced to 5 d.p. |
 | Mariscal 2020 PETEOS / ceria 3x3 | 9 | digitized | **12.9%** | 20.5% | ECS JSS 9 044008 |
-| Wang SiC / ceria-H2O2 50-run DOE | 6 | SI table | 31.9% | 88.8% | chemically limited — see below |
+| US6564116B2 oxide Taguchi L25 | 25 | table | 18.9% | — | 5 groups; best group 12.6% over 5 pts |
+| EP3161098B1 W / silica, 6 chem × 3 psi | 18 | table | 40.2% | — | 6 groups; best group 10.6%. **Super-Prestonian — see below** |
+| Wang SiC / ceria-H2O2 50-run DOE | 24 | SI table | 33.2% | 88.8% | chemically limited — see below |
 | US6918821B2 Cu / IC1000 | 6 | table | 44.1% | 161.2% | **deliberate counter-example** |
 
 **Four independent published sources within ±15%**, which is success criterion
-(a). All three patent datasets were re-verified by the parent agent against the
-official USPTO PDFs, not accepted on a subagent's report:
+(a). All patent datasets were re-verified by the parent agent against the
+official PDFs, not accepted on a subagent's report:
 
+* **EP3161098B1** — Table 5B's 36 rates (W and TEOS, six compositions, three
+  pressures) read from the EPO publication server's PDF, because Google Patents
+  serves a bot-wall stub for this document. The patent contradicts itself twice
+  — paragraph [0090] says "1.0, 2.0, 3.0 psi" where the table header says
+  1.5/2.0/3.0, and Table 5A labels the compositions 5A–5F where Table 5B prints
+  them 1A–1F. Both are recorded in the dataset files and resolved in favour of
+  the table, with the reasoning stated rather than the ambiguity hidden.
 * **US8142675B2** — TABLE P prints 220/470/750/1020 Å/min at 2/4/6/7 psi; all
   four values and the 200/18 rpm, 70 ml/min conditions match exactly.
 * **US6564116B2** — the L25 array is OCR-scrambled in the PDF, so the factor
@@ -138,6 +152,44 @@ official USPTO PDFs, not accepted on a subagent's report:
   **left as transcribed** rather than back-solved to the value that would make
   the arithmetic close.
 * **US6918821B2** — all six IC1000 rows match TABLE 1 exactly.
+
+### A gate that could be passed by picking a subset
+
+`best_fit_per_dataset` takes the largest sweep per dataset and breaks ties by
+*lower* MAPE. When a dataset splits into equally sized chemistry groups, that
+tie-break reports whichever group the model fits best.
+
+Adding EP3161098B1's tungsten table exposed it: six chemistries × three
+pressures fit as six groups of three, with MAPEs from 10.6% to 59.1%. The gate
+counted the dataset at **10.6%** and passed it. Across all 18 printed points the
+error is **40.2%**, and it does not pass.
+
+The gate now judges every split dataset on all its points and names the ones it
+declines to count. The immediate cost was honest: US6564116B2, which had been
+counted as passing at 12.6%, is 18.9% overall and no longer counts. The pass
+total stayed at four only because the two EP3161098B1 datasets were added in the
+same change.
+
+### Tungsten is super-Prestonian, and that is a measurement, not a miss
+
+EP3161098B1's W error (40.2%) is the most informative number in the table,
+because the same patent measured TEOS **on the same wafers, with the same
+slurry, over the same pressure axis**:
+
+| 1.5 → 3.0 psi (a 2× pressure change) | rate ratio |
+|---|---|
+| TEOS (oxide) | 1.82× … 2.17× — Preston predicts 2.00× |
+| W | 2.06× … 5.69× |
+
+Because the oxide leg sits on Preston, the tungsten leg's 5.69× cannot be blamed
+on the tool, the pad, or the pressure calibration. W's rate is limited by its
+passivating WOx film: more pressure strips passivation faster, which feeds back
+into the chemical term — a feedback oxide does not have.
+
+This is the clearest data-level support in the repo for the owner's requirement
+that **each film be learned separately**. A single global pressure exponent
+cannot be right for both films at once, and the 40.2% is the size of the error
+it produces when forced.
 
 ### The two datasets that fail, and why they are kept
 

@@ -154,10 +154,45 @@ def run_all(directory: Optional[Path] = None, min_points: int = 3) -> List[Group
 
 
 def best_fit_per_dataset(fits: List[GroupFit]) -> Dict[str, GroupFit]:
-    """Largest sweep per dataset (ties broken by lower MAPE)."""
+    """Largest sweep per dataset (ties broken by lower MAPE).
+
+    WARNING — this selection flatters a dataset that splits into several
+    same-sized groups, because the tie-break then picks the best-fitting one.
+    EP3161098B1's tungsten table is the case that exposed it: six chemistries
+    × three pressures fit as six groups of three, whose MAPEs run 10.6 % to
+    59.1 %. This function reports 10.6 %; the honest number over all 18 points
+    is 40.2 %.
+
+    Use :func:`all_points_error` alongside it whenever a dataset is being
+    judged rather than merely indexed.
+    """
     best: Dict[str, GroupFit] = {}
     for f in fits:
         cur = best.get(f.dataset)
         if cur is None or (f.n, -f.mape_pct) > (cur.n, -cur.mape_pct):
             best[f.dataset] = f
     return best
+
+
+def all_points_error(fits: List[GroupFit]) -> Dict[str, Dict[str, float]]:
+    """Per-dataset error over EVERY fitted point, across all groups.
+
+    The complement to :func:`best_fit_per_dataset`. Each group keeps its own
+    fitted Kp — chemistries genuinely differ in rate constant, so pooling them
+    under one Kp would measure the chemistry spread rather than the model. What
+    it does not do is discard the groups that fit badly.
+    """
+    acc: Dict[str, List[float]] = {}
+    groups: Dict[str, int] = {}
+    for f in fits:
+        acc.setdefault(f.dataset, []).extend(abs(e) for e in f.errors_pct)
+        groups[f.dataset] = groups.get(f.dataset, 0) + 1
+    return {
+        name: {
+            "n": float(len(errs)),
+            "groups": float(groups[name]),
+            "mape_pct": float(sum(errs) / len(errs)),
+            "max_abs_error_pct": float(max(errs)),
+        }
+        for name, errs in acc.items() if errs
+    }

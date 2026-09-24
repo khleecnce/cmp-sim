@@ -1,0 +1,180 @@
+# Blanket TEOS oxide CMP — measured on the SAME wafers, with the SAME tungsten
+# slurry, over the SAME pressure axis as ep3161098b1_w_silica_pressure_sweep.yaml.
+# EP3161098B1 Example 5, Table 5B (printed table, 18 TEOS values).
+#
+# Why a TUNGSTEN slurry's oxide rate is a useful oxide dataset
+# -----------------------------------------------------------
+# This is the control half of a controlled experiment. Over 1.5 → 3.0 psi:
+#
+#     TEOS  1.82× … 2.17×   (Preston predicts 2.00×)
+#     W     2.06× … 5.69×   (same wafers, same slurry, same tool)
+#
+# The TEOS leg being near-Preston is what makes the W leg's 5.69× interpretable
+# as film physics rather than as an artefact of this tool, this pad, or this
+# pressure calibration. Fitting the two together is the point: if the oxide leg
+# drifts off Preston in the model, the tool-side terms are wrong; if only the W
+# leg misses, the W chemistry is wrong.
+#
+# It is also a genuinely different corner of oxide space from the packs'
+# existing oxide data: acidic (pH 4.0) with 2 wt% H2O2 and ferric nitrate
+# present, where the repo's other oxide sets are alkaline or ceria-based. The
+# oxide rate here is incidental to the patent's purpose (it wants LOW oxide
+# erosion), which is precisely why it is unoptimised and therefore informative.
+
+source: >
+  EP 3 161 098 B1 (Cabot Microelectronics Corp), "Tungsten chemical mechanical
+  polishing composition for reduced oxide erosion", granted 2019.
+  Numbers taken from: EXAMPLE 5, paragraphs [0089]-[0090] and TABLE 5B,
+  "TEOS Rate (Å/min)" columns at 1.5 / 2.0 / 3.0 psi, compositions 5A-5F.
+
+  VERIFIED AGAINST THE ORIGINAL EPO PDF, not a Google Patents HTML rendering:
+  https://data.epo.org/publication-server/rest/v1.2/patents/EP3161098NWB1/document.pdf
+  (Google Patents returns a bot-wall stub for this document.)
+
+  SAME TWO INTERNAL INCONSISTENCIES as the companion W dataset, resolved the
+  same way and for the same reasons:
+   1. Paragraph [0090] says "1.0, 2.0, and 3.0 psi"; the Table 5B headers read
+      1.5 / 2.0 / 3.0 psi. The headers are used (Table 5C's selectivities share
+      them, and Example 4 also polishes at 1.5 psi). Recorded, not hidden.
+   2. Table 5A labels the compositions 5A-5F; Table 5B prints the rows as
+      1A-1F. Same six compositions, same order.
+
+  Composition (paragraph [0089]): 2.0 wt% core-shell colloidal silica with an
+  internal aminopropyl trialkoxysilane, mean size ~55 nm; 2.0 wt% H2O2;
+  malonic acid : Fe(NO3)3·9H2O = 8:1 molar; pH 4.0. Fe and tungsten etch
+  inhibitor vary per Table 5A (45-60 ppm Fe, 37-63 ppm inhibitor) — note that
+  the TEOS rate is nearly INDIFFERENT to both (1060-1100 Å/min at 1.5 psi
+  across all six), which is itself a useful constraint: the inhibitor is
+  tungsten-specific and must not suppress the oxide rate in the model.
+  Process (paragraph [0090]): 300 mm wafers, Applied Materials Reflexion CMP
+  tool, IC1010 pad, platen 100 rpm, slurry flow 200 mL/min.
+
+film: oxide
+pack: oxide_silica
+in_scope: true
+used_for_calibration: false
+
+conditions:
+  # ---- 5A (printed as 1A) -------------------------------------------------
+  - label: "5A TEOS, 1.5 psi"
+    pressure_psi: 1.5
+    rpm_platen: 100
+    mrr_nm_per_min: 109.0
+    read_method: table
+    overrides: &teos
+      sfr_ml_min: 200
+      abrasive_wt_pct: 2.0
+      abrasive_size_nm: 55.0
+      slurry_ph: 4.0
+  - label: "5A TEOS, 2.0 psi"
+    pressure_psi: 2.0
+    rpm_platen: 100
+    mrr_nm_per_min: 175.0
+    read_method: table
+    overrides: *teos
+  - label: "5A TEOS, 3.0 psi"
+    pressure_psi: 3.0
+    rpm_platen: 100
+    mrr_nm_per_min: 209.0
+    read_method: table
+    overrides: *teos
+
+  # ---- 5B (printed as 1B) -------------------------------------------------
+  - label: "5B TEOS, 1.5 psi"
+    pressure_psi: 1.5
+    rpm_platen: 100
+    mrr_nm_per_min: 107.0
+    read_method: table
+    overrides: *teos
+  - label: "5B TEOS, 2.0 psi"
+    pressure_psi: 2.0
+    rpm_platen: 100
+    mrr_nm_per_min: 171.0
+    read_method: table
+    overrides: *teos
+  - label: "5B TEOS, 3.0 psi"
+    pressure_psi: 3.0
+    rpm_platen: 100
+    mrr_nm_per_min: 232.0
+    read_method: table
+    overrides: *teos
+
+  # ---- 5C (printed as 1C) -------------------------------------------------
+  - label: "5C TEOS, 1.5 psi"
+    pressure_psi: 1.5
+    rpm_platen: 100
+    mrr_nm_per_min: 106.0
+    read_method: table
+    overrides: *teos
+  - label: "5C TEOS, 2.0 psi"
+    pressure_psi: 2.0
+    rpm_platen: 100
+    mrr_nm_per_min: 171.0
+    read_method: table
+    overrides: *teos
+  - label: "5C TEOS, 3.0 psi"
+    pressure_psi: 3.0
+    rpm_platen: 100
+    mrr_nm_per_min: 220.0
+    read_method: table
+    overrides: *teos
+
+  # ---- 5D (printed as 1D) -------------------------------------------------
+  - label: "5D TEOS, 1.5 psi"
+    pressure_psi: 1.5
+    rpm_platen: 100
+    mrr_nm_per_min: 108.0
+    read_method: table
+    overrides: *teos
+  - label: "5D TEOS, 2.0 psi"
+    pressure_psi: 2.0
+    rpm_platen: 100
+    mrr_nm_per_min: 164.0
+    read_method: table
+    overrides: *teos
+  - label: "5D TEOS, 3.0 psi"
+    pressure_psi: 3.0
+    rpm_platen: 100
+    mrr_nm_per_min: 206.0
+    read_method: table
+    overrides: *teos
+
+  # ---- 5E (printed as 1E) -------------------------------------------------
+  - label: "5E TEOS, 1.5 psi"
+    pressure_psi: 1.5
+    rpm_platen: 100
+    mrr_nm_per_min: 110.0
+    read_method: table
+    overrides: *teos
+  - label: "5E TEOS, 2.0 psi"
+    pressure_psi: 2.0
+    rpm_platen: 100
+    mrr_nm_per_min: 160.0
+    read_method: table
+    overrides: *teos
+  - label: "5E TEOS, 3.0 psi"
+    pressure_psi: 3.0
+    rpm_platen: 100
+    mrr_nm_per_min: 207.0
+    read_method: table
+    overrides: *teos
+
+  # ---- 5F (printed as 1F) -------------------------------------------------
+  - label: "5F TEOS, 1.5 psi"
+    pressure_psi: 1.5
+    rpm_platen: 100
+    mrr_nm_per_min: 110.0
+    read_method: table
+    overrides: *teos
+  - label: "5F TEOS, 2.0 psi"
+    pressure_psi: 2.0
+    rpm_platen: 100
+    mrr_nm_per_min: 167.0
+    read_method: table
+    overrides: *teos
+  - label: "5F TEOS, 3.0 psi"
+    pressure_psi: 3.0
+    rpm_platen: 100
+    mrr_nm_per_min: 200.0
+    read_method: table
+    overrides: *teos
