@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **784 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **792 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -26,6 +26,14 @@
   _ti 2.7%), and nothing-stated. That separates bouvet2002_w (2.3% vs 1.0% floor,
   finished) from bouvet2002_ti (30.7% vs 2.7%, a real miss) — previously
   indistinguishable. `at_noise_floor` is None, never False, when unmeasured.
+- **Parameter-evidence inventory (README table + test).** Per pack, how many
+  fitted constants does the data actually exercise? **290/628 = 46%; 338 are
+  not.** Spread matters more: cu_h2o2_bta 68% (86 rows/11 axes) vs
+  oxide_silica_anionic 11% (7 rows/1 axis) — two packs with similar shape errors
+  are NOT equally supported. 46% is an UPPER bound (one pH sweep credits 4 pH
+  constants; 'exercised' != 'validated'; 512 user inputs excluded). Not an
+  argument to delete the 338 — an argument against reading one median as
+  certifying the model.
 - **sic_alumina_kmno4: a score can be real and validate nothing you assumed.** Its
   two (newly scorable) datasets both sit BELOW its fitted pH range [9.0,11.0] —
   entegris2022 at pH 2.3, gong2024 at pH 2-6 — so neither validates the pH term;
@@ -209,14 +217,15 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-The sic_alumina_kmno4 audit asked a question the corpus has never answered
-generally: for EVERY pack, which of its constants are actually exercised by the
-datasets that use it, and which are asserted on no evidence at all? Build that
-table — per pack, per parameter, whether any dataset varies the axis it controls
-— and report the unexercised fraction. Expect it to be large; that is the point.
-Do NOT delete unexercised parameters or invent datasets to cover them. The
-deliverable is a single honest inventory of how much of the model rests on data
-and how much on inheritance, suitable for the README's validation section.
+The inventory ranks packs by evidence; act on the weakest end. oxide_silica_anionic
+(11% exercised, 7 rows, ONE axis) and oxide_silica_aminosilane (16%, 22 rows, 2
+axes) are the two thinnest, and both are silica-on-oxide variants that exist to
+carry a different pH optimum. Check whether they are justified as separate packs
+at all: measure what each actually adds over scoring its datasets with the parent
+oxide_silica pack. If a variant's only evidenced difference is its pH peak, say
+so in the pack and in docs/limits.md rather than implying a fully independent
+parameter set. Do NOT merge or delete packs — the deliverable is knowing what the
+split buys.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp

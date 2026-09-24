@@ -2313,3 +2313,51 @@ documentation-only override that changes no value — verified by the medians
 holding at 19.5% / 22.6%.
 
 Enforced by `tests/test_sic_kmno4_pack_evidence.py` (7).
+
+## How much of the model rests on data
+
+Every earlier audit here asked about one pack or one axis. This one asks the
+whole question: for each parameter a pack carries, does any dataset scored with
+that pack actually **vary** the quantity it controls? `ph_peak` counts as
+exercised only if some dataset sweeps `slurry_ph`; otherwise it is asserted on
+inheritance and literature alone.
+
+    pack                          exercised / fitted        user inputs
+    cu_h2o2_bta                      54 / 79   (68%)             60
+    oxide_silica                     46 / 74   (62%)             50
+    sti_ceria                        55 / 91   (60%)             43
+    w_fe_oxidizer                    31 / 59   (53%)             57
+    sic_alumina_kmno4                39 / 84   (46%)             62
+    sic_ceria_h2o2                   35 / 77   (45%)             62
+    cu_alkaline_benzenesulfonic      13 / 39   (33%)             54
+    oxide_silica_aminosilane         10 / 63   (16%)             62
+    oxide_silica_anionic              7 / 62   (11%)             62
+    ────────────────────────────────────────────────────────────────
+    total                           290 / 628  (46%)
+
+**46% of fitted parameters are exercised by the data; 338 are not.** The spread
+matters more than the total: `cu_h2o2_bta` is backed by 86 rows across eleven
+swept axes, while `oxide_silica_anionic` rests on a single 7-row pH sweep. Two
+packs quoting similar shape errors are not equally supported, and nothing in a
+median communicates that.
+
+Three caveats, all of which make the number *worse* than it looks:
+
+* **The mapping is optimistic by construction.** A parameter counts as exercised
+  if any axis in its group is swept, so one pH sweep credits `ph_peak`,
+  `ph_response_width`, `ph_mechanical_floor` and `ph_acid_mechanical_floor`
+  simultaneously — four constants, one curve. 46% is an upper bound.
+* **Exercised is not validated.** `sic_alumina_kmno4` counts its pH constants as
+  exercised because its datasets sweep pH 2–6, but the pack was fitted at pH
+  9–11, so that sweep tests the term only in extrapolation.
+* **User inputs are excluded** (pad geometry, grooves, conditioner schedule,
+  platen temperatures — 512 of them). They are quantities a user supplies, not
+  constants fitted to a curve, so counting them either way would distort the
+  picture.
+
+None of this is an argument for deleting unexercised parameters. A Preston
+coefficient or pad modulus can be perfectly sound without a sweep in this corpus.
+It is an argument against reading a single median as if it certified the whole
+model.
+
+Enforced by `tests/test_parameter_evidence_inventory.py` (6).

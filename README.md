@@ -288,6 +288,40 @@ genuine replicates, so for the rest the achievable floor is **unknown**. A 15%
 error against an unmeasured floor is not the same claim as a 15% error against a
 measured 2%.
 
+**How much of the model the data actually reaches.** A median says nothing about
+which constants were tested. Counting, per pack, the parameters whose axis some
+dataset actually sweeps:
+
+| pack | exercised / fitted | backed by |
+|---|---|---|
+| `cu_h2o2_bta` | 54 / 79 (68%) | 86 rows, 11 swept axes |
+| `oxide_silica` | 46 / 74 (62%) | 119 rows, 9 axes |
+| `sti_ceria` | 55 / 91 (60%) | 63 rows, 9 axes |
+| `w_fe_oxidizer` | 31 / 59 (53%) | 38 rows, 6 axes |
+| `sic_alumina_kmno4` | 39 / 84 (46%) | 30 rows, 3 axes |
+| `sic_ceria_h2o2` | 35 / 77 (45%) | 65 rows, 7 axes |
+| `cu_alkaline_benzenesulfonic` | 13 / 39 (33%) | 17 rows, 2 axes |
+| `oxide_silica_aminosilane` | 10 / 63 (16%) | 22 rows, 2 axes |
+| `oxide_silica_anionic` | 7 / 62 (11%) | 7 rows, 1 axis |
+| **total** | **290 / 628 (46%)** | |
+
+So **46% of fitted parameters are exercised and 338 are not** — and the spread
+matters more than the total. `cu_h2o2_bta` rests on 86 rows across eleven axes;
+`oxide_silica_anionic` rests on a single 7-row pH sweep. Two packs reporting
+similar shape errors are not equally supported.
+
+The 46% is an **upper bound**, for three reasons: the mapping credits every
+constant in a group to one sweep (four pH constants, one curve); *exercised* is
+not *validated* (`sic_alumina_kmno4`'s pH constants were fitted at pH 9–11 but
+its datasets only reach pH 2–6, so they test the term in extrapolation); and 512
+user-supplied inputs — pad geometry, grooves, conditioner schedule, platen
+temperatures — are excluded rather than counted as evidence.
+
+This is not an argument for deleting the unexercised 338. A Preston coefficient
+can be sound without a sweep in this corpus. It is an argument against reading
+one median as if it certified the whole model. Details:
+`tests/test_parameter_evidence_inventory.py`.
+
 Finding this changed the model materially. Scored this way the first time, the
 median was **42.8%** and 16 of 36 datasets lost to predicting the mean. Two
 causes, both silent:
