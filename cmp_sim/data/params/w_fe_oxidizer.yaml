@@ -580,3 +580,52 @@ params:
       TODO(owner): needs a W dishing/erosion-vs-pattern-density series.
     source: "searched: DOI:10.1149/1.3231691 (blanket pressure exponent 0.88-0.94), DOI:10.1007/s40735-016-0041-4 (blanket P^0.5) — neither is a pattern exponent"
     confidence: unverified
+
+  # ── pH: a SOURCED NULL RESULT, not an omission ─────────────────────────
+  #
+  # This pack declares no ph_peak, no width and no floor, and that silence is
+  # deliberate. The audit in tests/test_pack_axis_blindness_audit.py flags any
+  # pack that is silent on an axis its own datasets sweep — because a missing
+  # term does not stay missing, its work gets absorbed by whichever term is
+  # still free to move (see cu_alkaline_benzenesulfonic, where a missing pH
+  # response ended up justifying an oxidiser shape constant).
+  #
+  # Here the measurement says silence. US20110186542A1 runs a two-level pH
+  # control, pH 3 against pH 6 at MATCHED oxidiser and abrasive loading:
+  #
+  #     H2O2   abrasive   pH 3    pH 6    ratio
+  #     0.0     0.01       289     246    0.851
+  #     1.0     0.01      1100    1320    1.200
+  #     3.0     0.01      2270    2110    0.930
+  #     0.0     0.02       363     298    0.821
+  #     1.0     0.02      1650    1610    0.976
+  #     3.0     0.02      2430    2360    0.971
+  #
+  # Mean ratio 0.958 — a 4% effect — and the SIGN IS NOT CONSISTENT: halving
+  # the hydrogen-ion concentration raises the rate in one pair and lowers it in
+  # five, by amounts comparable to the run-to-run scatter. Fitting a bell to
+  # that would be fitting noise, and would give the pH term credit for variance
+  # that belongs to the oxidiser axis, which in the same table moves the rate
+  # by a factor of 8.
+  #
+  # The physics agrees: tungsten removal in this chemistry is controlled by
+  # Fe(III)-catalysed H2O2 oxidation of the metal surface and the mechanical
+  # removal of the resulting oxide, not by the pH of the medium, over pH 3-6.
+  #
+  # ⚠ SCOPE. The null result covers pH 3 to 6 only. Nothing here licenses an
+  # alkaline W slurry: outside that window there is no measurement in this
+  # repository, and the correct behaviour would be to decline rather than to
+  # extrapolate a flat response.
+  ph_response_is_null_over_3_to_6:
+    value: true
+    unit: boolean
+    note: >
+      Declared null result, re-derived by the audit test from six matched
+      pairs rather than trusted. Registered in DECLARED_NULL_RESULTS in
+      tests/test_pack_axis_blindness_audit.py; if a pH response is ever added
+      to this pack, that registry entry must be removed in the same commit.
+    source: >
+      US20110186542A1, TABLE (W removal rate vs H2O2 and abrasive at pH 3 and
+      pH 6); dataset
+      cmp_sim/data/validation/datasets/us20110186542a1_w_diamond_h2o2_ph.yaml
+    confidence: literature

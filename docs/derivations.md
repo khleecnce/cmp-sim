@@ -1708,3 +1708,50 @@ The buffered dataset (`us20110165777a1`) still scores 33.8% and still loses to
 its mean — correctly. Its measured spread is 4%, which the patent attributes to
 measurement scatter, so there is no trend to get right; that is now the honest
 residual rather than a term absorbing someone else's physics.
+
+## Pack blindness audit — silence must be sourced, not accidental
+
+The `cu_alkaline_benzenesulfonic` finding generalises into a check. A pack that
+declares **no response on an axis its own datasets sweep** is not merely
+incomplete: the missing term's work is absorbed by whichever term is still free
+to move, and that term's constants then get justified by a trend belonging to
+something else. That is exactly how a pH drift ended up as an oxidiser shape
+constant.
+
+So the check is run mechanically over every pack: compare the parameters it
+declares against the axes its registered datasets actually vary.
+
+### Result: one hit, and it is legitimate
+Only `w_fe_oxidizer` is silent on an axis it sweeps (pH). US 2011/0186542 A1
+runs a two-level pH control — pH 3 against pH 6 at **matched** oxidiser and
+abrasive loading, six matched pairs:
+
+| H₂O₂ | abrasive | pH 3 | pH 6 | ratio |
+|---:|---:|---:|---:|---:|
+| 0.0 | 0.01 | 289 | 246 | 0.851 |
+| 1.0 | 0.01 | 1100 | 1320 | 1.200 |
+| 3.0 | 0.01 | 2270 | 2110 | 0.930 |
+| 0.0 | 0.02 | 363 | 298 | 0.821 |
+| 1.0 | 0.02 | 1650 | 1610 | 0.976 |
+| 3.0 | 0.02 | 2430 | 2360 | 0.971 |
+
+Mean ratio **0.958** — a 4% effect — and the **sign is not consistent**: more
+acid raises the rate in one pair and lowers it in five, by amounts comparable to
+run-to-run scatter. Over the same table the oxidiser axis moves the rate by a
+factor of **8**.
+
+Fitting a bell to that would be fitting noise, and would hand the pH term credit
+for variance that belongs to the oxidiser. The physics agrees: tungsten removal
+here is controlled by Fe(III)-catalysed H₂O₂ oxidation and the mechanical
+removal of the resulting oxide, not by the pH of the medium, over pH 3–6.
+
+### The distinction that matters
+A **sourced null result** and an **omission** look identical from outside — both
+are a pack saying nothing — but they are opposite in meaning. So the null result
+is declared in the pack, with its table and its scope, and registered in the
+audit; the audit re-derives the claim from the six matched pairs rather than
+trusting the declaration.
+
+⚠ Scope: the null covers pH 3–6 only. Nothing licenses an alkaline W slurry;
+outside that window the honest behaviour is to decline, not to extrapolate a
+flat response.

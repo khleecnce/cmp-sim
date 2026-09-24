@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **688 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **691 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -17,6 +17,13 @@
 - **Abrasive TYPE reaches the rate** (`slurry/abrasive_effects.py`): a swap
   rescales only by a published matched-condition ratio, withdraws the pack's
   measured exponents, says `ranking_only` when unanchored.
+- **Pack blindness audit (`tests/test_pack_axis_blindness_audit.py`)**: fails
+  if any pack declares no response on an axis its own datasets sweep. One hit —
+  `w_fe_oxidizer` on pH — and it is a SOURCED NULL RESULT, re-derived by the
+  test from 6 matched pairs (pH 3 vs 6 at matched oxidizer+abrasive: mean ratio
+  0.958, sign inconsistent, vs an 8x oxidizer effect in the same table). Null
+  results and omissions look identical from outside, so silence is now declared
+  in the pack with its table and scope (pH 3-6 only).
 - **A missing pH term hid inside the OXIDIZER term.**
   `cu_alkaline_benzenesulfonic` declared no pH response at all (only a
   meaningless inherited `ph_ref: 4.0` from the acidic parent), so a measured
@@ -95,16 +102,17 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-The pH-hiding-in-oxidizer fix raises a question it did not answer: does any
-OTHER pack carry a term whose justification is really a different variable?
-The check is mechanical and worth doing once — for every pack, list the params
-it declares against the axes its datasets actually vary, and flag any pack that
-(a) declares no response for an axis its own datasets sweep, or (b) justifies a
-shape constant by a trend that co-varies with an undeclared axis. `w_fe_oxidizer`
-is the first suspect: it already has one key-name bug in its history, and its
-datasets vary pH and oxidizer together. Report the audit as a test that fails
-when a pack is blind to an axis its evidence sweeps. Do not fix packs blindly —
-diagnose each hit the way cu_alkaline_benzenesulfonic was diagnosed.
+The blindness audit only asks whether a pack DECLARES a term, not whether that
+term is scoped to the data behind it. `w_fe_oxidizer`'s null result is scoped
+(pH 3-6, stated) but most packs' constants are not: `oxidizer_ph_window` exists
+only on cu_h2o2_bta, and the Cu/oxide packs' pH bounds were only just pinned.
+Extend the audit to VALIDITY RANGES — for each pack constant fitted to a
+dataset, check the pack states the range it was measured over, and make the
+engine decline (not extrapolate) outside it, reusing the gate built for the
+oxidizer pH window. Start with the packs whose bounds this session established
+(cu_h2o2_bta, cu_alkaline_benzenesulfonic, oxide_silica_anionic), since their
+peaks are BOUNDS at the data edge and extrapolating past them is exactly the
+error the bounds were chosen to avoid.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp
