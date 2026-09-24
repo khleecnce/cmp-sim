@@ -59,6 +59,14 @@ PH_ACTIVE_PACKS = dict(BOUNDED_PEAK_PACKS, **{
     "oxide_silica_aminosilane": "us9422456b2_teos_silica_ph_pressure",
     "sti_ceria": "dandu2009_sio2_ceria_ph_sweep",
     "sic_ceria_h2o2": "sic2026_ceria_h2o2_ph_DOE50",
+    # ⚠ The odd one out. This pack's pH constants were fitted on alkaline
+    # (pH 9-11) SiC data, but the only two datasets that exercise the pack —
+    # entegris2022 (pH 2.3) and gong2024 (pH 2-6) — sit entirely BELOW that
+    # range, so neither validates the pH term. The range is still the fitting
+    # experiment's span, which is exactly why it must not be widened to cover
+    # the acidic datasets. See tests/test_sic_kmno4_pack_evidence.py and the
+    # note in cmp_sim/data/params/sic_alumina_kmno4.yaml.
+    "sic_alumina_kmno4": "sic2026_ceria_h2o2_ph_DOE50",
 })
 
 

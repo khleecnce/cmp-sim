@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **777 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **784 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -26,6 +26,14 @@
   _ti 2.7%), and nothing-stated. That separates bouvet2002_w (2.3% vs 1.0% floor,
   finished) from bouvet2002_ti (30.7% vs 2.7%, a real miss) — previously
   indistinguishable. `at_noise_floor` is None, never False, when unmeasured.
+- **sic_alumina_kmno4: a score can be real and validate nothing you assumed.** Its
+  two (newly scorable) datasets both sit BELOW its fitted pH range [9.0,11.0] —
+  entegris2022 at pH 2.3, gong2024 at pH 2-6 — so neither validates the pH term;
+  sweeping pH 3->13 on a gong row swings 94.7->7889->919 A/min across a peak no
+  dataset visits. Evidenced: abrasive loading (entegris 14.1% vs mean 65.1%).
+  NOT: pH (extrapolation), oxidizer (gong LOSES to its mean, 24.9 vs 15.0 — the
+  data span only 99-119 A/min), abrasive size (never varied). No term is inert.
+  Recorded as a documentation-only pack override; medians unchanged.
 - **Every dataset now declares its film** (`scripts/declare_dataset_films.py`,
   evidence string per dataset). Transcription from each source, not inference.
   Corpus 43->45 scored, 394->424 points (entegris2022/gong2024 were unscorable
@@ -201,14 +209,14 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-Two datasets became scorable when their films were declared and neither has been
-looked at: entegris2022_us20220315802a1_sic_alumina_conc (14.1%) and
-gong2024_4hsic_alumina_kmno4_L25 (24.9%), both SiC on sic_alumina_kmno4 — a pack
-no dataset previously exercised, so its constants have never been tested against
-data. Check what they actually validate: whether the pack's KMnO4/alumina terms
-move with the swept axes or whether these scores are carried entirely by the
-mechanical term (the same trap sic_ceria_h2o2's inert pH width was). Report which
-of the pack's parameters are now evidenced and which remain unexercised.
+The sic_alumina_kmno4 audit asked a question the corpus has never answered
+generally: for EVERY pack, which of its constants are actually exercised by the
+datasets that use it, and which are asserted on no evidence at all? Build that
+table — per pack, per parameter, whether any dataset varies the axis it controls
+— and report the unexercised fraction. Expect it to be large; that is the point.
+Do NOT delete unexercised parameters or invent datasets to cover them. The
+deliverable is a single honest inventory of how much of the model rests on data
+and how much on inheritance, suitable for the README's validation section.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp

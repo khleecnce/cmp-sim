@@ -2272,3 +2272,44 @@ overrides and that no measured value differs. A test now asserts that every
 override actually shadows its legacy original.
 
 Enforced by `tests/test_borrowed_pack_audit.py` (11).
+
+## A score can be real and still validate nothing you assumed
+
+Declaring films made two datasets scorable for the first time, and they are the
+only datasets that exercise `sic_alumina_kmno4` — so until now every constant in
+that pack was untested against data:
+
+    entegris2022_us20220315802a1_sic_alumina_conc    5 rows   14.1%  (mean 65.1%)
+    gong2024_4hsic_alumina_kmno4_L25                25 rows   24.9%  (mean 15.0%)
+
+No term in the pack is inert: sweeping pH, oxidizer, loading and size each moves
+the prediction, so this is not a repeat of `sic_ceria_h2o2`'s accepted-and-ignored
+pH width.
+
+**But neither dataset reaches the pack's fitted pH range.** The pack declares
+`ph_valid_range: [9.0, 11.0]` with a peak at 10.5; entegris2022 is a single-pH
+dataset at **2.3** and gong2024 sweeps **2 to 6**. Both sit on the acidic tail.
+Sweeping pH 3 → 7 → 10.5 → 13 on a gong2024 row returns 94.7 → 97.7 → 7889.4 →
+919.0 Å/min — an ~83× excursion across a peak neither dataset visits. A reader
+seeing "14.1%" would reasonably conclude the pH physics had been validated. It
+has not.
+
+So what is actually evidenced is narrower than the scores suggest:
+
+* **abrasive loading — yes.** entegris2022 varies only `abrasive_wt_pct` and
+  beats its own mean by better than 4× (14.1% vs 65.1%). Five points at one pH,
+  but genuine.
+* **pH — no.** Extrapolation only.
+* **oxidizer — weak.** gong2024 varies it but *loses* to its own mean (24.9% vs
+  15.0%), because across 25 rows the measured MRR spans only 99–119 Å/min by
+  loading and 100–119 by pH. The experiment is nearly flat while the model
+  asserts structure.
+* **abrasive size — not exercised.** Neither dataset varies it independently.
+
+The two are not gated away: out-of-range pH is statistically indistinguishable
+from in-range corpus-wide (18.9% vs 19.4%, z = −0.15), and gating would discard
+the only evidence this pack has. The finding is recorded in the pack itself, as a
+documentation-only override that changes no value — verified by the medians
+holding at 19.5% / 22.6%.
+
+Enforced by `tests/test_sic_kmno4_pack_evidence.py` (7).

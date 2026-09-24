@@ -1,0 +1,61 @@
+# 4H/6H-SiC CMP — acidic KMnO4 oxidizer + alumina abrasive.
+#
+# OVERRIDE of the inherited legacy/knowledge/params/sic_alumina_kmno4.yaml.
+# Adds documentation only. No value in this file changes a prediction: it exists
+# to record what the pack's two datasets do and do not evidence, next to the
+# constants a reader would otherwise assume were validated.
+#
+# WHAT EXERCISES THIS PACK
+# ------------------------
+# Until films were transcribed across the corpus, NOTHING did: both datasets were
+# unscorable because the scorer needs a declared film, so every constant here was
+# untested against data. They are now scored:
+#
+#   entegris2022_us20220315802a1_sic_alumina_conc   5 rows   14.1%  (mean: 65.1%)
+#   gong2024_4hsic_alumina_kmno4_L25               25 rows   24.9%  (mean: 15.0%)
+#
+# NEITHER DATASET REACHES THIS PACK'S FITTED pH RANGE
+# ---------------------------------------------------
+# `ph_valid_range` is [9.0, 11.0] and the pH term peaks at 10.5. But:
+#
+#   entegris2022  is a single-pH dataset at pH 2.3
+#   gong2024      sweeps pH 2 to 6
+#
+# Both sit entirely on the acidic tail, below 9. So the scores above are real,
+# but they do NOT validate the pH term — they exercise it in extrapolation.
+# Sweeping pH 3 -> 7 -> 10.5 -> 13 on a gong2024 row returns 94.7 -> 97.7 ->
+# 7889.4 -> 919.0 A/min: an ~83x excursion across a peak neither dataset visits.
+# A reader seeing "14.1%" would reasonably assume the pH physics had been
+# validated here. It has not.
+#
+# This is not a bug to gate away. Corpus-wide, out-of-range pH predictions are
+# statistically indistinguishable from in-range ones (18.9% vs 19.4%, z = -0.15),
+# and gating these two would discard the only evidence this pack has. See
+# docs/limits.md entry 4.
+#
+# WHAT IS ACTUALLY EVIDENCED
+# --------------------------
+# * abrasive loading — YES, by entegris2022, which varies only `abrasive_wt_pct`
+#   and beats predicting its own mean by better than 4x (14.1% vs 65.1%). Five
+#   points at one pH, but genuine.
+# * pH — NO. Extrapolation only, as above.
+# * oxidizer (KMnO4) — WEAK. gong2024 varies it, but that dataset LOSES to its
+#   own mean (24.9% vs 15.0%): across 25 rows the measured MRR spans only
+#   99-119 A/min by loading and 100-119 by pH. The experiment is nearly flat
+#   while the model asserts structure, so it cannot confirm the oxidizer shape.
+# * abrasive size — NOT EXERCISED. Neither dataset varies it independently.
+#
+# No term here is INERT — pH, oxidizer, loading and size all move the prediction,
+# so this pack does not repeat sic_ceria_h2o2's accepted-and-ignored pH width.
+#
+# WHAT WOULD RESOLVE IT
+# ---------------------
+# A KMnO4/alumina SiC sweep at pH 9-11, where this pack's constants were fitted.
+# Failing that, any SiC dataset whose measured rate spans more than ~2x, so that
+# beating the mean becomes a meaningful test.
+#
+# Enforced by tests/test_sic_kmno4_pack_evidence.py.
+
+base: sic_alumina_kmno4
+
+params: {}
