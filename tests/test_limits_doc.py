@@ -58,6 +58,7 @@ LIMIT_ENFORCING_TESTS = {
     "test_scale_column_is_reporting_only.py",
     "test_readme_numbers_are_computed.py",
     "test_inherited_kp_is_not_the_problem.py",
+    "test_calibration_recovers_a_known_factor.py",
 }
 
 

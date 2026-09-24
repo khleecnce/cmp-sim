@@ -254,7 +254,8 @@ average" — the baseline that says whether the physics contributed anything.
 > 11 datasets print `-` because their own notes forbid absolute comparison
 > (benchtop coupons, scaled units, shear-rheological polishing). Use this
 > simulator to rank and optimise conditions; re-anchor `Kp` against your own
-> tool before trusting an Å/min number. See limit 11 in `docs/limits.md`.
+> tool with `cmp-sim fit` (one wafer is enough — see below) before trusting an
+> Å/min number. See limit 11 in `docs/limits.md`.
 
 Four numbers, and they mean different things:
 

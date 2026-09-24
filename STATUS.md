@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **822 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **827 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -26,6 +26,14 @@
   _ti 2.7%), and nothing-stated. That separates bouvet2002_w (2.3% vs 1.0% floor,
   finished) from bouvet2002_ti (30.7% vs 2.7%, a real miss) — previously
   indistinguishable. `at_noise_floor` is None, never False, when unmeasured.
+- **Calibration for limit 11 ALREADY EXISTED — `cmp-sim fit`.** Checked before
+  building: no new command needed. Verified it recovers an injected 2.5x tool
+  factor to 0.3%. ⚠ Near-miss: fitted Kp 2.3289e-13 vs pack 1e-13 looks like
+  2.33x (7% short) — but `fit` regresses BARE Preston while simulate() applies
+  chemistry/contact factors netting 0.929, so the target is 0.929*2.5*1e-13 =
+  2.322e-13. A fitted Kp is an EFFECTIVE Preston constant, not pack*factor;
+  testing against the pack constant would invent a 7% bug. Test also pins that
+  calibration never touches corpus scores (else validation is circular).
 - **README now states what 19.5% supports (limit 11).** Badges said 688 tests/394
   points (actual 822/424) and the axis table held stale medians. Worse, "19.5%
   median prediction error" reads as a promise to predict absolute rate to 20% —
@@ -258,15 +266,14 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-Limit 11 says one calibration wafer re-anchors Kp for a user's tool, but the
-simulator offers no way to do it — a user who measures 2,400 A/min at a known
-P*V has nowhere to put that number. Add a calibration entry point: accept a
-measured rate + its conditions, back out the Kp multiplier that reproduces it,
-and apply it to subsequent runs (config field + `cmp-sim calibrate`, writing a
-per-tool factor, NOT editing any pack). Keep it strictly opt-in and out of the
-corpus: the accuracy medians must stay 19.5%/22.6% and no dataset may be scored
-with a user factor, or the validation becomes self-referential. Test that a
-synthetic measurement recovers a known multiplier and that scoring is untouched.
+Definition-of-done check, then stop. Run `cmp-sim run` on every examples/*.yaml
+(Cu, W, oxide, poly-Si, Si substrate, SnAg, STI, SiC, multizone) and confirm each
+produces a result without ParamMissing or an unhandled warning; run `cmp-sim
+validate` and confirm the ±15% literature gate still passes. Report which
+examples succeed, which warn, and what each warning says — do NOT silence a
+warning to make the list clean, and do NOT add features. If everything passes,
+the P1-P8 gates and the README/validation criteria are met: say so plainly and
+stop rather than starting new work.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp

@@ -2550,3 +2550,41 @@ immediately caught a real defect (the bold claim was split across a blockquote's
 line wrap). A documentation test that cannot fail documents nothing.
 
 Enforced by `tests/test_readme_numbers_are_computed.py` (6).
+
+## The calibration limit 11 asks for already exists
+
+Limit 11 tells a user that one calibration wafer re-anchors `Kp` for their tool
+and turns the model's ranking claim into a rate claim. The obvious next step was
+to build a `cmp-sim calibrate` command. Checking first showed `cmp-sim fit`
+already does exactly that, so the work was to **prove it recovers a known
+answer** and wire it to the limit that asks for it — not to add a second command
+doing the same thing.
+
+Verification: simulate `examples/oxide_baseline.yaml` at three conditions,
+multiply every predicted rate by a known **2.5×** to fake a faster tool, feed
+those numbers back:
+
+    run-2.0-60   2416.3 A/min
+    run-4.0-60   4832.6 A/min
+    run-3.0-90   5459.2 A/min
+    -> Kp 2.3289e-13 m/Pa, ±0.3% leave-one-out
+
+⚠ A near-miss worth recording. Against a pack `Kp` of 1.0e-13 that looks like
+2.33×, not the 2.5× injected — a 7% shortfall suggesting a biased fit. It is not
+a bias. `fit` regresses a **bare Preston** scale (Kp·P·V) while `simulate()`
+multiplies that by the chemistry, contact and uniformity factors, which net to
+**0.929** on this recipe. The honest target is 0.929 × 2.5 × 1e-13 = 2.322e-13,
+and the fit lands within 0.3% of it — precisely the leave-one-out error it
+reports. A fitted `Kp` is an *effective Preston constant for the user's tool*,
+not the pack constant times a tool factor; testing it against the pack constant
+would have manufactured a bug that does not exist.
+
+`fit` also refuses what the data cannot support: three rows varying only pressure
+and speed leave the chemistry factors **locked**, with the reason given per
+factor and the next experiment named.
+
+One property matters beyond convenience: calibration must never reach the
+corpus, or the validation measures itself. A test asserts that running a
+calibration leaves every dataset score unchanged.
+
+Enforced by `tests/test_calibration_recovers_a_known_factor.py` (5).

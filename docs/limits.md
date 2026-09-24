@@ -358,11 +358,26 @@ direction does this knob move the rate, and roughly how much"; it does not
 support "this slurry removes 2,400 Å/min". Absolute rate depends on tool, pad
 break-in and consumable lot, none of which the literature reports consistently.
 
-**What would resolve it.** One calibration wafer on the user's own tool: a single
-measured rate at a known P·V re-anchors `Kp` for that pack and turns the ranking
-claim into a rate claim. That is a one-experiment fix, and it is per-tool by
-nature — no corpus can do it in advance.
+**What would resolve it.** One calibration wafer on the user's own tool, and the
+simulator already accepts it — this is what `cmp-sim fit` is for:
+
+```bash
+cmp-sim fit --template > runs.csv     # label, pressure, rpm, measured rate
+cmp-sim fit myprocess.yaml runs.csv   # -> re-anchored Kp + leave-one-out error
+```
+
+A single measured rate at a known P·V re-anchors `Kp` for that pack and turns the
+ranking claim into a rate claim; more rows unlock more factors, and `fit` names
+the ones the data cannot identify rather than fitting them anyway. Verified
+against an injected 2.5× tool factor, recovered to within 0.3%.
+
+Note that the fitted `Kp` is an **effective Preston constant for your tool**, not
+the pack constant times a tool factor: the chemistry and contact factors sit
+between them (0.929× on the oxide example). The calibration is per-tool by
+nature and never reaches the validation corpus — no corpus can do it in advance,
+and a user factor that leaked into scoring would make the validation circular.
 
 **Enforced by** `tests/test_scale_column_is_reporting_only.py`,
 `tests/test_inherited_kp_is_not_the_problem.py`,
-`tests/test_readme_numbers_are_computed.py`.
+`tests/test_readme_numbers_are_computed.py`,
+`tests/test_calibration_recovers_a_known_factor.py`.
