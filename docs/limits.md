@@ -1,0 +1,222 @@
+# What this model cannot do
+
+`docs/open-questions.md` lists things that are **undecided** and waiting on the
+owner. This page lists the opposite: questions that have been **settled**, where
+the answer is that the model declines to predict something, and the decision is
+final until a specific named experiment arrives.
+
+Each entry gives the measurement that establishes the limit, the refit that was
+rejected and what it would have cost, and the experiment that would resolve it.
+None of these is a TODO. A future session that "fixes" one without the named
+measurement is reintroducing an error that was removed deliberately.
+
+Every limit here is enforced by a test, so it cannot be quietly undone.
+
+---
+
+## 1. The velocity exponent is not fitted, because the corpus cannot resolve it
+
+**The measurement.** Fitting `RR ∝ V^n` independently on each velocity-isolated
+group gives exponents scattered from **−0.42 to 1.10**, straddling the Preston
+value of 1.0. The negative case is not noise: it is the documented low-pressure
+regime of US 6,918,821 B2, where the measured rate collapses as speed rises.
+Checking whether the exponent varies systematically with pressure gives
+**opposite trends in the two datasets that allow the test**.
+
+**The refit rejected.** Any single global exponent. With the in-scope values
+spanning both sides of 1.0, a fitted mean would be a number with no support in
+either regime.
+
+**What would resolve it.** A velocity sweep repeated at three or more down forces
+on one tool and one consumable set, so that the pressure dependence of the
+exponent is measured rather than inferred across labs.
+
+**Enforced by** `tests/test_velocity_exponent_unresolvable.py`.
+
+---
+
+## 2. The lubrication gate would be *wrong*, not merely uncalibrated
+
+**The measurement.** The obvious explanation for the velocity inversion is a
+transition into hydrodynamic lubrication, and `core/regime.py` already computes
+λ. The inverting rows really are the highest-λ rows (0.187 against 0.070), and λ
+correlates with over-prediction (ρ = −0.71 and −0.52 on the two datasets).
+
+But λ turns out to be **exactly proportional to V/p** — it *is* the
+pseudo-Sommerfeld number, carrying no information beyond the two variables
+already in Preston's law. And the λ intervals of the inverting and
+non-inverting rows **overlap**, so no threshold separates them.
+
+**The refit rejected.** Rescaling λ so that the inverting rows cross a boundary.
+This was the plan of an earlier commit in this project, which the next commit
+corrected: because the intervals overlap, *no* calibration can work. The gate
+would fire on rows that do not invert.
+
+**What would resolve it.** A direct film-thickness measurement (e.g. dual-emission
+UV fluorescence) on the conditions that invert, giving λ independently of V/p.
+
+**Enforced by** `tests/test_lubrication_gate_is_wrong_not_premature.py`.
+
+---
+
+## 3. Pad contact does not separate the inversion either
+
+**The measurement.** With fluid film excluded, pad contact is the next candidate.
+`summit_saturation` appears to separate the cases cleanly — 0.0111 on the
+inverting rows against 0.0296 — but it equals **0.00739 × P** exactly: it is
+pressure relabelled, with the same pad in both datasets, and carries no
+independent information. `plasticity_index` and `pad_limited_plasticity_lambda`
+differ *between* datasets (0.0219 against 0.0029) but are **constant within**
+each one, so they are fixed by the consumable set and cannot vary with the recipe
+rows that invert.
+
+**The refit rejected.** A contact-based gate. It would be pressure under another
+name, and the inversion is not a function of pressure alone.
+
+**What would resolve it.** Asperity statistics measured on the specific pads used,
+rather than inherited pad-class constants.
+
+**Enforced by** `tests/test_contact_metrics_do_not_separate_the_inversion.py`.
+
+---
+
+## 4. The oxidiser term's sign flips with pressure, and the coupling is not fitted
+
+**The measurement.** The Cu oxidiser sweeps disagree: ihnfeldt2008 peaks near
+0.1 wt%, jani2025 is still rising at 6 wt%, and US 8,501,625 B2 contains **both
+signs**. The hypothesis that the sign tracks BTA presence is falsified — that
+patent shows both signs at the same 0.08 mM BTA.
+
+What separates them is **down force**. Two groups identical in every slurry
+variable (0.17 wt% abrasive, 0.0078 M citric acid, 0.08 mM BTA, no oxalic acid,
+200 ml/min, pH 3.6, 93 rpm) differ only in pressure:
+
+    2 psi:  8200 → 7200 → 6300    monotone falling
+    1 psi:  1900 → 3900 → 3300    rising, peak near 9 wt%
+
+This is mechanistically sensible — H₂O₂ grows a passivating film, and whether more
+film helps or hurts depends on whether the mechanics can clear it, which is why
+the falling group is also the higher-rate one.
+
+**The refit rejected.** Moving `oxidizer_peak_wt_pct` up to fit
+`jani2025_cu_rsm_composition_heldout`, whose 51.2% error is caused by this. It
+would break ihnfeldt2008 and the 2 psi group of US 8,501,625 B2. Two pressures
+from one patent cannot fit a coupling.
+
+**Confound that cannot be separated.** The peak's citation (GT07, 2–3.6 wt%) is
+for an **alumina**/glycine slurry while jani2025 is silica. Abrasive type and
+pressure co-vary across these datasets.
+
+**What would resolve it.** One H₂O₂ sweep repeated at three or more down forces
+with everything else fixed.
+
+**Enforced by** `tests/test_oxidizer_sign_tracks_pressure.py`.
+
+---
+
+## 5. Ceria's pH response is not unimodal, and `ph_response` is
+
+**The measurement.** `netzband2020` measures a **valley**: 198 / 113 / 200 / 213
+Å/min at pH 4 / 6 / 8 / 10. Netzband attributes it to two isoelectric points —
+the oxide's (pH 2–3) and ceria's (~8) — with pH 6 optimal for neither.
+`ph_response` is a single bell: between its ends it can rise-then-fall but never
+fall-then-rise, so no parameter choice produces a valley. The 49.2% error is
+structural.
+
+Note what this is *not*. The experiment is a 2.25 cm² benchtop coupon, so absolute
+rates are ~8× out — but the reported error is already scale-free (best common
+scale k = 0.128 leaves exactly 49.2%), so the tool mismatch costs nothing. And
+every point is inside the pack's declared pH range.
+
+**The refit rejected.** A netzband-only fit reaches **15.0%** at peak 8.50, width
+0.75, floor 0.95, acid_floor 0.70 — by making the pH response nearly flat, which
+suits a dataset spanning only 1.9×. The same constants score **492.6%** on
+dandu2009, the nine-point sweep they were fitted to, which swings 81×. The two
+datasets demand opposite functional forms.
+
+**What would resolve it.** A second pH channel keyed to the abrasive's isoelectric
+point. Note a *universal* second channel was already tested and **falsified** —
+the three pH residuals in this corpus have three different shapes — so this would
+have to be a per-pack channel justified by more than one benchtop dataset.
+
+**Enforced by** `tests/test_two_ceria_datasets_demand_opposite_ph_terms.py` and
+`tests/test_no_universal_second_ph_channel.py`.
+
+---
+
+## 6. Where a bounded peak has no measured side, the answer is a refusal
+
+**The measurement.** Three packs pin `ph_peak` to the lowest pH their source table
+contains, because free fitting wanted an optimum at a pH nobody polished at. The
+consequence is that one side of the bell is unmeasured, and `ph_acid_mechanical_floor`
+is often 0 because there is no measured acid limb to floor. The model then decays
+to **0.00 Å/min**, with no warning from the existing "2.5 widths from the optimum"
+check (at pH 1.0 the distance is only 2.0 widths).
+
+**The decision.** Each pack declares `ph_valid_range` — the span of the experiment
+its constants were fitted to, never the union of every dataset that uses the pack
+— and the engine warns outside it, naming the floor and stating that a **zero**
+floor makes the result a refusal rather than a number.
+
+**Deliberately *not* a gate.** Splitting the corpus by range membership gives
+in-range median 18.9% (n=19) against out-of-range 19.4% (n=11), Mann-Whitney
+**z = −0.15**. Out-of-range prediction is not measurably worse, and the group
+contains some of the best results in the corpus (bouvet2002_w 2.3%). A gate is for
+*"this prediction would be wrong"*, not for *"this prediction rests on fewer
+measurements"*.
+
+**Enforced by** `tests/test_ph_validity_range_is_declared.py` and
+`tests/test_out_of_range_ph_is_a_warning_not_a_gate.py`.
+
+---
+
+## 7. Some datasets cannot be predicted better than they were measured
+
+**The measurement.** `hong2007` contains three rows identical in every override,
+reporting **2650 / 2400 / 1850 Å/min** — 13.0% mean absolute deviation. No model
+can score better than that on this dataset. The model's 14.8% is at the floor,
+and it *ties* the flat baseline rather than losing to it (both are 14.8%; a
+previously recorded 12.6% was stale).
+
+Corpus-wide, three datasets sit at or below their own replicate scatter:
+
+| dataset | replicate scatter | shape error |
+|---|---:|---:|
+| `sic2026_ceria_h2o2_ph_DOE50` | 38.5% | 34.0% |
+| `us9200180b2_cu_benzenesulfonic_series` | 24.6% | 26.8% |
+| `hong2007_cu_ads_bta_polish_rate` | 13.0% | 14.8% |
+
+**The refit rejected.** Any further fitting on these three. The SiC entry is the
+instructive one: its 34.0% was treated as a weakness all session and is in fact
+better than the set's own reproducibility.
+
+⚠ Only 5 datasets have genuine replicates. For the rest the noise floor is
+**unknown**, which is a limit of the evidence and not a licence to assume it is
+zero.
+
+**Enforced by** `tests/test_replicate_noise_floor.py`.
+
+---
+
+## 8. A null result is not an omission, and silence must be sourced
+
+**The measurement.** `w_fe_oxidizer` declares no pH response while its own dataset
+sweeps pH. That pattern is exactly how a missing term hides: in
+`cu_alkaline_benzenesulfonic`, a missing pH response had its work absorbed by the
+oxidiser term, whose shape constant was then justified by what was really pH drift.
+
+Here the silence is correct. US 2011/0186542 A1 runs a two-level pH control at
+matched oxidiser and abrasive — six matched pairs, mean ratio **0.958** with an
+**inconsistent sign** (more acid raises the rate in one pair, lowers it in five),
+against an 8× oxidiser effect in the same table.
+
+**The decision.** The null result is declared in the pack with its table and its
+scope (pH 3–6 only — nothing licenses an alkaline W slurry), registered in the
+audit, and **re-derived by the test** from the six pairs rather than trusted.
+
+**What would resolve it** — i.e. what would turn the silence back into a term: a
+W pH sweep outside 3–6, particularly alkaline, at fixed oxidiser. The current null
+is a statement about pH 3–6 and nothing wider; outside that window the honest
+behaviour is to decline rather than to extrapolate a flat response.
+
+**Enforced by** `tests/test_pack_axis_blindness_audit.py`.

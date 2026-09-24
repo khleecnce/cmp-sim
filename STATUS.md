@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **737 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **748 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -17,6 +17,14 @@
 - **Abrasive TYPE reaches the rate** (`slurry/abrasive_effects.py`): a swap
   rescales only by a published matched-condition ratio, withdraws the pack's
   measured exponents, says `ranking_only` when unanchored.
+- **`docs/limits.md` — one page for what the model REFUSES to predict.** 8 entries,
+  each with the measurement that establishes the limit, the refit that was rejected
+  and its cost, and the experiment that would lift it. Distinct from
+  open-questions.md (undecided items): these are DECIDED refusals. Guarded by
+  tests/test_limits_doc.py (11 tests) both ways — a limit-enforcing test not cited
+  on the page fails, and a cited test that no longer exists fails. README's
+  validation table now points at it and states the noise-floor caveat: only 5
+  datasets have replicates, so elsewhere the achievable floor is UNKNOWN.
 - **Two ceria datasets demand OPPOSITE pH terms; the pack keeps the right one.**
   netzband2020 (49.2%) has a VALLEY — 198/113/200/213 over pH 4/6/8/10, two IEPs
   (oxide 2-3, ceria ~8) with pH 6 optimal for neither — and `ph_response` is
@@ -162,17 +170,16 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-Every large miss is now diagnosed, and three of them were closed by naming a
-STRUCTURAL limit instead of refitting: the unresolvable velocity exponent, the
-pressure-coupled oxidizer sign, and ceria's non-unimodal pH response. Each is
-recorded only in its own test and pack comment, so a reader has no single place
-that says what the model CANNOT do. Write that page: docs/limits.md, one entry
-per named limit, each with the measurement that establishes it, the refit that
-was rejected and its cost, and the experiment that would resolve it. Add it to
-tests/test_derivations_doc.py-style coverage so a future structural limit cannot
-be added without appearing there. Then re-check the README's validation table
-against it: the table currently reports medians without saying which axes are
-known-unfittable, which overstates what the numbers mean.
+The noise-floor finding exposed a gap in how accuracy is reported: only 5 of 49
+datasets carry replicates, so for the other 44 the achievable error floor is
+unknown, yet every one is scored against the same +/-15% ambition. Make that
+visible in the tooling rather than only in prose — have `cmp-sim accuracy` print
+each dataset's replicate scatter alongside its shape error (blank where there are
+no replicates), and mark the rows already at their floor so they stop reading as
+failures. Do NOT change any scoring or the median; this is a reporting change
+only, and the test must assert the median is unmoved. Then check the one thing
+this session did not: whether any dataset's replicates were silently AVERAGED
+when the YAML was written, which would hide a noise floor that actually exists.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp

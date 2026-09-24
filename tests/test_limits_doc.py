@@ -1,0 +1,153 @@
+"""docs/limits.md must stay a complete, accurate index of what the model refuses.
+
+Three separate findings this project has made were closed by naming a structural
+limit rather than by refitting a constant: the unresolvable velocity exponent, the
+pressure-coupled oxidiser sign, and ceria's non-unimodal pH response. Several more
+decided refusals sit alongside them.
+
+Before docs/limits.md existed, each lived only in its own test file and pack
+comment, so a reader had no single place saying what the model CANNOT do — and,
+worse, nothing stopped a later session from quietly "fixing" one of them.
+
+These tests keep that page honest in both directions:
+
+  - every test that enforces a limit must be CITED by the page, so a new
+    structural limit cannot be added without documenting it;
+  - every test the page cites must EXIST, so the page cannot rot into claims
+    about files that were renamed or deleted;
+  - each entry must carry the three things that make a limit reviewable rather
+    than an excuse: the measurement, the rejected refit, and the experiment that
+    would resolve it.
+
+The last point is the one that matters most. 'We cannot model this' is only
+acceptable when accompanied by what was measured, what was tried, and what would
+change the answer. Without those, a documented limit is indistinguishable from an
+undocumented failure.
+"""
+from __future__ import annotations
+
+import re
+from pathlib import Path
+
+import cmp_sim
+
+DOCS = Path(cmp_sim.__file__).parent.parent / "docs"
+TESTS = Path(cmp_sim.__file__).parent.parent / "tests"
+LIMITS = DOCS / "limits.md"
+
+#: Tests that enforce a decided refusal to predict. A test added here MUST be
+#: cited by docs/limits.md — that is the point of the registry.
+LIMIT_ENFORCING_TESTS = {
+    "test_velocity_exponent_unresolvable.py",
+    "test_lubrication_gate_is_wrong_not_premature.py",
+    "test_contact_metrics_do_not_separate_the_inversion.py",
+    "test_oxidizer_sign_tracks_pressure.py",
+    "test_two_ceria_datasets_demand_opposite_ph_terms.py",
+    "test_no_universal_second_ph_channel.py",
+    "test_ph_validity_range_is_declared.py",
+    "test_out_of_range_ph_is_a_warning_not_a_gate.py",
+    "test_replicate_noise_floor.py",
+    "test_pack_axis_blindness_audit.py",
+}
+
+
+def _text() -> str:
+    return LIMITS.read_text(encoding="utf-8")
+
+
+def _entries() -> list[str]:
+    """The numbered limit sections."""
+    parts = re.split(r"\n## \d+\. ", _text())
+    return parts[1:]
+
+
+def test_the_limits_page_exists_and_is_substantial():
+    assert LIMITS.exists(), "docs/limits.md is missing"
+    assert len(_text()) > 5000, len(_text())
+
+
+def test_it_distinguishes_itself_from_open_questions():
+    """Undecided items belong in open-questions.md; decided refusals here."""
+    text = _text()
+    assert "open-questions.md" in text
+    assert "settled" in text.lower() or "decided" in text.lower()
+    assert "None of these is a TODO" in text
+
+
+def test_every_limit_enforcing_test_is_cited():
+    text = _text()
+    missing = sorted(name for name in LIMIT_ENFORCING_TESTS
+                     if name not in text)
+    assert not missing, (
+        f"{missing} enforce a structural limit but are not cited in "
+        "docs/limits.md. A limit that is not written down is a limit the next "
+        "session will 'fix'.")
+
+
+def test_every_cited_test_actually_exists():
+    cited = set(re.findall(r"tests/(test_[a-z0-9_]+\.py)", _text()))
+    assert cited, "no test files cited"
+    missing = sorted(name for name in cited if not (TESTS / name).exists())
+    assert not missing, f"docs/limits.md cites non-existent tests: {missing}"
+
+
+def test_the_registry_matches_the_citations():
+    """Catches a limit test added to the page but not to the registry."""
+    cited = set(re.findall(r"tests/(test_[a-z0-9_]+\.py)", _text()))
+    unregistered = cited - LIMIT_ENFORCING_TESTS
+    assert not unregistered, (
+        f"{sorted(unregistered)} are cited as enforcing a limit but are not in "
+        "LIMIT_ENFORCING_TESTS; add them deliberately")
+
+
+def test_there_are_enough_entries_to_cover_the_named_limits():
+    assert len(_entries()) >= 8, len(_entries())
+
+
+def test_each_entry_names_the_measurement_behind_it():
+    for entry in _entries():
+        title = entry.splitlines()[0]
+        assert "measurement" in entry.lower() or "measured" in entry.lower(), (
+            f"'{title}' does not say what was measured")
+
+
+def test_each_entry_names_the_refit_that_was_rejected_or_the_decision_taken():
+    for entry in _entries():
+        title = entry.splitlines()[0]
+        lowered = entry.lower()
+        assert ("rejected" in lowered or "the decision" in lowered), (
+            f"'{title}' does not say what was tried and refused; without that "
+            "the limit is indistinguishable from an untried one")
+
+
+def test_each_entry_says_what_would_resolve_it():
+    for entry in _entries():
+        title = entry.splitlines()[0]
+        lowered = entry.lower()
+        assert ("would resolve it" in lowered
+                or "deliberately *not* a gate" in lowered
+                or "unknown" in lowered), (
+            f"'{title}' does not name the experiment that would lift the limit")
+
+
+def test_each_entry_points_at_its_enforcing_test():
+    for entry in _entries():
+        title = entry.splitlines()[0]
+        assert "Enforced by" in entry, (
+            f"'{title}' is not tied to a test, so nothing stops it being undone")
+
+
+def test_the_quantitative_claims_carry_numbers():
+    """A limit stated without figures cannot be checked by a reviewer.
+
+    Note the page is prose and uses a Unicode minus sign, so each figure is
+    checked in both forms rather than assuming ASCII.
+    """
+    text = _text().replace("\u2212", "-")
+    for figure in ("-0.42", "1.10",      # velocity exponent spread
+                   "0.00739",             # summit_saturation = k*P
+                   "492.6%",              # cost of the netzband refit
+                   "z = -0.15",           # the no-gate measurement
+                   "13.0%",               # hong2007 replicate scatter
+                   "0.958"):              # the W pH null result
+        assert figure in text, f"{figure} missing from docs/limits.md"

@@ -269,6 +269,25 @@ because each turned out to be the operating point relabelled: the lubrication
 pressure threshold fitted to one patent's low-force arm. The miss is left
 visible instead; see `docs/derivations.md`.
 
+**What these medians do *not* tell you.** Five axes contain a limit the corpus
+cannot lift, and averaging over them hides it. `docs/limits.md` is the index:
+one entry per refusal, each naming the measurement that establishes it, the refit
+that was rejected and its cost, and the experiment that would resolve it. The
+short version:
+
+| limit | consequence for the table above |
+|---|---|
+| velocity exponent unresolvable (−0.42 to 1.10) | the 44.1% cannot be fitted away |
+| oxidiser sign flips with *pressure* | jani2025's 51.2% is a named miss, not a bad constant |
+| ceria's pH response is *not unimodal* | netzband's 49.2% is structural; the better fit costs dandu2009 492.6% |
+| out-of-range pH is warned, not gated | measured: no separation, z = −0.15 |
+| three datasets sit at their replicate-noise floor | `sic2026` 34.0% is *better* than its own 38.5% reproducibility |
+
+That last row matters when reading any single number here: only 5 datasets carry
+genuine replicates, so for the rest the achievable floor is **unknown**. A 15%
+error against an unmeasured floor is not the same claim as a 15% error against a
+measured 2%.
+
 Finding this changed the model materially. Scored this way the first time, the
 median was **42.8%** and 16 of 36 datasets lost to predicting the mean. Two
 causes, both silent:
