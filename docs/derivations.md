@@ -2491,3 +2491,35 @@ inert.
 
 Corpus median unchanged at 19.5% / 22.6%, as a scale-only change must be.
 Enforced by `tests/test_acidic_oxide_datasets_pack_assignment.py` (7).
+
+## Shape and scale fail independently, so the report shows both
+
+`cmp-sim accuracy` reported shape error only: how well the model *ranks*
+conditions. That hid a second, independent failure. `ep3161098b1_teos_silica_
+pressure_sweep` prints **7.1% shape** while under-predicting absolute rate by
+**139×** — an excellent ranking of badly wrong numbers, and nothing in the report
+said so.
+
+The report and the JSON now carry a `scale` column: median measured/predicted
+absolute rate, with `scale_is_calibrated` true inside a factor of ~3.
+
+    13 of 34 comparable datasets are off by more than 3x in absolute rate
+    ep3161098b1_teos  139.2x · liang2026_sic  92.0x · bouvet2002_w  75.6x
+    bouvet2002_oxide   39.2x · us6918821b2_cu  0.08x (over-predicts 12x)
+
+Two deliberate choices:
+
+- **`-`, not a number, on 11 datasets.** Their own notes forbid absolute
+  comparison — benchtop coupons, scaled units, shear-rheological polishing
+  rather than CMP. The exclusion rule is the one the Kp audit established, and a
+  test asserts the dashes land on exactly that set, so a silent computation
+  failure cannot masquerade as a source restriction.
+- **Wrongness is ranked in both directions.** `us6918821b2` at 0.08× over-predicts
+  by 12×, which is as wrong as 12×; sorting on the raw ratio would have buried
+  every over-prediction at the bottom of the list.
+
+Reporting only: the corpus medians are unchanged at 19.5% / 22.6% over 45
+datasets and 424 points, pinned by a test exactly as the `repl%` column is.
+Nothing was refitted to improve a scale ratio.
+
+Enforced by `tests/test_scale_column_is_reporting_only.py` (6).

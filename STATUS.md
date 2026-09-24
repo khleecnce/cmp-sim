@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **810 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **816 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -26,6 +26,14 @@
   _ti 2.7%), and nothing-stated. That separates bouvet2002_w (2.3% vs 1.0% floor,
   finished) from bouvet2002_ti (30.7% vs 2.7%, a real miss) — previously
   indistinguishable. `at_noise_floor` is None, never False, when unmeasured.
+- **`scale` column in accuracy report + JSON (reporting only).** Shape says the
+  model RANKS conditions well; scale says whether the rate is right at all, and
+  they fail independently — ep3161098b1 is 7.1% shape but 139x off in absolute
+  rate, previously invisible. 13/34 comparable datasets are off >3x. 11 datasets
+  print "-" because their own notes forbid absolute comparison (Kp-audit rule; a
+  test pins the dashes to exactly that set so a silent failure can't hide there).
+  Wrongness ranked both directions — us6918821b2 at 0.08x over-predicts 12x.
+  Medians unchanged 19.5%/22.6%, 45 datasets, 424 points, pinned by test.
 - **One acidic oxide dataset was mis-assigned; two others were NOT.** us9499721b2's
   own notes say the abrasive is 아미노실란 양전하(cationic) silica at pH 4.7 — the
   exact system oxide_silica_aminosilane was built for. Reassigned: scale 98.25x ->
@@ -243,15 +251,15 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-Scale error is now a measured, per-pack quantity (0.37x to 38.7x) but it is
-invisible in `cmp-sim accuracy`, which reports shape only — so a user sees 7.1%
-for ep3161098b1 and cannot tell it under-predicts absolute rate by 139x. Add a
-scale column to the accuracy report and the JSON, next to repl%, using the same
-exclusion rule the Kp audit established (11 datasets whose own notes forbid
-absolute comparison must show "-", not a number). REPORTING ONLY: the shape
-median must stay 19.5% and leave-one-out 22.6%, pinned by a test exactly like
-test_replicate_column_is_reporting_only.py. Do not refit anything to improve a
-scale ratio.
+The scale column exposes 13 datasets off by >3x, but README's validation table
+and the badge still advertise shape only — a reader sees "19.5% median" and will
+reasonably assume the simulator predicts rates to 20%. It does not: it ranks to
+20% and its absolute rate can be 139x off. Update README so scale is stated
+beside shape (add the column to the validation table, state how many datasets
+are calibrated within 3x, and say plainly which claim the 19.5% supports). Also
+add the shape-vs-scale distinction to docs/limits.md as a numbered limit, since
+it is a decided, measured limitation rather than an open question. Documentation
+only — no constant may move, and the medians must stay 19.5%/22.6%.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp

@@ -26,6 +26,8 @@ homework; with one free parameter per k points that number always flatters.
 from __future__ import annotations
 
 import math
+import re
+import statistics
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -101,6 +103,27 @@ class Score:
     #: common case: one rate per condition leaves the floor unmeasured, and an
     #: unmeasured floor must not be read as a floor of zero.
     replicate_scatter: Optional[float] = None
+    #: Median (measured / predicted) over the dataset's rows — the absolute
+    #: scale the data implies, against the scale the pack declares. 1.0 means
+    #: calibrated; 39.0 means the model under-predicts absolute rate by 39x
+    #: while its SHAPE may still be excellent. None when the dataset's own
+    #: notes forbid absolute comparison (benchtop coupons, scaled units,
+    #: shear-rheological polishing), where a ratio would be meaningless rather
+    #: than merely unknown.
+    scale_ratio: Optional[float] = None
+
+    @property
+    def scale_is_calibrated(self) -> Optional[bool]:
+        """Is absolute rate within a factor of ~3 of measurement?
+
+        Shape and scale are independent failures: ep3161098b1 scores 7.1% shape
+        while under-predicting absolute rate by 139x. A report that shows only
+        shape hides that completely. None means the dataset forbids absolute
+        comparison, not that the answer is no.
+        """
+        if self.scale_ratio is None:
+            return None
+        return 0.33 <= self.scale_ratio <= 3.0
 
     @property
     def at_noise_floor(self) -> Optional[bool]:
@@ -140,6 +163,10 @@ class Score:
                 None if self.replicate_scatter is None
                 else round(self.replicate_scatter, 1)),
             "at_own_noise_floor": self.at_noise_floor,
+            "scale_ratio_measured_over_predicted": (
+                None if self.scale_ratio is None
+                else round(self.scale_ratio, 2)),
+            "scale_is_calibrated": self.scale_is_calibrated,
             "gated_points": self.gated,
             "gated_reason": self.gated_reason,
             "error": self.error,
@@ -158,6 +185,49 @@ def _measured(row: Dict[str, Any]) -> Optional[float]:
         if row.get(key) is not None:
             return float(row[key]) * 10.0 / 60.0
     return None
+
+
+#: Phrases with which a dataset's own notes declare its absolute values
+#: incomparable — benchtop coupons, scaled units, shear-rheological polishing
+#: rather than CMP. Established by the Kp audit; see
+#: tests/test_inherited_kp_is_not_the_problem.py, which pins the resulting set.
+_NO_ABSOLUTE = re.compile(
+    r"절대값\s*(비교\s*금지|대조에?는?\s*(당연히\s*)?부적합|비교\s*부적합)"
+    r"|in_scope:\s*false|절대\s*MRR.*의미\s*없|스케일된\s*단위")
+
+
+def _forbids_absolute_comparison(doc: Dict[str, Any]) -> bool:
+    blob = str(doc.get("notes", "")) + " " + str(doc.get("source", ""))
+    return bool(_NO_ABSOLUTE.search(blob)) or doc.get("in_scope") is False
+
+
+def _scale_ratio(doc: Dict[str, Any],
+                 rows: List[Dict[str, Any]]) -> Optional[float]:
+    """Median measured/predicted — the absolute scale the data implies.
+
+    Shape error asks whether the model ranks conditions correctly; this asks
+    whether it gets the rate right at all. They fail independently, and a report
+    showing only shape hides the second failure entirely.
+
+    Returns None when the dataset's own notes forbid absolute comparison, where
+    a ratio would be meaningless rather than merely unknown.
+
+    Reporting only. Nothing here feeds the score.
+    """
+    if _forbids_absolute_comparison(doc):
+        return None
+    ratios: List[float] = []
+    for row in rows:
+        measured = _measured(row)
+        try:
+            predicted = _predict(doc, row)
+        except Exception:
+            continue
+        if measured and predicted:
+            ratios.append(measured / predicted)
+    if not ratios:
+        return None
+    return float(statistics.median(ratios))
 
 
 def _replicate_scatter(rows: List[Dict[str, Any]]) -> Optional[float]:
@@ -321,7 +391,8 @@ def score_dataset(path: Path) -> Score:
     film = doc.get("film") or PACK_FILM.get(str(doc.get("pack") or "")) or "?"
     score = Score(dataset=path.stem, film=str(film),
                   n=len(rows), axes=_varying_axes(rows),
-                  replicate_scatter=_replicate_scatter(rows))
+                  replicate_scatter=_replicate_scatter(rows),
+                  scale_ratio=_scale_ratio(doc, rows))
     if len(rows) < 3:
         score.error = f"only {len(rows)} usable rows"
         return score
@@ -399,26 +470,31 @@ def score_all(only_non_pv: bool = False) -> List[Score]:
 
 def report(scores: List[Score]) -> str:
     lines = [f"{'dataset':44s} {'film':8s} {'n':>3s} {'shape%':>7s} "
-             f"{'LOO%':>7s} {'mean%':>7s} {'repl%':>7s} {'beats':>6s}  axes",
-             "-" * 128]
+             f"{'LOO%':>7s} {'mean%':>7s} {'repl%':>7s} {'scale':>7s} "
+             f"{'beats':>6s}  axes",
+             "-" * 136]
     for s in sorted(scores, key=lambda x: (x.shape_mape is None,
                                            x.shape_mape or 0)):
         if s.error:
             lines.append(f"{s.dataset[:44]:44s} {s.film[:8]:8s} {s.n:3d} "
                          f"{'--':>7s} {'--':>7s} {'--':>7s} {'--':>7s} "
-                         f"{'--':>6s}  {s.error}")
+                         f"{'--':>7s} {'--':>6s}  {s.error}")
             continue
         # blank, not zero, where the dataset repeats no condition: the floor is
         # unmeasured there and printing 0.0 would assert a floor of zero
         repl = (f"{s.replicate_scatter:7.1f}" if s.replicate_scatter is not None
                 else f"{'':>7s}")
+        # '-' where the dataset's own notes forbid absolute comparison: the
+        # ratio is meaningless there, not merely unknown
+        scale = (f"{s.scale_ratio:6.2f}x" if s.scale_ratio is not None
+                 else f"{'-':>7s}")
         beats = "yes" if s.beats_flat else "NO"
         if s.at_noise_floor:
             beats = "floor"
         lines.append(
             f"{s.dataset[:44]:44s} {s.film[:8]:8s} {s.n:3d} "
             f"{s.shape_mape:7.1f} {s.loo_mape:7.1f} {s.flat_mape:7.1f} "
-            f"{repl} {beats:>6s}  {','.join(s.axes)}")
+            f"{repl} {scale} {beats:>6s}  {','.join(s.axes)}")
     ran = [s for s in scores if s.shape_mape is not None]
     if ran:
         lines.append("")
@@ -437,6 +513,24 @@ def report(scores: List[Score]) -> str:
             lines.append(
                 f"'floor' = error already at that floor, so further fitting "
                 f"there fits noise: " + ", ".join(s.dataset for s in floored))
+        scaled = [s for s in ran if s.scale_ratio is not None]
+        if scaled:
+            off = [s for s in scaled if not s.scale_is_calibrated]
+            lines.append(
+                f"scale = median measured/predicted ABSOLUTE rate, a failure "
+                f"independent of shape. Comparable on {len(scaled)}/{len(ran)}; "
+                f"'-' means the dataset's own notes forbid it.")
+            if off:
+                # rank by how far off in EITHER direction: 0.08x (over-predicts
+                # 12x) is as wrong as 12x, and sorting on the raw ratio would
+                # bury every over-prediction at the bottom of the list
+                worst = sorted(off, key=lambda s: -max(s.scale_ratio or 1,
+                                                       1 / (s.scale_ratio or 1))
+                               )[:4]
+                lines.append(
+                    f"absolute rate off by >3x on {len(off)}: "
+                    + ", ".join(f"{s.dataset} ({s.scale_ratio:.1f}x)"
+                                for s in worst))
         lost = [s.dataset for s in ran
                 if not s.beats_flat and not s.at_noise_floor]
         if lost:
