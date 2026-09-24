@@ -1479,3 +1479,51 @@ Netzband & Dunn's title names a mechanism our pH term has no channel for: the
 saying no closed form was found in the literature. A pH-dependent Ce³⁺ fraction
 would be a ceria-specific coupling — not a universal second pH channel — and it
 needs its own evidence before it is built. Recorded, not guessed.
+
+## The velocity exponent cannot be resolved by this corpus — so it is not fitted
+
+Preston's law puts the velocity exponent at exactly 1.0. The corpus was asked
+whether that holds, under the rule written down before any code: fit an exponent
+to every *isolated* velocity group (only speed moves), report the spread, and if
+they scatter across 1.0, say the axis cannot resolve it and stop.
+
+Every in-scope isolated group, log-log slope of rate against platen speed at
+fixed down force:
+
+| dataset | pressure | exponent | measured rates |
+|---|---:|---:|---|
+| US 6,918,821 B2 | 1.5 psi | **−0.42** | 425 → 419 → 250 |
+| Mariscal 2020 | 4.0 psi | +0.62 | 2064 → 3079 → 3463 |
+| Mariscal 2020 | 3.0 psi | +0.86 | 1404 → 2529 → 2838 |
+| US 6,918,821 B2 | 4.0 psi | +0.86 | 594 → 1384 → 1636 |
+| Mariscal 2020 | 2.0 psi | +1.10 | 698 → 1558 → 1718 |
+
+Preston says all five should be +1.0. They span 1.5 in exponent, and one is
+**negative** — rate *falls* as speed rises.
+
+### Why even a pressure-dependent exponent is not writable
+The obvious rescue is to make the exponent a function of down force. The two
+datasets demand opposite functions:
+
+```
+Mariscal 2020     exponent FALLS with pressure    1.10 → 0.86 → 0.62
+US 6,918,821 B2   exponent RISES with pressure   −0.42 → 0.86
+```
+
+A single fitted constant would land near 0.86 — wrong at both ends of both
+datasets, while improving a pooled median. That is exactly the failure mode the
+stop rule exists to prevent, so nothing was fitted.
+
+### The negative group is evidence, not noise
+US 6,918,821 B2 exists to make that measurement: a conventional IC1000 pad
+*loses* copper removal rate as speed rises at low down force, which is the
+patent's argument for fixed-abrasive pads. Mechanistically it is the slurry-film
+/ lubrication regime — faster sliding thickens the fluid film and lifts asperity
+contact — which the Preston form has no channel for, and which is the first
+point any global fit would discard as an outlier.
+
+So the finding is not a constant. It is that `velocity 44.1 %` is a **regime**
+boundary the model does not represent, and the honest statement is that the
+corpus contains two velocity datasets, in different regimes, that cannot be
+reconciled by an exponent. Pinned in `tests/test_velocity_exponent_unresolvable.py`,
+including a guard that fails if any pack ever declares `velocity_exponent`.

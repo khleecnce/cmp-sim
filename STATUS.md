@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **663 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **668 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -17,6 +17,14 @@
 - **Abrasive TYPE reaches the rate** (`slurry/abrasive_effects.py`): a swap
   rescales only by a published matched-condition ratio, withdraws the pack's
   measured exponents, says `ranking_only` when unanchored.
+- **The velocity exponent is UNRESOLVABLE by this corpus — not fitted.**
+  Isolated groups give -0.42 / +0.62 / +0.86 / +0.86 / +1.10 where Preston says
+  1.0, and the two datasets need OPPOSITE pressure dependences (mariscal falls
+  1.10->0.62 with P, us6918821b2 rises -0.42->0.86). The negative group is the
+  patent's own point: an IC1000 pad LOSES Cu rate with speed at low down force
+  (lubrication regime, no channel in Preston). A global fit would land ~0.86,
+  be wrong at both ends of both datasets, and improve the pooled median.
+  Nothing fitted; a test fails if any pack ever declares `velocity_exponent`.
 - **NO universal "second pH channel" — hypothesis tested and FALSIFIED.**
   The three pH residuals are three different shapes, and two of them share a
   pack: dandu2009 is a BELL (peak pH 4-5.5), netzband2020 is a V (minimum at
@@ -76,15 +84,16 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-Velocity (44.1%) is now the worst axis again, and the earlier diagnosis said it
-is THIN (29 isolated pts) rather than wrong — but it also found the exponent on
-the one isolated in-scope sweep is +0.86, not Preston's +1.0. Test whether that
-deficit is real or an artefact of those 3x3 points: collect every isolated
-velocity group in the corpus, fit an exponent to each, and report the spread.
-If they cluster below 1.0, the Preston velocity exponent is a pack parameter
-this model currently hard-codes, and that is the finding; if they scatter
-across 1.0, say the axis cannot resolve it and stop. Do not fit a global
-exponent to pooled points.
+Three diagnoses now end in the same place: a REGIME the model has no channel
+for (velocity's negative exponent at 1.5 psi = lubrication; netzband's V =
+ceria oxidation state; the anionic pH-6 upturn = hydrolysis taking over).
+`core/regime.py` already picks models by situation, so check whether it can
+DECLINE on the lubrication case the way the oxidizer pH-window gate declines:
+does any existing regime flag fire on us6918821b2's 1.5 psi rows, and if not,
+is there a published Sommerfeld/Stribeck criterion (pressure, speed, viscosity,
+groove) that separates them from the 4 psi rows? If yes, gate it and report
+declined; if the criterion needs numbers the corpus lacks, write it in BLOCKED
+with the missing quantity named. Do not invent a threshold.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp
