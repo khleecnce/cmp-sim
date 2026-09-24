@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **699 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **707 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -17,6 +17,15 @@
 - **Abrasive TYPE reaches the rate** (`slurry/abrasive_effects.py`): a swap
   rescales only by a published matched-condition ratio, withdraws the pack's
   measured exponents, says `ranking_only` when unanchored.
+- **An inert constant that looks active is worse than no constant.**
+  `sic_ceria_h2o2` had `ph_response_width: null` (to block the inherited acid
+  ceria optimum) but still declared the inherited `ph_peak: 4.5` — a constant
+  that looks like a SiC optimum and does nothing; the engine's own INERT warning
+  had been firing. Its stated reason ("DOE50 cannot isolate the pH axis") was
+  checkable and false: 5 groups isolate pH 9/10/11. Fitted peak 10.5 / width
+  1.25 / floor 0.10 = 27.5% vs 57.1% inert, and ALKALINE, as the pack's own
+  mechanism argument predicted. Interior to its range (unlike the bound packs).
+  Trade recorded: DOE50 39.3->34.0, three held-out SiC sets worsen ~0.1-1.3.
 - **Validity ranges: a bounded peak has an UNMEASURED side.** The three packs
   whose `ph_peak` is a bound at the data edge (oxide_silica_anionic 2.0,
   cu_alkaline_benzenesulfonic 6.2, cu_h2o2_bta 3.0) had no measured limb beyond
@@ -111,16 +120,19 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-`ph_valid_range` is declared on the 3 packs whose peaks are bounds, but the
-other pH-active packs (oxide_silica, oxide_silica_aminosilane, sti_ceria,
-sic_ceria_h2o2) still have none, and sic_ceria_h2o2 additionally declares
-`ph_peak: 4.5` with `ph_response_width: None` — which the engine itself warns
-makes pH INERT. Work that list: for each pack find the dataset its pH constants
-came from, declare the range, and for sic_ceria_h2o2 decide from its data
-whether a width can be fitted or whether the peak should be withdrawn (an inert
-constant that looks active is worse than no constant). Extend
-tests/test_ph_validity_range_is_declared.py to cover every pH-active pack, so
-a new pack cannot ship a pH term with no stated range.
+Finish the validity-range sweep: `oxide_silica`, `oxide_silica_aminosilane` and
+`sti_ceria` still declare pH constants with no `ph_valid_range`. Their source
+spans are known (oxide_silica: li2021 pH 10-12.5 is the calibration set, but
+carbide2023 8-11 and mo2026 4-11 also use the pack; aminosilane: us9422456b2
+pH 2.5-11; sti_ceria: dandu2009 pH 2-10, netzband2020 4-10, yang2023 9-10.5).
+Note the complication this raises, which the 3 bound packs did not have: a pack
+used by SEVERAL datasets has several spans, so decide whether the range is the
+calibration set's span or the union, and justify it — the union is wider than
+anything a single experiment supports. Then extend
+tests/test_ph_validity_range_is_declared.py to require a range from EVERY
+pH-active pack, so a new pack cannot ship a pH term with no stated range.
+Check whether the engine's INERT warning has other silent victims: grep for
+packs declaring a peak with a null width on ANY axis, not just pH.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp

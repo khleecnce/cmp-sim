@@ -1802,3 +1802,53 @@ different experiments, and are deliberately not merged.
 This is the validity-range half of the pack audit: the blindness audit asks
 whether a pack declares a term at all; this asks whether the term states where
 it may be believed.
+
+## An inert constant that looks active is worse than no constant
+
+`sic_ceria_h2o2` declared `ph_response_width: null` deliberately, and the
+reasoning went as far as it went correctly: SiC is oxidation-limited rather than
+hydrolysis-limited, its reported pH dependence runs opposite to silica's, and the
+inheritance chain (SiC → `sti_ceria` → `oxide_silica`) would otherwise hand it
+its parent's **acid-side** ceria optimum of pH 4.5. Nulling the width switched
+the term off rather than guessing a SiC optimum.
+
+But switching the term off did not remove the inherited peak. The pack was left
+declaring `ph_peak: 4.5` with no width — a constant that *looks* like a SiC
+optimum and does nothing. The engine already warns about exactly this shape of
+mistake ("declares an optimum pH but no `ph_response_width`, so pH is INERT");
+the warning existed and the condition persisted anyway.
+
+### The stated justification was checkable, and it was wrong
+The note said the DOE50 set "varies pH together with oxidizer and pressure, so it
+cannot isolate the pH axis". True of the set as a whole, false of its structure.
+Grouping the 50 rows so that **only** pH moves leaves five isolated groups:
+
+| pH 9 | pH 10 | pH 11 |
+|---:|---:|---:|
+| 26.7 | 31.1 | 62.7 |
+| 18.1 | 66.1 | 66.9 |
+| 19.6 | 60.0 | 63.3 |
+| 40.0 | 29.1 | 24.9 |
+| 15.2 | 45.1 | 38.7 |
+
+Enough to fit peak, width and floor: **pH 10.5, width 1.25, floor 0.10** at
+27.5% shape error, against **57.1%** with the term inert. The fitted optimum is
+alkaline — which is what the pack's own mechanism argument predicted, and the
+opposite of the 4.5 it was protecting against.
+
+Unlike the three bounded-peak packs, this optimum is **interior** to the measured
+range: the data bracket it on both sides. The range is narrow (9–11), so the
+position is better supported than the width, and `ph_valid_range: [9.0, 11.0]` is
+declared accordingly.
+
+### The trade, recorded
+Activating the term improves the DOE50 set from 39.3% → **34.0%** and slightly
+worsens three held-out SiC datasets that sweep other axes at fixed pH
+(liang2026 18.1 → 19.4, su2011_size 4.2 → 4.4, wei2026 3.1 → 3.2), because their
+`Kp` normalisation now runs through a pH term that is no longer identically 1.
+Net strongly positive, but not free — a future re-fit should know it.
+
+An aside worth keeping: the first version of the test for this asserted the new
+peak differs from `oxide_silica`'s. It failed, because `oxide_silica` sits at 11.0
+and SiC's fit landed at 10.5. The inherited value to guard against is the *direct
+parent's* 4.5, not the grandparent's — the test was asserting the wrong lineage.

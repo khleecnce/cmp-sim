@@ -99,15 +99,64 @@ params:
   # on hydrolysis of a silica network, and the reported pH dependence goes the
   # other way -- alkaline-oxidant systems are the ones that work. Setting the
   # width to null switches the term OFF rather than guessing a SiC optimum.
-  ph_response_width:
-    value: null
+  # UPDATE — the isolation the note said was impossible turned out to exist.
+  #
+  # The claim below was that "the DOE50 set varies pH together with oxidizer
+  # and pressure, so it cannot isolate the pH axis". That is true of the set as
+  # a whole, but not of its structure: grouping the 50 rows so that ONLY pH
+  # moves leaves FIVE isolated groups spanning pH 9/10/11, which is enough to
+  # fit a peak position, a width and a floor.
+  #
+  # Fitted over those five groups (scale free per group, so this is a shape
+  # fit): the optimum is pH 10.5, width 1.25, floor 0.10, at 27.5% shape error.
+  # With the term inactive the same five groups score 57.1%.
+  #
+  # The peak position matters more than the numbers. The INHERITED chain would
+  # have supplied pH 4.5 from sti_ceria — the direct parent, an acid-side ceria
+  # optimum — and the note above is right that this is wrong for SiC. (Note the
+  # grandparent oxide_silica sits at 11.0, so the leak to guard against is the
+  # ceria one, not silica's.) But the fix was to disable the term, which left
+  # the pack declaring `ph_peak: 4.5` (inherited) with
+  # `ph_response_width: null`, i.e. a constant that LOOKS like a SiC optimum
+  # and does nothing. The engine warns about exactly this ("declares an optimum
+  # pH but no ph_response_width, so pH is INERT"), and an inert constant that
+  # looks active is worse than no constant.
+  #
+  # So the term is now activated with SiC's OWN optimum, which the data put at
+  # the alkaline end — agreeing with the mechanism argued above: SiC removal
+  # needs oxidation of the Si face, and the alkaline-oxidant systems are the
+  # ones that work.
+  ph_peak:
+    value: 10.5
     unit: pH
     note: >
-      TODO(owner) - deliberately null so the pH term stays inactive for SiC
-      rather than inheriting the silica optimum. A measured SiC pH sweep at
-      fixed oxidant would activate it; the DOE50 set varies pH together with
-      oxidizer and pressure, so it cannot isolate the pH axis.
-    source: null
+      Fitted over the five isolated pH groups of the DOE50 set (pH 9/10/11 at
+      otherwise matched conditions). Interior to the measured range, so unlike
+      the Cu and anionic-silica packs this is a genuine optimum rather than a
+      bound — the data bracket it on both sides.
+
+      ⚠ The bracket is narrow (9 to 11) and the fitted peak sits near its
+      centre, so the position is better supported than its width. Pinning the
+      peak to the alkaline end instead (11.0) costs 31.1% against 27.5%.
+
+      Explicitly NOT the inherited silica optimum of 4.5: SiC is oxidation-
+      limited, not hydrolysis-limited, and its reported pH dependence runs the
+      other way.
+    source: >
+      cmp_sim/data/validation/datasets/sic2026_ceria_h2o2_ph_DOE50.yaml,
+      five pH-isolated groups
+    confidence: med
+
+  ph_response_width:
+    value: 1.25
+    unit: pH
+    note: >
+      Fitted jointly with the peak and floor over the same five groups.
+
+      ⚠ Least trustworthy of the three: the measured pH span is only 9-11, so
+      the width is constrained by two points either side of the optimum. It
+      should be re-fitted if a wider SiC pH sweep appears.
+    source: same five isolated groups (sic2026_ceria_h2o2_ph_DOE50)
     confidence: low
   # ── blocking an inherited value that does not belong to SiC ──────────
   # This pack's lineage runs SiC -> sti_ceria -> oxide_silica, so anything the
@@ -152,3 +201,24 @@ params:
       Adequate for ranking, not for absolute rate.
     source: "figshare:31056549 ACS SI Table S3 (50-run DOE, least-squares Kp fit)"
     confidence: measured
+
+  ph_mechanical_floor:
+    value: 0.10
+    unit: fraction of peak rate
+    note: >
+      Fitted with the peak and width over the five isolated groups. SiC still
+      removes away from the optimum — the ceria abrasive is under load whatever
+      the pH — so a zero floor would be wrong in the same way it is wrong for
+      every other pack here.
+    source: same five isolated groups (sic2026_ceria_h2o2_ph_DOE50)
+    confidence: low
+
+  ph_valid_range:
+    value: [9.0, 11.0]
+    unit: pH
+    note: >
+      The DOE50 set's entire pH span. NARROW — two units — and the fitted
+      optimum sits inside it, so both limbs are short. Anything asked outside
+      9-11 is extrapolation and the engine says so.
+    source: "sic2026_ceria_h2o2_ph_DOE50.yaml (pH levels 9, 10, 11)"
+    confidence: high
