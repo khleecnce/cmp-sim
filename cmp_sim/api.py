@@ -32,12 +32,116 @@ WEB_DIR = Path(__file__).resolve().parent / "web"
 DEFAULT_PORT = 8765
 
 
+def _selectable_abrasives(abrasives: Dict[str, Any]) -> Dict[str, Any]:
+    """Split the abrasive database into what the UI may offer, and what it may not.
+
+    The owner asked for alumina and zirconia to be taken out of the picker. The
+    reason they were confusing is worth stating precisely: selecting them changed
+    nothing. `relative_rate` in abrasives.yaml carries exactly ONE published
+    same-recipe ratio (ceria/colloidal_silica = 3.0x on oxide), so every other
+    swap leaves the absolute rate anchored to the pack's own abrasive. A picker
+    entry that cannot move the answer reads as a broken control.
+
+    The rule here is evidence, not a blocklist. An abrasive is offered when
+    selecting it can actually mean something:
+
+      * a published rate ratio exists for it on some film, or
+      * it is the reference abrasive a pack was calibrated with — picking it is
+        the 1.0x case and is a real statement about the recipe.
+
+    That second clause is why `alumina` is still offered while `zirconia` is not:
+    alumina is the reference abrasive of the copper (`cu_h2o2_bta`) and tungsten
+    (`w_fe_oxidizer`) packs, so on Cu and W it is the anchored choice rather than
+    an unanchored swap. `_meta` therefore also publishes the per-film picker, so
+    the UI can offer alumina on Cu/W and withhold it on oxide, where it would
+    silently do nothing.
+
+    What this does NOT do is delete anything. alumina stays in the database, in
+    the six validation datasets that score against it (su2011 SiC 4.4%, lai2001
+    Cu 8.7%, gong2024, entegris2022, us8142675b2 Pt, su2011 6H-SiC) and as the
+    source of the measured size exponent +0.29. Removing it from the corpus would
+    throw away real evidence to tidy a dropdown. A recipe or config file may
+    still name any abrasive in the database and it resolves exactly as before,
+    warnings included — this only governs what the picker suggests.
+    """
+    ratios = _abrasive_ratio_targets()
+    references = set(_pack_reference_abrasives().values())
+    offered, withheld = {}, {}
+    for name, entry in abrasives.items():
+        if name in ratios or name in references:
+            offered[name] = entry
+        else:
+            withheld[name] = (
+                "no published same-recipe rate ratio exists for this abrasive, "
+                "so selecting it could not change the absolute rate; it remains "
+                "usable in a config file and in the validation corpus")
+    return {"offered": offered, "withheld": withheld}
+
+
+def _abrasives_by_film(offered: Dict[str, Any]) -> Dict[str, Any]:
+    """Per-film picker: which offered abrasives mean something on that film.
+
+    An abrasive belongs on a film's list when it is that film's pack reference
+    (the anchored 1.0x choice) or a published ratio exists for it on that film.
+    Without this split the picker would offer alumina on oxide, where no ratio
+    exists and the selection cannot move the rate.
+    """
+    from cmp_sim.slurry.abrasive_effects import _db
+
+    ratio_table = (_db().get("relative_rate", {}) or {})
+    pack_ref = _pack_reference_abrasives()
+    out: Dict[str, Any] = {}
+    for film, pack_name in FILM_PACK.items():
+        allowed = set()
+        ref = pack_ref.get(pack_name)
+        if ref:
+            allowed.add(ref)
+        for kind, spec in (ratio_table.get(film, {}) or {}).items():
+            if isinstance(spec, dict) and spec.get("value") is not None:
+                allowed.add(kind)
+        out[film] = sorted(allowed & set(offered))
+    return out
+
+
+def _abrasive_ratio_targets() -> set:
+    """Abrasives with at least one published rate ratio, on any film."""
+    from cmp_sim.slurry.abrasive_effects import _db
+
+    table = (_db().get("relative_rate", {}) or {})
+    found = set()
+    for film_table in table.values():
+        for kind, spec in (film_table or {}).items():
+            if isinstance(spec, dict) and spec.get("value") is not None:
+                found.add(kind)
+    return found
+
+
+def _pack_reference_abrasives() -> Dict[str, str]:
+    """``{pack_name: reference_abrasive}`` for packs that declare one."""
+    from cmp_sim.core.params import load_pack
+
+    found: Dict[str, str] = {}
+    for pack_name in available_packs():
+        try:
+            pack = load_pack(pack_name)
+        except Exception:
+            continue
+        try:
+            ref = pack.param("reference_abrasive").value
+        except Exception:
+            ref = None
+        if ref:
+            found[pack_name] = str(ref)
+    return found
+
+
 def _meta() -> Dict[str, Any]:
     from cmp_sim.core.profiles import LAYERS, PROFILES
     from cmp_sim.slurry.formulation import abrasive_database, additive_database
 
     additives = additive_database()
     abrasives = abrasive_database()
+    split = _selectable_abrasives(abrasives)
     return {
         "models": MODELS,
         "profiles": {n: p.as_dict() for n, p in PROFILES.items()},
@@ -47,7 +151,13 @@ def _meta() -> Dict[str, Any]:
         "film_pack": FILM_PACK,
         "additives": sorted(additives),
         "additive_roles": {k: (v or {}).get("role") for k, v in additives.items()},
-        "abrasives": sorted(abrasives) or ["silica", "ceria", "alumina", "diamond"],
+        # what the picker offers: only abrasives a selection can actually move
+        "abrasives": sorted(split["offered"]) or ["colloidal_silica", "ceria"],
+        # narrowed per film, so alumina shows on Cu/W but not on oxide
+        "abrasives_by_film": _abrasives_by_film(split["offered"]),
+        # everything the engine still accepts, and why it is not offered
+        "abrasives_all": sorted(abrasives),
+        "abrasives_withheld": split["withheld"],
         "sweepable": sorted(SWEEPABLE),
     }
 

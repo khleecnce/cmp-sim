@@ -220,7 +220,18 @@ async function boot(){
   fetch(api("/api/accuracy")).then(r=>r.json()).then(a=>{ACC=a;}).catch(()=>{});
   opts("film", META.films);
   $("film").value = META.films.includes("oxide") ? "oxide" : META.films[0];
-  opts("abtype", META.abrasives, "(from pack)");
+  /* Abrasive choices are per-film: only the ones whose selection can move the
+   * answer on that film (its pack's reference abrasive, plus any abrasive with
+   * a published rate ratio on it). Re-narrow whenever the film changes. */
+  function narrowAbrasives(){
+    const byFilm = META.abrasives_by_film || {};
+    const kinds = byFilm[$("film").value] || META.abrasives;
+    const keep = $("abtype").value;
+    opts("abtype", kinds, "(from pack)");
+    if (kinds.includes(keep)) $("abtype").value = keep;
+  }
+  narrowAbrasives();
+  $("film").addEventListener("change", narrowAbrasives);
   (META.sweepable || []).forEach(k => $("swparam").appendChild(new Option(k, k)));
 
   // Name the role of each selected additive, so the choice is not blind.

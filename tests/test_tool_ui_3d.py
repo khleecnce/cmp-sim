@@ -207,28 +207,100 @@ def test_each_film_is_predicted_separately(page):
 
 
 def test_an_abrasive_without_a_published_ratio_warns_instead_of_guessing(page):
-    """alumina returning the pack rate is a refusal, not a bug."""
+    """A withheld abrasive named directly still warns rather than guessing.
+
+    The picker no longer offers zirconia (nothing it could change), but a config
+    file may still name it, so the refusal has to hold at the engine. Selecting it
+    must not silently present the pack's own abrasive rate as if it were
+    zirconia's.
+    """
     _click(page, "slurry")
     page.evaluate(
         """(() => {const s = document.querySelector('[data-path="slurry.abrasive.kind"]');
-             s.value = 'alumina';
+             /* not in the narrowed list any more, so inject it the way a saved
+              * config file would */
+             s.add(new Option('zirconia', 'zirconia'));
+             s.value = 'zirconia';
              s.dispatchEvent(new Event('change', {bubbles: true}));})()""")
     _simulate(page)
     text = page.evaluate("() => document.body.innerText")
     assert "warning" in text.lower(), (
-        "swapping in an abrasive with no published same-recipe rate ratio must "
-        "warn that the absolute rate is unanchored; silence here would present "
-        "the pack's own abrasive rate as if it were alumina's")
+        "an abrasive with no published same-recipe rate ratio must warn that the "
+        "absolute rate is unanchored; silence here would present the pack's own "
+        "abrasive rate as if it were zirconia's")
 
 
-def test_the_abrasive_selector_offers_the_families_the_owner_named(page, server):
+def test_the_picker_only_offers_abrasives_that_can_move_the_answer(page, server):
+    """The owner asked for alumina and zirconia out of the picker.
+
+    The underlying problem was that selecting them changed nothing: abrasives.yaml
+    carries exactly one published same-recipe ratio (ceria/colloidal_silica = 3.0x
+    on oxide), so any other swap leaves the rate anchored to the pack's own
+    abrasive, and a control that cannot move the answer looks broken.
+
+    The fix is a rule, not a blocklist: offer an abrasive when it has a published
+    ratio on that film, or when it IS that film's pack reference (the anchored
+    1.0x choice). So zirconia disappears everywhere, and alumina survives only on
+    Cu and W — the two packs actually calibrated with it.
+    """
     import json
     import urllib.request
     with urllib.request.urlopen(f"{server}/api/meta") as fh:
         meta = json.load(fh)
+
     offered = set(meta["abrasives"])
-    for family in ("ceria", "alumina", "zirconia"):
-        assert family in offered, f"{family} missing from {sorted(offered)}"
-    assert any("silica" in a for a in offered), (
-        "no silica variant offered; the corpus splits it into colloidal_silica "
-        "and fumed_silica, and at least one must be selectable")
+    assert "zirconia" not in offered, (
+        "zirconia has no published rate ratio on any film, so selecting it "
+        "cannot change the prediction and it must not be offered")
+
+    by_film = meta["abrasives_by_film"]
+    assert by_film["oxide"] == ["ceria", "colloidal_silica"], by_film["oxide"]
+    assert by_film["cu"] == ["alumina"], (
+        f"alumina is the copper pack's reference abrasive, so it is the anchored "
+        f"choice on Cu: {by_film['cu']}")
+    assert by_film["w"] == ["alumina"], by_film["w"]
+    assert "alumina" not in by_film["oxide"], (
+        "no alumina/silica ratio exists on oxide, so offering it there would be "
+        "a control that silently does nothing")
+
+
+def test_withholding_from_the_picker_did_not_delete_the_evidence(page, server):
+    """alumina must stay in the database and in the scored corpus.
+
+    It is the reference abrasive of the Cu and W packs, the source of the measured
+    size exponent +0.29, and six validation datasets score against it (su2011 SiC
+    4.4%, lai2001 Cu 8.7%, gong2024, entegris2022, us8142675b2 Pt, su2011 6H-SiC).
+    Narrowing a dropdown must never cost real evidence.
+    """
+    import json
+    import urllib.request
+    with urllib.request.urlopen(f"{server}/api/meta") as fh:
+        meta = json.load(fh)
+
+    everything = set(meta["abrasives_all"])
+    for kind in ("alumina", "zirconia"):
+        assert kind in everything, (
+            f"{kind} was deleted from the abrasive database; it should only be "
+            f"withheld from the picker")
+    assert "zirconia" in meta["abrasives_withheld"], (
+        "a withheld abrasive must carry the reason it is not offered")
+
+
+def test_a_config_file_may_still_name_a_withheld_abrasive(page, server):
+    """The picker is a suggestion, not a gate — the engine still accepts zirconia."""
+    import json
+    import urllib.request
+    body = json.dumps({
+        "film": "oxide", "pack": "oxide_silica",
+        "slurry": {"abrasive": {"kind": "zirconia", "conc_wt_pct": 3.0}},
+        "tool": {"pressure_psi": 2.0, "rpm_platen": 60, "rpm_head": 60},
+    }).encode()
+    req = urllib.request.Request(
+        f"{server}/api/simulate", data=body,
+        headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req) as fh:
+        result = json.load(fh)
+    assert result.get("removal_rate_A_per_min"), result
+    assert any("zirconia" in str(w) for w in result.get("warnings", [])), (
+        "naming a withheld abrasive must still work and still warn that the "
+        "absolute rate is not anchored to it")

@@ -264,7 +264,14 @@ const DRAWERS = {
   }),
 
   slurry: () => {
-    const kinds = META.abrasives || [];
+    /* The picker is narrowed per film: only abrasives whose selection can
+     * actually move the answer on THIS film — the film's pack reference (the
+     * anchored 1.0x choice) plus any abrasive with a published ratio on it.
+     * Offering the rest, as the UI used to, meant picking zirconia or alumina-
+     * on-oxide silently changed nothing, which reads as a broken control. */
+    const film = getR('wafer.film');
+    const byFilm = META.abrasives_by_film || {};
+    const kinds = byFilm[film] || META.abrasives || [];
     const cur = getR('slurry.abrasive.kind') || '';
     const roles = META.additive_roles || {};
     const adds = getR('slurry.additives', []);

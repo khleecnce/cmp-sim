@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **844 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **846 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -295,13 +295,26 @@ P1-P8 engine gates alone. That was the WRONG bar: the owner's actual brief
 ABRASIVE learning (ceria/silica/alumina/zirconia separately). All four now have
 passing end-to-end evidence (844 tests, incl. 10 browser-driven UI tests).
 
-Remaining gap, and it is a DATA gap rather than a build gap: alumina and
-zirconia are selectable and warn honestly, but neither has a published same-
-recipe rate ratio, so switching to them cannot move the absolute rate. Closing
-it needs a same-tool, same-recipe published comparison (or an owner experiment)
-per abrasive — see research/abrasive_alumina.yaml and abrasive_zirconia.yaml.
-Do NOT close it by deriving a ratio from hardness; Mohs order does not predict
-CMP rate, and abrasive_effects.py refuses that on purpose.
+OWNER DECISION (09-24): alumina and zirconia are OUT OF THE PICKER. They were
+confusing because selecting them changed nothing — abrasives.yaml holds exactly
+ONE published same-recipe ratio (ceria/colloidal_silica = 3.0x on oxide), so any
+other swap leaves the rate anchored to the pack's own abrasive.
+
+Implemented as a RULE, not a blocklist (cmp_sim/api.py:_selectable_abrasives):
+offer an abrasive on a film when it has a published ratio there, or when it IS
+that film's pack reference (the anchored 1.0x case). Result —
+  oxide -> ceria, colloidal_silica    cu -> alumina    w -> alumina
+  sic/sti/oxide_ceria -> ceria        poly_si/si -> colloidal_silica
+zirconia is gone everywhere; alumina survives only on Cu/W, the two packs
+actually calibrated with it. Nothing was DELETED: alumina still supplies the
+measured size exponent +0.29 and still scores in six datasets (su2011 SiC 4.4%,
+lai2001 Cu 8.7%, gong2024, entegris2022, us8142675b2 Pt, su2011 6H-SiC). A config
+file may still name any abrasive and it resolves with warnings as before.
+
+Remaining gap is DATA, not build: no same-recipe ratio exists for the withheld
+abrasives. Do NOT close it by deriving a ratio from hardness; Mohs order does not
+predict CMP rate (ceria is softer than alumina and removes oxide faster), and
+abrasive_effects.py refuses that on purpose.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp
