@@ -1541,6 +1541,80 @@ relative_rate:
         TODO(owner): zirconia is a minor CMP abrasive with no matched-condition
         oxide comparison found. Absolute zirconia oxide rate is unanchored.
 
+  cu:
+    # US5575885 (Hirabayashi/Toshiba 1996) Table 1 is the strongest matched
+    # comparison in this corpus: FOUR abrasives plus an abrasive-free control,
+    # all on one tool, one pad, one load, one chemistry. Fixed conditions:
+    # 0.1 wt% aminoacetic acid + 13 wt% H2O2, ~9 wt% abrasive, SUBA800,
+    # 400 g/cm2 (5.69 psi), 100 rpm counter-rotation, 12.5 mL/min.
+    # Rates, nm/min: alumina 98.5, colloidal silica 35.3, ceria 31.1,
+    # zirconia 22.1, NO ABRASIVE 10.0.
+    #
+    # THE CONTROL IS THE VALUABLE PART. 10.0 nm/min with no abrasive at all
+    # means ~45% of the zirconia "rate" is pure chemistry. Ratios below are the
+    # RAW rate ratios, because that is what the simulator's Kp scaling acts on -
+    # the pack's own kp_m_per_pa was likewise fitted to a raw rate that included
+    # its own chemical floor. The floor-subtracted figures (alumina 3.50, ceria
+    # 0.83, zirconia 0.48 vs silica) are recorded in
+    # research/abrasive_zirconia.yaml for the owner's judgement, and are the
+    # better number for reasoning about the ABRASIVE's own contribution.
+    #
+    # WHY THESE STAY null DESPITE BEING A REAL MATCHED MEASUREMENT.
+    # The four abrasives were NOT size-matched: silica 30 nm, alumina 740 nm,
+    # zirconia 1100 nm, ceria 1300 nm - a 43x spread. Each ratio therefore mixes
+    # abrasive chemistry with particle size.
+    #
+    # That is fatal HERE specifically, because this simulator already models
+    # particle size as its own term. Feeding it a ratio that silently contains a
+    # size penalty applies that penalty TWICE. Tried and measured: applying
+    # 0.358 to a silica Cu recipe drove examples/cu_damascene.yaml to
+    # 677.9 A/min, below the bottom of the published 1,000-12,000 A/min copper
+    # envelope, and broke the reference-composition identity test. The engine's
+    # own plausibility gate caught it.
+    #
+    # So the numbers are recorded, sourced and explained - but not applied. An
+    # honest null that says "measured, cannot be deconfounded" beats a number
+    # that is wrong in a way the user cannot see.
+    colloidal_silica:
+      value: null
+      reference: alumina
+      unit: dimensionless
+      source: "US5575885"
+      confidence: unverified
+      note: >
+        MEASURED 35.3 / 98.5 = 0.358, but NOT APPLIED - see the size-confound
+        block above. Silica is the 30 nm colloid against alumina's 740 nm grain,
+        and the simulator already models particle size as its own term, so
+        applying 0.358 on top of it counts the size penalty twice.
+        TODO(owner): needs a size-matched Cu comparison, or a per-abrasive Cu
+        size exponent to deconfound this one.
+    ceria:
+      value: null
+      reference: alumina
+      unit: dimensionless
+      source: "US5575885"
+      confidence: unverified
+      note: >
+        MEASURED 31.1 / 98.5 = 0.316, NOT APPLIED (size confound, 1300 nm ceria
+        vs 740 nm alumina). The QUALITATIVE finding survives the confound and is
+        worth keeping: ceria is ~0.88x silica on Cu while being ~3x silica on
+        oxide. Ceria's advantage is chemical tooth on SiO2, which copper does
+        not offer - so a single cross-film "abrasive strength" number would have
+        to be wrong on one of the two films.
+        TODO(owner): needs a size-matched Cu comparison to deconfound.
+    zirconia:
+      value: null
+      reference: alumina
+      unit: dimensionless
+      source: "US5575885"
+      confidence: unverified
+      note: >
+        MEASURED 22.1 / 98.5 = 0.224, NOT APPLIED (size confound, 1100 nm
+        lapping-grade grain). Zirconia is the slowest of the four on Cu, and
+        with the 10.0 nm/min abrasive-free floor subtracted its own abrasive
+        contribution is only 0.48x silica's.
+        TODO(owner): needs a size-matched Cu comparison to deconfound.
+
   w:
     colloidal_silica:
       value: null
@@ -1553,6 +1627,20 @@ relative_rate:
         selectivity than alumina (https://doi.org/10.5772/intechopen.75408), a
         direction but not a ratio. No matched-condition blanket-W rate pair
         found. Direction alone must not become a number.
+    zirconia:
+      value: null
+      reference: alumina
+      unit: dimensionless
+      source: null
+      confidence: unverified
+      note: >
+        TODO(owner): two primary W/ZrO2 papers exist (98.7 nm/min at 6 psi,
+        https://doi.org/10.1149/2162-8777/ab915c; 110.1 nm/min at 3 psi) but
+        both are Fenton-chemistry-limited rather than abrasive-limited - the
+        HIGHER rate occurs at HALF the pressure. Neither shares a tool or recipe
+        with this pack's alumina calibration, so no ratio can be formed. Note
+        the rate inversion with pressure also means no W/ZrO2 pressure exponent
+        is fittable from them.
 
   sin:
     colloidal_silica:

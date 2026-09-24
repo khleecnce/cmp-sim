@@ -260,3 +260,85 @@ def test_every_filled_ratio_carries_a_source_and_a_reference():
             else:
                 assert "TODO" in (spec.get("note") or ""), (
                     f"{film}/{kind} is null without a TODO(owner) note")
+
+
+# ---------------------------------------------------------------------------
+# US5575885 Table 1 — a real matched comparison that is deliberately NOT applied
+# ---------------------------------------------------------------------------
+# Toshiba 1996, Cu slurry. One tool, one pad (SUBA800), one load (400 g/cm2),
+# one chemistry (0.1 wt% aminoacetic acid + 13 wt% H2O2), ~9 wt% abrasive:
+#
+#     alumina 98.5 | colloidal silica 35.3 | ceria 31.1 | zirconia 22.1
+#     no abrasive at all: 10.0        (all nm/min)
+#
+# It is the strongest four-abrasive matched table in the corpus, and it still
+# cannot be used as a rate ratio, because the four abrasives are not
+# size-matched: 30 / 740 / 1100 / 1300 nm. This simulator already models
+# particle size as its own term, so a ratio carrying a hidden size penalty
+# applies that penalty twice.
+#
+# That is not a theoretical objection. Applying 0.358 to a silica Cu recipe
+# drove examples/cu_damascene.yaml to 677.9 A/min, under the published
+# 1,000-12,000 A/min copper floor, and the engine's own plausibility gate
+# caught it. These tests pin the decision so nobody "fixes" the nulls later
+# without deconfounding the sizes first.
+
+_US5575885 = {"alumina": 98.5, "colloidal_silica": 35.3,
+              "ceria": 31.1, "zirconia": 22.1}
+
+
+def _cu(kind):
+    return _run(kind, film="cu", pack="cu_h2o2_bta", conc=9.0, d50=740.0)
+
+
+def test_cu_ratios_are_recorded_but_not_applied():
+    """The measurement is in the file, with its source — and stays null.
+
+    A null here is a decision, not an omission, so it must carry both the
+    number it declined to use and the reason.
+    """
+    from cmp_sim.slurry.abrasive_effects import _db
+
+    spec_all = _db()["relative_rate"]["cu"]
+    for kind in ("colloidal_silica", "ceria", "zirconia"):
+        spec = spec_all[kind]
+        assert spec["value"] is None, (
+            f"{kind} was given a value; US5575885's abrasives span 30-1300 nm "
+            "and the size term would be double-counted")
+        assert "US5575885" in (spec.get("source") or ""), spec
+        assert "NOT APPLIED" in spec["note"], spec
+
+
+def test_cu_swaps_say_ranking_only():
+    """With no usable ratio, a Cu abrasive swap must not claim an absolute rate."""
+    for kind in ("colloidal_silica", "ceria", "zirconia"):
+        at = _cu(kind).extras.get("abrasive_type") or {}
+        assert at.get("ranking_only") is True, (kind, at)
+        assert at.get("reference_kind") == "alumina", (kind, at)
+        assert at.get("relative_rate") is None, (kind, at)
+
+
+def test_cu_example_stays_inside_the_published_envelope():
+    """The regression that caught the double-counting, kept as a test.
+
+    examples/cu_damascene.yaml names silica explicitly, so it exercises the Cu
+    swap path. 677.9 A/min was the broken value.
+    """
+    rate = _cu("colloidal_silica").mean_rr_angstrom_per_min
+    assert rate > 1000.0, (
+        f"{rate:.1f} A/min is below the published copper floor — a size-"
+        "confounded ratio is being applied again")
+
+
+def test_ceria_is_fast_on_oxide_and_not_on_cu():
+    """The same particle must not carry one global 'strength' factor.
+
+    Ceria is ~3x colloidal silica on oxide (Si-O-Ce bond formation) and ~0.88x
+    on Cu, where that chemistry has nothing to grip. The oxide ratio is applied
+    because its source is size-matched; the Cu one is not applied at all. A
+    simulator storing one ceria factor would have to be wrong on one film.
+    """
+    oxide_ratio = (_run("ceria").mean_rr_angstrom_per_min
+                   / _run("colloidal_silica").mean_rr_angstrom_per_min)
+    assert oxide_ratio > 2.5, oxide_ratio
+    assert (_cu("ceria").extras.get("abrasive_type") or {})["relative_rate"] is None
