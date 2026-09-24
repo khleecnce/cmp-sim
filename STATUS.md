@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **712 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **717 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -17,6 +17,14 @@
 - **Abrasive TYPE reaches the rate** (`slurry/abrasive_effects.py`): a swap
   rescales only by a published matched-condition ratio, withdraws the pack's
   measured exponents, says `ranking_only` when unanchored.
+- **Out-of-range pH is a WARNING, not a gate — measured, not assumed.** Fully
+  in-range datasets (n=19) median 18.9%; fully out-of-range (n=11) 19.4%;
+  Mann-Whitney z=-0.15. No separation, and the out-of-range group holds some of
+  the best results (bouvet2002_w 2.3%, ep3161098b1 7.1%, lai2001 8.7%). A gate
+  would discard working predictions. Differs from the oxidizer gate, which WAS
+  justified: there the term's SIGN reversed (confidently wrong); here the model
+  is merely less constrained. Gate = "would be wrong", warning = "rests on
+  fewer measurements".
 - **A validity range is the FITTING EXPERIMENT's span, never the union.** All 7
   pH-active packs now declare `ph_valid_range` (+ oxide_silica_calibrated_pad,
   which the enumerating test caught). oxide_silica is served by 9 datasets
@@ -127,18 +135,17 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-The out-of-range warnings the last commit switched on are now firing on 7
-datasets that the corpus still SCORES normally — a warning is not a gate, and
-the median is unchanged because nothing declines. Decide deliberately whether
-that is right: score_dataset already has the gated/declined machinery built for
-`oxidizer_ph_window`, so the choice is (a) leave pH out-of-range as a warning
-only, or (b) decline those datasets as unsupported. Measure it before choosing —
-compute each of the 7 datasets' error and check whether out-of-range prediction
-is actually WORSE than in-range prediction. If it is not measurably worse, a
-gate would throw away working predictions and the warning is the correct level;
-if it is worse, the gate is justified and the median should be reported over the
-supported subset. Either way the answer belongs in a test, since this is the
-same declined-vs-broken distinction the oxidizer gate had to get right.
+Three datasets still lose badly to predicting their own mean and none has been
+diagnosed: netzband2020 (49.2% vs flat 33.6%), jani2025_cu_rsm_composition_heldout
+(51.2%) and hong2007_cu_ads_bta_polish_rate (14.8% vs flat 12.6%). netzband2020
+is already known NOT to share a second pH channel, so take the other two first:
+both are Cu on cu_h2o2_bta, both sit INSIDE the pH range, so the failure is not
+the pH term. Diagnose which axis each one actually varies and whether the pack
+has a term for it — jani2025 is an RSM composition set (likely chelator or
+inhibitor interaction) and hong2007 is a BTA adsorption series, so the inhibitor
+term is the shared suspect. Check whether cu_h2o2_bta's inhibitor constants were
+ever fitted to a sweep or merely inherited, using the same isolation method that
+found the SiC pH groups: group rows so only the inhibitor moves.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp

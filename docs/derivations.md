@@ -1905,3 +1905,52 @@ Requiring a range from *every* pH-active pack immediately found one I had missed
 `oxide_silica_calibrated_pad`, a pad variant that changes contact parameters only
 and inherits li2021's pH constants and range unchanged. Registered as such — the
 audit works because it enumerates rather than trusting a hand-written list.
+
+## Out-of-range pH is a warning, not a gate — because the corpus says so
+
+Declaring `ph_valid_range` everywhere switched on out-of-range warnings for
+fifteen datasets, and the obvious next step looked like gating them: the
+declined machinery already exists for `oxidizer_ph_window`, so refusing to score
+an unsupported extrapolation would have been a three-line change.
+
+It would also have been wrong, and the corpus says so before any code is
+written. Splitting the scored datasets by whether **every** row sits inside its
+pack's declared range:
+
+| group | n | median | mean |
+|---|---:|---:|---:|
+| fully in-range | 19 | 18.9% | 19.8% |
+| fully out-of-range | 11 | 19.4% | 20.8% |
+
+Mann-Whitney U = 101.0 against an expected 104.5 under the null, **z = −0.15**.
+No detectable difference. Out-of-range prediction here is not degraded
+prediction — it is prediction whose pH term is evaluated on its floor or flank
+rather than near its optimum, which is an ordinary thing for a bounded function
+to do.
+
+The out-of-range group also contains some of the best results in the whole
+corpus: bouvet2002_w **2.3%**, ep3161098b1 7.1%, lai2001 8.7%, bouvet2002_oxide
+11.2%, us8142675b2 12.3%. A gate would discard those and return silence.
+
+### Why this differs from the oxidiser gate, which *was* justified
+There, Miranda's 2×2 showed the oxidiser term's **sign** reversing across the pH
+branch: the model was confidently wrong in a direction no refit could fix, and
+declining was the only honest answer. Here the model is not wrong, merely less
+constrained. A gate is for *"this prediction would be wrong"*, not for *"this
+prediction rests on fewer measurements"* — the latter is what warnings and
+confidence fields are for.
+
+The one genuinely pathological case is handled separately and does not need a
+corpus-wide gate to express it: an acid-side floor of zero, where the rate
+decays to 0.00 Å/min, already carries its own warning naming it a refusal.
+
+So the range is declared, the warning fires, and the score stands. The decision
+is fixed in a test that requires anyone reaching for the gate to first explain
+away z = −0.15.
+
+An aside on the test itself: the first version asserted `not score.gated` and
+failed, because `gated` counts gates of any kind and lai2001 carries an
+unrelated oxidiser-data-gap gate. The assertion had to be narrowed to gates
+whose *reason* is the pH range — the distinction between "declined for this
+reason" and "declined at all" matters here for exactly the same reason it
+mattered when the oxidiser gate was first scoped.
