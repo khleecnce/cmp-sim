@@ -1,0 +1,334 @@
+# Blanket TEOS oxide CMP — an 11-level pH sweep run TWICE, at 2.0 and 4.0 psi,
+# with everything else held fixed (same 54 nm core-shell colloidal silica,
+# same 3 wt%, same Mirra tool, same IC1010 pad, same 100 rpm, same 150 mL/min).
+#
+# Why this dataset was added
+# --------------------------
+# pH is the model's weakest scored axis (49% median over the corpus), and the
+# reason is structural: most published pH series also change the abrasive, the
+# additive or the tool, so the chemical prefactor and the Preston term can
+# never be separated. This table separates them by construction — each pH is
+# measured at two pressures — so the pressure response is available *inside*
+# each chemistry rather than pooled across chemistries.
+#
+# THE INTERESTING PART IS THE NON-PRESTONIAN LOW-pH CORNER.
+# Doubling the down force from 2.0 to 4.0 psi gives, per pH:
+#
+#     pH 2.5  130 -> 130   (1.00x)      pH 5.8  1670 -> 2100  (1.26x)
+#     pH 3.0  240 -> 230   (0.96x)      pH 8.4    30 ->  200  (6.67x)
+#     pH 3.5 1100 -> 1000  (0.91x)      pH 9.0    30 ->   60  (2.00x)
+#     pH 4.0 1680 -> 2800  (1.67x)      pH 10.0   30 ->   80  (2.67x)
+#     pH 4.6 1660 -> 2950  (1.78x)      pH 11.0   80 ->  160  (2.00x)
+#     pH 4.9 1720 -> 2950  (1.71x)
+#
+# Below pH 3.5 the rate does not respond to pressure at all — the removal is
+# chemically starved, not mechanically limited, and Preston's law is simply not
+# the governing equation there. This is the same class of negative control as
+# us6918821b2 (lubrication transition) and should NOT be "fixed" by tuning: a
+# model that reproduces 1.00x at pH 2.5 and 1.78x at pH 4.6 has learned
+# something real; one that predicts 2.00x everywhere has not.
+#
+# The patent also prints the zeta potential of every composition (+34 mV at
+# pH 2.5 falling monotonically to -51 mV at pH 8.4), so the sign reversal of
+# the silica/TEOS electrostatic interaction is pinned to a measured value on
+# the SAME slurries — recorded per condition below as `zeta_mv` for future use
+# by the chemistry layer. It is carried as metadata, not as a model input.
+
+source: >
+  US 9,422,456 B2 (Cabot Microelectronics Corp.), "Colloidal silica chemical-
+  mechanical polishing composition", granted 2016-08-23.
+  Numbers taken from: EXAMPLE 3, TABLE 3 — columns "TEOS Rate (Å/min)" at
+  2 psi and at 4 psi, compositions 3A-3K, together with the pH, conductivity
+  and zeta-potential columns of the same table.
+
+  Read from the full text of the granted patent
+  (https://patents.google.com/patent/US9422456B2/en), printed table, not a
+  digitized figure.
+
+  Composition (Example 3 text): colloidal silica abrasive with a core-shell
+  structure in which a hydrolyzed or partially hydrolyzed aminopropyl
+  trialkoxysilane is incorporated in the shell; mean particle size 54 nm;
+  3.0 wt% silica; no oxidizer, no inhibitor. pH adjusted with nitric acid
+  (3A-3E, 3G), acetic acid (3F) or potassium hydroxide (3I-3K); composition 3H
+  is at its natural pH of 8.4 and is unadjusted.
+  Process (Example 3 text): 200 mm TEOS wafers, Applied Materials Mirra CMP
+  tool, IC1010 polishing pad, down force 2.0 and 4.0 psi, platen 100 rpm,
+  slurry flow 150 mL/min.
+
+  CAVEAT RECORDED, NOT HIDDEN: the acid used is not constant across the series
+  (nitric for most rows, acetic for 3F at pH 4.9), and the conductivity column
+  shows the ionic strength varies by ~70x across the sweep (22 to 1618 µS).
+  The pH axis therefore carries a co-varying ionic-strength term that this
+  model does not represent. That is a property of the source, and it is one
+  reason the low-pH rows should be read as "chemically limited", not as a
+  clean pH-only response.
+
+film: oxide
+pack: oxide_silica_aminosilane
+in_scope: true
+used_for_calibration: false
+
+conditions:
+  # ---- 3A, pH 2.5 ---------------------------------------------------------
+  - label: "3A TEOS, pH 2.5, 2 psi"
+    pressure_psi: 2.0
+    rpm_platen: 100
+    mrr_a_per_min: 130.0
+    read_method: table
+    zeta_mv: 34
+    flow_ml_min: 150
+    overrides:
+      abrasive_wt_pct: 3.0
+      abrasive_d50_nm: 54.0
+      slurry_ph: 2.5
+  - label: "3A TEOS, pH 2.5, 4 psi"
+    pressure_psi: 4.0
+    rpm_platen: 100
+    mrr_a_per_min: 130.0
+    read_method: table
+    zeta_mv: 34
+    flow_ml_min: 150
+    overrides:
+      abrasive_wt_pct: 3.0
+      abrasive_d50_nm: 54.0
+      slurry_ph: 2.5
+
+  # ---- 3B, pH 3.0 ---------------------------------------------------------
+  - label: "3B TEOS, pH 3.0, 2 psi"
+    pressure_psi: 2.0
+    rpm_platen: 100
+    mrr_a_per_min: 240.0
+    read_method: table
+    zeta_mv: 36
+    flow_ml_min: 150
+    overrides:
+      abrasive_wt_pct: 3.0
+      abrasive_d50_nm: 54.0
+      slurry_ph: 3.0
+  - label: "3B TEOS, pH 3.0, 4 psi"
+    pressure_psi: 4.0
+    rpm_platen: 100
+    mrr_a_per_min: 230.0
+    read_method: table
+    zeta_mv: 36
+    flow_ml_min: 150
+    overrides:
+      abrasive_wt_pct: 3.0
+      abrasive_d50_nm: 54.0
+      slurry_ph: 3.0
+
+  # ---- 3C, pH 3.5 ---------------------------------------------------------
+  - label: "3C TEOS, pH 3.5, 2 psi"
+    pressure_psi: 2.0
+    rpm_platen: 100
+    mrr_a_per_min: 1100.0
+    read_method: table
+    zeta_mv: 36
+    flow_ml_min: 150
+    overrides:
+      abrasive_wt_pct: 3.0
+      abrasive_d50_nm: 54.0
+      slurry_ph: 3.5
+  - label: "3C TEOS, pH 3.5, 4 psi"
+    pressure_psi: 4.0
+    rpm_platen: 100
+    mrr_a_per_min: 1000.0
+    read_method: table
+    zeta_mv: 36
+    flow_ml_min: 150
+    overrides:
+      abrasive_wt_pct: 3.0
+      abrasive_d50_nm: 54.0
+      slurry_ph: 3.5
+
+  # ---- 3D, pH 4.0 ---------------------------------------------------------
+  - label: "3D TEOS, pH 4.0, 2 psi"
+    pressure_psi: 2.0
+    rpm_platen: 100
+    mrr_a_per_min: 1680.0
+    read_method: table
+    zeta_mv: 33
+    flow_ml_min: 150
+    overrides:
+      abrasive_wt_pct: 3.0
+      abrasive_d50_nm: 54.0
+      slurry_ph: 4.0
+  - label: "3D TEOS, pH 4.0, 4 psi"
+    pressure_psi: 4.0
+    rpm_platen: 100
+    mrr_a_per_min: 2800.0
+    read_method: table
+    zeta_mv: 33
+    flow_ml_min: 150
+    overrides:
+      abrasive_wt_pct: 3.0
+      abrasive_d50_nm: 54.0
+      slurry_ph: 4.0
+
+  # ---- 3E, pH 4.6 ---------------------------------------------------------
+  - label: "3E TEOS, pH 4.6, 2 psi"
+    pressure_psi: 2.0
+    rpm_platen: 100
+    mrr_a_per_min: 1660.0
+    read_method: table
+    zeta_mv: 28
+    flow_ml_min: 150
+    overrides:
+      abrasive_wt_pct: 3.0
+      abrasive_d50_nm: 54.0
+      slurry_ph: 4.6
+  - label: "3E TEOS, pH 4.6, 4 psi"
+    pressure_psi: 4.0
+    rpm_platen: 100
+    mrr_a_per_min: 2950.0
+    read_method: table
+    zeta_mv: 28
+    flow_ml_min: 150
+    overrides:
+      abrasive_wt_pct: 3.0
+      abrasive_d50_nm: 54.0
+      slurry_ph: 4.6
+
+  # ---- 3F, pH 4.9 (acetic acid, not nitric) -------------------------------
+  - label: "3F TEOS, pH 4.9, 2 psi"
+    pressure_psi: 2.0
+    rpm_platen: 100
+    mrr_a_per_min: 1720.0
+    read_method: table
+    zeta_mv: 25
+    flow_ml_min: 150
+    overrides:
+      abrasive_wt_pct: 3.0
+      abrasive_d50_nm: 54.0
+      slurry_ph: 4.9
+  - label: "3F TEOS, pH 4.9, 4 psi"
+    pressure_psi: 4.0
+    rpm_platen: 100
+    mrr_a_per_min: 2950.0
+    read_method: table
+    zeta_mv: 25
+    flow_ml_min: 150
+    overrides:
+      abrasive_wt_pct: 3.0
+      abrasive_d50_nm: 54.0
+      slurry_ph: 4.9
+
+  # ---- 3G, pH 5.8 ---------------------------------------------------------
+  - label: "3G TEOS, pH 5.8, 2 psi"
+    pressure_psi: 2.0
+    rpm_platen: 100
+    mrr_a_per_min: 1670.0
+    read_method: table
+    zeta_mv: 8
+    flow_ml_min: 150
+    overrides:
+      abrasive_wt_pct: 3.0
+      abrasive_d50_nm: 54.0
+      slurry_ph: 5.8
+  - label: "3G TEOS, pH 5.8, 4 psi"
+    pressure_psi: 4.0
+    rpm_platen: 100
+    mrr_a_per_min: 2100.0
+    read_method: table
+    zeta_mv: 8
+    flow_ml_min: 150
+    overrides:
+      abrasive_wt_pct: 3.0
+      abrasive_d50_nm: 54.0
+      slurry_ph: 5.8
+
+  # ---- 3H, pH 8.4 (natural pH, unadjusted) --------------------------------
+  - label: "3H TEOS, pH 8.4, 2 psi"
+    pressure_psi: 2.0
+    rpm_platen: 100
+    mrr_a_per_min: 30.0
+    read_method: table
+    zeta_mv: -51
+    flow_ml_min: 150
+    overrides:
+      abrasive_wt_pct: 3.0
+      abrasive_d50_nm: 54.0
+      slurry_ph: 8.4
+  - label: "3H TEOS, pH 8.4, 4 psi"
+    pressure_psi: 4.0
+    rpm_platen: 100
+    mrr_a_per_min: 200.0
+    read_method: table
+    zeta_mv: -51
+    flow_ml_min: 150
+    overrides:
+      abrasive_wt_pct: 3.0
+      abrasive_d50_nm: 54.0
+      slurry_ph: 8.4
+
+  # ---- 3I, pH 9.0 ---------------------------------------------------------
+  - label: "3I TEOS, pH 9.0, 2 psi"
+    pressure_psi: 2.0
+    rpm_platen: 100
+    mrr_a_per_min: 30.0
+    read_method: table
+    zeta_mv: -50
+    flow_ml_min: 150
+    overrides:
+      abrasive_wt_pct: 3.0
+      abrasive_d50_nm: 54.0
+      slurry_ph: 9.0
+  - label: "3I TEOS, pH 9.0, 4 psi"
+    pressure_psi: 4.0
+    rpm_platen: 100
+    mrr_a_per_min: 60.0
+    read_method: table
+    zeta_mv: -50
+    flow_ml_min: 150
+    overrides:
+      abrasive_wt_pct: 3.0
+      abrasive_d50_nm: 54.0
+      slurry_ph: 9.0
+
+  # ---- 3J, pH 10.0 --------------------------------------------------------
+  - label: "3J TEOS, pH 10.0, 2 psi"
+    pressure_psi: 2.0
+    rpm_platen: 100
+    mrr_a_per_min: 30.0
+    read_method: table
+    zeta_mv: -38
+    flow_ml_min: 150
+    overrides:
+      abrasive_wt_pct: 3.0
+      abrasive_d50_nm: 54.0
+      slurry_ph: 10.0
+  - label: "3J TEOS, pH 10.0, 4 psi"
+    pressure_psi: 4.0
+    rpm_platen: 100
+    mrr_a_per_min: 80.0
+    read_method: table
+    zeta_mv: -38
+    flow_ml_min: 150
+    overrides:
+      abrasive_wt_pct: 3.0
+      abrasive_d50_nm: 54.0
+      slurry_ph: 10.0
+
+  # ---- 3K, pH 11.0 --------------------------------------------------------
+  - label: "3K TEOS, pH 11.0, 2 psi"
+    pressure_psi: 2.0
+    rpm_platen: 100
+    mrr_a_per_min: 80.0
+    read_method: table
+    zeta_mv: -34
+    flow_ml_min: 150
+    overrides:
+      abrasive_wt_pct: 3.0
+      abrasive_d50_nm: 54.0
+      slurry_ph: 11.0
+  - label: "3K TEOS, pH 11.0, 4 psi"
+    pressure_psi: 4.0
+    rpm_platen: 100
+    mrr_a_per_min: 160.0
+    read_method: table
+    zeta_mv: -34
+    flow_ml_min: 150
+    overrides:
+      abrasive_wt_pct: 3.0
+      abrasive_d50_nm: 54.0
+      slurry_ph: 11.0

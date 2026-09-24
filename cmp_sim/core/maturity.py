@@ -44,7 +44,8 @@ _ORDER = {ESTABLISHED: 2, EMERGING: 1, UNESTABLISHED: 0}
 #: been checked against independent data is in a different position from one
 #: whose single constant was reverse-engineered from one number.
 BACKTESTED_PACKS = {
-    "oxide_silica", "oxide_silica_calibrated_pad", "sti_ceria",
+    "oxide_silica", "oxide_silica_calibrated_pad", "oxide_silica_aminosilane",
+    "sti_ceria",
     "cu_h2o2_bta", "w_fe_oxidizer", "sic_ceria_h2o2",
 }
 

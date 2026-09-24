@@ -1,0 +1,143 @@
+# Oxide / TEOS CMP with an AMINOSILANE CORE-SHELL colloidal silica.
+#
+# Why this pack exists — the pH optimum belongs to the SLURRY SYSTEM
+# ------------------------------------------------------------------
+# `oxide_silica` carries ph_peak = 11.0, measured by Li 2021 on a 20 wt%
+# plain colloidal silica at 0.25 M K+. US 9,422,456 B2 measures, on the SAME
+# film (TEOS), the SAME pad (IC1010) and the SAME tool (Mirra), a maximum at
+# pH 4.9 with a 57x collapse by pH 9. Two silica slurries on one film, optima
+# six pH units apart.
+#
+# That is not a contradiction to be averaged away. The abrasive here is a
+# core-shell particle whose shell carries a hydrolysed aminopropyl
+# trialkoxysilane, so the particle is POSITIVELY charged (+34 mV at pH 2.5,
+# +25 mV at pH 4.9) while the TEOS surface is already negative above its own
+# IEP of ~2.5. Removal peaks where the particle-film attraction is strongest
+# and dies once the particle's own amine deprotonates and both surfaces turn
+# negative (-51 mV at pH 8.4). Plain silica has no such shell and follows the
+# alkaline hydrolysis route instead, which is why its optimum sits at pH 11.
+#
+# Widening `oxide_silica`'s bell to span both optima would predict a rate
+# everywhere and the right rate nowhere. A cationic-shell abrasive is a
+# different system and gets its own pack — the same discipline sti_ceria
+# already applies for ceria.
+#
+# STATUS.md recorded pH as the model's weakest scored axis (49% median) and
+# named this exact cause. This pack is the first half of the fix: the second
+# half is that every acidic-silica recipe must be run against THIS pack rather
+# than against oxide_silica.
+
+base: oxide_silica
+description: "Oxide / cationic aminosilane core-shell colloidal silica (acidic optimum)"
+
+params:
+  reference_abrasive:
+    value: colloidal_silica
+    unit: abrasive database key
+    note: >
+      Still a colloidal silica, so the inherited silica size exponent applies;
+      what differs is the SHELL chemistry and therefore the pH response, not
+      the abrasive family. An abrasive swap out of silica is refused here for
+      the same reasons as in the parent pack.
+    source: "US9422456B2 Example 3 (core-shell colloidal silica, 54 nm)"
+    confidence: literature
+
+  ph_peak:
+    value: 4.9
+    unit: pH
+    note: >
+      MEASURED maximum, not a fit. US 9,422,456 B2 Table 3, TEOS rate at
+      2 psi: 130 / 240 / 1100 / 1680 / 1660 / 1720 / 1670 / 30 / 30 / 30 / 80
+      A/min at pH 2.5 / 3.0 / 3.5 / 4.0 / 4.6 / 4.9 / 5.8 / 8.4 / 9.0 / 10.0 /
+      11.0. The maximum is the pH 4.9 row, and the 4 psi column agrees
+      (2950 A/min at both 4.6 and 4.9, the joint maximum there).
+      The patent states the finding in the same words: "high TEOS removal
+      rates were achieved at pH values greater than about 3 and less than
+      about 8".
+      ⚠ The plateau is broad — 1660 to 1720 A/min across pH 4.0-5.8 is within
+      the scatter of a blanket-rate measurement, so the optimum is really the
+      BAND 4-6 and 4.9 is its measured centre. Refitting the peak position
+      inside that band moves the total error by under 4 points (28.9% at 4.6,
+      25.3% at 4.9, 26.0% at 5.0), which is what "not identifiable to better
+      than ±0.5 pH" looks like.
+    source: "US9422456B2 (Cabot Microelectronics), Example 3 / Table 3"
+    confidence: literature
+
+  ph_ref:
+    value: 4.9
+    unit: pH
+    note: >
+      Operating pH this pack is normalised at — the pH of its own best
+      composition (3F). Set equal to ph_peak so the pH factor is 1.0 at the
+      reference and the inherited Kp is not silently rescaled.
+      ⚠ DISCLOSED MISMATCH: kp_m_per_pa is inherited from the parent pack,
+      whose fit is anchored to an ALKALINE colloidal-silica calibration. The
+      pH SHAPE below is measured on this system; the absolute SCALE is not.
+      Use this pack for pH trends and for ranking acidic silica formulations;
+      re-anchor kp_m_per_pa before quoting an absolute rate.
+    source: "US9422456B2 Example 3 composition 3F (pH 4.9, the rate maximum)"
+    confidence: literature
+
+  ph_response_width:
+    value: 1.24
+    unit: pH
+    note: >
+      Gaussian half-width, FITTED to US9422456B2 Table 3 with the peak held at
+      the measured 4.9 and one overall scale free — 22 points, two free shape
+      parameters plus the floors below. Total 25.3% MAPE, worst point 68%,
+      against 126.6% for the inherited pH-11 shape on the same table and 734%
+      for "predict the dataset mean".
+      The narrow width is the measurement, not a tuning artefact: the rate
+      falls 57x between pH 4.9 and 9.0 on this slurry, where Li 2021's plain
+      silica moves only 1.2x over pH 10-12.5. A cationic shell buys a much
+      sharper optimum than bulk hydrolysis does.
+    source: "us9422456b2_teos_silica_ph_pressure.yaml (22 measured points)"
+    confidence: med
+
+  ph_mechanical_floor:
+    value: 0.018
+    unit: fraction of peak rate
+    note: >
+      Alkaline-side floor, fitted with the width above. Anchored by real
+      measurements rather than by the fit's freedom: 30 A/min at pH 9-10
+      against a 1720 A/min peak is 1.7% of peak, and the fitted 1.8% simply
+      reproduces it. The film is still being abraded there — it is not zero.
+    source: "us9422456b2_teos_silica_ph_pressure.yaml, rows 3I/3J (30 A/min at 2 psi)"
+    confidence: med
+
+  ph_acid_mechanical_floor:
+    value: 0.014
+    unit: fraction of peak rate
+    note: >
+      Acid-side floor, fitted with the width. Measured anchor: 130 A/min at
+      pH 2.5 against the 1720 A/min peak = 7.6%; the fit lands lower (1.4%)
+      because the Gaussian tail is still contributing at pH 2.5-3.0. Both
+      sides land near 2% here, in contrast to the parent pack's strongly
+      asymmetric 1% / 12% — on a cationic-shell abrasive the loss mechanism is
+      the same electrostatic one at both ends (the particle loses its charge
+      going up, the film loses its charge going down), so there is no reason
+      to expect the asymmetry that plain silica shows.
+    source: "us9422456b2_teos_silica_ph_pressure.yaml, rows 3A/3B (130/240 A/min at 2 psi)"
+    confidence: med
+
+  ph_pressure_response_note:
+    value: null
+    unit: "-"
+    note: >
+      **NOT A PARAMETER — a recorded limitation with no key to put it in.**
+      Table 3 measures every pH at BOTH 2.0 and 4.0 psi, and the pressure
+      response is itself a function of pH:
+        pH 2.5  1.00x   pH 3.0  0.96x   pH 3.5  0.91x   (no P response at all)
+        pH 4.0  1.67x   pH 4.6  1.78x   pH 4.9  1.71x   (near-Preston)
+        pH 5.8  1.26x   pH 8.4  6.67x   pH 9-11 2.0-2.7x
+      Below pH 3.5 doubling the down force changes nothing: removal there is
+      chemically starved, and Preston's law is not the governing equation.
+      This engine multiplies a pH factor by a Preston P*V term, so it CANNOT
+      reproduce a pH-dependent pressure exponent — it will always predict 2x
+      for a 2x load. The residuals at pH 2.5-3.5 (up to 65%) are that
+      structural limit showing, not noise.
+      Closing it needs a rate-limiting-step model (chemical supply in series
+      with mechanical removal), not another constant. TODO(owner): decide
+      whether a series-resistance form is wanted before P9.
+    source: "US9422456B2 Table 3, ratio of the 4 psi and 2 psi columns"
+    confidence: unverified

@@ -1068,3 +1068,79 @@ actively wrong once it did, because every recipe that never mentioned an
 abrasive silently became a *deliberate silica swap*, including the ceria
 validation datasets. A default must never masquerade as a user's choice.
 `None` means "use the pack's own abrasive"; a string means the user chose.
+
+## The pH optimum belongs to the slurry SYSTEM, not to the film
+
+### The contradiction that forced this
+Every pack carried one `ph_peak` per film, because a pH bell is a chemical
+property and chemistry was modelled per film. Two measurements on the *same*
+film refute that outright:
+
+| slurry | film | measured optimum | span over the sweep |
+|---|---|---:|---:|
+| plain colloidal silica, 20 wt%, 0.25 M K⁺ (Li 2021) | TEOS/SiO₂ | pH **11** | 1.2× |
+| aminosilane core-shell colloidal silica, 3 wt% (US 9,422,456 B2 Table 3) | TEOS | pH **4.9** | **57×** |
+
+Same film, same abrasive family, same pad class (IC1010), optima six pH units
+apart and sharpness differing by a factor of fifty. No single bell reproduces
+both: forced onto US 9,422,456 B2's 22 points, the pH-11 shape scores
+**126.6 %** shape error.
+
+### Why, physically
+The core-shell particle's shell carries a hydrolysed aminopropyl
+trialkoxysilane, so the *particle* is cationic where plain silica is anionic.
+The patent measures it on the same slurries: ζ = **+34 mV at pH 2.5**, +25 mV
+at pH 4.9, **−51 mV at pH 8.4**. TEOS is already negative above its own IEP
+(≈2.5). Removal therefore peaks where particle–film attraction is strongest and
+collapses once the amine deprotonates and both surfaces turn negative. Plain
+silica has no such shell and rides the alkaline-hydrolysis route (Cook 1990)
+instead, whose optimum sits near pH 11.
+
+So the optimum is a property of the *particle–film charge pair*, i.e. of the
+slurry system. The fix is a separate pack, `oxide_silica_aminosilane`, not a
+wider bell — widening predicts a rate everywhere and the right rate nowhere.
+This is the same discipline `sti_ceria` already applies for ceria.
+
+### What was fitted, and what was not
+Peak position is **measured** (the maximum of the printed table), not fitted —
+the same rule the oxidizer term uses, because a peak fitted from data on one
+side of it is not identifiable. Width and the two floors are fitted to the 22
+points with one overall scale free:
+
+```
+f(pH) = floor_side + (1 − floor_side)·exp(−((pH − 4.9)/1.24)²)
+        floor_side = 0.014 (acid) | 0.018 (alkaline)
+```
+
+| shape | MAPE on the 22 points |
+|---|---:|
+| inherited pH-11 bell | 126.6 % |
+| predict the dataset mean | 734 % |
+| this pack | **25.3 %** (leave-one-out 26.1 %) |
+
+The floors are anchored by measurements rather than by the fit's freedom:
+30 Å/min at pH 9–10 against a 1720 Å/min peak *is* 1.7 % of peak. Unlike the
+parent pack's strongly asymmetric 1 % / 12 %, both floors here land near 2 % —
+on a cationic-shell abrasive the loss mechanism is electrostatic at *both* ends
+(the particle loses its charge going up, the film going down), so there is no
+reason to expect asymmetry.
+
+Effect on the corpus: the pH axis median falls **49.2 % → 39.3 %**, and pH is
+no longer the model's worst axis (velocity, 44.1 %, now is).
+
+### The limit this dataset exposes, and does not fix
+Table 3 measures every pH at **both** 2.0 and 4.0 psi. The pressure response is
+itself a function of pH:
+
+| pH | 2.5 | 3.0 | 3.5 | 4.0 | 4.6 | 4.9 | 5.8 | 8.4 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| rate(4 psi)/rate(2 psi) | 1.00 | 0.96 | 0.91 | 1.67 | 1.78 | 1.71 | 1.26 | 6.67 |
+
+Below pH 3.5, doubling the down force changes **nothing**: removal is
+chemically starved and Preston's law is not the governing equation there. This
+engine multiplies a chemical factor by a Preston P·V term, so it *must* predict
+2× for a 2× load everywhere — the 50–65 % residuals at pH 2.5–3.5 are that
+structural limit showing, not noise. Closing it needs a rate-limiting-step
+(series-resistance) form, not another constant; recorded as a `null` key with
+`TODO(owner)` in the pack and asserted as data in
+`tests/test_ph_system_split.py::test_below_ph_3_5_the_measured_rate_ignores_pressure`.

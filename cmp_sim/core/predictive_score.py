@@ -42,6 +42,7 @@ from cmp_sim.core.validation import dataset_paths
 PACK_FILM = {
     "oxide_silica": "oxide",
     "oxide_silica_calibrated_pad": "oxide",
+    "oxide_silica_aminosilane": "oxide",
     "sti_ceria": "sti",
     "cu_h2o2_bta": "cu",
     "w_fe_oxidizer": "w",
