@@ -84,16 +84,14 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-The velocity inversion is now fully characterised as unexplainable from the
-corpus, so stop probing it and convert the session's findings into the
-deliverable the project is graded on: README's validation table is stale. It
-must state the CURRENT numbers (43/49 datasets, 394 pts, median 20.2% trend /
-22.6% LOO, per-axis: size 11.2%, oxidizer 20.2%, loading 22.9%, pressure 25.3%,
-pH 32.1%, velocity 44.1%) and, next to velocity, the honest one-line reason it
-is worst (a measured rate INVERSION no term in the model can express, with two
-candidate criteria shown to be the operating point relabelled). Also verify
-`cmp-sim run examples/*.yaml` still succeeds for all six films — that is a
-Definition-of-Done item and has not been re-run this session.
+12 of 43 datasets still lose to predicting their own mean, and that list — not
+the median — is where the model is actually absent. Four are Cu composition
+studies (jani2025 x2, hong2007, kenchappa2021, bouvet2002, carbide2023_L9).
+Take the single worst loser, establish WHY the physics contributes nothing on
+it (missing term vs mis-scoped pack vs an axis the dataset varies that the
+model ignores), and fix or declare it — same discipline as this session: a
+structural cause, a test that pins it, a derivations entry. Do not tune a
+constant to move the median.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp

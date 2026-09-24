@@ -1,8 +1,8 @@
 # CMP-Sim
 
-[![tests](https://img.shields.io/badge/tests-603%20passing-brightgreen)](#)
+[![tests](https://img.shields.io/badge/tests-680%20passing-brightgreen)](#)
 [![validation](https://img.shields.io/badge/literature%20gate-4%20datasets%20within%20%C2%B115%25-brightgreen)](#validation)
-[![accuracy](https://img.shields.io/badge/prediction-20.3%25%20median%2C%20330%20points-blue)](#2-how-accurate-is-it-on-every-axis-cmp-sim-accuracy)
+[![accuracy](https://img.shields.io/badge/prediction-20.2%25%20median%2C%20394%20points-blue)](#2-how-accurate-is-it-on-every-axis-cmp-sim-accuracy)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 A physics-based simulator for **Chemical Mechanical Planarization**. Given a
@@ -223,23 +223,23 @@ entirely. A mechanical `P·V` law cannot explain it, whatever `Kp` you choose.
 
 ### 2. How accurate is it on *every* axis? (`cmp-sim accuracy`)
 
-The gate above only admits datasets that sweep pressure or speed — 6 of 38
+The gate above only admits datasets that sweep pressure or speed — 6 of 49
 files here, about 40% of the measured points. That left the slurry axes this
 simulator exists to predict (pH, oxidizer, loading, particle size) **never
-scored against a measurement at all**. `cmp-sim accuracy` scores all 320
+scored against a measurement at all**. `cmp-sim accuracy` scores all 394
 points on whichever axis each dataset varies:
 
 | axis | datasets | median error |
 |---|---:|---:|
-| abrasive particle size | 9 | **8.7%** |
-| abrasive loading | 8 | 34.6% |
-| pH | 9 | 36.2% |
-| oxidizer | 8 | 36.2% |
-| pressure | 10 | 40.7% |
+| abrasive particle size | 11 | **11.2%** |
+| oxidizer | 11 | 20.2% |
+| abrasive loading | 9 | 22.9% |
+| pressure | 14 | 25.3% |
+| pH | 13 | 32.1% |
 | velocity | 6 | 44.1% |
 
-**Overall: median 19.5% shape error, 23.6% leave-one-out**, over 37 of 38
-datasets and 320 measured points. 27 of 37 beat "predict this dataset's
+**Overall: median 20.2% shape error, 22.6% leave-one-out**, over 43 of 49
+datasets and 394 measured points. 31 of 43 beat "predict this dataset's
 average" — the baseline that says whether the physics contributed anything.
 
 Three numbers, and they mean different things:
@@ -255,6 +255,19 @@ Three numbers, and they mean different things:
 The pressure and velocity medians look poor next to the ±15% gate because they
 include the three datasets that are *supposed* to fail (SiC, quartz,
 rheological). Restricted to clean `P·V` sweeps the same axis runs 12–23%.
+
+**Velocity is worst for a reason no refit can remove.** US 6,918,821 B2
+measures copper rate *falling* as speed rises at 1.5 psi (425 → 419 → 250
+Å/min) while rising at 4.0 psi — an inversion the Preston form cannot express
+at any exponent. Fitting isolated velocity groups gives exponents of −0.42,
++0.62, +0.86, +0.86 and +1.10 where Preston says 1.0, and the two datasets
+require *opposite* pressure dependences, so no single exponent (or exponent
+function) serves both. Two candidate regime criteria were tested and refused
+because each turned out to be the operating point relabelled: the lubrication
+λ equals the pseudo-Sommerfeld number *V/p* to five digits, and
+`summit_saturation` equals 0.00739·*P* to six. Gating on either would be a
+pressure threshold fitted to one patent's low-force arm. The miss is left
+visible instead; see `docs/derivations.md`.
 
 Finding this changed the model materially. Scored this way the first time, the
 median was **42.8%** and 16 of 36 datasets lost to predicting the mean. Two
