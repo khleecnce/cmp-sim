@@ -2523,3 +2523,30 @@ datasets and 424 points, pinned by a test exactly as the `repl%` column is.
 Nothing was refitted to improve a scale ratio.
 
 Enforced by `tests/test_scale_column_is_reporting_only.py` (6).
+
+## What the README was promising, and what it can support
+
+The README advertised "19.5% median" with badges reading 688 tests and 394
+points, long after the corpus reached 822 and 424, and its axis table still held
+medians from an earlier run (oxidizer 20.2% where the value is 22.6%). Stale
+published numbers are worse than absent ones: a reader cannot tell which are
+current.
+
+Worse than stale was the *claim*. "19.5% median prediction error" reads as a
+promise to predict absolute removal rate to 20%. The scale column shows that is
+false on 13 of 34 comparable datasets, including one that ranks conditions to
+7.1% while under-predicting rate by 139×. The number is a **ranking** claim.
+
+The page now leads with that distinction, carries the concrete 7.1%/139× case
+rather than an abstract caveat, and tells the reader the one-experiment fix: a
+single calibration wafer at a known P·V re-anchors `Kp` for their tool and turns
+the ranking claim into a rate claim. Recorded as limit 11.
+
+Every number on the page is now recomputed by a test — totals, per-axis medians
+and dataset counts, the scale counts, and both badges — so the page cannot drift
+from the corpus again. Two of those assertions were written loosely at first,
+with `or` fallbacks that would have passed on a partial match; tightening them
+immediately caught a real defect (the bold claim was split across a blockquote's
+line wrap). A documentation test that cannot fail documents nothing.
+
+Enforced by `tests/test_readme_numbers_are_computed.py` (6).

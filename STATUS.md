@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **816 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **822 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -26,6 +26,13 @@
   _ti 2.7%), and nothing-stated. That separates bouvet2002_w (2.3% vs 1.0% floor,
   finished) from bouvet2002_ti (30.7% vs 2.7%, a real miss) — previously
   indistinguishable. `at_noise_floor` is None, never False, when unmeasured.
+- **README now states what 19.5% supports (limit 11).** Badges said 688 tests/394
+  points (actual 822/424) and the axis table held stale medians. Worse, "19.5%
+  median prediction error" reads as a promise to predict absolute rate to 20% —
+  false on 13/34 datasets. Page now leads with "ranking claim, not a rate claim",
+  carries the concrete 7.1%-shape/139x-scale case, and gives the 1-experiment fix
+  (one calibration wafer re-anchors Kp). EVERY README number is now recomputed by
+  a test — totals, per-axis medians, counts, scale counts, both badges.
 - **`scale` column in accuracy report + JSON (reporting only).** Shape says the
   model RANKS conditions well; scale says whether the rate is right at all, and
   they fail independently — ep3161098b1 is 7.1% shape but 139x off in absolute
@@ -251,15 +258,15 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-The scale column exposes 13 datasets off by >3x, but README's validation table
-and the badge still advertise shape only — a reader sees "19.5% median" and will
-reasonably assume the simulator predicts rates to 20%. It does not: it ranks to
-20% and its absolute rate can be 139x off. Update README so scale is stated
-beside shape (add the column to the validation table, state how many datasets
-are calibrated within 3x, and say plainly which claim the 19.5% supports). Also
-add the shape-vs-scale distinction to docs/limits.md as a numbered limit, since
-it is a decided, measured limitation rather than an open question. Documentation
-only — no constant may move, and the medians must stay 19.5%/22.6%.
+Limit 11 says one calibration wafer re-anchors Kp for a user's tool, but the
+simulator offers no way to do it — a user who measures 2,400 A/min at a known
+P*V has nowhere to put that number. Add a calibration entry point: accept a
+measured rate + its conditions, back out the Kp multiplier that reproduces it,
+and apply it to subsequent runs (config field + `cmp-sim calibrate`, writing a
+per-tool factor, NOT editing any pack). Keep it strictly opt-in and out of the
+corpus: the accuracy medians must stay 19.5%/22.6% and no dataset may be scored
+with a user factor, or the validation becomes self-referential. Test that a
+synthetic measurement recovers a known multiplier and that scoring is untouched.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp

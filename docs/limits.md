@@ -324,3 +324,45 @@ into evidenced ones. Today there is not one.
 
 **Enforced by** `tests/test_silica_variant_packs_earn_their_split.py`,
 `tests/test_parameter_evidence_inventory.py`.
+
+---
+
+## 11. A good shape error does not mean a good rate
+
+**The measurement.** Shape error (how well the model ranks conditions) and scale
+error (whether the absolute rate is right) fail independently. The corpus median
+shape error is 19.5%, but of the 34 datasets whose sources permit absolute
+comparison, **13 are off by more than 3×**:
+
+| dataset | shape | measured ÷ predicted |
+|---|---:|---:|
+| `ep3161098b1_teos_silica_pressure_sweep` | **7.1%** | **139.2×** |
+| `liang2026_4hsic_ceria_composite_h2o2_conc` | 20.6% | 92.0× |
+| `bouvet2002_w_silica_size_sweep` | **2.3%** | 75.6× |
+| `bouvet2002_oxide_silica_size_sweep` | 11.2% | 39.2× |
+| `us6918821b2_cu_ic1000_pressure_speed_2x3` | 44.1% | 0.08× (over-predicts 12×) |
+
+The first and third rows are the point: near-perfect *trends* on rates that are
+wrong by one to two orders of magnitude.
+
+**The refit that was rejected.** Re-anchoring each pack's `Kp` so its datasets
+land near 1.0×. Rejected because the deficit is not in `Kp`: the packs that
+*inherit* `Kp` unchanged are among the best calibrated (0.51×, 2.04×) while the
+worst offender is their parent, and its gap tracks pH distance from the fitted
+peak — inside `oxide_silica`'s range [10.0, 12.5] the same pack scores 0.60× and
+0.85×, at pH 3–4.7 it scores 39×, 98×, 139×. Refitting `Kp` would bake an
+extrapolation error into a constant that is currently correct.
+
+**The limit.** A 19.5% median is a **ranking** claim. It supports "which
+direction does this knob move the rate, and roughly how much"; it does not
+support "this slurry removes 2,400 Å/min". Absolute rate depends on tool, pad
+break-in and consumable lot, none of which the literature reports consistently.
+
+**What would resolve it.** One calibration wafer on the user's own tool: a single
+measured rate at a known P·V re-anchors `Kp` for that pack and turns the ranking
+claim into a rate claim. That is a one-experiment fix, and it is per-tool by
+nature — no corpus can do it in advance.
+
+**Enforced by** `tests/test_scale_column_is_reporting_only.py`,
+`tests/test_inherited_kp_is_not_the_problem.py`,
+`tests/test_readme_numbers_are_computed.py`.

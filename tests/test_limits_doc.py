@@ -55,6 +55,9 @@ LIMIT_ENFORCING_TESTS = {
     "test_titanium_is_unsupported.py",
     "test_silica_variant_packs_earn_their_split.py",
     "test_parameter_evidence_inventory.py",
+    "test_scale_column_is_reporting_only.py",
+    "test_readme_numbers_are_computed.py",
+    "test_inherited_kp_is_not_the_problem.py",
 }
 
 

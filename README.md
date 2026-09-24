@@ -1,8 +1,9 @@
 # CMP-Sim
 
-[![tests](https://img.shields.io/badge/tests-688%20passing-brightgreen)](#)
+[![tests](https://img.shields.io/badge/tests-816%20passing-brightgreen)](#)
 [![validation](https://img.shields.io/badge/literature%20gate-4%20datasets%20within%20%C2%B115%25-brightgreen)](#validation)
-[![accuracy](https://img.shields.io/badge/prediction-19.5%25%20median%2C%20394%20points-blue)](#2-how-accurate-is-it-on-every-axis-cmp-sim-accuracy)
+[![accuracy](https://img.shields.io/badge/trend-19.5%25%20median%2C%20424%20points-blue)](#2-how-accurate-is-it-on-every-axis-cmp-sim-accuracy)
+[![scale](https://img.shields.io/badge/absolute%20rate-21%2F34%20within%203x-yellow)](#2-how-accurate-is-it-on-every-axis-cmp-sim-accuracy)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 A physics-based simulator for **Chemical Mechanical Planarization**. Given a
@@ -232,21 +233,37 @@ points on whichever axis each dataset varies:
 | axis | datasets | median error |
 |---|---:|---:|
 | abrasive particle size | 11 | **11.2%** |
-| oxidizer | 11 | 20.2% |
-| abrasive loading | 9 | 22.9% |
-| pressure | 14 | 25.3% |
-| pH | 13 | 31.5% |
-| velocity | 6 | 44.1% |
+| oxidizer | 12 | 22.6% |
+| abrasive loading | 11 | 22.9% |
+| pressure | 14 | 24.1% |
+| pH | 14 | 29.1% |
+| velocity | 6 | 39.0% |
 
-**Overall: median 19.5% shape error, 21.7% leave-one-out**, over 43 of 49
-datasets and 394 measured points. 33 of 43 beat "predict this dataset's
+**Overall: median 19.5% shape error, 22.6% leave-one-out**, over 45 of 49
+datasets and 424 measured points. 34 of 45 beat "predict this dataset's
 average" — the baseline that says whether the physics contributed anything.
 
-Three numbers, and they mean different things:
+> **⚠ Read the 19.5% as a ranking claim, not a rate claim.** It says the model
+> follows the *trend* to about 20%. It does **not** say it predicts absolute
+> removal rate to 20%. Those fail independently, and on this corpus the second
+> one often fails: `cmp-sim accuracy` now prints a `scale` column (median
+> measured ÷ predicted absolute rate) beside it, and
+> **13 of 34 comparable datasets are off by more than 3×** —
+> `ep3161098b1_teos` scores an excellent 7.1% shape while under-predicting
+> absolute rate by **139×**. 21 of 34 are calibrated within 3×; the remaining
+> 11 datasets print `-` because their own notes forbid absolute comparison
+> (benchtop coupons, scaled units, shear-rheological polishing). Use this
+> simulator to rank and optimise conditions; re-anchor `Kp` against your own
+> tool before trusting an Å/min number. See limit 11 in `docs/limits.md`.
+
+Four numbers, and they mean different things:
 
 * **shape** — scale fitted to the dataset, so it measures the *trend*. Use it
   when asking "which way does it move, and by how much"; no pack's `Kp` is
   calibrated to another lab's tool, so absolute agreement is not the question.
+* **scale** — median measured ÷ predicted *absolute* rate. 1.0× is calibrated;
+  139× is not. Independent of shape, and the number to check before quoting an
+  Å/min.
 * **leave-one-out** — fit on n−1 points, predict the held-out one. The only
   number quotable as accuracy without qualification.
 * **predict-the-mean** — the baseline. A model that cannot beat it added
