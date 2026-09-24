@@ -25,7 +25,35 @@ source: >
 in_scope: true
 used_for_calibration: false
 film: oxide  # source: TEOS oxide, colloidal silica composition
-pack: oxide_silica
+# ── PACK REASSIGNMENT (was: oxide_silica) ────────────────────────────────────
+# This file's own notes state the abrasive is an aminosilane-cored **cationic**
+# colloidal silica at pH 4.7, while oxide_silica is built for anionic silica at
+# pH 10.5. oxide_silica_aminosilane exists for exactly that system (ph_peak 4.9,
+# fitted on US9422456B2 — the sibling Cabot patent).
+#
+# Measured, all three candidate packs, identical rows:
+#
+#   oxide_silica              shape 22.9%   measured/predicted  98.25x
+#   oxide_silica_anionic      shape 22.9%   measured/predicted  23.75x
+#   oxide_silica_aminosilane  shape 22.9%   measured/predicted   2.68x
+#
+# Shape is IDENTICAL under all three: the axes swept here are pressure and
+# concentration, which no pH constant touches. So this reassignment cannot
+# flatter the corpus shape median — it fixes only absolute scale, 98x -> 2.7x,
+# and it is made because the source names the abrasive chemistry, not because a
+# number improved.
+#
+# The two other acidic oxide datasets found alongside this one (ep3161098b1
+# 139x, bouvet2002_oxide 39x) were NOT reassigned: neither source states its
+# abrasive's surface charge, so moving them would be fitting by outcome.
+#
+# ⚠ NOTE THE CIRCULARITY THIS EXPOSES. `calibration_contact` below records that
+# oxide_silica's abrasive_conc_exponent (0.3333) was regressed from THIS file's
+# 3 psi row — so the parent pack's concentration exponent is evidenced by a
+# cationic slurry it is not built for. The exponent is shared unchanged by all
+# three silica packs, so no value moves; but the provenance is now visible
+# rather than implied. See tests/test_acidic_oxide_datasets_pack_assignment.py.
+pack: oxide_silica_aminosilane
 calibration_contact:
   - param: abrasive_conc_exponent
     pack: oxide_silica

@@ -2449,3 +2449,45 @@ unsupported films rather than from pH.
 
 No Kp was refitted. Enforced by
 `tests/test_inherited_kp_is_not_the_problem.py` (5).
+
+## Which acidic oxide datasets belong to which silica pack
+
+The Kp audit left three oxide datasets running at pH 3–4.7 on `oxide_silica`, a
+pack fitted at pH 10–12.5, under-predicting by 39×, 98× and 139×. Reassigning
+them to `oxide_silica_anionic` (ph_peak 2.0) looks tempting:
+
+    dataset                        oxide_silica -> anionic        shape
+    ep3161098b1_teos_pressure        139.24x  ->  20.94x       7.1 -> 7.0%
+    us9499721b2_teos_conc             98.25x  ->  23.75x      22.9 -> 22.9%
+    bouvet2002_oxide_size_sweep       39.21x  ->   3.59x      11.2 -> 11.2%
+
+Every scale error improves 4–11×, and **shape does not move at all**. That is the
+tell: these datasets sweep pressure, concentration and particle size, and no pH
+constant touches those axes. A pack swap buys absolute calibration only, so "it
+fits better" carries no information about which pack is *correct*. Choosing on
+that number would be fitting by outcome.
+
+Only one source states its abrasive's surface charge. `us9499721b2`'s notes say
+the particles are aminosilane-cored **cationic** silica at pH 4.7, against the
+pack default of anionic silica at pH 10.5 — verbatim the system
+`oxide_silica_aminosilane` was built for (ph_peak 4.9, fitted on US9422456B2, the
+sibling Cabot patent). Under that pack the scale error falls to **2.68×** while
+shape stays 22.9%. It was reassigned on the chemistry, not on the ratio.
+
+`ep3161098b1` and `bouvet2002_oxide_silica_size_sweep` were **not** reassigned:
+neither source names its abrasive charge. They stay mis-scaled and visible.
+
+A trap checked along the way: `ep3161098b1` is a *tungsten* patent, but its oxide
+arm is not a mislabel — the patent reports both films and the corpus already
+carries the W arm separately as `ep3161098b1_w_silica_pressure_sweep`.
+
+⚠ The reassignment exposed a circularity. `us9499721b2` carries a
+`calibration_contact` recording that `oxide_silica`'s `abrasive_conc_exponent`
+(0.3333) was regressed from this file's 3 psi row — so the parent pack's
+concentration exponent is evidenced by a cationic slurry it is not built for. All
+three silica packs share that exponent unchanged, so nothing moves numerically;
+the provenance is now stated rather than implied, and a test asserts it stays
+inert.
+
+Corpus median unchanged at 19.5% / 22.6%, as a scale-only change must be.
+Enforced by `tests/test_acidic_oxide_datasets_pack_assignment.py` (7).

@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **803 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **810 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -26,6 +26,15 @@
   _ti 2.7%), and nothing-stated. That separates bouvet2002_w (2.3% vs 1.0% floor,
   finished) from bouvet2002_ti (30.7% vs 2.7%, a real miss) — previously
   indistinguishable. `at_noise_floor` is None, never False, when unmeasured.
+- **One acidic oxide dataset was mis-assigned; two others were NOT.** us9499721b2's
+  own notes say the abrasive is 아미노실란 양전하(cationic) silica at pH 4.7 — the
+  exact system oxide_silica_aminosilane was built for. Reassigned: scale 98.25x ->
+  2.68x, shape 22.9% UNCHANGED. Shape can't move (axes are pressure/conc, no pH
+  constant touches them), which is why "fits better" could not decide this —
+  ep3161098b1 (139x) and bouvet2002_oxide (39x) improve 4-11x too but neither
+  source states abrasive charge, so they were LEFT mis-scaled. ⚠ Exposed a
+  circularity: oxide_silica's abrasive_conc_exponent(0.3333) was regressed from
+  THIS cationic file's 3psi row; all 3 silica packs share it so nothing moved.
 - **Inherited Kp is NOT the problem — hypothesis falsified.** Backed out the scale
   each pack's data implies (11 datasets excluded, each by its own 'absolute values
   incomparable' flag). The 2 packs that INHERIT kp unchanged are among the best
@@ -234,15 +243,15 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-The Kp audit found three oxide datasets running at pH 3-4.7 on a pack fitted at
-pH 10-12.5 (ep3161098b1 139x, us9499721b2 98x, bouvet2002_oxide 39x). They are
-acidic colloidal-silica oxide polishing — the same slurry FAMILY as the anionic
-variant, which already carries a pH 2 peak and scores 0.51x. Check whether these
-three belong to oxide_silica_anionic rather than oxide_silica: re-score each with
-the anionic pack and report shape error and scale ratio both ways. If they fit
-the anionic pack markedly better, the finding is that they are mis-assigned, not
-that the model is wrong — but verify the abrasive charge actually matches before
-moving anything, and do NOT reassign a dataset whose source does not state it.
+Scale error is now a measured, per-pack quantity (0.37x to 38.7x) but it is
+invisible in `cmp-sim accuracy`, which reports shape only — so a user sees 7.1%
+for ep3161098b1 and cannot tell it under-predicts absolute rate by 139x. Add a
+scale column to the accuracy report and the JSON, next to repl%, using the same
+exclusion rule the Kp audit established (11 datasets whose own notes forbid
+absolute comparison must show "-", not a number). REPORTING ONLY: the shape
+median must stay 19.5% and leave-one-out 22.6%, pinned by a test exactly like
+test_replicate_column_is_reporting_only.py. Do not refit anything to improve a
+scale ratio.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp
