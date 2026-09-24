@@ -68,3 +68,73 @@ params:
       cmp_sim/data/validation/datasets/tw202115224a_cu_abrasive_size_pressure.yaml;
       abrasive grouping in docs/predictive-accuracy.md
     confidence: literature
+
+  # ── pH response: the term this pack was missing entirely ───────────────
+  #
+  # WHY THIS EXISTS. The inherited pack declares no pH response at all: no
+  # ph_peak, no width, no floor. Its only pH-adjacent entry is ph_ref 4.0,
+  # inherited from the ACIDIC parent, which is meaningless for a slurry run
+  # between pH 8.5 and 11.1. A pH sweep therefore moved nothing — five rows of
+  # us9200180b2_cu_ph_alkaline_sweep spanning a measured 3.4x fall in rate all
+  # predicted the same number, and the dataset scored 51.0%, losing to
+  # predicting its own average.
+  #
+  # The missing term did not merely leave that dataset unexplained; it pushed
+  # its work onto the oxidiser term. The inherited pack sets
+  # oxidizer_peak_wt_pct 1.0 with the stated reason that it places the whole
+  # observed window on the FALLING side of the Kaufman peak — a shape chosen so
+  # that rate decreases with oxidiser. In us9200180b2_cu_h2o2_series the pH
+  # DRIFTS 10.2 -> 8.5 as acidic H2O2 is added, so part of what that pack calls
+  # an oxidiser effect is a pH effect wearing the oxidiser's label.
+  #
+  # THE NUMBERS. Fitted to the five printed rows of US9200180B2's own pH series
+  # (pH 6.2/7.1/8.7/9.4/9.9 -> 732/577/334/263/214 A/min, H2O2 and abrasive
+  # fixed), the free optimum sits at ph_peak 3.3 (0.55% shape error). That is
+  # BELOW the lowest measured pH and therefore an extrapolation, so it is
+  # refused on the same ground as cu_h2o2_bta's bound: the peak is pinned to
+  # the lowest pH actually measured, 6.2, which costs almost nothing (3.65%).
+  #
+  # ⚠ SELF-SCORING DISCLOSURE. us9200180b2_cu_ph_alkaline_sweep carries
+  # used_for_calibration: true and these three constants are fitted to it, so
+  # its own score is not independent evidence. The honest check is that the
+  # HELD-OUT datasets on this pack do not regress.
+  ph_peak:
+    value: 6.2
+    unit: pH
+    note: >
+      An UPPER BOUND on the optimum, not a fitted optimum. The measured series
+      falls monotonically across its whole range (732 -> 214 A/min from pH 6.2
+      to 9.9), so the data locate the peak only as "at or below 6.2". Free
+      fitting prefers 3.3, outside the measured range; extrapolating a peak to
+      a pH nobody polished at is refused, and the bound is used instead.
+
+      Mechanism, from the patent's own account: benzenesulfonic acid complexes
+      copper most effectively where it is protonated, and the alkaline arm
+      loses that channel as the surface passivates, leaving the mechanical
+      floor below.
+    source: >
+      US9200180B2, Examples 8-12 (pH series at fixed 1 wt% H2O2, 3 wt%
+      colloidal silica); dataset
+      cmp_sim/data/validation/datasets/us9200180b2_cu_ph_alkaline_sweep.yaml
+    confidence: med
+
+  ph_response_width:
+    value: 2.3
+    unit: pH
+    note: >
+      Fitted jointly with the floor at ph_peak 6.2 over the same five rows;
+      shape error 3.65%. Narrower than the acidic parent's 4.15 because the
+      measured fall is steep: the rate more than halves over three pH units.
+    source: same five rows as ph_peak (US9200180B2 Examples 8-12)
+    confidence: med
+
+  ph_mechanical_floor:
+    value: 0.25
+    unit: fraction of peak rate
+    note: >
+      Copper still removes at pH 9.9 (214 A/min against 732 at pH 6.2), so a
+      floor is required and is not a fitting convenience. It is higher than the
+      acidic pack's 0.12 because this slurry keeps a benzenesulfonate-assisted
+      channel open in the alkaline region.
+    source: same five rows as ph_peak (US9200180B2 Examples 8-12)
+    confidence: med

@@ -1,8 +1,8 @@
 # CMP-Sim
 
-[![tests](https://img.shields.io/badge/tests-680%20passing-brightgreen)](#)
+[![tests](https://img.shields.io/badge/tests-688%20passing-brightgreen)](#)
 [![validation](https://img.shields.io/badge/literature%20gate-4%20datasets%20within%20%C2%B115%25-brightgreen)](#validation)
-[![accuracy](https://img.shields.io/badge/prediction-20.2%25%20median%2C%20394%20points-blue)](#2-how-accurate-is-it-on-every-axis-cmp-sim-accuracy)
+[![accuracy](https://img.shields.io/badge/prediction-19.5%25%20median%2C%20394%20points-blue)](#2-how-accurate-is-it-on-every-axis-cmp-sim-accuracy)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 A physics-based simulator for **Chemical Mechanical Planarization**. Given a
@@ -235,11 +235,11 @@ points on whichever axis each dataset varies:
 | oxidizer | 11 | 20.2% |
 | abrasive loading | 9 | 22.9% |
 | pressure | 14 | 25.3% |
-| pH | 13 | 32.1% |
+| pH | 13 | 31.5% |
 | velocity | 6 | 44.1% |
 
-**Overall: median 20.2% shape error, 22.6% leave-one-out**, over 43 of 49
-datasets and 394 measured points. 31 of 43 beat "predict this dataset's
+**Overall: median 19.5% shape error, 21.7% leave-one-out**, over 43 of 49
+datasets and 394 measured points. 33 of 43 beat "predict this dataset's
 average" — the baseline that says whether the physics contributed anything.
 
 Three numbers, and they mean different things:

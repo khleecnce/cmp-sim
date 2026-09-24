@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **680 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **688 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -17,6 +17,17 @@
 - **Abrasive TYPE reaches the rate** (`slurry/abrasive_effects.py`): a swap
   rescales only by a published matched-condition ratio, withdraws the pack's
   measured exponents, says `ranking_only` when unanchored.
+- **A missing pH term hid inside the OXIDIZER term.**
+  `cu_alkaline_benzenesulfonic` declared no pH response at all (only a
+  meaningless inherited `ph_ref: 4.0` from the acidic parent), so a measured
+  3.4x pH fall predicted one constant = predict-the-mean, 51.0%. Worse, the
+  pack's `oxidizer_peak_wt_pct: 1.0` was justified as "rate falls with
+  oxidiser" — but that dataset's pH DRIFTS 10.2→8.5 as acidic H2O2 is added,
+  while a KOH-BUFFERED one (us20110165777a1, pH 11.1) measures it FLAT and the
+  patent says so explicitly. Added the pH term, peak bounded to the lowest
+  measured pH 6.2 (free fit prefers 3.3, outside the data). HELD-OUT evidence:
+  h2o2_series 51.7%→12.7%, benzenesulfonic 29.6%→26.8%, both now beat the
+  mean. Corpus 20.2%→19.5% trend, 22.6%→21.7% LOO.
 - **The velocity exponent is UNRESOLVABLE by this corpus — not fitted.**
   Isolated groups give -0.42 / +0.62 / +0.86 / +0.86 / +1.10 where Preston says
   1.0, and the two datasets need OPPOSITE pressure dependences (mariscal falls
@@ -84,14 +95,16 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-12 of 43 datasets still lose to predicting their own mean, and that list — not
-the median — is where the model is actually absent. Four are Cu composition
-studies (jani2025 x2, hong2007, kenchappa2021, bouvet2002, carbide2023_L9).
-Take the single worst loser, establish WHY the physics contributes nothing on
-it (missing term vs mis-scoped pack vs an axis the dataset varies that the
-model ignores), and fix or declare it — same discipline as this session: a
-structural cause, a test that pins it, a derivations entry. Do not tune a
-constant to move the median.
+The pH-hiding-in-oxidizer fix raises a question it did not answer: does any
+OTHER pack carry a term whose justification is really a different variable?
+The check is mechanical and worth doing once — for every pack, list the params
+it declares against the axes its datasets actually vary, and flag any pack that
+(a) declares no response for an axis its own datasets sweep, or (b) justifies a
+shape constant by a trend that co-varies with an undeclared axis. `w_fe_oxidizer`
+is the first suspect: it already has one key-name bug in its history, and its
+datasets vary pH and oxidizer together. Report the audit as a test that fails
+when a pack is blind to an axis its evidence sweeps. Do not fix packs blindly —
+diagnose each hit the way cu_alkaline_benzenesulfonic was diagnosed.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp
@@ -137,9 +150,9 @@ constant to move the median.
 
 Gate: 4 in-scope datasets within ±15% (need 3) → **PASS**
 
-All axes (394 pts, 43/49 scored + 2 DECLINED): median **20.2%** trend,
-**22.6%** LOO. By axis — size 11.2%, oxidizer 20.2%, loading 22.9%,
-pressure 25.3%, pH 32.1%, velocity 44.1%. ⚠ Caveats, all against us: the axis
+All axes (394 pts, 43/49 scored + 2 DECLINED): median **19.5%** trend,
+**21.7%** LOO. By axis — size 11.2%, oxidizer 20.2%, loading 22.9%,
+pressure 25.3%, pH 31.5%, velocity 44.1%. 33/43 beat predict-the-mean. ⚠ Caveats, all against us: the axis
 medians pool datasets that vary several things at once — velocity's 44.1% is
 11.7% once isolated (thin axis, 29 pts), while pH's holds up under isolation
 (12 groups / 66 pts, ~30%) so it IS the weakest term. 2 Cu datasets are

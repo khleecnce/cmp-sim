@@ -1658,3 +1658,53 @@ radius, by confocal or AFM) alongside a rate-versus-speed sweep, so the
 discriminating variable cannot be computed from what we have. That is the
 BLOCKED-1 requirement, and `tests/test_contact_metrics_do_not_separate_the_inversion.py`
 fails if a pressure-like gate is ever reintroduced under a contact alias.
+
+## A missing pH term does not stay missing — it hides inside another term
+
+`cu_alkaline_benzenesulfonic` declared **no pH response at all**: no peak, no
+width, no floor. Its only pH-adjacent entry was `ph_ref: 4.0`, inherited from
+the acidic parent and meaningless for a slurry run between pH 8.5 and 11.1.
+
+### The visible symptom
+US 9,200,180 B2's pH series measures a 3.4× fall — 732 → 214 Å/min from pH 6.2
+to 9.9, with H₂O₂ and abrasive fixed. The model returned the *same number* for
+all five rows and scored 51.0%, exactly its predict-the-mean baseline. A
+constant is what predicting the mean *is*.
+
+### The invisible symptom, which mattered more
+The inherited pack sets `oxidizer_peak_wt_pct: 1.0`, justified in its own note
+as placing the whole observed window on the *falling* side of the Kaufman peak
+— a shape chosen so that rate decreases with oxidiser. Two datasets on this
+pack test that claim, and they disagree:
+
+| dataset | pH | H₂O₂ response |
+|---|---|---|
+| US 9,200,180 B2 | **drifts** 10.2 → 8.5 as acidic H₂O₂ is added | falls 208 → 77 Å/min |
+| US 2011/0165777 A1 | **buffered** at 11.1 by KOH | flat, 160 → 157 Å/min |
+
+The second patent states it outright: *"H₂O₂ 1–7% has little effect on copper
+removal rate."* Same pack, opposite behaviour, and the variable that differs is
+whether pH was held. **Part of what the pack called an oxidiser effect was a pH
+effect wearing the oxidiser's label.**
+
+### The fix and its evidence
+The pH term was fitted to the pH series, with the peak pinned to the lowest pH
+actually measured (6.2) rather than the free optimum (3.3), which lies outside
+the data — the same bound discipline applied to `cu_h2o2_bta`. Cost of the
+bound: 0.55% → 3.65% on the fitted series.
+
+| dataset | before | after | |
+|---|---:|---:|---|
+| `us9200180b2_cu_ph_alkaline_sweep` | 51.0% | **3.7%** | fitted — *not* evidence |
+| `us9200180b2_cu_h2o2_series` | 51.7% | **12.7%** | held out |
+| `us9200180b2_cu_benzenesulfonic_series` | 29.6% | **26.8%** | held out |
+
+The held-out improvements are the evidence; the fitted dataset's score is
+disclosed as self-scoring and excluded from it. Both held-out sets also stopped
+losing to predicting their own mean. Corpus median 20.2% → **19.5%**, LOO 22.6%
+→ **21.7%**.
+
+The buffered dataset (`us20110165777a1`) still scores 33.8% and still loses to
+its mean — correctly. Its measured spread is 4%, which the patent attributes to
+measurement scatter, so there is no trend to get right; that is now the honest
+residual rather than a term absorbing someone else's physics.
