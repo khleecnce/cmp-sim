@@ -46,6 +46,21 @@ BOUNDED_PEAK_PACKS = {
     "cu_h2o2_bta": "us20080090500a1_cu_ph_silica_cross",
 }
 
+#: every pack with an ACTIVE pH term -> the experiment its pH constants were
+#: fitted to. The range is that experiment's span, NEVER the union of every
+#: dataset that happens to use the pack: nine datasets reference oxide_silica
+#: across pH 1.75-12.5, but eight of them hold pH fixed and constrain nothing.
+PH_ACTIVE_PACKS = dict(BOUNDED_PEAK_PACKS, **{
+    "oxide_silica": "li2021_oxide_silica_ph",
+    # a pad variant of oxide_silica: it changes the CONTACT parameters only and
+    # inherits the pH constants and their range unchanged, so the experiment
+    # behind its pH term is still li2021
+    "oxide_silica_calibrated_pad": "li2021_oxide_silica_ph",
+    "oxide_silica_aminosilane": "us9422456b2_teos_silica_ph_pressure",
+    "sti_ceria": "dandu2009_sio2_ceria_ph_sweep",
+    "sic_ceria_h2o2": "sic2026_ceria_h2o2_ph_DOE50",
+})
+
 
 def _value(pack, key):
     param = pack.param(key)
@@ -148,3 +163,87 @@ def test_the_existing_width_warning_did_not_already_cover_this():
     assert not [w for w in warnings if "widths from the" in w], (
         "the 2.5-widths warning now fires here too; if the pack's width "
         "changed, re-check whether ph_valid_range is still adding anything")
+
+
+# ---------------------------------------------------------------------------
+# EVERY pH-active pack states a range, and states it from its own experiment
+# ---------------------------------------------------------------------------
+
+def _ph_active_pack_names():
+    """Packs whose pH term actually does something (peak AND width present)."""
+    from pathlib import Path
+
+    import cmp_sim
+
+    names = []
+    for path in sorted((Path(cmp_sim.__file__).parent / "data" / "params")
+                       .glob("*.yaml")):
+        try:
+            pack = load_pack(path.stem)
+        except Exception:
+            continue
+        try:
+            if (_value(pack, "ph_peak") is not None
+                    and _value(pack, "ph_response_width") is not None):
+                names.append(path.stem)
+        except Exception:
+            continue
+    return names
+
+
+def test_every_ph_active_pack_declares_a_validity_range():
+    """A new pack cannot ship a pH term with no stated range."""
+    missing = [name for name in _ph_active_pack_names()
+               if _value(load_pack(name), "ph_valid_range") is None]
+    assert not missing, (
+        f"{missing} declare an active pH term with no ph_valid_range. State the "
+        "span of the experiment the constants were fitted to — not the union of "
+        "every dataset that uses the pack, which claims support no single "
+        "measurement gives.")
+
+
+def test_the_registry_covers_every_ph_active_pack():
+    """If a new pH-active pack appears, it must be added here deliberately."""
+    unregistered = set(_ph_active_pack_names()) - set(PH_ACTIVE_PACKS)
+    assert not unregistered, (
+        f"{sorted(unregistered)} have an active pH term but no entry naming the "
+        "experiment behind it")
+
+
+def test_each_range_is_its_fitting_experiments_span_not_the_union():
+    """The distinguishing test: oxide_silica must NOT claim pH 1.75-12.5."""
+    for pack_name, stem in PH_ACTIVE_PACKS.items():
+        low, high = _value(load_pack(pack_name), "ph_valid_range")
+        fit_low, fit_high = _measured_ph_span(stem)
+        assert abs(low - fit_low) < 0.51 and abs(high - fit_high) < 0.51, (
+            f"{pack_name} declares {low}-{high} but its fitting experiment "
+            f"({stem}) spans {fit_low}-{fit_high}")
+
+
+def test_oxide_silica_does_not_claim_the_union_of_its_nine_datasets():
+    """Named explicitly because it is the pack where the temptation is largest."""
+    low, high = _value(load_pack("oxide_silica"), "ph_valid_range")
+    assert (low, high) == (10.0, 12.5), (low, high)
+
+    # the union really is much wider — that is the point
+    union = []
+    for path in dataset_paths():
+        doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        if doc.get("pack") != "oxide_silica":
+            continue
+        union += [row["overrides"]["slurry_ph"] for row in doc["conditions"]
+                  if (row.get("overrides") or {}).get("slurry_ph") is not None]
+    assert min(union) < 2.0 and max(union) >= 12.5, (min(union), max(union))
+    assert low > min(union) + 5.0, (
+        "the declared range has collapsed towards the union; it must stay the "
+        "calibration sweep's span")
+
+
+def test_datasets_outside_their_packs_range_are_warned_not_silently_scored():
+    """The stated consequence: fixed-pH datasets far from the fitted sweep."""
+    _result, warnings = _warnings_at("bouvet2002_oxide_silica_size_sweep", 3.0)
+    hits = [w for w in warnings if "OUTSIDE the range" in w]
+    assert hits, (
+        "bouvet2002 runs at pH 3 on a pack whose pH constants were fitted over "
+        "10-12.5; that must be visible")
+    assert "below it" in hits[0]

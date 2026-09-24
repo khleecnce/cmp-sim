@@ -1852,3 +1852,56 @@ An aside worth keeping: the first version of the test for this asserted the new
 peak differs from `oxide_silica`'s. It failed, because `oxide_silica` sits at 11.0
 and SiC's fit landed at 10.5. The inherited value to guard against is the *direct
 parent's* 4.5, not the grandparent's — the test was asserting the wrong lineage.
+
+## A validity range is the fitting experiment's span, never the union
+
+Extending `ph_valid_range` from the three bounded-peak packs to *every* pH-active
+pack raised a question the first three did not have: a pack used by **several**
+datasets has several pH spans. Which one is the range?
+
+Not the union. Nine datasets reference `oxide_silica` and their pH values span
+**1.75 to 12.5**, but eight of them hold pH *fixed* at a single value and
+therefore constrain nothing whatever about the pH response — they simply inherit
+it. Only `li2021` sweeps pH (10.0 / 11.0 / 12.5), and it is the calibration set
+`ph_response_width` was fitted to.
+
+Declaring the union would claim support no experiment gives: no single
+measurement here brackets pH 1.75–12.5, and a pack asserting validity across
+eleven pH units on the strength of nine unrelated fixed-pH runs is precisely the
+overreach this field exists to prevent.
+
+So the rule is: **the range is the span of the experiment the constants were
+fitted to.**
+
+| pack | fitting experiment | range | peak |
+|---|---|---|---|
+| `oxide_silica` | li2021 | 10.0–12.5 | 11.0 (interior) |
+| `oxide_silica_aminosilane` | US 9,422,456 B2 T3 | 2.5–11.0 | 4.9 (interior, measured) |
+| `sti_ceria` | dandu2009 | 2.0–10.0 | 4.5 (interior) |
+| `sic_ceria_h2o2` | DOE50 | 9.0–11.0 | 10.5 (interior) |
+| `oxide_silica_anionic` | CN 109609035 B | 2.0–6.0 | 2.0 (**bound**) |
+| `cu_h2o2_bta` | US 2008/0090500 A1 T4 | 3.0–6.0 | 3.0 (**bound**) |
+| `cu_alkaline_benzenesulfonic` | US 9,200,180 B2 | 6.2–9.9 | 6.2 (**bound**) |
+
+The aminosilane pack gets the widest honest range of any pack here — 2.5 to 11.0
+— because one experiment really does bracket it.
+
+### The consequence, stated rather than hidden
+Several datasets now sit outside their own pack's declared range and are warned
+about: bouvet2002 (pH 3), us8142675b2 (1.75), ep3161098b1 (4), us9499721b2 (4.7),
+carbide2023 (8–11), mo2026 (4–11), yang2023 (to 10.5, half a unit above
+dandu2009's span). Those warnings are correct — their rates are predicted with a
+pH term fitted only in the alkaline decade. This is information the engine was
+previously withholding, not a new defect, and no rate changed: the corpus median
+is unmoved at 19.5%.
+
+`netzband2020` deliberately does **not** widen `sti_ceria`'s range even though it
+sweeps pH 4–10, because it is one of the three residuals shown earlier not to
+share a common second pH channel. An unexplained dataset is not evidence of
+validity.
+
+### What the new test caught
+Requiring a range from *every* pH-active pack immediately found one I had missed:
+`oxide_silica_calibrated_pad`, a pad variant that changes contact parameters only
+and inherits li2021's pH constants and range unchanged. Registered as such — the
+audit works because it enumerates rather than trusting a hand-written list.

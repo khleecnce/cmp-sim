@@ -599,3 +599,32 @@ params:
       ⚠ Diagnostic only — no nitride film model exists in the engine.
     source: "doi:10.3390/surfaces1010006 (Gan 2018) Table 2; mechanism doi:10.1149/2.0071511jss (Srinivasan 2015)"
     confidence: literature
+
+  # ── the pH range these constants were measured over ────────────────────
+  #
+  # THE RANGE IS THE FITTING EXPERIMENT'S SPAN, NOT THE UNION OF EVERY DATASET
+  # THAT USES THIS PACK. Nine datasets reference oxide_silica and their pH
+  # values span 1.75 to 12.5, but most of them hold pH FIXED at a single value
+  # and constrain nothing about the pH response — they simply inherit it. Only
+  # li2021 sweeps pH (10.0 / 11.0 / 12.5) and it is the calibration set from
+  # which ph_response_width was fitted.
+  #
+  # Declaring the union would claim support the experiments do not give: no
+  # single measurement here brackets pH 1.75 to 12.5, and a pack that says it is
+  # valid over 11 pH units on the strength of nine unrelated fixed-pH runs is
+  # exactly the overreach ph_valid_range exists to prevent.
+  #
+  # ⚠ CONSEQUENCE, STATED PLAINLY. Several datasets this pack serves sit OUTSIDE
+  # the declared range and will now be warned about — bouvet2002 (pH 3),
+  # us8142675b2 (1.75), ep3161098b1 (4), us9499721b2 (4.7), carbide2023 (8-11),
+  # mo2026 (4-11). Those warnings are correct: their rates are predicted with a
+  # pH term fitted only in the alkaline decade. This is information the engine
+  # was previously withholding, not a new defect.
+  ph_valid_range:
+    value: [10.0, 12.5]
+    unit: pH
+    note: >
+      Span of li2021, the only pH sweep behind this pack's pH constants and its
+      calibration set. ph_peak (11.0) is interior to it.
+    source: "li2021_oxide_silica_ph.yaml (pH 10.0 / 11.0 / 12.5)"
+    confidence: high

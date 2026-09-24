@@ -141,3 +141,16 @@ params:
       whether a series-resistance form is wanted before P9.
     source: "US9422456B2 Table 3, ratio of the 4 psi and 2 psi columns"
     confidence: unverified
+
+  # ── the pH range these constants were measured over ────────────────────
+  ph_valid_range:
+    value: [2.5, 11.0]
+    unit: pH
+    note: >
+      Span of US 9,422,456 B2 TABLE 3, the single experiment behind this pack's
+      pH constants — eleven pH levels from 2.5 to 11.0. The widest honestly
+      declarable range of any pack here, because one experiment really does
+      bracket it. ph_peak (4.9) is interior, and is a MEASURED maximum rather
+      than a fit.
+    source: "us9422456b2_teos_silica_ph_pressure.yaml (11 pH levels)"
+    confidence: high

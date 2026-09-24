@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **707 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **712 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -17,6 +17,13 @@
 - **Abrasive TYPE reaches the rate** (`slurry/abrasive_effects.py`): a swap
   rescales only by a published matched-condition ratio, withdraws the pack's
   measured exponents, says `ranking_only` when unanchored.
+- **A validity range is the FITTING EXPERIMENT's span, never the union.** All 7
+  pH-active packs now declare `ph_valid_range` (+ oxide_silica_calibrated_pad,
+  which the enumerating test caught). oxide_silica is served by 9 datasets
+  spanning pH 1.75-12.5 but 8 hold pH fixed and constrain nothing, so its range
+  is li2021's 10-12.5 — the union would claim support no experiment gives.
+  Consequence stated, not hidden: bouvet2002/us8142675b2/ep3161098b1/us9499721b2/
+  carbide2023/mo2026/yang2023 now warn as out-of-range. No rate changed.
 - **An inert constant that looks active is worse than no constant.**
   `sic_ceria_h2o2` had `ph_response_width: null` (to block the inherited acid
   ceria optimum) but still declared the inherited `ph_peak: 4.5` — a constant
@@ -120,19 +127,18 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-Finish the validity-range sweep: `oxide_silica`, `oxide_silica_aminosilane` and
-`sti_ceria` still declare pH constants with no `ph_valid_range`. Their source
-spans are known (oxide_silica: li2021 pH 10-12.5 is the calibration set, but
-carbide2023 8-11 and mo2026 4-11 also use the pack; aminosilane: us9422456b2
-pH 2.5-11; sti_ceria: dandu2009 pH 2-10, netzband2020 4-10, yang2023 9-10.5).
-Note the complication this raises, which the 3 bound packs did not have: a pack
-used by SEVERAL datasets has several spans, so decide whether the range is the
-calibration set's span or the union, and justify it — the union is wider than
-anything a single experiment supports. Then extend
-tests/test_ph_validity_range_is_declared.py to require a range from EVERY
-pH-active pack, so a new pack cannot ship a pH term with no stated range.
-Check whether the engine's INERT warning has other silent victims: grep for
-packs declaring a peak with a null width on ANY axis, not just pH.
+The out-of-range warnings the last commit switched on are now firing on 7
+datasets that the corpus still SCORES normally — a warning is not a gate, and
+the median is unchanged because nothing declines. Decide deliberately whether
+that is right: score_dataset already has the gated/declined machinery built for
+`oxidizer_ph_window`, so the choice is (a) leave pH out-of-range as a warning
+only, or (b) decline those datasets as unsupported. Measure it before choosing —
+compute each of the 7 datasets' error and check whether out-of-range prediction
+is actually WORSE than in-range prediction. If it is not measurably worse, a
+gate would throw away working predictions and the warning is the correct level;
+if it is worse, the gate is justified and the median should be reported over the
+supported subset. Either way the answer belongs in a test, since this is the
+same declined-vs-broken distinction the oxidizer gate had to get right.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp
