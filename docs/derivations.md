@@ -2065,3 +2065,60 @@ pressure co-vary across these datasets, so neither can be isolated.
 
 **What would resolve it:** one H₂O₂ sweep repeated at three or more down forces
 with everything else fixed.
+
+## Two ceria datasets demand opposite pH terms — and the pack keeps the right one
+
+`netzband2020_thermal_oxide_ceria_ph` was the last large undiagnosed miss: 49.2%,
+inside `sti_ceria`'s declared range, already known not to share a second pH
+channel with the other ceria residuals.
+
+### Two easier explanations, ruled out first
+**Not a scale offset.** The experiment is a 2.25 cm² coupon on a benchtop Allied
+MultiPrep, not a 300 mm wafer, so the engine's kinematics put the absolute rate
+about 8× out. But the reported 49.2% is *already* scale-free: the best common
+scale k = 0.128 leaves exactly 49.2%. The metric divides the tool mismatch out.
+
+**Not an out-of-range extrapolation.** All four points (pH 4/6/8/10) sit inside
+the declared 2.0–10.0.
+
+### What it is: a valley, which a unimodal term cannot make
+| pH | 4 | 6 | 8 | 10 |
+|---|---:|---:|---:|---:|
+| measured | 198 | 113 | 200 | 213 |
+| normalised | 0.93 | **0.53** | 0.94 | 1.00 |
+| model | 2032 | 792 | 362 | 362 |
+| normalised | 1.00 | 0.39 | 0.18 | 0.18 |
+
+High at pH 4, dipping at pH 6, recovering at pH 8–10. Netzband attributes this to
+**two** isoelectric points — the oxide's (pH 2–3) and ceria's (~8) — with pH 6
+optimal for neither. `ph_response` is unimodal: between its ends it can
+rise-then-fall but never fall-then-rise. No parameter choice produces a valley,
+so the failure is structural rather than numerical.
+
+### Why the constants are nevertheless kept
+Searching the full (peak, width, floor, acid_floor) grid for netzband *alone*
+finds a much better fit — **15.0%** against 49.2% — at peak 8.50, width 0.75,
+floor 0.95, acid_floor 0.70. It works by making the pH response nearly **flat**,
+which suits a dataset whose rates span only 1.9×.
+
+That fit is catastrophic for the experiment the constants were actually fitted to.
+`dandu2009` sweeps nine pH points on the same pack and swings **81×** (43 → 3504
+Å/min):
+
+| constants | dandu2009 error |
+|---|---:|
+| current (4.5 / 1.2 / 0.15 / 0.012) | **31.5%** |
+| netzband's preferred flat fit (8.5 / 0.75 / 0.95 / 0.70) | **492.6%** |
+
+The two datasets do not disagree about a detail — they demand opposite functional
+forms. One needs a sharp 81× peak, the other a flat response with a notch. A
+single unimodal term serves the first, and the pack correctly keeps it.
+
+**What would resolve it:** a second pH channel keyed to the abrasive's isoelectric
+point. A *universal* second channel was already tested and falsified (the three
+residuals have three different shapes), and one benchtop dataset is not grounds
+for inventing a per-pack one.
+
+This is the third structural limit this session has named rather than absorbed
+into constants, alongside the unresolvable velocity exponent and the
+pressure-coupled oxidiser sign.

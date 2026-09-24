@@ -565,3 +565,59 @@ params:
       ph_peak (4.5) is interior.
     source: "dandu2009_sio2_ceria_ph_sweep.yaml (9 measured points, pH 2-10)"
     confidence: high
+
+  # ── why ph_peak is NOT refitted to netzband2020 ─────────────────────────
+  #
+  # netzband2020_thermal_oxide_ceria_ph misses by 49.2% and the cause is
+  # structural, not a bad constant. Its measurement has a VALLEY:
+  #
+  #     pH         4     6     8    10
+  #     measured  198   113   200   213     (normalised 0.93/0.53/0.94/1.00)
+  #     model    2032   792   362   362     (normalised 1.00/0.39/0.18/0.18)
+  #
+  # High at pH 4, dipping at pH 6, recovering at pH 8-10. Netzband attributes
+  # this to TWO isoelectric points — the oxide's (pH 2-3) and ceria's (~8) —
+  # with pH 6 optimal for neither. `ph_response` is unimodal, so between its ends
+  # it can rise-then-fall but never fall-then-rise: no parameter choice produces
+  # a valley.
+  #
+  # TWO EASIER EXPLANATIONS WERE RULED OUT FIRST.
+  #   1. Not a scale offset from the benchtop tool. The experiment is a 2.25 cm2
+  #      coupon on an Allied MultiPrep, so our 300 mm kinematics put the absolute
+  #      rate 8x out — but the reported 49.2% is ALREADY scale-free (best common
+  #      scale k = 0.128 leaves exactly 49.2%). The metric divides it out.
+  #   2. Not an out-of-range extrapolation: all four points are inside the
+  #      declared ph_valid_range of 2.0-10.0.
+  #
+  # AND THE CURRENT CONSTANTS ARE THE CORRECT COMPROMISE. Searching the full
+  # (peak, width, floor, acid_floor) grid for netzband alone finds 15.0% against
+  # 49.2%, at peak 8.50 / width 0.75 / floor 0.95 / acid_floor 0.70 — i.e. by
+  # making the pH response nearly FLAT, which suits a dataset spanning only 1.9x.
+  #
+  # That fit destroys dandu2009, the nine-point sweep these constants were
+  # actually fitted to, which swings 81x (43 to 3504 A/min):
+  #
+  #     current (4.5 / 1.2 / 0.15 / 0.012)   dandu2009 err  31.5%
+  #     netzband's flat fit (8.5/.75/.95/.7) dandu2009 err 492.6%
+  #
+  # The two datasets do not disagree about a detail; they demand opposite
+  # functional forms. One unimodal term serves the 81x sweep, and that is kept.
+  #
+  # WHAT WOULD RESOLVE IT: a second pH channel keyed to the abrasive's
+  # isoelectric point. Note a UNIVERSAL second channel was already tested and
+  # falsified (the three ceria/silica residuals have three different shapes), and
+  # one benchtop dataset is not grounds for inventing a per-pack one.
+  # Recorded in tests/test_two_ceria_datasets_demand_opposite_ph_terms.py.
+  ph_response_is_unimodal_but_this_system_is_not:
+    value: true
+    unit: boolean
+    note: >
+      Diagnosis marker, not a physical parameter. Prevents a later session from
+      "fixing" netzband2020 by flattening or moving ph_peak, which would cost
+      dandu2009 a factor of 15 in error. The deficiency is the functional form,
+      and it is named rather than absorbed into the constants.
+    source: >
+      netzband2020_thermal_oxide_ceria_ph.yaml (pH 4/6/8/10 valley);
+      dandu2009_sio2_ceria_ph_sweep.yaml (9 points, 81x swing);
+      Netzband & Dunn, ECS J. Solid State Sci. Technol. 9, 044001 (2020)
+    confidence: literature

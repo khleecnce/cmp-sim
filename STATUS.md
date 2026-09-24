@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **730 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **737 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -17,6 +17,14 @@
 - **Abrasive TYPE reaches the rate** (`slurry/abrasive_effects.py`): a swap
   rescales only by a published matched-condition ratio, withdraws the pack's
   measured exponents, says `ranking_only` when unanchored.
+- **Two ceria datasets demand OPPOSITE pH terms; the pack keeps the right one.**
+  netzband2020 (49.2%) has a VALLEY — 198/113/200/213 over pH 4/6/8/10, two IEPs
+  (oxide 2-3, ceria ~8) with pH 6 optimal for neither — and `ph_response` is
+  unimodal, so no constant produces it. Ruled out first: NOT a scale offset (the
+  benchtop 2.25 cm2 coupon puts absolute rate 8x out, but 49.2% is already
+  scale-free, k=0.128) and NOT out-of-range. A netzband-only refit reaches 15.0%
+  by going nearly FLAT — and costs dandu2009 (81x swing, the set the constants
+  were fitted to) 31.5% -> 492.6%. Left alone, deliberately.
 - **The oxidizer term's SIGN flips with PRESSURE, inside one experiment.**
   Diagnosed the worst remaining miss (jani2025 RSM heldout, 51.2%): oxidizer
   correlates +0.76 with measurement but +0.04 with prediction — the term is blind,
@@ -154,16 +162,17 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-netzband2020_thermal_oxide_ceria_ph is now the only large miss left undiagnosed
-(49.2% vs flat 33.6%). It is known NOT to share a second pH channel with the
-other two ceria residuals, and it sits inside sti_ceria's declared pH range, so
-neither of this session's pH findings explains it. Diagnose it the same way
-jani2025 was: correlate each swept axis against measurement AND against
-prediction to find which term is blind, check whether the miss is a scale offset
-or a shape error, and only then ask whether the corpus can constrain the term at
-all. Note it was 4.5x UNDER-predicted earlier in the session, so start by
-checking whether the error is one-sided across all rows (a Kp/ceria-loading
-problem) or changes sign with pH (a shape problem).
+Every large miss is now diagnosed, and three of them were closed by naming a
+STRUCTURAL limit instead of refitting: the unresolvable velocity exponent, the
+pressure-coupled oxidizer sign, and ceria's non-unimodal pH response. Each is
+recorded only in its own test and pack comment, so a reader has no single place
+that says what the model CANNOT do. Write that page: docs/limits.md, one entry
+per named limit, each with the measurement that establishes it, the refit that
+was rejected and its cost, and the experiment that would resolve it. Add it to
+tests/test_derivations_doc.py-style coverage so a future structural limit cannot
+be added without appearing there. Then re-check the README's validation table
+against it: the table currently reports medians without saying which axes are
+known-unfittable, which overstates what the numbers mean.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp
