@@ -1,0 +1,994 @@
+# abrasive_ceria.yaml — CERIA (CeO2) abrasive, quantitative CMP literature dataset
+#
+# Purpose: per-film removal-rate anchors, concentration/size exponents, pH response and
+# physical properties for CERIA ONLY. Cross-abrasive transfer of exponents is invalid, so
+# nothing in this file is inherited from silica/alumina packs.
+#
+# HARD RULES honoured here:
+#   * every number carries value + unit + source + confidence
+#   * confidence vocabulary: literature | vendor | derived | unverified
+#   * unknown -> value: null + note: "TODO(owner): ..."
+#   * read_method: printed  = number is printed in the paper/patent text or table
+#                  digitized = number recovered from PDF *vector* coordinates (not eyeballed)
+#
+# UNIT NORMALISATION (important — sources mix three systems)
+#   Å/min ÷ 10 = nm/min ;  nm/h ÷ 60 = nm/min
+#   velocity: v[m/s] = 2*pi*r_cc*rpm/60 with r_cc = 0.180 m (CMP-Sim base.yaml center_offset_m).
+#   Papers that give only rpm have velocity marked derived_from_rpm: true — it is a
+#   kinematic reconstruction at the nominal wafer-centre radius, NOT a measured sliding speed.
+#   1 psi = 6.89476 kPa.
+
+ceria:
+
+  # ==================================================================== 1. PROPERTIES
+  properties:
+    formula: CeO2
+    crystal_structure:
+      value: fluorite (cubic, Fm-3m)
+      confidence: literature
+      source: "Hwang et al. 2026, Polymers 18, 1899, doi:10.3390/polym18151899 (XRD, CC-BY)"
+
+    density_kg_m3:
+      value: 7220.0
+      unit: kg/m^3
+      confidence: literature
+      source: "CRC Handbook of Chemistry and Physics, cerium(IV) oxide (7.22 g/cm^3)"
+      note: "Bulk crystal density; used for wt% -> volume-fraction conversion in coverage models."
+
+    hardness_gpa:
+      value: 6.44
+      uncertainty_gpa: 0.72
+      unit: GPa
+      method: nanoindentation, room temperature
+      confidence: literature
+      source: "Materials 2026, doi:10.3390/ma19102134 (PMC13208460), Table 1, RT row"
+      note: >
+        MEASURED ON BULK SINTERED CeO2 PELLETS made as nuclear-fuel surrogate, NOT on CMP
+        slurry nanoparticles. Same crystal phase, so order-of-magnitude transfer only;
+        nanoparticle surface/defect effects not included — treat as unverified for
+        particle-scale Hertz contact. Context: fused silica ~7.3 GPa, alumina Mohs 9.
+        Ceria is therefore a SOFT abrasive relative to alumina, consistent with its
+        low-scratch reputation.
+
+    youngs_modulus_gpa:
+      value: 167.6
+      uncertainty_gpa: 12.5
+      unit: GPa
+      method: nanoindentation, room temperature
+      confidence: literature
+      source: "Materials 2026, doi:10.3390/ma19102134 (PMC13208460), Table 1, RT row"
+      note: "Same bulk-pellet caveat as hardness_gpa."
+
+    mohs_hardness:
+      value: null
+      note: "TODO(owner): no primary source found giving a Mohs number for CeO2 (alumina Mohs 9 is sourced; ceria is commonly quoted 6 but I found no citable primary)."
+
+    iep_ph:
+      value_range: [6.7, 7.8]
+      unit: pH
+      confidence: literature
+      source: >
+        Secondary-citation range collected in fab-sim knowledge/cmp/ceria-slurry-ce-redox-selectivity.md
+        §4 (electrophoresis studies of ceria CMP slurries; Cambridge JMR "Effect of pH on
+        ceria-silica interactions" doi:10.1557/JMR.2005.0176 family).
+      note: >
+        Sample- and hydration-dependent; ~8 is the value Dandu 2009 and Netzband 2020 both
+        assume. IMPORTANT operational consequence: silica IEP ~2-3, so between pH ~4 and ~6
+        ceria is positive and the oxide film is negative -> electrostatic attraction. Adding
+        0.01 wt% PAA SHIFTS CERIA IEP FROM ~8 DOWN TO ~4 (Dandu 2009, printed statement),
+        which is why PAA-stabilised slurries lose rate above pH 5.5.
+      iep_shift_with_paa:
+        value: 4.0
+        unit: pH
+        additive: "0.01 wt% poly(acrylic acid)"
+        confidence: literature
+        source: "Dandu Veera, Peddeti, Babu 2009, J. Electrochem. Soc. 156(12) H936-H943, doi:10.1149/1.3230624 (printed text)"
+
+    chemical_tooth_adsorption_energy_kj_mol:
+      silicic_acid_on_111: {value: -110.96, unit: kJ/mol, confidence: literature}
+      silicic_acid_on_100: {value: -257.61, unit: kJ/mol, confidence: literature}
+      source: "Brugnoli et al., Langmuir 39(16), 2023, doi:10.1021/acs.langmuir.3c00304 (open access, PMC10116594); DFT -1.15 eV (111) and -2.67 eV (100)"
+      confidence: literature
+      note: >
+        Chemisorption (physisorption is -20..-40 kJ/mol). This is the quantitative basis of
+        the Cook "chemical tooth": ceria removes SiO2 by Si-O-Ce bond formation and scission,
+        not purely by indentation. It is why ceria exponents differ from silica exponents and
+        must never be transferred.
+
+    ce3_fraction_surface:
+      value_range: [0.177, 0.221]
+      unit: "-"
+      method: XPS Ce3d
+      confidence: literature
+      source: "Hwang et al. 2026, Polymers 18, 1899, doi:10.3390/polym18151899, Table 3 (HNU15 22.1%, HC10 17.7%)"
+      note: >
+        Ce3+ surface fraction is the chemical activity knob. H2O2 addition maximises it
+        (Netzband & Dunn 2020). CAUTION: in the Hwang pair, Ce3+ moves TOGETHER with primary
+        size (12.2 vs 14.6 nm), crystallite size (10.2 vs 8.7 nm) and BET (83.2 vs 60.2 m^2/g),
+        so the 1.99x MRR ratio CANNOT be attributed to Ce3+ alone — the authors say so
+        explicitly. Do not fit a Ce3+ gain from that pair.
+
+  # ============================================================== 2. FILM RATE ANCHORS
+  # Each entry is one measured blanket removal rate WITH its full process condition.
+  film_anchors:
+
+    # ---------------- oxide: thermal / TEOS / PETEOS / HDP ----------------
+    - film: oxide
+      film_detail: "blanket thermal SiO2 (grown ~900 C), 200 mm"
+      rate_nm_per_min: 347.4
+      pressure_psi: 4.0
+      pressure_kpa: 27.58
+      velocity_m_s: 1.414
+      derived_from_rpm: true
+      rpm_platen: 75
+      rpm_carrier: 75
+      conc_wt_pct: 0.25
+      d50_nm: 60.0
+      ph: 4.0
+      pad: "IC1000 (Rohm & Haas), diamond-grit conditioned 1 min before each run"
+      additives: "none"
+      polisher: "Westech 372"
+      polish_time_min: 1
+      read_method: digitized
+      source: "Dandu Veera, Peddeti, Babu 2009, J. Electrochem. Soc. 156(12) H936-H943, doi:10.1149/1.3230624, Figure 3 (no-additive oxide series)"
+      confidence: literature
+      note: >
+        Self-check: paper text prints "RRs of oxide and nitride films were ~350 and ~80 nm/min
+        in the pH range of 4-5.5"; the vector digitisation returns 347/344/350 — consistent.
+        Also matches the independent Fig.2a reading at the same condition (352.1) within 1.4%.
+
+    - film: oxide
+      film_detail: "blanket thermal SiO2, 200 mm"
+      rate_nm_per_min: 350.4
+      pressure_psi: 4.0
+      pressure_kpa: 27.58
+      velocity_m_s: 1.414
+      derived_from_rpm: true
+      rpm_platen: 75
+      rpm_carrier: 75
+      conc_wt_pct: 0.25
+      d50_nm: 60.0
+      ph: 5.5
+      pad: "IC1000"
+      additives: "0.01 wt% PAA (added for slurry stability at pH >= 5.5)"
+      read_method: digitized
+      source: "Dandu 2009, doi:10.1149/1.3230624, Figure 3"
+      confidence: literature
+
+    - film: oxide
+      film_detail: "PETEOS blanket, 200 mm"
+      rate_nm_per_min: 252.9
+      measured_rate_angstrom_per_min: 2529
+      pressure_psi: 3.0
+      pressure_kpa: 20.68
+      velocity_m_s: 1.25
+      derived_from_rpm: false
+      conc_wt_pct: null
+      d50_nm: null
+      ph: null
+      pad: "concentrically-grooved polyurethane (Araca APD-800 tribometer-equipped polisher)"
+      additives: "commercial colloidal ceria STI slurry, composition undisclosed"
+      polish_time_min: 1
+      read_method: digitized
+      source: "Mariscal et al. 2020, ECS J. Solid State Sci. Technol. 9, 044008, doi:10.1149/2162-8777/ab89bc, Figure 5"
+      confidence: literature
+      note: >
+        BEST P-V ANCHOR IN THE FILE — full 3x3 factorial (2/3/4 psi x 0.75/1.25/1.75 m/s) with
+        sliding velocity printed directly, so no rpm reconstruction needed. Digitisation
+        validated against the printed sentence "A measured RR of 2,528 A/min on PETEOS-based
+        SiO2 blanket wafers" -> read 2,529 (0.04% error).
+        Slurry composition (wt%, d50, pH) is NOT disclosed — that is the price of this dataset.
+        Authors conclude the system is NON-PRESTONIAN (Langmuir-Hinshelwood, k1/k2 = 6.3-142.2,
+        RR=0 incubation near P*v ~ 2000 Pa*m/s), so a pure Preston fit will over-predict at low P*v.
+      full_pv_matrix:
+        # (pressure_psi, velocity_m_s, rate_nm_per_min) — all 9 conditions, same slurry/pad
+        - [2.0, 0.75, 69.8]
+        - [3.0, 0.75, 140.4]
+        - [4.0, 0.75, 206.4]
+        - [2.0, 1.25, 155.8]
+        - [3.0, 1.25, 252.9]
+        - [4.0, 1.25, 307.9]
+        - [2.0, 1.75, 171.8]
+        - [3.0, 1.75, 283.8]
+        - [4.0, 1.75, 346.3]
+      fitted_preston_exponents:
+        pressure_exponent: 1.199
+        velocity_exponent: 0.862
+        prefactor: 47.57
+        r2: 0.9383
+        confidence: derived
+        note: >
+          My own log-log multiple regression on the 9 points above (MRR = k*P^a*v^b, P in psi,
+          v in m/s, MRR in nm/min). Not a number printed by the authors. Both exponents differ
+          from Preston's 1.0/1.0 and R2=0.94 leaves structure unexplained — consistent with the
+          authors' non-Prestonian conclusion. Use for ranking, not absolute extrapolation.
+
+    - film: oxide
+      film_detail: "thermal SiO2 coupon (2.25 cm^2), benchtop polisher"
+      rate_nm_per_min: 21.3
+      pressure_psi: 2.9
+      pressure_kpa: 20.0
+      velocity_m_s: 0.754
+      derived_from_rpm: true
+      rpm_platen: 40
+      rpm_carrier: 20
+      conc_wt_pct: 1.0
+      d50_nm: 68.0
+      ph: 10.0
+      pad: "(benchtop tool, pad type not specified in text)"
+      additives: "H2O2 at the concentration giving maximum Ce3+% (pH-series slurries)"
+      polish_time_min: 1
+      metrology: "spectroscopic ellipsometry, J.A. Woollam RC-2"
+      read_method: digitized
+      source: "Netzband & Dunn 2020, ECS J. Solid State Sci. Technol. 9, 044001, doi:10.1149/2162-8777/ab8393 (CC-BY), Figure 3a"
+      confidence: literature
+      note: >
+        ABSOLUTE RATE IS ~16x LOWER than Dandu/Mariscal because this is a BENCHTOP coupon tool,
+        not a 200/300 mm polisher. Never mix this absolute level with wafer-scale anchors; use
+        it only for pH/size RATIOS within this paper. Digitisation independently re-validated
+        twice (axis scale 5.1353 pt per nm/min) and matches the printed "~20 nm/min" statement.
+
+    - film: oxide
+      film_detail: "TEOS blanket"
+      rate_nm_per_min: 736.5
+      measured_rate_angstrom_per_min: 7365
+      pressure_psi: 3.0
+      pressure_kpa: 20.68
+      velocity_m_s: 1.885
+      derived_from_rpm: true
+      rpm_platen: 100
+      rpm_carrier: 85
+      conc_wt_pct: 0.2
+      d50_nm: 73.0
+      d50_definition: "median particle size (MPS) by CPS disc centrifuge; PSD width ~380 nm"
+      ph: 4.0
+      pad: "IC1010 (Dow)"
+      polisher: "Applied Materials Mirra"
+      additives: "350 ppm picolinic acid; pH adjusted with triethanolamine"
+      read_method: printed
+      source: "EP3265534B1 (Cabot Microelectronics, 'Polishing composition containing ceria abrasive'), Example 1, Table 4, composition 1C; conditions in [0100]"
+      confidence: literature
+      note: >
+        PATENT EXAMPLE TABLE — printed numbers, full conditions, wet-process (colloidal) ceria.
+        Same-run comparatives at IDENTICAL P, v, pad, conc, pH differ only in particle
+        population: 1A (MPS 103 nm, narrow PSD) = 3697 A/min; 1B (blend MPS 54+103 nm,
+        PSD ~200 nm) = 4881 A/min; 1C (MPS 73 nm, PSD ~380 nm) = 7365 A/min.
+        This is a particle-ENGINEERING series (PSD width + surface tridentate-OH + Raman
+        defect ratio all co-vary), NOT a clean d50 sweep — see size_exponent.oxide gap note.
+
+    - film: oxide
+      film_detail: "TEOS blanket (PECVD/LECVD/HD TEOS wafers), 200 mm"
+      rate_nm_per_min: 629.6
+      measured_rate_angstrom_per_min: 6296
+      pressure_psi: 3.0
+      pressure_kpa: 20.68
+      velocity_m_s: 1.640
+      derived_from_rpm: true
+      rpm_platen: 87
+      rpm_carrier: 93
+      conc_wt_pct: 1.0
+      d50_nm: 117.5
+      d50_definition: "MPS of ceria-COATED silica composite particles, 110-125 nm (ceria shell >10-13 nm)"
+      ph: 7.0
+      pad: "IC1010 (Dow), ex-situ conditioned"
+      additives: "biocide only (reference sample, no gelatin)"
+      read_method: printed
+      source: "US12091581B2 (Versum/Merck, 'High oxide film removal rate STI CMP polishing'), Example 2, Table 2 reference row"
+      confidence: literature
+      note: >
+        CERIA-COATED SILICA composite, not pure ceria — flagged because the mechanical core is
+        silica. Kept because it is one of very few sources printing oxide AND nitride rates at
+        TWO pressures with everything else fixed (see pressure pair below and the sin anchors).
+
+    - film: oxide
+      film_detail: "TEOS blanket, same slurry as the 3.0 psi row above"
+      rate_nm_per_min: 735.9
+      measured_rate_angstrom_per_min: 7359
+      pressure_psi: 4.0
+      pressure_kpa: 27.58
+      velocity_m_s: 1.640
+      derived_from_rpm: true
+      rpm_platen: 87
+      rpm_carrier: 93
+      conc_wt_pct: 1.0
+      d50_nm: 117.5
+      ph: 7.0
+      pad: "IC1010 (Dow)"
+      additives: "biocide only (reference sample)"
+      read_method: printed
+      source: "US12091581B2, Example 3, Table 3 reference row"
+      confidence: literature
+      note: >
+        Pressure pair with the previous row: 3.0 psi -> 629.6, 4.0 psi -> 735.9 nm/min at
+        identical v, pad, conc, pH. Implied local pressure exponent
+        ln(735.9/629.6)/ln(4/3) = +0.54 (derived, n=2) — i.e. STRONGLY SUB-PRESTONIAN on
+        oxide for this slurry. Two points cannot establish a law; treat as a direction.
+
+    - film: oxide
+      film_detail: "HDP-SiO2 on Si"
+      rate_nm_per_min: 11.44
+      measured_rate_angstrom_per_min: 114.4
+      pressure_psi: 4.0
+      pressure_kpa: 27.58
+      velocity_m_s: 5.655
+      derived_from_rpm: true
+      rpm_platen: 300
+      rpm_carrier: 150
+      conc_wt_pct: 30.0
+      conc_note: "30 wt% CeO2 in the milling slurry; dilution before polish not stated"
+      d50_nm: 111.0
+      d50_definition: "DLS d50 after 5 h wet milling (HNU15)"
+      ph: null
+      pad: "IC1000 (DuPont), diamond-grit conditioner"
+      polisher: "POLI-500 (G&P Technology)"
+      additives: "0.75 wt% PAA (Mw 21,300; PDI 1.85) as dispersant"
+      polish_time_min: 1
+      read_method: printed
+      source: "Hwang et al. 2026, Polymers 18, 1899, doi:10.3390/polym18151899 (CC-BY), abstract + §3.7"
+      confidence: literature
+      note: >
+        Rate is ~1/60 of the Dandu oxide anchor despite 4 psi — heavy PAA loading suppresses it.
+        Paired comparative HC10 ceria = 57.5 A/min = 5.75 nm/min under identical conditions.
+        Slurry pH at polish not printed (TODO(owner)).
+
+    # ---------------- sin: Si3N4 ----------------
+    - film: sin
+      film_detail: "blanket Si3N4 (LPCVD ~790 C, 500 nm) over ~100 nm SiO2, 200 mm"
+      rate_nm_per_min: 80.0
+      pressure_psi: 4.0
+      pressure_kpa: 27.58
+      velocity_m_s: 1.414
+      derived_from_rpm: true
+      rpm_platen: 75
+      rpm_carrier: 75
+      conc_wt_pct: 0.25
+      d50_nm: 60.0
+      ph: 4.0
+      pad: "IC1000"
+      additives: "none"
+      read_method: printed
+      source: "Dandu 2009, doi:10.1149/1.3230624, printed text: 'RRs of oxide and nitride films were ~350 and ~80 nm/min, respectively, in the pH range of 4-5.5'"
+      confidence: literature
+      note: >
+        Pairs with the 347.4 nm/min oxide anchor at the SAME condition -> bare-ceria
+        oxide:nitride selectivity ~4.3:1. High STI selectivity is an ADDITIVE effect, not an
+        intrinsic ceria property: 1 wt% pyridine HCl in the same slurry drops nitride to
+        <2 nm/min while oxide falls only to ~150 nm/min (printed) -> selectivity >75:1.
+
+    - film: sin
+      film_detail: "blanket Si3N4, pH 10"
+      rate_nm_per_min: 86.0
+      uncertainty_nm_per_min: 3.0
+      pressure_psi: 4.0
+      pressure_kpa: 27.58
+      velocity_m_s: 1.696
+      derived_from_rpm: true
+      rpm_platen: 90
+      rpm_carrier: 90
+      conc_wt_pct: 1.0
+      d50_nm: 180.0
+      d50_definition: "dmean, Ferro Corp. calcined ceria dispersion (50 wt% stock)"
+      ph: 10.0
+      pad: "IC1000 (Dow)"
+      polisher: "CETR"
+      additives: "none (bare ceria)"
+      polish_time_min: 1
+      read_method: printed
+      source: "Penta, Veera, Babu 2011, Langmuir 27, 3502-3510, doi:10.1021/la104257k, Table 3"
+      confidence: literature
+      note: >
+        Same-table oxide 381 +/- 20 and poly-Si 245 +/- 26 nm/min — a rare THREE-FILM anchor at
+        one fully-specified condition. Adding 250 ppm PDADMAC crushes both oxide and nitride to
+        1 +/- 1 nm/min (measurement floor) while poly-Si rises to 559.
+
+    - film: sin
+      film_detail: "SiN blanket, 200 mm"
+      rate_nm_per_min: 23.0
+      measured_rate_angstrom_per_min: 230
+      pressure_psi: 3.0
+      pressure_kpa: 20.68
+      velocity_m_s: 1.640
+      derived_from_rpm: true
+      rpm_platen: 87
+      rpm_carrier: 93
+      conc_wt_pct: 1.0
+      d50_nm: 117.5
+      ph: 7.0
+      pad: "IC1010 (Dow)"
+      additives: "biocide only (reference); ceria-coated silica composite particles"
+      read_method: printed
+      source: "US12091581B2, Example 2, Table 2 reference row"
+      confidence: literature
+      note: >
+        Pressure pair: same slurry at 4.0 psi gives 89.2 nm/min (Example 3, Table 3).
+        Implied nitride pressure exponent ln(89.2/23.0)/ln(4/3) = +4.71 (derived, n=2) —
+        i.e. nitride removal is a STRONGLY super-Prestonian threshold process while oxide on
+        the same slurry is sub-Prestonian (+0.54). CONSEQUENCE FOR THE SIMULATOR: STI
+        selectivity is pressure-dependent (27.4:1 at 3 psi -> 8.3:1 at 4 psi) and a single
+        pressure exponent shared across films cannot reproduce it.
+
+    - film: sin
+      film_detail: "SiN blanket, same slurry, higher pressure"
+      rate_nm_per_min: 89.2
+      measured_rate_angstrom_per_min: 892
+      pressure_psi: 4.0
+      pressure_kpa: 27.58
+      velocity_m_s: 1.640
+      derived_from_rpm: true
+      rpm_platen: 87
+      rpm_carrier: 93
+      conc_wt_pct: 1.0
+      d50_nm: 117.5
+      ph: 7.0
+      pad: "IC1010 (Dow)"
+      additives: "biocide only (reference)"
+      read_method: printed
+      source: "US12091581B2, Example 3, Table 3 reference row"
+      confidence: literature
+
+    - film: sin
+      film_detail: "Si3N4 on Si"
+      rate_nm_per_min: 1.43
+      measured_rate_angstrom_per_min: 14.3
+      pressure_psi: 4.0
+      pressure_kpa: 27.58
+      velocity_m_s: 5.655
+      derived_from_rpm: true
+      rpm_platen: 300
+      rpm_carrier: 150
+      conc_wt_pct: 30.0
+      d50_nm: 111.0
+      ph: null
+      pad: "IC1000 (DuPont)"
+      additives: "0.75 wt% PAA"
+      read_method: derived
+      source: "Hwang et al. 2026, doi:10.3390/polym18151899 — derived as 114.4 A/min / selectivity 8.0, both printed"
+      confidence: derived
+      note: "Nitride rate itself is not printed; back-computed from the printed oxide rate and printed selectivity 8.0."
+
+    # ---------------- poly_si ----------------
+    - film: poly_si
+      film_detail: "blanket poly-Si (LPCVD ~610 C, 2000 nm) on 100 nm SiO2, 8 in wafer diced to 2 in"
+      rate_nm_per_min: 245.0
+      uncertainty_nm_per_min: 26.0
+      pressure_psi: 4.0
+      pressure_kpa: 27.58
+      velocity_m_s: 1.696
+      derived_from_rpm: true
+      rpm_platen: 90
+      rpm_carrier: 90
+      conc_wt_pct: 1.0
+      d50_nm: 180.0
+      ph: 10.0
+      pad: "IC1000 (Dow)"
+      polisher: "CETR, 120 mL/min"
+      additives: "none (bare ceria)"
+      polish_time_min: 1
+      read_method: printed
+      source: "Penta, Veera, Babu 2011, Langmuir 27, 3502-3510, doi:10.1021/la104257k, Table 3"
+      confidence: literature
+      note: >
+        BARE CERIA POLISHES OXIDE FASTER THAN POLY (245 poly vs 381 oxide -> poly:oxide = 0.64).
+        250 ppm PDADMAC inverts this by ~870x (poly 559, oxide 1 +/- 1). Any poly-Si ceria model
+        must therefore treat the additive as sign-determining, not rate-scaling.
+
+    # ---------------- sic ----------------
+    - film: sic
+      film_detail: "Si-face (0001) 6H-SiC single crystal, 2 in, n-type"
+      rate_nm_per_min: 18.15
+      measured_rate_nm_per_h: 1089
+      pressure_psi: 4.0
+      pressure_kpa: 27.58
+      velocity_m_s: 1.696
+      derived_from_rpm: true
+      rpm_platen: 90
+      rpm_carrier: 90
+      conc_wt_pct: 2.0
+      d50_nm: 140.0
+      d50_definition: "mean diameter, Tizox 9872 colloidal ceria (Ferro Corp., 50 wt% stock)"
+      ph: 2.0
+      pad: "IC-1000 K-Groove (Dow), ex-situ diamond conditioned"
+      polisher: "CETR CP-4, 90 mL/min"
+      polish_time_min: 20
+      additives: "0.05 M KMnO4 oxidizer; pH set with HNO3/KOH"
+      metrology: "mass loss (Mettler Toledo AG285, 0.01 mg)"
+      read_method: printed
+      source: "Chen et al. 2015, Appl. Surf. Sci. 359, 664-668, doi:10.1016/j.apsusc.2015.10.158, abstract + Table 1"
+      confidence: literature
+      note: >
+        Maximum of the paper's pH series; Ra 0.11 nm. Same-paper silica comparison peaks at
+        only 185 nm/h, so ceria is ~5.9x faster on SiC under KMnO4. SiC ceria rates are
+        ~60x below oxide rates — different regime, do not share a Preston coefficient.
+
+    - film: sic
+      film_detail: "4H-SiC, composite CuxO-CeO2/Al2O3 abrasive"
+      rate_nm_per_min: 10.36
+      measured_rate_nm_per_h: 621.47
+      pressure_psi: null
+      velocity_m_s: null
+      conc_wt_pct: 9.0
+      d50_nm: null
+      ph: 7.0
+      ph_confidence: unverified
+      pad: null
+      additives: "8 wt% H2O2"
+      read_method: printed
+      source: "Liang et al., Nano Research 2026, doi:10.26599/NR.2026.94909100, §2.3"
+      confidence: literature
+      note: >
+        Kept ONLY as the concentration-series source for sic (see conc_exponent.sic). Pressure
+        and velocity are NOT captured here — TODO(owner): pull P and v from the Nano Research
+        §2 experimental table before using this as a rate anchor. pH 7 is inferred from context,
+        not printed. Abrasive is a Cu-doped composite, not pure ceria.
+
+    # ---------------- cu ----------------
+    - film: cu
+      film_detail: "blanket copper"
+      rate_nm_per_min: 100.4
+      measured_rate_angstrom_per_min: 1004
+      pressure_psi: 3.0
+      pressure_note: "3/1 psi (down force / retaining-ring or backside, as printed)"
+      pressure_kpa: 20.68
+      velocity_m_s: 1.131
+      derived_from_rpm: true
+      rpm_platen: 60
+      rpm_carrier: 60
+      conc_wt_pct: 1.0
+      d50_nm: 120.0
+      d50_definition: "printed distribution d10 50 / d50 120 / d90 400 nm; crystallite 17 nm; primary ~17 nm, secondary ~800 nm"
+      ph: 4.0
+      pad: null
+      polisher: "Strasbaugh 6EC, 170 mL/min"
+      additives: "none beyond HNO3 for pH; no oxidizer stated"
+      read_method: printed
+      source: "US20050003744A1 (Ferro/Nanophase-type hydrothermal ceria), EXAMPLE 1 — 'A Cu removal rate of 1004 A/min was obtained'"
+      confidence: literature
+      note: >
+        PURE CeO2 particles — this is the cleanest ceria-on-Cu anchor found, and the patent's
+        own baseline. Doped composites in the same patent at IDENTICAL conditions:
+        Ce-Fe 1762, Ce-Nd 1980, Ce-Cu 2021 A/min (1.75-2.0x pure ceria) — but d50 also changes
+        (143/157/316 nm), so that ratio is confounded and is NOT a size exponent.
+        Pad type not disclosed (TODO(owner)).
+
+    # ---------------- w, si ----------------
+    - film: w
+      rate_nm_per_min: null
+      note: >
+        TODO(owner): NO ceria-abrasive tungsten blanket rate with P and v was found. Searched
+        fab-sim papers/ (176 indexed) and the web/patent literature. Tungsten CMP is
+        overwhelmingly alumina- or silica-based (WO3 abrasion at acidic pH with H2O2/Fe oxidizer);
+        ceria appears in W-slurry patents only inside long Markush abrasive lists
+        (e.g. US8974692B2, US11401441) with no ceria-specific example table. Treat ceria-on-W as
+        UNSOURCED — do not interpolate from oxide or Cu.
+      confidence: unverified
+
+    - film: si
+      rate_nm_per_min: null
+      note: >
+        TODO(owner): no primary blanket monocrystalline-Si rate for a ceria slurry with full
+        P and v was obtained. Two candidate sources were identified but not retrieved:
+        (a) Chafidz/Gupta, Mater. Sci. Forum 1129, 53 (2024), "Effects of the Solid
+        Concentration of Ceria Slurry on the Removal Rate and Selectivity of Si Wafer during
+        CMP" — abstract states SiO2 removal rate and selectivity both increase LINEARLY with
+        CeO2 solid concentration (note: the measured film is the SiO2 layer on a Si wafer, so it
+        may not be bare-Si data at all); (b) Front. Chem. Sci. Eng., doi:10.1007/s11705-026-2672-4,
+        spherical CeO2 on silicon wafers. Neither full text was accessible here.
+        NOTE: poly_si IS sourced (Penta 2011); bare single-crystal Si is not.
+      confidence: unverified
+
+  # ======================================================= 3. CONCENTRATION EXPONENT n
+  # MRR ~ C^n. Fitted by me via log-log OLS on the raw pairs shown. THE SIGN IS NOT A
+  # MATERIAL CONSTANT FOR CERIA — it flips with particle size/type within a single paper.
+  conc_exponent:
+
+    oxide:
+      fitted_value: -0.4296
+      r2: 0.8545
+      n_points: 3
+      raw_pairs_wt_pct_nm_per_min:
+        - [0.25, 352.1]
+        - [0.50, 211.3]
+        - [1.00, 194.1]
+      fixed_conditions:
+        pressure_psi: 4.0
+        velocity_m_s: 1.414
+        derived_from_rpm: true
+        d50_nm: 60.0
+        ph: 4.0
+        pad: IC1000
+        additives: none
+      read_method: digitized
+      source: "Dandu 2009, doi:10.1149/1.3230624, Figure 2a (60 nm ceria); rates recovered from PDF vector bar tops mapped to the 0/400 nm/min axis"
+      confidence: literature
+      note: >
+        NEGATIVE: adding ceria REDUCES oxide rate in this system. The paper's own text agrees
+        ("The oxide RR at pH 4 was higher with 0.25% ceria particle loading ... compared to 0.5
+        and 1%"). Max residual 15.3%, n=3, digitized — magnitude is soft, sign is solid.
+        Independent corroboration of the negative branch: Kim et al., Colloids Surf. A 2021,
+        doi:10.1016/j.colsurfa.2020.125670, "The removal rate decreased with increasing abrasive
+        concentration" (abstract confirmed; raw pairs NOT obtained — TODO(owner)).
+      competing_branch_same_paper:
+        fitted_value: 0.4268
+        r2: 0.9899
+        n_points: 3
+        raw_pairs_wt_pct_nm_per_min:
+          - [0.25, 390.0]
+          - [0.50, 505.0]
+          - [0.75, 627.8]
+        fitted_value_including_1pct: 0.2395
+        r2_including_1pct: 0.5473
+        raw_pair_1pct: [1.00, 495.0]
+        d50_nm: 180.0
+        abrasive_note: "Ferro calcined ceria, 180 nm — same paper (Figure 2b), same P/v/pH"
+        read_method: digitized
+        source: "Dandu 2009, doi:10.1149/1.3230624, Figure 2b"
+        confidence: literature
+        note: >
+          SIGN REVERSAL WITHIN ONE PAPER: 60 nm ceria gives n = -0.43, 180 nm calcined ceria
+          gives n = +0.43 over the rising branch, with a KNEE AT 0.75 wt% (rate falls from
+          627.8 to 495.0 by 1.0 wt%). Fitting all four points (n=+0.24, R2=0.55) is
+          statistically dishonest because the series is non-monotonic. The simulator must not
+          carry one ceria concentration exponent for oxide: branch it on particle size/type.
+
+    sin:
+      fitted_value: null
+      note: "TODO(owner): no published ceria concentration series with Si3N4 rates at fixed P, v, d50 and pH was found. Dandu 2009 Fig.2a/2b sweep concentration for OXIDE only."
+      confidence: unverified
+
+    poly_si:
+      fitted_value: null
+      note: "TODO(owner): Penta 2011 fixes ceria at 1 wt% throughout; no concentration series for poly-Si exists in the sourced set."
+      confidence: unverified
+
+    sic:
+      fitted_value: 0.4716
+      r2: 0.9836
+      n_points: 3
+      raw_pairs_wt_pct_nm_per_h:
+        - [1.0, 228.54]
+        - [5.0, 538.45]
+        - [9.0, 621.47]
+      fixed_conditions:
+        oxidizer: "8 wt% H2O2"
+        ph: 7.0
+        ph_confidence: unverified
+        pressure_psi: null
+        velocity_m_s: null
+      read_method: printed
+      source: "Liang et al., Nano Research 2026, doi:10.26599/NR.2026.94909100, §2.3"
+      confidence: literature
+      note: >
+        POSITIVE and near the +1/3 surface-area-limited theoretical value. Abrasive is a
+        CuxO-CeO2/Al2O3 composite, not pure ceria — E3-grade for pure-ceria SiC use.
+        Independent direction check in the same regime: Wang et al. (figshare:31056549, ACS SI
+        Table S3) 4H-SiC CeO2/H2O2 pH 9-11, 2/4/6 wt%, 17 confound-matched pairs ->
+        median log-log slope +0.227 (bootstrap 95% CI -0.136 to +0.598, so SIGN ONLY;
+        magnitude undetermined). Sign agrees; magnitude between the two is unresolved.
+
+    cu:
+      fitted_value: null
+      note: "TODO(owner): US20050003744A1 holds all Cu examples at 1 wt%; no ceria concentration series on Cu found."
+      confidence: unverified
+
+    w:
+      fitted_value: null
+      note: "TODO(owner): unsourced — see film_anchors w entry."
+      confidence: unverified
+
+    si:
+      fitted_value: null
+      note: >
+        TODO(owner): Chafidz/Gupta, Mater. Sci. Forum 1129, 53 (2024) reports rate rising
+        LINEARLY with CeO2 solid concentration (n ~ 1 in direction), but I could not obtain the
+        raw (wt%, rate) pairs or the P/v conditions, and the polished film there appears to be
+        the SiO2 layer rather than bare Si. Not fitted.
+      confidence: unverified
+
+  # ============================================================= 4. SIZE EXPONENT m
+  # MRR ~ d^m.
+  size_exponent:
+
+    oxide:
+      fitted_value: 0.5917
+      r2: 0.9075
+      n_points: 3
+      raw_pairs_d50_nm_rate_nm_per_min:
+        - [5, 4.78]
+        - [20, 16.49]
+        - [68, 22.00]
+      fixed_conditions:
+        pressure_psi: 2.9
+        pressure_kpa: 20.0
+        velocity_m_s: 0.754
+        derived_from_rpm: true
+        rpm_platen: 40
+        rpm_carrier: 20
+        conc_wt_pct: 1.0
+        ph: 8.0
+        oxidizer: "H2O2 at each slurry's Ce3+-maximising concentration"
+        tool: "benchtop coupon polisher"
+      read_method: digitized
+      source: "Netzband & Dunn 2020, doi:10.1149/2162-8777/ab8393 (CC-BY), Figure 5a; bar tops from PDF vector rects, scale anchored on the printed 4.11 nm/min commercial reference"
+      confidence: derived
+      note: >
+        MONOTONIC INCREASING over 5-68 nm, matching the paper's printed statement "a decrease in
+        MRR with decreasing particle size as expected". A single power law is a poor description:
+        the local slope falls from +0.89 (5->20 nm) to +0.24 (20->68 nm), i.e. the curve is
+        already flattening by 68 nm. Use the piecewise slopes, not 0.59, if the simulator
+        resolves that range. Grade is DERIVED (not literature) because the exponent is my fit of
+        digitized bars, and the H2O2 level was re-optimised per particle size — a co-varying
+        chemical axis, so this is not a clean single-axis size sweep.
+      peak_location_nm:
+        value: 163.0
+        lower_bound: true
+        confidence: unverified
+        source: >
+          Oh, Singh, Gupta, Cho 2010, Microelectron. Eng., doi:10.1016/j.mee.2010.07.040
+          (62/116/163/232 nm single-crystal hydrothermal ceria, maximum at 163 nm) — accessed
+          only via the SECONDARY citation in Wang et al. 2020, doi:10.1177/0036850420982451
+          (SAGE OA): "particle size of 163 nm is the best abrasive size in CMP, the oxide
+          removal rate of 2369 A/min, nitride removal rate of 52.4 A/min".
+        note: >
+          E5 (secondary citation) — primary is paywalled and was not retrieved. Corroborating
+          DIRECTION only: Oh et al. 2011 Powder Technol. doi:10.1016/j.powtec.2010.09.025
+          (84-417 nm, monotonic increase) and Kang et al. 2004 JJAP 43 L365
+          doi:10.1143/jjap.43.l365 (oxide rate rises with both grain and particle size, nitride
+          independent of both). Because 2011/2004 still rise at 232-417 nm, 163 nm is a LOWER
+          BOUND on the peak. KEY MODELLING POINT: the ceria peak is ~2x the colloidal-silica
+          peak (~80 nm) — silica's peak must never be inherited by a ceria pack.
+      confound_warning: >
+        EP3265534B1 Example 1 (TEOS, 3 psi, 0.2 wt%, pH 4) looks like a size series
+        (MPS 103 -> 3697, blend 54+103 -> 4881, 73 -> 7365 A/min) but PSD width, surface
+        tridentate-OH coverage and Raman defect ratio all co-vary; the patent attributes the
+        gain to PSD width and surface chemistry, not to d50. NOT fitted as a size exponent.
+
+    sin:
+      fitted_value: null
+      note: >
+        TODO(owner): no ceria size sweep with Si3N4 rates at fixed conditions was obtained.
+        Kang et al. 2004 (JJAP 43 L365) states the nitride rate is INDEPENDENT of both grain
+        and particle size, which if confirmed implies m_sin ~ 0 — direction only, from an
+        abstract-level reading; the paper's rate table was not retrieved.
+      confidence: unverified
+
+    poly_si:
+      fitted_value: null
+      note: "TODO(owner): Penta 2011 uses a single 180 nm ceria; no poly-Si size series found."
+      confidence: unverified
+
+    sic:
+      fitted_value: null
+      note: >
+        TODO(owner): SiC ceria studies each use one size (Chen 2015: 140 nm; Chen 2017: 120 nm),
+        so no within-study size sweep exists. Cross-paper differencing is invalid here — the two
+        papers differ in polytype face, KMnO4 level and pH.
+      confidence: unverified
+
+    cu:
+      fitted_value: null
+      note: >
+        TODO(owner): US20050003744A1 d50 varies (120/143/157/316 nm) ACROSS examples, but each
+        change comes with a different dopant chemistry (pure / Ce-Fe / Ce-Nd / Ce-Cu), so the
+        rate differences cannot be assigned to size. Not fitted.
+      confidence: unverified
+
+    w:
+      fitted_value: null
+      note: "TODO(owner): unsourced."
+      confidence: unverified
+
+    si:
+      fitted_value: null
+      note: "TODO(owner): unsourced."
+      confidence: unverified
+
+  # ================================================================== 5. SATURATION
+  saturation:
+    oxide_calcined_180nm:
+      knee_wt_pct: 0.75
+      unit: wt%
+      evidence: "rate rises 390.0 -> 505.0 -> 627.8 nm/min at 0.25/0.50/0.75 wt%, then FALLS to 495.0 at 1.00 wt%"
+      fixed_conditions: {pressure_psi: 4.0, velocity_m_s: 1.414, d50_nm: 180.0, ph: 4.0, pad: IC1000}
+      read_method: digitized
+      source: "Dandu 2009, doi:10.1149/1.3230624, Figure 2b"
+      confidence: literature
+      note: >
+        A real knee with a measured turnover, not an asymptote — the 1.0 wt% point is BELOW the
+        0.75 wt% point (-21%). n=4 digitized points, so the knee position is +/- one grid step.
+
+    oxide_colloidal_60nm:
+      knee_wt_pct: null
+      note: >
+        NO KNEE EXISTS in this branch: the 60 nm series (Fig.2a) is monotonically DECREASING
+        from the lowest concentration measured (0.25 wt%), so any saturation knee lies at or
+        below 0.25 wt% and was not resolved. TODO(owner): a sub-0.25 wt% sweep would settle it.
+      confidence: unverified
+
+    sic:
+      knee_wt_pct: 8.0
+      unit: wt%
+      confidence: unverified
+      source: "Wei et al. 2026, doi:10.3390/cryst16030179 §3.2 — 4H-SiC C-face, maximum 701 nm/h at 8 wt%, decay above 8 wt% attributed to viscosity/agglomeration"
+      note: >
+        DIFFERENT ABRASIVE: that study uses 110 nm colloidal SILICA + H2O2 + Fe3O4, not ceria.
+        Listed as a regime-level expectation only. The ceria Liang series (1/5/9 wt%) is still
+        rising at 9 wt% with no knee. TODO(owner): find a ceria-on-SiC series that brackets a knee.
+
+    generic_mechanism_note: >
+      Two closed forms from the Bellahsene et al. 2025 review (doi:10.3390/nano15171366, MDPI OA,
+      full text held): indentation-limited MRR ~ d^(4/3), surface-area-limited MRR ~ C0/d.
+      The size peak is where they cross. For ceria the crossover is pushed to larger d because
+      chemical removal scales with contact-site count rather than total surface area — a
+      qualitative reading of the review plus Netzband 2020, NOT a fitted result.
+
+  # ================================================================= 6. pH RESPONSE
+  ph_response:
+    oxide_series_A:
+      pairs_ph_rate_nm_per_min:
+        - [2.0, 4.3]
+        - [3.0, 95.3]
+        - [3.5, 276.3]
+        - [4.0, 347.4]
+        - [5.0, 344.3]
+        - [5.5, 350.4]
+        - [6.0, 99.3]
+        - [8.0, 69.4]
+      fixed_conditions:
+        pressure_psi: 4.0
+        velocity_m_s: 1.414
+        derived_from_rpm: true
+        conc_wt_pct: 0.25
+        d50_nm: 60.0
+        pad: IC1000
+        additives: "none below pH 5.5; 0.01 wt% PAA added at pH >= 5.5 for stability"
+      shape: "single broad peak, plateau pH 4-5.5, collapse above pH 6"
+      read_method: digitized
+      source: "Dandu 2009, doi:10.1149/1.3230624, Figure 3 (no-additive oxide series)"
+      confidence: literature
+      note: >
+        CONFOUND: the PAA added at pH >= 5.5 shifts the ceria IEP from ~8 to ~4, so the collapse
+        above pH 6 is partly an ADDITIVE effect, not pure pH. The paper says as much.
+
+    oxide_series_B:
+      pairs_ph_rate_nm_per_min:
+        - [4.0, 19.8]
+        - [6.0, 11.3]
+        - [8.0, 20.0]
+        - [10.0, 21.3]
+      fixed_conditions:
+        pressure_psi: 2.9
+        pressure_kpa: 20.0
+        velocity_m_s: 0.754
+        derived_from_rpm: true
+        conc_wt_pct: 1.0
+        d50_nm: 68.0
+        tool: "benchtop coupon polisher (NOT a 200/300 mm platform)"
+      shape: "DOUBLE maximum — high at pH 4 and again at pH 8-10, valley at pH 6"
+      read_method: digitized
+      source: "Netzband & Dunn 2020, doi:10.1149/2162-8777/ab8393 (CC-BY), Figure 3a"
+      confidence: literature
+      note: >
+        Authors explain the two maxima as condensation being optimal near the OXIDE IEP (2-3)
+        and near the CERIA IEP (~8), with neither favoured at pH 6.
+
+    reconciliation: >
+      THE TWO SERIES DISAGREE IN SHAPE and this is the single most important pH fact in this file.
+      Series A (0.25 wt%, 60 nm, +PAA above 5.5) peaks at pH 4-5.5 and collapses after.
+      Series B (1.0 wt%, 68 nm, H2O2, no PAA) is high at BOTH pH 4 and pH 8-10 with a pH-6 valley.
+      The ceria pH response is therefore NEITHER MONOTONIC NOR UNIMODAL, and it is
+      formulation-dependent. Any single monotonic pH term will fail one of these datasets.
+      Absolute levels also differ ~16x because of the tool scale — compare shapes, never levels.
+
+    sic_direction:
+      value: "MRR decreases monotonically as pH rises from 2 to 10 (ceria + 0.05 M KMnO4 on 6H-SiC)"
+      quantified: false
+      confidence: literature
+      source: "Chen et al. 2017, RSC Adv. 7, 16938-16952, doi:10.1039/C6RA27508G (CC-BY), §3.5 / Fig. 13; and Chen et al. 2015, doi:10.1016/j.apsusc.2015.10.158 (max 1089 nm/h at pH 2)"
+      note: >
+        Fig. 13 of the 2017 paper is a RASTER image, not vector, so the pH 2/4/10 bar values
+        could not be digitized reliably. TODO(owner): request the underlying numbers, or accept
+        only the pH-2 endpoint (1089 nm/h) printed in the 2015 paper.
+        OPPOSITE SIGN TO OXIDE at high pH — oxidizer potency, not electrostatics, dominates here.
+
+    sin_ph:
+      pairs_ph_rate_nm_per_min: null
+      note: "TODO(owner): Dandu 2009 Figure 3 does contain a nitride pH series, but only the pH 4-5.5 plateau value (~80 nm/min) is printed; the remaining points were not digitized in this pass."
+      confidence: unverified
+
+  # ===================================================== 7. MORPHOLOGY / SYNTHESIS ROUTE
+  morphology:
+    calcined_vs_colloidal:
+      quantified_rate_difference:
+        comparison: "0.25 wt%, pH 4, 4 psi, 75/75 rpm, IC1000, blanket thermal oxide, same paper and tool"
+        colloidal_60nm_nm_per_min: 352.1
+        calcined_180nm_nm_per_min: 390.0
+        ratio_calcined_over_colloidal: 1.11
+        at_optimum_of_each:
+          colloidal_60nm_best: {wt_pct: 0.25, rate_nm_per_min: 352.1}
+          calcined_180nm_best: {wt_pct: 0.75, rate_nm_per_min: 627.8}
+          ratio: 1.78
+        read_method: digitized
+        source: "Dandu 2009, doi:10.1149/1.3230624, Figures 2a and 2b"
+        confidence: literature
+        note: >
+          CONFOUNDED BY SIZE: 60 nm colloidal vs 180 nm calcined. The difference in
+          CONCENTRATION RESPONSE (n = -0.43 vs +0.43, knee at 0.75 wt%) is the more robust and
+          more useful distinction than the absolute ratio.
+
+      quantified_defect_difference:
+        value: null
+        note: >
+          TODO(owner): no paper in the sourced set reports scratch/defect COUNTS for calcined vs
+          colloidal ceria at matched removal rate. Available qualitative/partial evidence:
+          (a) Oh et al. 2011 Powder Technol. doi:10.1016/j.powtec.2010.09.025 — larger abrasives
+          raise rate but WORSEN surface uniformity (no counts);
+          (b) Netzband & Dunn 2020 Fig. 5b — RZ and RRMS comparable across 5/20/68 nm, i.e. the
+          usual size-roughness penalty was NOT observed once Ce3+% was maximised;
+          (c) EP3265534B1 — wet-process (colloidal) ceria with a BROAD PSD (~380 nm) nearly
+          DOUBLES TEOS rate vs narrow-PSD comparatives at identical P/v/conc/pH, attributed to
+          surface tridentate-OH coverage (2.3e-5 mol/m^2) and Raman defect ratio (54.8 vs 229.3);
+          (d) Praveen et al. 2014 Microelectron. Eng. 114, 98-104,
+          doi:10.1016/j.mee.2013.10.004 — calcined+milled lab ceria (crystallite 12 nm,
+          BET 58 m^2/g) vs commercial ceria (crystallite 29-30 nm, BET 6-9 m^2/g); the
+          commercial powders carry 24-31 wt% LANTHANUM and 5 wt% Si/Al, and impurity/phase
+          content (not size) tracks the high nitride rates that ruin selectivity.
+        confidence: unverified
+
+      purity_axis:
+        commercial_ceria_lanthanum_wt_pct: [24, 31]
+        lab_calcined_milled_lanthanum_wt_pct: 0
+        detection_note: "below EDX detection limit for the lab-synthesised ceria-CM"
+        bet_m2_g: {ceria_CM: 58, ceria_S: 6, ceria_SA: 9}
+        crystallite_nm: {ceria_CM: 12, ceria_S: 30, ceria_SA: 29}
+        source: "Praveen et al. 2014, Microelectron. Eng. 114, 98-104, doi:10.1016/j.mee.2013.10.004, Tables 2 and 3"
+        confidence: literature
+        note: >
+          '90% pure' commercial ceria is largely TOTAL RARE EARTH OXIDE, not CeO2 — a quarter to
+          a third of it is La2O3. Selectivity with L-proline was found to depend on the ceria
+          SOURCE, while L-glutamic acid worked regardless. Practical warning: a vendor d50 and
+          wt% do not specify a ceria abrasive; the La fraction and phase mix matter.
+          Process conditions for this paper: benchtop Struers Labopol-5, SUBA IV pad, 20 N force
+          (contact pressure not convertible without the coupon area — TODO(owner)),
+          100 rpm table / 250 rpm carrier, pH 7, 0.25 wt% ceria, 1 min, 10 mm square coupons.
+
+      calcination_temperature_series:
+        value: null
+        note: >
+          TODO(owner): Praveen 2014 Fig. 1 sweeps calcination temperature 300-1000 C (crystallite
+          ~5 nm at 300 C to ~30 nm at 1000 C) against oxide and nitride rates, and states a WEAK
+          correlation between crystallite size and oxide rate, with rates roughly flat at/above
+          600 C. The figure is a plot and its point values were not digitized in this pass — this
+          is the most promising unexploited in-corpus ceria size/morphology series.
+        confidence: unverified
+
+    composite_and_coated_particles:
+      ceria_coated_silica: "US12091581B2 — 110-125 nm composite, ceria shell >10-13 nm; TEOS 629.6 nm/min at 3 psi (see anchors)"
+      doped_ceria_on_cu: "US20050003744A1 — Ce-Fe 1762, Ce-Nd 1980, Ce-Cu 2021 vs pure CeO2 1004 A/min at identical Cu CMP conditions (d50 co-varies; confounded)"
+      confidence: literature
+
+# ============================================================================ GAPS
+# Every quantity requested that could NOT be sourced, named explicitly.
+gaps:
+  - "film_anchors.w — NO ceria tungsten blanket rate at any P/v. Tungsten CMP is alumina/silica territory; ceria appears only in patent Markush lists with no ceria example table."
+  - "film_anchors.si — no bare single-crystal Si blanket rate with full P and v. Two candidate papers identified (Mater. Sci. Forum 1129:53; doi:10.1007/s11705-026-2672-4) but full texts not retrieved. poly_si IS sourced; bare Si is not."
+  - "film_anchors.sic (Liang 2026) — pressure and velocity not captured; pH 7 inferred, not printed."
+  - "film_anchors.oxide (Mariscal PETEOS 3x3) — wt%, d50 and pH undisclosed by the authors (commercial slurry). The best P-V data in the file has no composition."
+  - "film_anchors.cu — pad type not disclosed in US20050003744A1; '3/1 psi' notation not fully explained."
+  - "film_anchors.oxide (Hwang HDP) — slurry pH at polish not printed; wt% at polish unclear (30 wt% is the milling slurry)."
+  - "conc_exponent.sin, .poly_si, .cu, .w, .si — no concentration series exists in the sourced literature for these films with ceria."
+  - "conc_exponent.oxide — magnitude is soft: n=3 digitized points, 15.3% max residual, and the SIGN FLIPS with particle size within the same paper. Corroborating negative-branch source (Kim 2021, doi:10.1016/j.colsurfa.2020.125670) has its raw pairs unretrieved."
+  - "conc_exponent.sic — pure-ceria value unknown; the fitted +0.47 is a CuxO-CeO2/Al2O3 composite, and the confound-controlled alternative (+0.227, Wang) has a bootstrap CI spanning zero, so only the SIGN is established."
+  - "size_exponent.sin, .poly_si, .sic, .cu, .w, .si — no within-study size sweeps at fixed conditions. Kang 2004 suggests m_sin ~ 0 but only at abstract level."
+  - "size_exponent.oxide — graded DERIVED not literature: digitized bars, H2O2 re-optimised per size (co-varying chemical axis), and a single power law fits poorly (local slope +0.89 -> +0.24 across the range)."
+  - "size_exponent.oxide.peak_location_nm — 163 nm is E5 (secondary citation via Wang 2020); the Oh 2010 primary is paywalled and unretrieved. Value is a LOWER BOUND, since Oh 2011 and Kang 2004 still rise at 232-417 nm."
+  - "saturation.oxide_colloidal_60nm — any knee lies at or below the lowest concentration measured (0.25 wt%); unresolved."
+  - "saturation.sic — no ceria-on-SiC series brackets a knee; the 8 wt% knee cited is a SILICA study."
+  - "ph_response.sic — Chen 2017 Fig. 13 is a raster image, so the pH 2/4/10 ceria bar values could not be digitized. Only the pH-2 endpoint is printed."
+  - "ph_response.sin — nitride pH series exists in Dandu 2009 Fig. 3 but was not digitized in this pass; only the pH 4-5.5 plateau (~80 nm/min) is printed."
+  - "properties.mohs_hardness — no citable primary source found for CeO2."
+  - "properties.hardness_gpa / youngs_modulus_gpa — measured on BULK sintered pellets (nuclear-fuel surrogate), not CMP nanoparticles. Nanoparticle values remain unmeasured."
+  - "morphology.quantified_defect_difference — no scratch/defect COUNTS for calcined vs colloidal ceria at matched removal rate anywhere in the sourced set."
+  - "morphology.calcination_temperature_series — Praveen 2014 Fig. 1 (300-1000 C vs oxide and nitride rate) not yet digitized. Highest-value unexploited in-corpus series."
+  - "Ce3+ -> MRR transfer function — Netzband 2020 (H2O2 confound) and Hwang 2026 (four properties co-vary) both fail confound control. No dataset isolates Ce3+ fraction. Do not fit a Ce3+ gain."
+  - "Pressure and velocity exponents per film — only oxide has a real P-V matrix (Mariscal 3x3, non-Prestonian). The two US12091581B2 pressure pairs suggest oxide +0.54 and nitride +4.71 (n=2 each), i.e. STI selectivity is pressure-dependent; needs 3+ pressures to confirm."
+  - "Absolute rate levels are NOT comparable across sources: benchtop coupon tools (Netzband, Praveen, Hwang) run ~1-2 orders below 200/300 mm platforms (Dandu, Mariscal, patents). Only within-source ratios are safe."

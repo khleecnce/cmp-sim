@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>CMP-Sim — tool view</title>
+<style>
+  :root{
+    --bg:#0b0d12; --panel:#171a21; --panel2:#1d212a; --line:#2a2f3a;
+    --fg:#e6e9ef; --muted:#9aa3b2; --accent:#4da3ff; --good:#3ecf8e;
+    --warn:#ffb454; --bad:#ff6b6b;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--fg);overflow:hidden;
+       font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  header{position:fixed;top:0;left:0;right:0;height:52px;z-index:30;
+         padding:0 20px;display:flex;align-items:center;gap:14px;
+         background:rgba(11,13,18,.82);backdrop-filter:blur(10px);
+         border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:17px;letter-spacing:.2px}
+  header .sub{color:var(--muted);font-size:12px}
+  header .grow{flex:1}
+  header a{color:var(--accent);font-size:12.5px;text-decoration:none}
+  header a:hover{text-decoration:underline}
+
+  /* The scene is INSET when the drawer is open, not covered by it. The drawer
+     is 390 px of opaque panel on the left, and the slurry supply unit sits on
+     that side of the tool — so with an overlay the one part a formulator most
+     wants to click was the one part unreachable, and the click landed on the
+     panel instead. Insetting keeps every part on screen and clickable. */
+  #stage{position:fixed;top:52px;left:0;right:0;bottom:0;
+         transition:left .22s ease, right .22s ease}
+  body.drawer-open #stage{left:390px}
+  body.sheet-open  #stage{right:min(560px,52vw)}
+  #scene{display:block;width:100%;height:100%}
+
+  /* the part legend, bottom-left */
+  #legend{position:fixed;left:16px;bottom:16px;z-index:20;transition:left .22s ease;background:rgba(23,26,33,.86);
+          backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:10px;
+          padding:11px 13px;max-width:280px}
+  #legend h3{margin:0 0 7px;font-size:11px;text-transform:uppercase;letter-spacing:.9px;
+             color:var(--muted);font-weight:600}
+  #legend button{display:block;width:100%;text-align:left;margin:3px 0;padding:6px 9px;
+        background:var(--panel2);color:var(--fg);border:1px solid var(--line);
+        border-radius:6px;font-size:12.5px;cursor:pointer}
+  #legend button:hover{border-color:var(--accent);color:var(--accent)}
+  #legend .tip{color:var(--muted);font-size:11px;margin-top:7px}
+  body.drawer-open #legend{left:406px}
+
+  /* live readout, top-right of the canvas */
+  #live{position:fixed;right:16px;top:68px;z-index:20;background:rgba(23,26,33,.86);
+        backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:10px;
+        padding:12px 15px;min-width:210px}
+  #live .k{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.8px}
+  #live .v{font-size:27px;font-weight:700;line-height:1.15}
+  #live .v .u{font-size:12px;color:var(--muted);font-weight:400;margin-left:3px}
+  #live .row2{display:flex;gap:16px;margin-top:9px}
+  #live .row2 div{flex:1}
+  #live .small{font-size:15px;font-weight:600}
+  #live .flag{margin-top:9px;font-size:11.5px;padding:6px 8px;border-radius:5px;
+              border-left:3px solid var(--warn);background:#221c12;color:#ffd79a}
+  #live .flag.ok{border-left-color:var(--good);background:#12211a;color:#a8e9cb}
+
+  /* the click-to-edit drawer */
+  #drawer{position:fixed;left:0;top:52px;bottom:0;width:390px;z-index:25;
+          background:var(--panel);border-right:1px solid var(--line);
+          transform:translateX(-100%);transition:transform .22s ease;
+          overflow-y:auto;padding:16px 18px 80px}
+  #drawer.open{transform:translateX(0)}
+  #drawer h2{margin:0 0 3px;font-size:15px}
+  #drawer .why{color:var(--muted);font-size:12px;margin-bottom:13px}
+  #drawer .close{position:absolute;right:12px;top:12px;background:none;border:0;
+                 color:var(--muted);font-size:20px;cursor:pointer;line-height:1}
+  label{display:block;margin:10px 0 0;font-size:12.5px;color:var(--muted)}
+  input,select,textarea{width:100%;margin-top:3px;padding:7px 9px;background:var(--panel2);
+    color:var(--fg);border:1px solid var(--line);border-radius:6px;font-size:13px}
+  textarea{font:12px ui-monospace,Menlo,monospace;resize:vertical}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .hint{color:var(--muted);font-size:11.5px;margin-top:5px}
+  .note{font-size:11.5px;margin-top:8px;padding:7px 9px;border-radius:6px;
+        background:var(--panel2);border-left:3px solid var(--line);color:var(--muted)}
+  .note.warn{border-left-color:var(--warn);color:#ffd79a;background:#221c12}
+  .note.good{border-left-color:var(--good);color:#a8e9cb;background:#12211a}
+  #drawer button.go{margin-top:18px;width:100%;padding:11px;background:var(--accent);
+    color:#04121f;border:0;border-radius:7px;font-weight:700;font-size:14px;cursor:pointer}
+
+  /* full results sheet */
+  #sheet{position:fixed;right:0;top:52px;bottom:0;width:min(560px,52vw);z-index:26;
+         background:var(--panel);border-left:1px solid var(--line);
+         transform:translateX(100%);transition:transform .22s ease;
+         overflow-y:auto;padding:16px 20px 80px}
+  #sheet.open{transform:translateX(0)}
+  #sheet .close{position:absolute;right:12px;top:12px;background:none;border:0;
+                color:var(--muted);font-size:20px;cursor:pointer;line-height:1}
+  #sheet h2{font-size:12.5px;text-transform:uppercase;letter-spacing:.9px;color:var(--muted);
+            margin:20px 0 8px;font-weight:600}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:600}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  ul.msgs{list-style:none;margin:0;padding:0}
+  ul.msgs li{padding:7px 10px;margin-bottom:5px;border-radius:6px;font-size:12px;
+    background:var(--panel2);border-left:3px solid var(--line)}
+  ul.msgs li.w{border-left-color:var(--warn)}
+  details{margin-top:8px}
+  summary{cursor:pointer;color:var(--accent);font-size:12.5px}
+  pre{background:var(--panel2);padding:10px;border-radius:6px;overflow-x:auto;font-size:11px}
+  .err{background:#2a1618;border:1px solid var(--bad);color:#ffb3b3;padding:11px;
+       border-radius:7px;white-space:pre-wrap;font-size:12.5px}
+  .badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10.5px;
+         font-weight:700;letter-spacing:.4px;text-transform:uppercase}
+  .badge.cal{background:#12211a;color:#5fe0a5}
+  .badge.rank{background:#221c12;color:#ffc470}
+  .nowebgl{position:fixed;inset:52px 0 0 0;display:flex;align-items:center;
+           justify-content:center;padding:40px;text-align:center;color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <h1>CMP-Sim</h1>
+  <span class="sub">click a part of the tool to enter its data</span>
+  <span class="grow"></span>
+  <span class="sub" id="filmnow"></span>
+  <a href="/">form view &rarr;</a>
+</header>
+
+<!-- The canvas lives inside a stretching <div>. A <canvas> is a REPLACED
+     element: given position:fixed with left/right/top/bottom but no explicit
+     size it does not stretch to those offsets, it falls back to its intrinsic
+     300x150 — which rendered the whole tool into a postage stamp. A div does
+     stretch, so the canvas can simply fill it at 100%. -->
+<div id="stage"><canvas id="scene"></canvas></div>
+
+<div id="live">
+  <div class="k">Removal rate</div>
+  <div class="v" id="lrate">&mdash;<span class="u">Å/min</span></div>
+  <div class="row2">
+    <div><div class="k">WIWNU 1&sigma;</div><div class="small" id="lwiwnu">&mdash;</div></div>
+    <div><div class="k">Profile</div><div class="small" id="lprof">&mdash;</div></div>
+  </div>
+  <div id="lflag"></div>
+  <button class="go" style="margin-top:12px;width:100%;padding:8px;background:var(--panel2);
+    color:var(--accent);border:1px solid var(--line);border-radius:6px;cursor:pointer;
+    font-size:12.5px" id="showsheet">full result &amp; warnings</button>
+</div>
+
+<div id="legend">
+  <h3>Tool parts</h3>
+  <div id="legendbtns"></div>
+  <div class="tip">Drag to orbit · scroll to zoom. The wafer colour map is the
+    simulated radial removal profile, and the platen, head and slurry stream run
+    at the rates you enter.</div>
+</div>
+
+<div id="drawer">
+  <button class="close" id="drawerclose">&times;</button>
+  <h2 id="dtitle">—</h2>
+  <div class="why" id="dwhy"></div>
+  <div id="dbody"></div>
+  <button class="go" id="dgo">Simulate</button>
+</div>
+
+<div id="sheet">
+  <button class="close" id="sheetclose">&times;</button>
+  <div id="sheetbody"><p class="hint">Run a simulation to see the full result.</p></div>
+</div>
+
+<script type="module">
+import { createScene } from './vendor/tool3d.js';
+
+const $ = id => document.getElementById(id);
+const TOKEN = new URLSearchParams(location.search).get('t') || '';
+const api = p => TOKEN ? p + (p.includes('?') ? '&' : '?') + 't=' + encodeURIComponent(TOKEN) : p;
+
+let META = null, SCENE = null, LAST = null;
+
+/* ── the recipe lives here, not in the DOM ────────────────────────────
+ * The form view reads its inputs back out of the DOM. That cannot work here:
+ * only one drawer is mounted at a time, so any field not currently on screen
+ * would read as blank and silently reset itself to the pack default on the
+ * next run. So the recipe is the single source of truth and each drawer is a
+ * view onto part of it.
+ */
+const R = {
+  model: 'auto',
+  wafer: { film: 'oxide', diameter_mm: 300, initial_thickness_nm: 1000, n_radial: 81 },
+  slurry: { abrasive: {}, additives: [] },
+  pad: { groove_width_mm: 0.5, groove_pitch_mm: 2.0, groove_depth_mm: 0.75, use_hours: 0 },
+  disk: { hours_used: 0 },
+  tool: { pressure_psi: 3.0, rpm_platen: 60, rpm_head: 60, flow_ml_min: 200, time_s: 60 },
+};
+
+const numOrNull = v => (v === '' || v == null) ? null : Number(v);
+
+/** Write a value into the recipe, deleting the key when the field is cleared. */
+function setR(path, value) {
+  const parts = path.split('.');
+  let o = R;
+  for (const p of parts.slice(0, -1)) o = (o[p] = o[p] || {});
+  const k = parts[parts.length - 1];
+  if (value === null || value === undefined || value === '') delete o[k];
+  else o[k] = value;
+  syncScene();
+}
+
+function getR(path, dflt) {
+  let o = R;
+  for (const p of path.split('.')) { if (o == null) return dflt; o = o[p]; }
+  return o === undefined ? dflt : o;
+}
+
+/** Push the recipe's kinematics into the animation, so the picture is honest. */
+function syncScene() {
+  if (!SCENE) return;
+  SCENE.setState({
+    rpmPlaten: Number(getR('tool.rpm_platen', 60)) || 0,
+    rpmHead: Number(getR('tool.rpm_head', 60)) || 0,
+    flow: Number(getR('tool.flow_ml_min', 200)) || 0,
+    conditioning: true,
+    groovePitchMm: Number(getR('pad.groove_pitch_mm', 2.0)),
+    grooveWidthMm: Number(getR('pad.groove_width_mm', 0.5)),
+  });
+  $('filmnow').textContent =
+    `${getR('wafer.film', '?')} · ${getR('slurry.abrasive.kind') || 'pack abrasive'} · ` +
+    `${getR('tool.pressure_psi', '?')} psi · ${getR('tool.rpm_platen', '?')}/${getR('tool.rpm_head', '?')} rpm`;
+}
+
+/* ── drawers, one per clickable part ───────────────────────────────── */
+const field = (label, path, attrs = {}) => {
+  const v = getR(path);
+  const a = Object.entries(attrs).map(([k, x]) => `${k}="${x}"`).join(' ');
+  return `<label>${label}<input data-path="${path}" ${a}
+          value="${v === undefined || v === null ? '' : v}"/></label>`;
+};
+
+const DRAWERS = {
+  wafer: () => ({
+    title: 'Wafer / film stack',
+    why: 'The film sets the removal mechanism, the plausibility envelope and the ' +
+         'maturity grade. Each film is learned separately — their rates differ by ' +
+         'orders of magnitude, so they are never pooled.',
+    body: `
+      <label>Film<select data-path="wafer.film">${
+        (META.films || []).map(f =>
+          `<option value="${f}"${f === getR('wafer.film') ? ' selected' : ''}>${f}</option>`).join('')
+      }</select></label>
+      <div class="hint" id="packhint"></div>
+      <div class="row">
+        ${field('Diameter (mm)', 'wafer.diameter_mm', { type: 'number', step: 25 })}
+        ${field('Initial thickness (nm)', 'wafer.initial_thickness_nm', { type: 'number', step: 50 })}
+      </div>
+      ${field('Pattern density (0–1, blank = blanket)', 'wafer.pattern_density',
+              { type: 'number', step: 0.05, min: 0, max: 0.95, placeholder: 'blanket' })}
+      <div class="hint">A pattern density turns on the dishing/erosion layer.</div>`,
+    after: () => {
+      const f = getR('wafer.film');
+      const pack = (META.film_pack || {})[f];
+      $('packhint').textContent = pack
+        ? `reference parameter pack: ${pack}` : '';
+    },
+  }),
+
+  slurry: () => {
+    const kinds = META.abrasives || [];
+    const cur = getR('slurry.abrasive.kind') || '';
+    const roles = META.additive_roles || {};
+    const adds = getR('slurry.additives', []);
+    const addRow = (i) => {
+      const a = adds[i] || {};
+      return `
+      <label>Additive ${i + 1}<select data-add="${i}" data-addfield="name">
+        <option value="">(none)</option>
+        ${(META.additives || []).map(n =>
+          `<option value="${n}"${n === a.name ? ' selected' : ''}>${n}${
+            roles[n] ? ' — ' + roles[n] : ''}</option>`).join('')}
+      </select></label>
+      <div class="row">
+        <label>conc (mM)<input data-add="${i}" data-addfield="conc_mM" type="number"
+          step="0.1" value="${a.conc_mM ?? ''}"/></label>
+        <label>conc (wt%)<input data-add="${i}" data-addfield="conc_wt_pct" type="number"
+          step="0.1" value="${a.conc_wt_pct ?? ''}"/></label>
+      </div>`;
+    };
+    return {
+      title: 'Slurry supply unit',
+      why: 'Abrasive type is learned per particle chemistry, never pooled: the measured ' +
+           'size exponents do not even share a sign (silica −0.05, alumina +0.29, ' +
+           'ceria +0.87 on the same oxide film).',
+      body: `
+        <label>Abrasive particle<select data-path="slurry.abrasive.kind">
+          <option value="">(the pack's own abrasive)</option>
+          ${kinds.map(k => `<option value="${k}"${k === cur ? ' selected' : ''}>${k}</option>`).join('')}
+        </select></label>
+        <div id="abstatus"></div>
+        <div class="row3">
+          ${field('wt%', 'slurry.abrasive.conc_wt_pct', { type: 'number', step: 0.5, placeholder: 'pack' })}
+          ${field('D50 (nm)', 'slurry.abrasive.d50_nm', { type: 'number', step: 5, placeholder: 'pack' })}
+          ${field('D99 (nm)', 'slurry.abrasive.d99_nm', { type: 'number', step: 10, placeholder: 'est.' })}
+        </div>
+        <div class="hint">D99 is the large-particle tail — it drives scratch risk, not D50.</div>
+        <div class="row">
+          ${field('pH', 'slurry.ph', { type: 'number', step: 0.1, placeholder: 'pack' })}
+          ${field('Temperature (°C)', 'slurry.temperature_c', { type: 'number', step: 1, placeholder: '25' })}
+        </div>
+        ${addRow(0)}${addRow(1)}
+        <div class="hint">Oxidizers take wt%, inhibitors take mM.</div>`,
+      after: () => {
+        // Say up front whether this abrasive/film pairing is anchored to a
+        // measurement or only ranked — before the run, not only after it.
+        const k = getR('slurry.abrasive.kind');
+        const el = $('abstatus');
+        if (!k) { el.innerHTML = ''; return; }
+        const s = (LAST && LAST.abrasive_type) || null;
+        if (s && s.kind && (s.kind === k || (META.abrasives || []).includes(k))) {
+          el.innerHTML = s.ranking_only
+            ? `<div class="note warn"><span class="badge rank">ranking only</span>
+               no published same-recipe rate ratio for this abrasive on this film, so the
+               absolute rate stays anchored to the pack's abrasive
+               (<code>${s.reference_kind || '?'}</code>). Compare recipes, don't quote the number.</div>`
+            : `<div class="note good"><span class="badge cal">anchored</span>
+               this abrasive is either the pack's own or has a published rate ratio
+               (${s.relative_rate ?? 1}×) against it.</div>`;
+        } else {
+          el.innerHTML = `<div class="note">Run the simulation to see whether this
+            abrasive/film pairing is anchored to a measurement or ranked only.</div>`;
+        }
+      },
+    };
+  },
+
+  pad: () => ({
+    title: 'Polishing pad',
+    why: 'Pad modulus and asperity statistics set the real contact pressure ' +
+         '(Greenwood–Williamson). Grooving controls slurry transport; the grooves ' +
+         'you see on the platen are drawn from the pitch below.',
+    body: `
+      <div class="row">
+        ${field('Shore D', 'pad.shore_d', { type: 'number', step: 1, placeholder: 'pack' })}
+        ${field('Pad hours used', 'pad.use_hours', { type: 'number', step: 0.5 })}
+      </div>
+      <div class="row3">
+        ${field('Groove w (mm)', 'pad.groove_width_mm', { type: 'number', step: 0.1 })}
+        ${field('pitch (mm)', 'pad.groove_pitch_mm', { type: 'number', step: 0.1 })}
+        ${field('depth (mm)', 'pad.groove_depth_mm', { type: 'number', step: 0.05 })}
+      </div>
+      <div class="hint">Pad hours drive the glazing / rate-decay layer.</div>`,
+  }),
+
+  platen: () => DRAWERS.tool(),
+  head: () => DRAWERS.tool(),
+  nozzle: () => DRAWERS.slurry(),
+
+  disk: () => ({
+    title: 'Conditioner disk',
+    why: 'Conditioning regenerates pad asperities against glazing. Disk hours ' +
+         'stand for its own wear — a worn disk cuts less and the pad drifts.',
+    body: `
+      ${field('Disk hours used', 'disk.hours_used', { type: 'number', step: 1 })}
+      <div class="hint">Diamond grit size and density live in the parameter pack;
+        override them in the form view if you have vendor data.</div>`,
+  }),
+
+  frame: () => DRAWERS.tool(),
+
+  tool: () => ({
+    title: 'Process setup',
+    why: 'Pressure and relative velocity are the Preston pair; flow and rpm ' +
+         'together decide whether the wafer is slurry-starved.',
+    body: `
+      <div class="row">
+        ${field('Pressure (psi)', 'tool.pressure_psi', { type: 'number', step: 0.25 })}
+        ${field('Flow (ml/min)', 'tool.flow_ml_min', { type: 'number', step: 25 })}
+      </div>
+      <div class="row">
+        ${field('Platen rpm', 'tool.rpm_platen', { type: 'number', step: 1 })}
+        ${field('Head rpm', 'tool.rpm_head', { type: 'number', step: 1 })}
+      </div>
+      ${field('Polish time (s)', 'tool.time_s', { type: 'number', step: 5 })}
+      <label>Zone pressures (psi, comma separated — blank = uniform)
+        <input id="zones" value="${(getR('tool.zone_pressures_psi') || []).join(', ')}"
+               placeholder="e.g. 2.5, 3.0, 4.0"/></label>
+      <label>Model profile<select data-path="model">${
+        ['auto'].concat(Object.keys(META.models || {}).filter(k => k !== 'auto'))
+          .map(k => `<option value="${k}"${k === R.model ? ' selected' : ''}>${k}</option>`).join('')
+      }</select></label>
+      <div class="hint">A profile bundles physics layers for a <b>situation</b>, not
+        for a film. <b>auto</b> detects the situation and picks.</div>`,
+    after: () => {
+      const z = $('zones');
+      if (!z) return;
+      z.addEventListener('change', () => {
+        const zp = z.value.split(',').map(s => Number(s.trim())).filter(v => !isNaN(v));
+        if (!zp.length) { delete R.tool.zone_pressures_psi; delete R.tool.zone_edges_norm; return; }
+        R.tool.zone_pressures_psi = zp;
+        R.tool.zone_edges_norm = Array.from({ length: zp.length + 1 }, (_, i) => i / zp.length);
+      });
+    },
+  }),
+};
+
+function openDrawer(part) {
+  const make = DRAWERS[part] || DRAWERS.tool;
+  const d = make();
+  $('dtitle').textContent = d.title;
+  $('dwhy').textContent = d.why;
+  $('dbody').innerHTML = d.body;
+  // Bind every field by its declared recipe path — no per-field wiring to
+  // forget, which is how an input silently stops affecting the result.
+  $('dbody').querySelectorAll('[data-path]').forEach(el => {
+    el.addEventListener('change', () => {
+      const raw = el.value;
+      const v = (el.type === 'number') ? numOrNull(raw) : (raw === '' ? null : raw);
+      setR(el.dataset.path, v);
+      if (el.dataset.path === 'wafer.film' || el.dataset.path === 'slurry.abrasive.kind') {
+        openDrawer(part);                      // re-render so the hints update
+      }
+    });
+  });
+  $('dbody').querySelectorAll('[data-add]').forEach(el => {
+    el.addEventListener('change', () => {
+      const i = Number(el.dataset.add), f = el.dataset.addfield;
+      R.slurry.additives = R.slurry.additives || [];
+      const a = R.slurry.additives[i] || (R.slurry.additives[i] = {});
+      if (f === 'name') {
+        if (!el.value) { R.slurry.additives[i] = {}; return; }
+        a.name = el.value;
+        a.role = (META.additive_roles || {})[el.value] || null;
+      } else {
+        const v = numOrNull(el.value);
+        if (v === null) delete a[f]; else a[f] = v;
+      }
+    });
+  });
+  if (d.after) d.after();
+  panel('drawer', true);
+}
+
+/* ── run ──────────────────────────────────────────────────────────── */
+function cleanRecipe() {
+  // additives are held as a sparse array while the drawer is open; the API
+  // wants only the ones that actually name an additive.
+  const body = JSON.parse(JSON.stringify(R));
+  body.slurry.additives = (body.slurry.additives || []).filter(a => a && a.name);
+  if (!Object.keys(body.slurry.abrasive || {}).length) delete body.slurry.abrasive;
+  return body;
+}
+
+async function run() {
+  const b = $('dgo'); const old = b.textContent;
+  b.disabled = true; b.textContent = 'Simulating…';
+  try {
+    const res = await fetch(api('/api/simulate'), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cleanRecipe()),
+    });
+    const j = await res.json();
+    if (!res.ok) {
+      $('lrate').innerHTML = '&mdash;';
+      $('lflag').innerHTML = `<div class="flag">${j.error}: ${(j.detail || '').slice(0, 160)}</div>`;
+      $('sheetbody').innerHTML = `<div class="err"><b>${j.error}</b>\n${j.detail || ''}</div>`;
+      panel('sheet', true);
+      return;
+    }
+    LAST = j;
+    paint(j);
+  } catch (e) {
+    $('lflag').innerHTML = `<div class="flag">${e}</div>`;
+  } finally {
+    b.disabled = false; b.textContent = old;
+  }
+}
+
+function paint(j) {
+  $('lrate').innerHTML = `${j.removal_rate_A_per_min}<span class="u">Å/min</span>`;
+  $('lwiwnu').textContent = j.wiwnu_percent == null ? '—' : j.wiwnu_percent + ' %';
+  $('lprof').textContent = j.profile || '—';
+
+  const at = j.abrasive_type || null;
+  const nWarn = (j.warnings || []).length;
+  let flag = '';
+  if (at && at.ranking_only) {
+    flag = `<div class="flag"><b>ranking only</b> — the absolute rate is anchored to
+            <code>${at.reference_kind || '?'}</code>, not to
+            <code>${at.kind || '?'}</code>. Compare recipes, don't quote the number.</div>`;
+  } else if (nWarn === 0) {
+    flag = `<div class="flag ok">no warnings on this run</div>`;
+  } else {
+    flag = `<div class="flag">${nWarn} warning(s) — open the full result</div>`;
+  }
+  $('lflag').innerHTML = flag;
+
+  // the wafer really shows the predicted profile
+  const p = j.radial_profile || {};
+  if (SCENE) SCENE.paintWafer(p.radius_mm || [0, 1], p.mrr_A_per_min || null);
+
+  renderSheet(j);
+}
+
+function kv(obj, skip) {
+  const rows = Object.entries(obj || {})
+    .filter(([k, v]) => !(skip || []).includes(k) && typeof v !== 'object')
+    .map(([k, v]) => `<tr><td>${k.replace(/_/g, ' ')}</td><td class="num">${v}</td></tr>`);
+  return rows.length ? `<table>${rows.join('')}</table>` : '';
+}
+
+function renderSheet(j) {
+  let h = `<h2>Result</h2><table>
+    <tr><th>removal rate</th><td class="num">${j.removal_rate_A_per_min} Å/min</td></tr>
+    <tr><th>WIWNU (1σ)</th><td class="num">${j.wiwnu_percent ?? '—'} %</td></tr>
+    <tr><th>film</th><td class="num">${j.film}</td></tr>
+    <tr><th>profile</th><td class="num">${j.profile || ''}</td></tr></table>`;
+
+  const at = j.abrasive_type;
+  if (at) {
+    h += `<h2>Abrasive</h2><table>
+      <tr><th>in this recipe</th><td class="num">${at.kind || '(pack default)'}</td></tr>
+      <tr><th>pack calibrated with</th><td class="num">${at.reference_kind || 'not declared'}</td></tr>
+      <tr><th>rate ratio applied</th><td class="num">${at.relative_rate ?? '—'}</td></tr>
+      <tr><th>anchored?</th><td class="num">${at.ranking_only
+        ? '<span class="badge rank">ranking only</span>'
+        : '<span class="badge cal">anchored</span>'}</td></tr></table>`;
+    const wd = Object.entries(at.withdrawn || {});
+    if (wd.length) {
+      h += `<details><summary>${wd.length} axis/axes withdrawn on the abrasive swap</summary>
+        <ul class="msgs">${wd.map(([k, v]) => `<li class="w"><b>${k}</b>: ${v}</li>`).join('')}</ul></details>`;
+    }
+  }
+
+  if (j.cmp_maturity && j.cmp_maturity.grade !== 'established') {
+    h += `<div class="err"><b>${j.cmp_maturity.grade.toUpperCase()} CMP target</b><ul class="msgs">${
+      (j.cmp_maturity.reasons || []).map(x => `<li>${x}</li>`).join('')}</ul></div>`;
+  }
+
+  if (j.situation) {
+    const axes = ['film_class', 'rate_limit', 'contact_branch', 'asperity_regime',
+                  'load_regime', 'lubrication', 'topography', 'pad_state'];
+    h += `<h2>Detected situation</h2><table>${axes.map(a =>
+      `<tr><td>${a.replace(/_/g, ' ')}</td><td class="num">${j.situation[a] || '?'}</td></tr>`).join('')}</table>`;
+  }
+
+  if (Object.keys(j.factors || {}).length) {
+    h += `<h2>Kp factors (1.000 = the calibrated reference)</h2><table>${
+      Object.entries(j.factors).map(([k, v]) =>
+        `<tr><td>${k}</td><td class="num">${v}</td></tr>`).join('')}</table>`;
+  }
+  for (const [key, title] of [['slurry_supply', 'Slurry supply & lubrication'],
+                              ['abrasive_regime', 'Abrasive regime'],
+                              ['pattern_effects', 'Pattern effects'],
+                              ['pad_life', 'Pad life'],
+                              ['defect_risk', 'Defect risk']]) {
+    if (j[key]) h += `<h2>${title}</h2>${kv(j[key], ['notes', 'warnings', 'terms'])}`;
+  }
+  if ((j.warnings || []).length) {
+    h += `<h2>Warnings — read before trusting a number</h2>
+      <ul class="msgs">${j.warnings.map(w => `<li class="w">${w}</li>`).join('')}</ul>`;
+  }
+  if ((j.notes || []).length) {
+    h += `<details><summary>Model notes (${j.notes.length})</summary>
+      <ul class="msgs">${j.notes.map(n => `<li>${n}</li>`).join('')}</ul></details>`;
+  }
+  h += `<details><summary>Raw JSON</summary><pre>${
+    JSON.stringify(j, null, 2).replace(/</g, '&lt;')}</pre></details>`;
+  $('sheetbody').innerHTML = h;
+}
+
+/* ── boot ─────────────────────────────────────────────────────────── */
+/* Panel visibility is mirrored onto <body> so the canvas can be inset rather
+ * than covered, and the renderer is resized after the CSS transition so the
+ * 3D aspect ratio matches the new canvas box (otherwise the tool looks
+ * stretched for as long as a panel is open). */
+function panel(id, open) {
+  $(id).classList.toggle('open', open);
+  document.body.classList.toggle(id + '-open', open);
+  setTimeout(() => SCENE && SCENE.resize(), 240);
+}
+$('drawerclose').onclick = () => panel('drawer', false);
+$('sheetclose').onclick = () => panel('sheet', false);
+$('showsheet').onclick = () => panel('sheet', true);
+$('dgo').onclick = run;
+
+(async function boot() {
+  META = await (await fetch(api('/api/meta'))).json();
+  if (!(META.films || []).includes(R.wafer.film)) R.wafer.film = (META.films || ['oxide'])[0];
+
+  // the legend doubles as a keyboard/no-3D route into every drawer
+  const seen = new Set();
+  const order = ['wafer', 'head', 'pad', 'platen', 'disk', 'slurry', 'frame'];
+  $('legendbtns').innerHTML = order.filter(p => !seen.has(p) && seen.add(p) !== false)
+    .map(p => `<button data-part="${p}">${
+      ({ wafer: 'Wafer / film stack', head: 'Carrier head', pad: 'Pad',
+         platen: 'Platen & speeds', disk: 'Conditioner disk',
+         slurry: 'Slurry supply unit', frame: 'Process setup' })[p]}</button>`).join('');
+  $('legendbtns').querySelectorAll('button').forEach(b =>
+    b.addEventListener('click', () => openDrawer(b.dataset.part)));
+
+  try {
+    SCENE = createScene($('scene'), (part) => openDrawer(part));
+    // Automation hook: lets an end-to-end test ask where a part is on screen
+    // and then click it with a real mouse, instead of guessing pixel boxes that
+    // break as soon as the camera moves.
+    window.__probe = (x, y) => SCENE.probeAt(x, y);
+  } catch (e) {
+    // WebGL can be unavailable (VM, remote desktop, old driver). The simulator
+    // must stay usable: the legend buttons already open every drawer.
+    $('stage').style.display = 'none';
+    const d = document.createElement('div');
+    d.className = 'nowebgl';
+    d.innerHTML = `<div><b>3D view unavailable on this display</b><br/>
+      ${e}<br/><br/>Every part is still reachable from the list at
+      bottom-left, and the <a href="/">form view</a> needs no 3D at all.</div>`;
+    document.body.appendChild(d);
+  }
+  syncScene();
+  openDrawer('wafer');
+  run();
+})();
+</script>
+</body>
+</html>

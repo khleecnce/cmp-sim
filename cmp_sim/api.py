@@ -7,7 +7,10 @@ this on a lab machine with nothing installed beyond the simulator itself.
 
 Endpoints
 ---------
-``GET  /``               the web UI
+``GET  /``               the form web UI
+``GET  /tool``           the 3D tool view — click a part of the polisher to
+                         enter its data; the wafer shows the predicted profile
+``GET  /vendor/<asset>`` vendored static assets (three.js, the scene module)
 ``GET  /api/meta``       packs, models, films, additives and abrasives available
 ``GET  /api/accuracy``   measured predictive error over all 320 literature points
 ``POST /api/simulate``   a recipe dict in, a result dict out
@@ -203,6 +206,55 @@ class Handler(BaseHTTPRequestHandler):
         self._send(code, json.dumps(obj, ensure_ascii=False).encode("utf-8"),
                    "application/json; charset=utf-8")
 
+    #: Static asset types served from web/vendor. An extension not on this list
+    #: is refused rather than guessed: serving an unknown type as octet-stream
+    #: is how a mis-set MIME turns into a module that silently will not load.
+    _CONTENT_TYPES = {
+        ".js": "text/javascript; charset=utf-8",
+        ".css": "text/css; charset=utf-8",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".webp": "image/webp",
+        ".svg": "image/svg+xml",
+        ".glb": "model/gltf-binary",
+        ".ktx2": "image/ktx2",
+    }
+
+    def _static(self, path: str) -> None:
+        """Serve one file from web/vendor, refusing anything outside it.
+
+        The 3D view's three.js build is VENDORED rather than pulled from a CDN:
+        the owner has to be able to run this on a fab machine with no outbound
+        network, and a UI that silently degrades to a blank canvas offline would
+        be worse than no 3D view at all.
+
+        Path containment is checked by resolving both sides. A request for
+        ``/vendor/../../etc/passwd`` must not escape, and checking for ".." in
+        the string is not enough once URL escaping is involved.
+        """
+        from urllib.parse import unquote
+
+        rel = unquote(path).lstrip("/")
+        target = (WEB_DIR / rel).resolve()
+        root = (WEB_DIR / "vendor").resolve()
+        if root not in target.parents or not target.is_file():
+            return self._json(404, {"error": f"no such asset: {path}"})
+        ctype = self._CONTENT_TYPES.get(target.suffix.lower())
+        if ctype is None:
+            return self._json(415, {
+                "error": f"refusing to serve '{target.suffix}'",
+                "detail": "add it to Handler._CONTENT_TYPES with the correct MIME "
+                          "type; guessing one breaks module loading silently"})
+        body = target.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(body)))
+        # Vendored assets are immutable for a given build, and re-sending 670 KB
+        # of three.js on every reload makes the tool view feel broken.
+        self.send_header("Cache-Control", "public, max-age=86400")
+        self.end_headers()
+        self.wfile.write(body)
+
     # ── routes ───────────────────────────────────────────────────
     def do_GET(self) -> None:                     # noqa: N802
         if not self._authorised():
@@ -211,6 +263,11 @@ class Handler(BaseHTTPRequestHandler):
         if path in ("/", "/index.html"):
             html = (WEB_DIR / "index.html").read_bytes()
             return self._send(200, html, "text/html; charset=utf-8")
+        if path in ("/tool", "/tool.html"):
+            html = (WEB_DIR / "tool.html").read_bytes()
+            return self._send(200, html, "text/html; charset=utf-8")
+        if path.startswith("/vendor/"):
+            return self._static(path)
         if path == "/api/meta":
             return self._json(200, _meta())
         if path == "/api/accuracy":
@@ -245,8 +302,8 @@ class Handler(BaseHTTPRequestHandler):
                                           key=lambda x: -x.shape_mape)[:5]],
             })
         self._json(404, {"error": f"no such path: {path}",
-                         "valid_get_paths": ["/", "/api/meta",
-                                             "/api/accuracy"]})
+                         "valid_get_paths": ["/", "/tool", "/vendor/<asset>",
+                                             "/api/meta", "/api/accuracy"]})
 
     def do_POST(self) -> None:                    # noqa: N802
         if not self._authorised():

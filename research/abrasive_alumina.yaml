@@ -1,0 +1,1453 @@
+# =====================================================================
+# abrasive_alumina.yaml — quantitative literature dataset for Al2O3 abrasive in CMP
+# Scope: ALUMINA ONLY. alpha-Al2O3 (corundum) and gamma/transition alumina are
+#        kept STRICTLY separate (top-level keys `alumina` and `gamma_alumina`).
+#        Where a source says only "alumina"/"fumed alumina" without naming the
+#        phase, the entry goes under `alumina` with phase_stated: false.
+# Author: research subagent, 2026-09-24.
+# Sources = local corpus (~/fab-sim/papers, ~/fab-sim/knowledge,
+#           ~/fab-sim/validation/datasets, ~/fab-sim/data/corpus/fulltext)
+#           + patents pulled from patentimages.storage.googleapis.com
+#           + IOPscience/Springer/open-access PDFs.
+#
+# RULES OBEYED HERE
+#  - every number carries value / unit / source / confidence
+#  - confidence vocabulary: literature | vendor | derived | unverified
+#  - nothing is invented. Unknown -> value: null + note: "TODO(owner): ..."
+#  - a rate anchor without BOTH pressure and velocity is flagged in `note`.
+#
+# VELOCITY CONVENTION (read before using velocity_m_s)
+#   CMP papers/patents almost never report linear relative velocity; they report
+#   platen rpm. Where only rpm is known, velocity_m_s is DERIVED as
+#       v = 2*pi*rpm/60 * R_cc,   R_cc = 0.13 m
+#   R_cc (wafer-centre to platen-centre) is NOT reported by any of these sources.
+#   0.13 m is the representative value already used across the fab-sim knowledge
+#   base (knowledge/cmp/w-cmp-preston-kp-oxidizer-rate-literature-reproduction.md
+#   section 3, documented there as the dominant uncertainty, band 0.09-0.17 m).
+#   Such entries carry velocity_source: "derived from platen rpm, R_cc=0.13 m
+#   (assumed)". Treat absolute Kp inversions from them as +/- a factor of ~2.
+#   Same convention as the sibling file research/abrasive_silica.yaml.
+#
+# PHASE MATTERS FOR ALUMINA — the single most important finding in this file:
+#   Wang, Cherian & Haerle (Saint-Gobain), ECS Solid-State Lett. 13(6) H182
+#   (2010), DOI 10.1149/1.3358135, directly compared alpha alumina, TRANSITION
+#   (gamma-family) alumina and SiC on the SAME W CMP tool and report that
+#   "the transition alumina polished tungsten at a LOW RATE compared to the
+#   other abrasives tested", while alpha alumina at 120 nm gave the best
+#   rate/defectivity combination. Do NOT pool alpha and gamma rate constants.
+# =====================================================================
+
+meta:
+  abrasive: Al2O3
+  phases: [alpha_alumina, gamma_transition_alumina]
+  rate_unit_convention: "nm/min (patent Angstrom/min divided by 10; um/h multiplied by 1000/60; nm/h divided by 60)"
+  pressure_unit: psi
+  created: 2026-09-24
+  schema_version: 1
+  primary_application:
+    value: "tungsten CMP (Fe(NO3)3 / K3Fe(CN)6 / H2O2 oxidisers, acidic pH); also SiC, sapphire, Cu, hard metals"
+    source: "US5916855 (Cabot, W plug slurry, fumed alumina + ferric nitrate); US5391258 (IBM, submicron alumina + H2O2); Bielmann 1999 ESL 2(3) 148"
+    confidence: literature
+
+# =====================================================================
+alumina:                      # alpha-Al2O3 (corundum) and phase-unstated alumina
+# =====================================================================
+
+  properties:
+    description: >
+      alpha-Al2O3 (corundum): the thermodynamically stable, fully densified
+      crystalline phase. Hardest of the common CMP abrasives. Used where a hard
+      indenter is genuinely required (W passivation-layer abrasion, SiC,
+      sapphire, hard metals). Supplied both as calcined/milled micron powder
+      (white corundum, W-grades) and as sub-200 nm colloidal dispersions.
+
+    phase_stated_caveat: >
+      Many W-CMP patents say only "alumina" or "fumed alumina". Fumed alumina
+      (flame hydrolysis of AlCl3, e.g. Cabot SEMI-SPERSE W-A355) is in fact
+      predominantly a TRANSITION (delta/gamma) alumina, not alpha. Anchors taken
+      from such sources carry phase_stated: false and must not be used to
+      calibrate an alpha-specific hardness or indentation term.
+
+    hardness_mohs:
+      value: 9
+      unit: "Mohs"
+      source: "Gong J., Wang W., Liu W., Song Z., Materials 17(3) 679 (2024), DOI 10.3390/ma17030679 (CC-BY) — 'Al2O3 is a well-known abrasive material with high hardness (Mohs hardness 9)'"
+      confidence: literature
+      note: "Qualitative scale only. Also stated independently in KR20130060211A (sapphire itself = Mohs 9)."
+
+    hardness_gpa:
+      value: null
+      unit: GPa
+      source: null
+      confidence: unverified
+      note: >
+        TODO(owner): no nanoindentation hardness of an actual CMP alpha-alumina
+        PARTICLE was found in the corpus or in accessible open literature.
+        Bulk/single-crystal sapphire nanoindentation values (c-plane, ~20-30 GPa
+        range) exist in the literature but every candidate found here
+        (e.g. ScienceDirect S2238785424004563, S0257897221001328) is paywalled
+        and was NOT read, so no number is recorded. Do not substitute a
+        handbook value without a citation.
+
+    youngs_modulus_gpa:
+      value: 500
+      unit: GPa
+      method: "value used for the alumina ABRASIVE in a CMP contact model"
+      source: "Q. Luo, S. Ramarajan, S. V. Babu, Thin Solid Films 335, 160-167 (1998) — as cited in J. Luo, 'Material Removal Regions in CMP ... Part 1' (2002/2003), escholarship.org/uc/item/0n2575s1, section 2.2; local copy papers/luo-dornfeld-material-removal-regions-part1.pdf"
+      confidence: unverified
+      note: >
+        SECONDARY citation: read in Luo's report, the Thin Solid Films original
+        was not opened. Luo quotes it as 'around 500 GPa'. Phase not stated
+        there. Adequate only for the rigid-indenter sanity check
+        (E_alumina >> E_pad ~ 1 GPa, H_alumina >> H_W ~ 1 GPa).
+
+    density_g_cm3:
+      value: 3.7
+      unit: "g/cm^3"
+      method: "bulk density quoted by the supplier for the colloidal alpha-alumina actually used"
+      source: "L. Guo & R. S. Subramanian, 'Mechanical Removal in CMP of Copper Using Alumina Abrasives', J. Electrochem. Soc. 151(2) G104-G108 (2004), DOI 10.1149/1.1640632, Experimental section — 'colloidal a-alumina particles with a bulk density of 3.7 g/cm3, supplied by Ferro Corporation'"
+      confidence: vendor
+      note: >
+        This is the density of a specific commercial alpha-alumina dispersion,
+        NOT the crystallographic density of corundum (which is higher). Use it
+        as the slurry-solids density, and flag that theoretical corundum density
+        is NOT sourced here. TODO(owner): source crystallographic density if the
+        model needs particle-number-per-volume conversions.
+
+    iep_ph:
+      value: 9.0
+      unit: "pH"
+      method: "zeta potential vs pH (electrophoresis), 1 mM KNO3 supporting electrolyte, commercial EKC Tech CMP alumina slurry"
+      source: "V. Gopal & J. B. Talbot, J. Electrochem. Soc. (2006/2007) 'Effects of CMP slurry chemistry on the zeta potential of alumina abrasives'; local copy papers/gopal2006-jes-cmp-slurry-chemistry-zeta-alumina.pdf — zeta goes +58 mV at pH 3.5 to -24 mV at pH 10; 'As the pH approached the IEP of ~9 the effective particle diameter increases significantly'"
+      confidence: literature
+      note: >
+        Agglomeration signature at the IEP is severe and is itself data:
+        cluster size 182-192 nm at pH < 8, rising to a MAXIMUM of 3.1 um at pH 9.
+        This is why alumina slurries are run far from pH 9.
+
+    iep_ph_with_additives:
+      value:
+        glycine_1e-3_to_1e-1_M: [8.9, 9.3]
+        h2o2_0p1_wt_pct_plus_0p1M_glycine: 8.8
+        h2o2_2_wt_pct_plus_0p1M_glycine: [8, 10]
+        sds_1mM: null
+      unit: "pH"
+      source: "Gopal & Talbot, papers/gopal2006-jes-cmp-slurry-chemistry-zeta-alumina.pdf, Figs. 3-5"
+      confidence: literature
+      note: >
+        With 2 wt% H2O2 the authors state the IEP 'appears to be in the range of
+        pH 8 to 10; however, a more precise value could not be determined'
+        (electrode gassing) — recorded as a range, not a point.
+        With 1 mM SDS the zeta stays NEGATIVE (-41 to -34 mV) over pH 3.5-8, i.e.
+        no IEP in the measured window -> value null, not zero.
+
+    iep_ph_independent_check:
+      value: 9.2
+      uncertainty: 0.2
+      unit: "pH"
+      method: "streaming potential, fully hydroxylated alpha-Al2O3 surface"
+      source: "G. A. Parks / R. E. Johnson-type streaming-potential study, J. Am. Ceram. Soc. (1964), DOI 10.1111/j.1151-2916.1964.tb13801.x — 'the zero point of charge (zpc) of alpha-Al2O3 having a fully hydroxylated surface was found to occur at pH 9.2 +/- 0.2'"
+      confidence: unverified
+      note: >
+        Read from the publisher ABSTRACT only (paywalled, full text not opened).
+        Included because it independently corroborates Gopal's ~9 on a
+        single-crystal-clean alpha surface. Same source notes calcination above
+        1000 C lowers the zpc to ~6.7 — i.e. IEP is a SURFACE-HISTORY property,
+        not a phase constant.
+
+    agglomerate_size_vs_ph:
+      value:
+        ph_4p5_nm: 197
+        ph_8p5_nm: 2800
+        ph_9_max_nm: 3100
+        ph_below_8_stable_nm: [182, 192]
+      unit: nm
+      source: "Gopal & Talbot, papers/gopal2006-jes-cmp-slurry-chemistry-zeta-alumina.pdf, Figs. 1-2"
+      confidence: literature
+
+  # -------------------------------------------------------------------
+  film_anchors:
+  # -------------------------------------------------------------------
+
+    # ---------- W (tungsten) : 8 anchors ----------
+
+    - film: w
+      rate_nm_per_min: 470.0
+      rate_range_nm_per_min: [450, 490]
+      pressure_psi: 5.0
+      velocity_m_s: 1.361
+      velocity_source: "derived from table 100 rpm, R_cc=0.13 m (assumed); carrier 25 rpm"
+      conc_wt_pct: [2.0, 6.0]
+      d50_nm: null
+      ph: null
+      oxidizer: "Fe(NO3)3.9H2O 5 wt% (fixed)"
+      pad: "industry standard (unnamed); Strasbaugh 6DS-SP; slurry 150 mL/min"
+      phase_stated: false
+      source: "US5916855 (Avanzino et al. / Cabot-AMD, 1999), Experiment 1B, body text: 'nearly constant tungsten removal rate of 4500A/min-4900 A/min for 2-6 wt % Al2O3 abrasion particles'"
+      confidence: literature
+      note: >
+        PLATEAU, not a point: the rate is flat over the whole 2-6 wt% window.
+        Blanket W on Ti/TiN over plasma TEOS, 60 s polish, Prometrix RS-55.
+        Below 2 wt% the rate is 'substantially reduced' (no number given), and
+        the patent explicitly says it cannot explain a drop-off above 6 wt%.
+        This is the single best alumina-concentration statement for W CMP.
+
+    - film: w
+      rate_nm_per_min: 810.0
+      pressure_psi: 5.0
+      velocity_m_s: 1.361
+      velocity_source: "derived from table 100 rpm, R_cc=0.13 m (assumed); carrier 25 rpm"
+      conc_wt_pct: 2.8
+      d50_nm: null
+      ph: null
+      oxidizer: "Fe3+ 5 wt% (ferric nitrate), no persulfate, no EVERFLO suspension agent"
+      pad: "industry standard; Strasbaugh 6DS-SP"
+      phase_stated: false
+      source: "US5916855, TABLE III slurry 10 (Evrflo=No, Salt=No, Fe3+=5%, S2O8=No): W rate 8100 A/min, Ti 1000 A/min, SiO2 129 A/min, defectivity >10000"
+      confidence: literature
+      note: "Highest bare-Fe(NO3)3 W rate in that table but also the worst defectivity (>10000) and the worst oxide selectivity."
+
+    - film: w
+      rate_nm_per_min: 687.2
+      pressure_psi: 5.0
+      velocity_m_s: 1.361
+      velocity_source: "derived from table 100 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: 2.8
+      d50_nm: null
+      ph: null
+      oxidizer: "Fe3+ 5 wt% + (NH4)2S2O8 1 wt%"
+      pad: "industry standard; Strasbaugh 6DS-SP"
+      phase_stated: false
+      source: "US5916855, TABLE III slurry 8 (Evrflo=Yes, Salt=Yes, Fe3+=5%, S2O8=1%): W 6872 A/min, Ti 1004 A/min, SiO2 29 A/min"
+      confidence: literature
+      note: >
+        Same abrasive and pressure as the previous anchor; the only changes are
+        the persulfate co-oxidiser and the suspension agent. Rate drops 810->687
+        but oxide rate drops 129->29 A/min (4.4x better selectivity) and
+        defectivity drops to 482. Useful oxidizer-coupling pair.
+
+    - film: w
+      rate_nm_per_min: 930.0
+      pressure_psi: 5.0
+      velocity_m_s: 1.361
+      velocity_source: "derived from table 100 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: 2.8
+      d50_nm: null
+      ph: null
+      oxidizer: "ferric nitrate 5 wt% + cupric sulfate 0.01 wt% (trace Cu2+ catalyst)"
+      pad: "industry standard; Strasbaugh 6DS-SP"
+      phase_stated: false
+      source: "US5916855, body text: 'exceptionally fast tungsten polish rate of 9300A/min, 60% faster than for the same slurry formulation without the cupric sulfate, although only a trace (0.01 wt %) of cupric sulfate was used'"
+      confidence: literature
+      note: >
+        The 60% number implies a 5812 A/min baseline for that exact lot, which is
+        NOT the 8100 of slurry 10 — patent lots differ. Trace Cu2+ down to
+        0.0003 wt% already raises the rate (Fig.5, graph only, not digitised).
+
+    - film: w
+      rate_nm_per_min: 235.0
+      pressure_psi: 5.0
+      velocity_m_s: 0.599
+      velocity_source: "derived from table 44 rpm, R_cc=0.13 m (assumed); spindle 41 rpm"
+      conc_wt_pct: 3.0
+      d50_nm: null
+      ph: null
+      oxidizer: "ferric nitrate 5.0 wt%"
+      pad: "Suba 500 / Suba IV stack (Rodel)"
+      phase_stated: false
+      source: "US5993686 (Cabot, 1999), TABLE I control sample 1 (no fluoride additive): W 2350 A/min, Ti 709 A/min, 5 psi down force, 100 mL/min, table 44 rpm, spindle 41 rpm, 60 s"
+      confidence: literature
+      note: >
+        Abrasive = 3.0 wt% fumed alumina, prepared from Cabot W-A355
+        SEMI-SPERSE + FE-10 ferric nitrate. Same patent's TABLE 3 shows the W
+        rate moving 2271/2052/1475 A/min as H2SiF6 goes 0.1/0.2/0.3 wt% — i.e.
+        fluoride additives suppress W while boosting Ti. Clean 5 psi / 44 rpm
+        anchor with a full recipe.
+
+    - film: w
+      rate_nm_per_min: 43.6
+      pressure_psi: 7.0
+      velocity_m_s: 0.681
+      velocity_source: "derived from platen 50 rpm, R_cc=0.13 m (assumed); spindle 40 rpm"
+      conc_wt_pct: 8.25
+      d50_nm: null
+      ph: 6.0
+      oxidizer: "H2O2 (2000 mL of 50% H2O2 per 1000 g alumina slurry + 1000 g H2O)"
+      pad: "Rodel IC1000, 38 inch; Strasbaugh 6DS; 150 mL/min; 23 C"
+      phase_stated: false
+      source: "US5391258 (IBM, 1995), EXAMPLE 1 Composition 1: 'Polishing rate of W metal=436 Angstroms/min', SiO2 = 140 A/min, selectivity 3.1:1"
+      confidence: literature
+      note: >
+        conc_wt_pct DERIVED: 1000 g of a 33%-solids submicron alumina slurry in
+        (1000+1000+~2000) g total ~= 8.25 wt% alumina. Assumes 50% H2O2 has
+        density 1.0 g/mL — flagged as an assumption, not a measurement.
+        pH 6.0 comes from the same patent's TABLE 1 test 1 (zero phthalate), the
+        matching composition. LOW-pH SENSITIVITY: see the next anchor.
+
+    - film: w
+      rate_nm_per_min: 116.4
+      pressure_psi: 7.0
+      velocity_m_s: 0.681
+      velocity_source: "derived from platen 50 rpm, R_cc=0.13 m (assumed); spindle 40 rpm"
+      conc_wt_pct: 8.25
+      d50_nm: null
+      ph: 3.5
+      oxidizer: "H2O2 as above + 0.10 mol potassium hydrogen phthalate"
+      pad: "Rodel IC1000; Strasbaugh 6DS"
+      phase_stated: false
+      source: "US5391258, TABLE 1 test 3: W polishing rate 1164 A/min at pH 3.5; SiO2 93 A/min; selectivity 12.5"
+      confidence: literature
+      note: >
+        Same slurry, same tool, same alumina, only the pH moved (6.0 -> 3.5):
+        W rate goes 444 -> 1164 A/min, a 2.6x pH effect at constant abrasive.
+        Full printed series (phthalate mol / pH / W A/min / SiO2 A/min):
+        0.00/6.0/444/167, 0.05/3.6/978/137, 0.10/3.5/1164/93, 0.20/3.3/1164/76.
+        This is the cleanest published alumina+W pH series with P and V stated.
+
+    - film: w
+      rate_nm_per_min: 90.0
+      pressure_psi: 7.0
+      velocity_m_s: 0.340
+      velocity_source: "derived from platen 25 rpm, R_cc=0.13 m (assumed); carrier 25 rpm"
+      conc_wt_pct: 8.25
+      d50_nm: null
+      ph: 2.9
+      oxidizer: "H2O2 + 0.3 M potassium hydrogen phthalate"
+      pad: "IC-1000; Strasbaugh 6DS; 100 mL/min"
+      phase_stated: false
+      source: "US5391258, EXAMPLE 4: 'Sheet tungsten wafers showed removal rates of 900 Angstroms/min, while the rate for sheet SiO2 was 70 Angstroms/min, giving a selectivity of 12.9:1'"
+      confidence: literature
+      note: >
+        Same slurry as Example 1 Composition 2 but at HALF the platen speed
+        (25 vs 50 rpm) and 2/3 the flow. Rate 1038 -> 900 A/min. Pairs with the
+        previous anchor as a crude velocity check at fixed P and chemistry.
+
+    # ---------- oxide (SiO2 counter-film measured in the same W runs) ----------
+
+    - film: oxide
+      rate_nm_per_min: 14.0
+      pressure_psi: 7.0
+      velocity_m_s: 0.681
+      velocity_source: "derived from platen 50 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: 8.25
+      d50_nm: null
+      ph: 6.0
+      oxidizer: "H2O2 (50%, 2000 mL per batch)"
+      pad: "Rodel IC1000; Strasbaugh 6DS"
+      phase_stated: false
+      source: "US5391258, EXAMPLE 1 Composition 1: 'Polishing rate of SiO2 = 140 Angstroms/min'"
+      confidence: literature
+      note: "Thermally grown SiO2 on Si. The alumina/oxide pair in the SAME run as the 43.6 nm/min W anchor -> a directly usable selectivity constraint (3.1:1)."
+
+    - film: oxide
+      rate_nm_per_min: 6.8
+      pressure_psi: 7.0
+      velocity_m_s: 0.681
+      velocity_source: "derived from platen 50 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: 8.25
+      d50_nm: null
+      ph: 2.9
+      oxidizer: "H2O2 + 0.3 M potassium hydrogen phthalate"
+      pad: "Rodel IC1000"
+      phase_stated: false
+      source: "US5391258, EXAMPLE 1 Composition 2: SiO2 = 68 A/min, W = 1038 A/min, selectivity 15.3:1"
+      confidence: literature
+      note: "Thermally grown SiO2. Same run as the W = 103.8 nm/min composition-2 result; phthalate suppresses oxide 140 -> 68 A/min while W rises 436 -> 1038 A/min."
+
+    - film: oxide
+      rate_nm_per_min: 2.9
+      pressure_psi: 5.0
+      velocity_m_s: 0.599
+      velocity_source: "derived from table 44 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: 3.0
+      d50_nm: null
+      ph: null
+      oxidizer: "ferric nitrate 5 wt% + H2SiF6 0.2 wt%"
+      pad: "Suba 500 / Suba IV"
+      phase_stated: false
+      source: "US5993686, TABLE 3 run 1-B: TEOS 29 A/min (W 2052, Ti 1397)"
+      confidence: literature
+      note: "TEOS, not thermal oxide. Same tool/pad as the 235 nm/min W anchor."
+
+    # ---------- Cu (copper) ----------
+    # All six Cu anchors are from ONE experiment set: Ihnfeldt 2008 (UCSD PhD),
+    # Table 6.2 'Experimental MRR' column. Fixed conditions (section 4.5.2):
+    # Toyoda SP46, IC1000 pad (22"), 100 mm Si wafer with 1 um sputtered Cu over
+    # 300 A Ta, 1.0 psi (tool maximum), platen 30 rpm / wafer 30 rpm, 150 mL/min,
+    # 2 min, mass-loss metrology (+/- 14 nm/min). Abrasive: Cabot 40 wt%
+    # alpha-alumina diluted to 4 wt%, primary 20 nm, aggregate d50 150 nm.
+    # ONLY conditions whose measured MRR exceeds the paper's own +/-14 nm/min
+    # uncertainty are recorded here (the same selection rule as
+    # fab-sim/validation/datasets/ihnfeldt2008_cu_alumina_ph_oxidizer_chelator.yaml).
+
+    - film: cu
+      rate_nm_per_min: 287.0
+      uncertainty_nm_per_min: 14
+      pressure_psi: 1.0
+      velocity_m_s: 0.408
+      velocity_source: "derived from platen 30 rpm, R_cc=0.13 m (assumed); wafer 30 rpm"
+      conc_wt_pct: 4.0
+      d50_nm: 150
+      ph: 8.3
+      oxidizer: "H2O2 0.1 wt%"
+      pad: "IC1000 (Rohm & Haas), 22 inch"
+      phase_stated: true
+      source: "R. Ihnfeldt, PhD dissertation, UC San Diego (2008), Table 6.2, solution c at pH 8.3; journal version R. V. Ihnfeldt & J. B. Talbot, ECS Trans. 13(4) 43-49 (2008), DOI 10.1149/1.2912977; local copy papers/ihnfeldt2008-ucsd-dissertation-cu-cmp-alumina-colloidal.pdf"
+      confidence: literature
+      note: "Additive: glycine 0.1 M. Primary particle 20 nm, aggregate d50 150 nm."
+
+    - film: cu
+      rate_nm_per_min: 350.0
+      uncertainty_nm_per_min: 14
+      pressure_psi: 1.0
+      velocity_m_s: 0.408
+      velocity_source: "derived from platen 30 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: 4.0
+      d50_nm: 150
+      ph: 10.0
+      oxidizer: "H2O2 0.1 wt%"
+      pad: "IC1000"
+      phase_stated: true
+      source: "Ihnfeldt 2008, Table 6.2, solution c at pH 10.0"
+      confidence: literature
+      note: "Highest Cu rate in the whole matrix. Glycine 0.1 M."
+
+    - film: cu
+      rate_nm_per_min: 113.0
+      uncertainty_nm_per_min: 14
+      pressure_psi: 1.0
+      velocity_m_s: 0.408
+      velocity_source: "derived from platen 30 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: 4.0
+      d50_nm: 150
+      ph: 3.0
+      oxidizer: "H2O2 2.0 wt%"
+      pad: "IC1000"
+      phase_stated: true
+      source: "Ihnfeldt 2008, Table 6.2, solution d at pH 3.0"
+      confidence: literature
+      note: "Acidic end of the H2O2 2.0 wt% series. Compare with solution c (0.1 wt% H2O2) at the same pH 3.0, which fell below the +/-14 nm/min detection limit -> at low pH the oxidiser is rate-controlling."
+
+    - film: cu
+      rate_nm_per_min: 289.0
+      uncertainty_nm_per_min: 14
+      pressure_psi: 1.0
+      velocity_m_s: 0.408
+      velocity_source: "derived from platen 30 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: 4.0
+      d50_nm: 150
+      ph: 8.3
+      oxidizer: "H2O2 2.0 wt%"
+      pad: "IC1000"
+      phase_stated: true
+      source: "Ihnfeldt 2008, Table 6.2, solution d at pH 8.3"
+      confidence: literature
+      note: >
+        Pair this with the 287 nm/min anchor (same pH 8.3, H2O2 0.1 vs 2.0 wt%):
+        a 20x oxidiser change moves the rate by less than the measurement error.
+        At pH 10.0 the same 20x change goes the other way (350 -> 166). The sign
+        of the oxidiser effect INVERTS with pH — see `oxidizer_response`.
+
+    - film: cu
+      rate_nm_per_min: 166.0
+      uncertainty_nm_per_min: 14
+      pressure_psi: 1.0
+      velocity_m_s: 0.408
+      velocity_source: "derived from platen 30 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: 4.0
+      d50_nm: 150
+      ph: 10.0
+      oxidizer: "H2O2 2.0 wt%"
+      pad: "IC1000"
+      phase_stated: true
+      source: "Ihnfeldt 2008, Table 6.2, solution d at pH 10.0"
+      confidence: literature
+      note: "Alkaline end of the H2O2 2.0 wt% series. Rate is HALF the 0.1 wt% H2O2 value (350) at the same pH — the oxidiser effect has inverted sign relative to pH 3.0."
+
+    - film: cu
+      rate_nm_per_min: 242.0
+      uncertainty_nm_per_min: 14
+      pressure_psi: 1.0
+      velocity_m_s: 0.408
+      velocity_source: "derived from platen 30 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: 4.0
+      d50_nm: 150
+      ph: 10.8
+      oxidizer: "H2O2 0.1 wt%"
+      pad: "IC1000"
+      phase_stated: true
+      source: "Ihnfeldt 2008, Table 6.2, solution e at pH 10.8"
+      confidence: literature
+      note: "Also contains BTA 0.01 wt% (0.84 mM) and SDS 0.1 mM; glycine 0.1 M."
+
+    # ---------- SiC ----------
+
+    - film: sic
+      rate_nm_per_min: 106.9
+      pressure_psi: 4.0
+      velocity_m_s: 1.225
+      velocity_source: "derived from platen 90 rpm, R_cc=0.13 m (assumed); carrier 90 rpm"
+      conc_wt_pct: 2.0
+      d50_nm: 100
+      ph: 2.0
+      oxidizer: "KMnO4 0.05 M"
+      pad: "IC-1000 K-Groove (Dow), UNIPOL-1200S, 90 mL/min, 20 min"
+      phase_stated: false
+      source: "Chen et al., Russ. J. Appl. Chem. (2020), DOI 10.1134/S1070427220060099, abstract: 'maximum MRR of the C-face 6H-SiC substrates was reached to 6412 nm/h ... using the slurries containing 2 wt% alumina nanoparticles, 0.05 M KMnO4 at pH 2'; local copy papers/chen2020-rjac-6hsic-kmno4-alumina-ph.pdf"
+      confidence: literature
+      note: >
+        6H-SiC C-FACE (carbon face). 6412 nm/h / 60 = 106.9 nm/min. Ra 0.54 nm.
+        Abrasive: JingRui 20 wt% alumina dispersion, mean diameter 100 nm.
+
+    - film: sic
+      rate_nm_per_min: 25.9
+      pressure_psi: 4.0
+      velocity_m_s: 1.225
+      velocity_source: "derived from platen 90 rpm, R_cc=0.13 m (assumed); carrier 90 rpm"
+      conc_wt_pct: 2.0
+      d50_nm: 100
+      ph: 2.0
+      oxidizer: "KMnO4 0.05 M"
+      pad: "IC-1000 K-Groove"
+      phase_stated: false
+      source: "Chen et al. 2020, DOI 10.1134/S1070427220060099, abstract: Si-face 1554 nm/h, Ra 0.53 nm"
+      confidence: literature
+      note: >
+        6H-SiC Si-FACE, identical slurry and tool as the previous anchor.
+        FACE POLARITY IS A 4.1x FACTOR (6412 vs 1554 nm/h). Any SiC alumina
+        model that ignores the polar face will be wrong by ~4x.
+
+    - film: sic
+      rate_nm_per_min: 13.29
+      pressure_psi: 4.0
+      velocity_m_s: 1.225
+      velocity_source: "derived from platen 90 rpm, R_cc=0.13 m (assumed); head 100 rpm"
+      conc_wt_pct: 5.0
+      d50_nm: 500
+      ph: 2.0
+      oxidizer: "KMnO4 3 wt%"
+      pad: "Suba 800; Bruker CP-4; 90 mL/min; 60 min; 2 inch 4H-SiC"
+      phase_stated: false
+      source: "Gong J. et al., Materials 17(3) 679 (2024), DOI 10.3390/ma17030679 (CC-BY), Table 2 run 3 (0.7972 um/h); parsed from local corpus fulltext doi_10.3390_ma17030679.xml"
+      confidence: literature
+      note: >
+        4H-SiC (0001) Si face. Best cell of an L25 (5^3) orthogonal array over
+        pH 2-6 x KMnO4 1-5 wt% x Al2O3 1-5 wt%. Full 25-row table already
+        transcribed in fab-sim/validation/datasets/gong2024_4hsic_alumina_kmno4_L25.yaml.
+
+    - film: sic
+      rate_nm_per_min: 7.67
+      pressure_psi: 4.0
+      velocity_m_s: 1.225
+      velocity_source: "derived from platen 90 rpm, R_cc=0.13 m (assumed); head 100 rpm"
+      conc_wt_pct: 2.0
+      d50_nm: 500
+      ph: 3.0
+      oxidizer: "KMnO4 2 wt%"
+      pad: "Suba 800; Bruker CP-4"
+      phase_stated: false
+      source: "Gong et al. 2024, DOI 10.3390/ma17030679, Table 2 run 7 (0.4599 um/h)"
+      confidence: literature
+      note: "Worst cell of the same L25 array. Whole array spans only 7.7-13.8 nm/min (1.8x), so rank tests on it are noise-sensitive."
+
+    - film: sic
+      rate_nm_per_min: 96.67
+      pressure_psi: 1.0
+      velocity_m_s: 0.817
+      velocity_source: "derived from platen 60 rpm, R_cc=0.13 m (assumed); carrier 60 rpm"
+      conc_wt_pct: 0.1
+      d50_nm: null
+      ph: 2.3
+      oxidizer: "KMnO4 4 wt% + nitrate salts 0.5 wt%"
+      pad: null
+      phase_stated: false
+      source: "US20220315802A1 (Entegris / Univ. Florida Research Foundation), TABLE 1, 0.1 wt% alumina row (5.8 um/h)"
+      confidence: literature
+      note: >
+        ABSOLUTE VALUE IS AN OUTLIER — do not calibrate Kp on it.
+        Preston-normalised k* = MRR/(P*rpm) for this table is 1.81e-04 vs
+        4.7e-06 / 6.3e-06 / 7.3e-06 for Gong 2024, Wang 2021 and Chen 2015 on
+        the same material system: the patent sits 25-38x above three mutually
+        consistent papers, and even its SLOWEST condition is 6.6x the papers'
+        fastest. Ruling recorded in fab-sim/validation/datasets/
+        entegris2022_us20220315802a1_sic_alumina_conc.yaml (rank_only: true).
+        Use the CONCENTRATION TREND (see conc_exponent), not the magnitude.
+
+    - film: sic
+      rate_nm_per_min: 1.158
+      pressure_psi: 2.0
+      velocity_m_s: 0.817
+      velocity_source: "derived from platen 60 rpm, R_cc=0.13 m (assumed); carrier 65 rpm"
+      conc_wt_pct: 1.6
+      d50_nm: 1500
+      ph: 9.0
+      oxidizer: "unnamed oxidant, 5 mL per 500 mL slurry"
+      pad: null
+      phase_stated: true
+      source: "SU Jianxiu, DU Jiaxia, LIU Haina, LIU Xinglong, Procedia Engineering 24 (2011) 441-446, DOI 10.1016/j.proeng.2011.11.2673, section 3.3 (8 g / 500 mL = 1.6 wt%, 69.5 nm/h)"
+      confidence: literature
+      note: >
+        6H-SiC (0001) Si face, WHITE CORUNDUM (alpha-Al2O3, grade W1.5, i.e.
+        ~1.5 um, micron-scale NOT nano). d50 recorded as 1500 nm from the W1.5
+        grit designation — this is a GRADE-to-size conversion, not a measured
+        d50. Rate is 3 orders below the nano-alumina/KMnO4 systems above because
+        the chemistry is alkaline with a weak oxidant.
+
+    # ---------- sapphire ----------
+
+    - film: sapphire
+      rate_nm_per_min: 56.7
+      pressure_psi: 4.267
+      pressure_source: "300 g/cm^2 converted: 300e-3 kg * 9.80665 / 1e-4 m^2 = 29420 Pa = 4.267 psi"
+      velocity_m_s: 0.817
+      velocity_source: "derived from platen 60 rpm, R_cc=0.13 m (assumed); single-side polisher, 15 inch platen"
+      conc_wt_pct: 2.0
+      d50_nm: 250
+      ph: 12.55
+      oxidizer: "none (KOH only)"
+      pad: "SUBA600 (Nitta Haas); 10 mL/min; 60 min"
+      phase_stated: true
+      source: "KR20130060211A (WO2011136387A1, JP priority 2010-103886; granted KR101836879B1), Example 1: 'average particle diameter of 0.25 um alpha-alumina abrasive grains ... alpha conversion rate 100%, content 2 wt%, pH adjusted to 12.55 with KOH ... 60 rpm, 300 g/cm2, 60 min ... the polishing rate was 3.4 um/hr'; local corpus fulltext patent_KR20130060211A.txt"
+      confidence: literature
+      note: >
+        3.4 um/hr = 56.7 nm/min. This is the best sapphire+alumina anchor found:
+        phase EXPLICITLY alpha (alpha conversion 100%), size, wt%, pH, pressure
+        and platen speed are all printed. Sapphire itself is alpha-Al2O3 -> this
+        is same-on-same polishing.
+
+    - film: sapphire
+      rate_nm_per_min: 46.7
+      pressure_psi: 4.267
+      velocity_m_s: 0.817
+      velocity_source: "derived from platen 60 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: 2.0
+      d50_nm: 250
+      ph: 13.21
+      oxidizer: "none (NaOH only)"
+      pad: "SUBA600"
+      phase_stated: true
+      source: "KR20130060211A, Example 2: 2.8 um/hr, Ra 0.496 nm"
+      confidence: literature
+      note: >
+        Only the base was swapped (KOH -> NaOH) and pH raised 12.55 -> 13.21;
+        rate FELL 3.4 -> 2.8 um/hr. Consistent with the patent's own statement
+        that the rate SATURATES above ~pH 12.5 (Fig. 1, graph only).
+
+    - film: sapphire
+      rate_nm_per_min: 150.0
+      pressure_psi: 7.112
+      pressure_source: "500 g/cm^2 = 49033 Pa = 7.112 psi"
+      velocity_m_s: 1.361
+      velocity_source: "derived from platen 100 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: 2.0
+      d50_nm: 250
+      ph: 12.55
+      oxidizer: "none (KOH)"
+      pad: "SUBA600"
+      phase_stated: true
+      source: "KR20130060211A, Example 4 body text: 'the polishing rate that was 3.3 um/hr at 60 rpm and 300 g/cm2 was 9 um/hr at 100 rpm and 500 g/cm2, yielding a polishing rate of 2.7 times'"
+      confidence: literature
+      note: >
+        PRESTON CHECK, and it passes: predicted (500/300)*(100/60) = 2.78x vs
+        measured 2.73x (3.3 -> 9.0 um/hr). Sapphire + alpha-alumina is Prestonian
+        over 300-500 g/cm^2 and 60-100 rpm. 9 um/hr = 150 nm/min.
+
+    - film: sapphire
+      rate_nm_per_min: 154.2
+      pressure_psi: 4.267
+      velocity_m_s: 0.817
+      velocity_source: "derived from platen 60 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: 2.0
+      d50_nm: 250
+      ph: 12.55
+      oxidizer: "none (KOH)"
+      pad: "SUBA600"
+      phase_stated: true
+      source: "KR20130060211A, Example 3: sapphire lapped with #220 SiC, polished to finish; total removal ~23 um in 2.5 h -> 9.25 um/hr; per-15-min removals printed as 1.61, 2.32, 2.48, 2.41, 2.36, 2.38, 2.35, 2.43, 2.41, 2.39 um"
+      confidence: literature
+      note: >
+        INTERNAL CONFLICT, recorded not resolved: Example 3 reports 9.25 um/hr
+        at the SAME conditions where Example 1 reports 3.4 um/hr. The difference
+        is the incoming surface (SiC-lapped, subsurface-damaged, vs already
+        pre-polished). Treat this as a removal-regime effect, not a rate
+        constant. Use the Example 1 value for steady-state finishing.
+
+    - film: sapphire
+      rate_nm_per_min: 10.0
+      pressure_psi: 4.267
+      velocity_m_s: 0.817
+      velocity_source: "derived from platen 60 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: null
+      d50_nm: 72
+      ph: 12.55
+      oxidizer: "none"
+      pad: "SUBA600"
+      phase_stated: false
+      source: "KR20130060211A, Comparative Example 2: colloidal silica (Compol 80, Fujimi, 62-82 nm) diluted 1:1, pH raised to 12.55 with NaOH -> 0.6 um/hr"
+      confidence: literature
+      note: >
+        NOT alumina — this is the SILICA control from the same tool and same pH.
+        Kept because it quantifies the abrasive-chemistry advantage:
+        alpha-alumina 3.4 um/hr vs colloidal silica 0.6 um/hr = 5.7x at
+        identical P, V, pH and pad. Ra was the same (0.503 vs 0.496 nm).
+
+  # -------------------------------------------------------------------
+  conc_exponent:
+    # MRR ~ C^n. All `fitted_value` entries below were fitted HERE by ordinary
+    # least squares on ln(C) vs ln(MRR) using numpy.linalg.lstsq; r2 is the
+    # coefficient of determination of that log-log fit.
+  # -------------------------------------------------------------------
+
+    w:
+      raw_pairs_wt_pct_nm_per_min: null
+      fitted_value: 0.0
+      r2: null
+      valid_range_wt_pct: [2.0, 6.0]
+      source: "US5916855 Experiment 1B: 'nearly constant tungsten removal rate of 4500A/min-4900 A/min for 2-6 wt % Al2O3 ... In the flat region, the removal rate is essentially independent of the alumina concentration'"
+      confidence: literature
+      note: >
+        n = 0 is the AUTHORS' OWN CONCLUSION over 2-6 wt%, stated in words; the
+        seven-point series (1,2,3,4,5,6,7 wt% at fixed 5 wt% Fe(NO3)3.9H2O) is
+        plotted in FIG. 3 only and was NOT digitised, hence raw_pairs: null and
+        r2: null. Outside the plateau the patent reports (a) a substantial drop
+        below 2 wt% and (b) an unexplained drop above 6 wt%, so a single power
+        law is wrong in both tails.
+        The patent explicitly contradicts earlier literature: 'The prior CMP
+        tungsten polishing publications teach that the polishing rate is
+        linearly proportional to the concentration of the alumina particles in
+        the concentration range of 3 to 7 wt %' — i.e. n=1 was the prior belief.
+        TODO(owner): digitise US5916855 FIG. 3 to get the seven pairs.
+
+    w_cross_check:
+      raw_pairs_wt_pct_nm_per_min: null
+      fitted_value: 0.3333
+      r2: null
+      source: "Wang Z., Peng R., Xia S., Kitajima T., Tsai S., 'Removal Mechanism of Tungsten CMP Process: Effect of Slurry Abrasive Concentration and Process Temperature', ECS Trans. 41(43) 103-111 (2012), DOI 10.1149/1.4717508 — abstract: 'The removal rate was observed to scale with the cubic root of the abrasive concentration'; Fig. 6(b) shows the linear fit vs C^(1/3). Local copy papers/w-cmp-abrasive-conc-temp-4717508.pdf"
+      confidence: unverified
+      note: >
+        CONFLICTS with the US5916855 plateau (n=0 over 2-6 wt%), and the abrasive
+        chemistry is NEVER NAMED in the Wang paper — the string 'alumina' does
+        not occur in the full text (checked by regex). Applied Materials 300 mm
+        W bulk slurries of that era are commonly silica-based. So this exponent
+        may not belong to alumina at all. Recorded as a cross-check, NOT as an
+        alumina value. The underlying (wt%, rate) pairs are in Fig. 5(a)/6(a)
+        as graphs only; absolute wt% axis not readable from text.
+
+    cu:
+      raw_pairs_wt_pct_nm_per_min: null
+      fitted_value:
+        suba500_pad: 0.5
+        ic1000_pad: null
+      r2: null
+      saturation_knee_wt_pct: 2.5
+      valid_range_wt_pct: [1.25, 5.0]
+      source: "L. Guo & R. S. Subramanian, J. Electrochem. Soc. 151(2) G104-G108 (2004), DOI 10.1149/1.1640632 — abstract and Figs. 7-8: 'The exponents are given in Fig. 7, and are seen to be close to 0.5, implying that the removal rate is proportional to the square root of the abrasive concentration'; empirical law R = K*sqrt(A*C*P)*V"
+      confidence: literature
+      note: >
+        n IS PAD-DEPENDENT, which is the point of the paper:
+          * SUBA 500 pad -> R ~ C^0.5 (author-fitted, 5 velocities, log-log
+            straight lines in Fig. 8); also R ~ P^0.5 on the same pad.
+          * IC-1000 perforated pad -> NOT a power law: 'at a low abrasive
+            concentration, the removal rate increases as the abrasive
+            concentration is increased, but as the abrasive concentration is
+            increased from 2.5 to 5.0 wt %, the removal rate is hardly
+            affected' -> saturating, knee at 2.5 wt%.
+        System: Cu disk, colloidal alpha-alumina 220 nm aggregate, DI water,
+        NO added chemistry, 1.25-5.0 wt%, 6.8 psi, 50-250 rpm, 60 mL/min.
+        raw_pairs null: the (C, R) values live only in Figs. 3/4/7/8.
+        TODO(owner): digitise Guo 2004 Fig. 7 for the raw pairs.
+
+    sic_4h_acidic_kmno4:
+      raw_pairs_wt_pct_nm_per_min: [[0.1, 96.67], [0.2, 86.67], [0.5, 75.0], [1.0, 51.67], [5.0, 20.0]]
+      fitted_value: -0.406
+      r2: 0.924
+      valid_range_wt_pct: [0.1, 5.0]
+      source: "US20220315802A1 (Entegris / UFRF), TABLE 1 (alumina series, 4 wt% KMnO4 + 0.5 wt% nitrate salts, pH 2.3, 1 psi, 60/60 rpm). Original units um/h: 5.8, 5.2, 4.5, 3.1, 1.2. Fit performed here."
+      confidence: derived
+      note: >
+        NEGATIVE exponent — MRR DECREASES with alumina loading over the whole
+        0.1-5 wt% range, monotonically, with a clean log-log fit (r2 0.92).
+        This is the indentation-limited regime (load per particle ~ 1/N), the
+        OPPOSITE sign to the surface-area/collision-frequency regime (+1/3) that
+        governs silica-on-oxide. Independently ruled as a genuine REGIME split
+        (not a data error) in fab-sim/knowledge/cmp/
+        sic-abrasive-concentration-regime-ruling.md, on the grounds that the
+        patent itself distinguishes Mohs<6 (soft nano-oxides) from Mohs>6
+        (alpha-alumina family) as separate behaviour classes ([0043]/[0057]).
+        Magnitudes are outliers (see the film anchor note); the SLOPE is what is
+        being asserted here and slope is invariant to the Kp scale.
+
+    sic_4h_gong_l25:
+      raw_pairs_wt_pct_nm_per_min: [[1, 11.140], [2, 9.9133], [3, 10.731], [4, 11.3443], [5, 11.549]]
+      fitted_value: 0.035
+      r2: 0.137
+      source: "Gong et al., Materials 17(3) 679 (2024), DOI 10.3390/ma17030679, Table 2 — marginal means of the Al2O3 factor over the L25 array (each level averaged over its 5 rows). Means and fit computed here."
+      confidence: derived
+      note: >
+        EFFECTIVELY NULL (n ~ 0.04, r2 0.14) and NON-MONOTONIC (dips at 2 wt%).
+        The paper's own range analysis ranks the factors
+        oxidiser (R=0.1717) > pH (0.1104) > abrasive (0.0978), i.e. abrasive
+        loading is the WEAKEST of its three axes. Directly contradicts the
+        Entegris n = -0.41 on nominally the same material system (4H-SiC +
+        alumina + acidic permanganate). Difference in conditions: Gong uses
+        500 nm alumina at 4 psi over 1-5 wt%; Entegris uses 1 psi over
+        0.1-5 wt% and never states a size. UNRESOLVED — see `gaps`.
+
+    sic_6h_alkaline:
+      raw_pairs_wt_pct_nm_per_min: [[1.2, 0.750], [1.6, 1.15833], [2.0, 0.93667]]
+      fitted_value: 0.486
+      r2: 0.328
+      source: "SU Jianxiu et al., Procedia Engineering 24 (2011) 441-446, DOI 10.1016/j.proeng.2011.11.2673, section 3.3 (6/8/10 g alumina per 500 mL, 45 / 69.5 / 56.2 nm/h). Fit performed here."
+      confidence: derived
+      note: >
+        NON-MONOTONIC with a MAXIMUM at 8 g/500 mL (1.6 wt%) — a power law
+        cannot represent this shape, hence r2 = 0.33; the fitted n is reported
+        only for completeness and should NOT be used. The authors' companion
+        paper (SU Jianxiu et al., J. Semicond. 33(10) 106003 (2012), local copy
+        papers/su2012-jos-6hsic-alumina-kmno4.pdf) confirms the same optimum on
+        BOTH faces: 'the optimum abrasive content in 500 mL of slurry is about
+        8 g in Si and C surface CMP', with the 10 g point falling back to
+        56.2 nm/h (Si face) and 360 nm/h (C face).
+        wt% conversion assumes slurry density 1.0 g/mL (g / 500 g * 100); the
+        paper gives grams only. The 4 g point is in Fig. 3 only, not in text.
+
+    oxide: &conc_exp_unknown
+      raw_pairs_wt_pct_nm_per_min: null
+      fitted_value: null
+      r2: null
+      source: null
+      confidence: unverified
+      note: "TODO(owner): no alumina concentration series against an oxide film was found. The oxide rates recorded in film_anchors are single-composition counter-film measurements, not a series."
+
+    sapphire: *conc_exp_unknown
+    poly_si: *conc_exp_unknown
+    snag: *conc_exp_unknown
+
+  # -------------------------------------------------------------------
+  size_exponent:
+    # MRR ~ d^m.
+  # -------------------------------------------------------------------
+
+    w:
+      raw_pairs_d50_nm_rate: null
+      fitted_value: null
+      r2: null
+      sign: "CONTESTED — three primary sources disagree; see note"
+      source: "see note"
+      confidence: unverified
+      note: >
+        THREE MUTUALLY INCONSISTENT PRIMARY RESULTS. Do not pick one silently.
+        (1) NEGATIVE. Bielmann, Mahajan & Singh, Electrochem. Solid-State Lett.
+            2(8) 401-403 (1999), DOI 10.1149/1.1390851. Abstract read directly
+            from IOPscience: 'Alumina particles of similar phase and shape with
+            size varying from 0.1 to 10 um diam were used ... The W removal rate
+            was found to INCREASE WITH DECREASING PARTICLE SIZE and increased
+            solids loading. These results suggest that the removal rate
+            mechanism is not a scratching type process, but may be related to
+            the contact surface area.' -> m < 0 over 0.1-10 um.
+            FULL TEXT PAYWALLED — only the abstract was read; no (d, rate) pairs.
+        (2) POSITIVE. J. Wang, I. K. Cherian, A. G. Haerle (Saint-Gobain),
+            'Chemical Mechanical Planarization of Tungsten with Hard Abrasives',
+            Electrochem. Solid-State Lett. 13(6) H182 (2010),
+            DOI 10.1149/1.3358135. Abstract read directly: 'The removal rates
+            increased LINEARLY WITH PARTICLE SIZE, whereas the defectivity
+            decreased as the particle size became smaller. Reducing the alpha
+            alumina particle size to 120 nm showed a good combination of high
+            removal rate and low oxide defectivity.' -> m ~ +1.
+            FULL TEXT PAYWALLED — abstract only; no (d, rate) pairs.
+        (3) NULL. B. Egan & H. J. Kim (GLOBALFOUNDRIES), ECS J. Solid State Sci.
+            Technol. 8(5) P3206-P3211 (2019), DOI 10.1149/2.0311905jss, OPEN
+            ACCESS, full text read (papers/lee2019-jss-abrasive-size-w-cmp.pdf):
+            'While tungsten removal rate is not affected by abrasive size ...'
+            and in the body: 'it is also accepted that the large abrasives are
+            needed to maintain removal rate; however, in the specific case of
+            tungsten bulk slurry, this is proven false ... In each case, the
+            rate was statistically comparable.' -> m = 0. No numeric table is
+            given (qualitative claim only, no n, no p-value).
+        A possible reconciliation, NOT verified: the three probe different size
+        DECADES (Bielmann 0.1-10 um; Saint-Gobain sub-micron around 120 nm;
+        Egan production-range nano). A non-monotonic m(d) would satisfy all
+        three, but nobody has shown that.
+        Independent confirmation that d-effects can vanish: Bouvet et al.,
+        J. Vac. Sci. Technol. B 20(4) 1556 (2002), DOI 10.1116/1.1490393,
+        full text read (papers/bouvet2002-jvst-colloidal-silica-w-cmp-size.pdf):
+        'Although the particle sizes range from 12 to 75 nm (factor of 6.25), we
+        observe that the tungsten removal rate is quite constant' — but that is
+        SILICA, not alumina, and the authors themselves flag that their result
+        is 'opposite to what Bielmann et al. have mentioned'.
+
+    cu:
+      raw_pairs_d50_nm_rate: null
+      fitted_value: null
+      r2: null
+      sign: "negative at constant wt% (fewer, larger particles); positive at constant particle NUMBER"
+      source: "R. Ihnfeldt, PhD dissertation, UCSD (2008), section 6.4.2, summarising Matijevic et al. and Bielmann et al.: 'increasing the particle size, when using the same number of particles, increases the MRR. However, increasing the particle size, while holding the weight percent of particles constant, DECREASES the MRR, as was shown by Bielmann et al. for tungsten CMP, and is consistent with the Luo and Dornfeld model behavior'"
+      confidence: unverified
+      note: >
+        The SIGN DEPENDS ON WHAT IS HELD CONSTANT. Any m recorded without
+        stating the normalisation (wt% vs particle number vs specific surface
+        area) is meaningless. This statement is SECONDARY (Ihnfeldt citing
+        Matijevic and Bielmann); neither original was read here.
+        Independent support for the surface-area normalisation, on SAPPHIRE with
+        SILICA (not alumina): Park, Kim, Lee & Jeong, Int. J. Precis. Eng.
+        Manuf.-Green Tech. 2(2) 157-162 (2015), DOI 10.1007/s40684-015-0020-0,
+        full text read: at constant particle NUMBER the rate rises with size
+        (40 -> 72 nm); at constant WEIGHT PERCENT 'the removal rate decreases as
+        the abrasive size increases'; and at constant SPECIFIC SURFACE AREA
+        (33 m2/g) the rate is nearly constant for 40 and 72 nm.
+        TODO(owner): find an alumina-on-Cu size series with printed numbers.
+
+    sic:
+      raw_pairs_d50_nm_rate: null
+      fitted_value: null
+      r2: null
+      sign: "positive up to an optimum, then falls"
+      optimum_d50_nm:
+        si_face: 2500
+        c_face: 3500
+      source: "SU Jianxiu et al., J. Semicond. 33(10) 106003 (2012), local copy papers/su2012-jos-6hsic-alumina-kmno4.pdf, section 3.2: 'Four abrasive sizes of 1 um, 1.5 um, 2.5 um, 3.5 um are used ... the MRR increases with the increase of the abrasive size ... the optimum abrasive size is about 2.5 um for Si surface and 3.5 um for C surface'"
+      confidence: literature
+      note: >
+        6H-SiC, white corundum (alpha), P = 2 psi, carrier 65 rpm, platen 60 rpm.
+        Direction is stated in the text; the (size, MRR) values themselves are in
+        Fig. 2 only -> raw_pairs null, no fit possible.
+        Note this is MICRON-scale alumina; the nano-alumina SiC work (Chen 2020,
+        Gong 2024) uses 100-500 nm and does not sweep size.
+        TODO(owner): digitise Su 2012 Fig. 2 for the four pairs.
+
+    sapphire: &size_exp_unknown
+      raw_pairs_d50_nm_rate: null
+      fitted_value: null
+      r2: null
+      source: null
+      confidence: unverified
+      note: >
+        TODO(owner): KR20130060211A claims a workable range of 0.05-10 um mean
+        diameter for the alumina grit but reports a rate at ONE size only
+        (0.25 um). No alumina size series on sapphire was found. The only
+        sapphire size series located (Park et al. 2015,
+        DOI 10.1007/s40684-015-0020-0, 40/72/82.5 nm) uses COLLOIDAL SILICA.
+
+    oxide: *size_exp_unknown
+    poly_si: *size_exp_unknown
+    snag: *size_exp_unknown
+
+  # -------------------------------------------------------------------
+  saturation:
+  # -------------------------------------------------------------------
+
+    w_conc_plateau:
+      knee_wt_pct: 2.0
+      upper_rolloff_wt_pct: 6.0
+      plateau_rate_nm_per_min: [450, 490]
+      conditions: "5 psi, 100 rpm table / 25 rpm carrier, Fe(NO3)3.9H2O 5 wt% fixed, Strasbaugh 6DS-SP"
+      source: "US5916855 Experiment 1B"
+      confidence: literature
+      note: >
+        Two-sided: rate is 'substantially reduced' below 2 wt% and drops again
+        above 6 wt% (the patent says the high-side drop is 'not understood').
+        Mechanistic reading given by the patent: in the plateau 'the tungsten
+        oxide is being removed about as fast as it is being formed', i.e. the
+        process is OXIDATION-limited, not abrasive-limited.
+
+    cu_conc_plateau:
+      knee_wt_pct: 2.5
+      plateau_rate_nm_per_min: null
+      conditions: "6.8 psi, IC-1000 perforated pad, colloidal alpha-alumina 220 nm in DI water, no chemistry"
+      source: "Guo & Subramanian 2004, DOI 10.1149/1.1640632"
+      confidence: literature
+      note: >
+        'as the abrasive concentration is increased from 2.5 to 5.0 wt %, the
+        removal rate is hardly affected'. Authors' explanation: below the knee
+        the rate is limited by the availability of particles on the pad asperity
+        tops. On the SUBA 500 pad the same slurry shows NO knee (clean C^0.5 to
+        5 wt%) -> the knee is a PAD property, not a slurry property.
+        plateau_rate null: absolute values are in Figs. 3/4 only.
+
+    cu_velocity_plateau:
+      knee_velocity_m_s: 0.7
+      conditions: "IC-1000 pad, 2.5 wt% alpha-alumina 220 nm, DI water, 3.6 and 6.8 psi"
+      source: "Guo & Subramanian 2004: 'the removal rate essentially levels off at values of V larger than approximately 0.7 m/s'"
+      confidence: literature
+      note: >
+        Rare published VELOCITY saturation with a number attached. Authors'
+        mechanism: above 0.7 m/s there is not enough time between asperity
+        passes to regrow the Cu oxide layer. Directly relevant to any Preston
+        term that assumes MRR ~ V without bound.
+
+    cu_pressure_regime_break:
+      knee_pressure_psi: 6.0
+      threshold_pressure_psi: [1.0, 2.0]
+      exponent_above_knee: 0.165
+      source: "Guo & Subramanian 2004, Fig. 2 caption: power-law exponents 0.16 +/- 0.05 (0.47 m/s) and 0.17 +/- 0.04 (0.67 m/s) for P > 6 psi; linear (Prestonian) below 6 psi; 'a small non-zero threshold pressure between 1 and 2 psi below which the removal rate is essentially zero'"
+      confidence: literature
+      note: >
+        Three pressure regimes on IC-1000: dead below ~1-2 psi, Prestonian
+        1-6 psi, then R ~ P^0.17 above 6 psi. On the SUBA 500 pad the SAME
+        slurry gives R ~ P^0.5 over the ENTIRE range. Pad-dependent again.
+
+    sapphire_ph_saturation:
+      knee_ph: 12.5
+      source: "KR20130060211A: 'when alumina abrasive grains are used (curve a), the polishing rate increases when the pH of the polishing slurry exceeds 10 ... and the polishing rate is saturated in the strong alkali region where the pH exceeds about 12.5'"
+      confidence: literature
+      note: >
+        Corroborated by the patent's own examples: pH 12.55 -> 3.4 um/hr but
+        pH 13.21 -> 2.8 um/hr (i.e. past saturation it actually falls back).
+        The pH-vs-rate curve itself is Fig. 1, graph only.
+
+    w_oxidizer_saturation:
+      knee_wt_pct_fe_nitrate: 5.0
+      source: "US5916855 Experiment 2B (see oxidizer_response)"
+      confidence: literature
+
+  # -------------------------------------------------------------------
+  oxidizer_response:
+  # -------------------------------------------------------------------
+
+    w_ferric_nitrate:
+      raw_pairs_wt_pct_rate: null
+      normalised_pairs: "rates plotted normalised to the 5 wt% ferric nitrate value; absolute axis not given"
+      range_wt_pct: [3.0, 9.0]
+      knee_wt_pct: 5.0
+      fixed_conditions: "alumina held at 2.8 wt%, 5 psi, 100 rpm table / 25 rpm carrier, Strasbaugh 6DS-SP, blanket W on Ti/TiN"
+      source: "US5916855 Experiment 2B, body text: 'The results show a strong tungsten removal rate dependence on concentration of Fe3+ between 3 wt % and 5 wt % ferric nitrate. As Fe3+ concentration is further increased, i.e., from 5 wt % to 9 wt % ferric nitrate, the removal rate is nearly constant.'"
+      confidence: literature
+      note: >
+        The mechanistic statement is the useful part and it is explicit:
+        'below 5 wt % ferric nitrate concentration the polish rate is controlled
+        by the chemical oxidation rate of the freshly exposed W surface
+        undergoing continuous abrasion by Al2O3 particles. Above 5 wt % ferric
+        nitrate ... surface WOx abrasion rate becomes the rate limiting
+        mechanism.' -> a two-regime (chemistry-limited / mechanics-limited)
+        model with the crossover at 5 wt% Fe(NO3)3 and 2.8 wt% alumina.
+        raw_pairs null: FIG. 4 is normalised and was not digitised.
+        TODO(owner): digitise US5916855 FIG. 4.
+
+    w_cupric_ion_catalysis:
+      pairs_wt_pct_cu2plus_rate: null
+      threshold_wt_pct: 0.0003
+      effect_at_0p01_wt_pct: "+60% W rate (to 9300 A/min) vs the same slurry without cupric sulfate"
+      fixed_conditions: "ferric nitrate slurry, alumina 2.8 wt%, 5 psi, 100 rpm table"
+      source: "US5916855 body text + FIG. 5"
+      confidence: literature
+      note: >
+        'Experiments using slurries formulated with Cu2+ ions and no ferric
+        nitrate show tungsten polish rates consistent with mechanical abrasion
+        only' -> Cu2+ is a CATALYST for the Fe(III) cycle, not an oxidiser.
+        Pairs are in FIG. 5 (graph) only.
+
+    w_persulfate_costoxidant:
+      pairs:
+        - {fe3_wt_pct: 5.0, persulfate_wt_pct: 0.0, w_rate_nm_per_min: 81.0, ti_rate_nm_per_min: 52.0, oxide_rate_nm_per_min: 3.8, note: "slurry 7, no suspension agent"}
+        - {fe3_wt_pct: 5.0, persulfate_wt_pct: 1.0, w_rate_nm_per_min: 319.3, ti_rate_nm_per_min: 45.8, oxide_rate_nm_per_min: 2.9, note: "slurry 9"}
+        - {fe3_wt_pct: 5.0, persulfate_wt_pct: 0.0, w_rate_nm_per_min: 427.5, ti_rate_nm_per_min: 30.0, oxide_rate_nm_per_min: 2.1, note: "slurry 6, with suspension agent + salt"}
+        - {fe3_wt_pct: 5.0, persulfate_wt_pct: 1.0, w_rate_nm_per_min: 687.2, ti_rate_nm_per_min: 100.4, oxide_rate_nm_per_min: 2.9, note: "slurry 8, with suspension agent + salt"}
+      unit: "nm/min (patent A/min / 10)"
+      fixed_conditions: "alumina 2.8 wt%, 5 psi, 100 rpm table / 25 rpm carrier"
+      source: "US5916855, TABLE III (columns: Salt, Evrflo, Fe3+, S2O8, W rate, Ti rate, SiO2 rate, defectivity)"
+      confidence: literature
+      note: >
+        Within each suspension-agent state, adding 1 wt% (NH4)2S2O8 raises the W
+        rate (81 -> 319 without; 428 -> 687 with). Additional TABLE I pair at
+        Fe(NO3)3.9H2O 3 wt% + cupric nitrate 0.036 wt%:
+        with 1 wt% persulfate  -> W 630 nm/min, Ti 200 nm/min;
+        without persulfate     -> W 440 nm/min, Ti 41 nm/min.
+        So persulfate is primarily a Ti accelerator (5x) that also lifts W (1.4x).
+
+    w_fluoride_suppression:
+      pairs_wt_pct_h2sif6_w_rate_nm_per_min: [[0.0, 235.0], [0.1, 227.1], [0.2, 205.2], [0.3, 147.5]]
+      paired_ti_rate_nm_per_min: [70.9, 94.3, 139.7, 188.0]
+      fixed_conditions: "3.0 wt% fumed alumina, 5.0 wt% ferric nitrate, 5 psi, table 44 rpm, spindle 41 rpm, Suba 500/Suba IV, 100 mL/min, 60 s"
+      source: "US5993686, TABLE I (control sample 1 + samples 2,3) and TABLE 3 runs 1A/1B/1C"
+      confidence: literature
+      note: >
+        Clean 4-point additive series at fully specified P and V. Fluoride is a
+        Ti accelerator and a W SUPPRESSOR: W falls 2350 -> 1475 A/min while Ti
+        rises 709 -> 1880 A/min over 0 -> 0.3 wt% H2SiF6. Parallel HF series from
+        the same table: HF 0/0.1/0.2 wt% -> W 2350/2355/2340, Ti 709/1120/1472
+        (HF lifts Ti without touching W), and HF 0.4/0.6 -> W 1551/2825,
+        Ti 2768/3800 (non-monotonic in W).
+
+    w_h2o2_with_ph_coupling:
+      pairs: "see film_anchors: US5391258 TABLE 1 (H2O2 fixed, pH varied 6.0->3.3 via phthalate): W 444/978/1164/1164 A/min, SiO2 167/137/93/76 A/min"
+      fixed_conditions: "submicron alumina ~8.25 wt% (derived), 7 psi, platen 50 rpm, spindle 40 rpm, IC1000"
+      source: "US5391258 TABLE 1"
+      confidence: literature
+      note: >
+        With H2O2 as the oxidiser the dominant lever is pH, not oxidiser dose:
+        a 2.7x W-rate gain comes purely from dropping pH 6.0 -> 3.5. The patent
+        explicitly notes this contradicts US4956313 and US4992135, which taught
+        pH > 6 for W/oxide selectivity.
+
+    w_ferric_nitrate_cross_abrasive:
+      pairs_wt_pct_rate_nm_per_min: [[0.0, 5.6], [0.01, 92.3], [0.05, 117.7]]
+      plateau_above_wt_pct: 0.1
+      fixed_conditions: "4 wt% colloidal SILICA (Fuso PL-7), H2O2 1.0 wt%, pH 2.3, 6 psi, carrier and table both 70 rpm, IC1000/Suba IV, poli-300"
+      source: "J.-H. Lim et al., Appl. Surf. Sci. 282 (2013) 512-517, DOI 10.1016/j.apsusc.2013.06.003, section 3: 'The polishing rate without Fe(NO3)3 was only 56 A/min, and the polishing rate with increasing Fe(NO3)3 concentration rapidly increased to 923 A/min at 0.01 wt% Fe(NO3)3 and 1177 A/min at 0.05 wt% Fe(NO3)3. With further Fe(NO3)3 concentration increases up to 1.0 wt%, the polishing rate of W film increased only slightly.'; local copy papers/lim2013-apsusc-fe-nitrate-w-cmp.pdf"
+      confidence: literature
+      note: >
+        ABRASIVE MISMATCH — this is SILICA, included only because it is the only
+        Fe(NO3)3 dose-response series found with absolute rates, P and V all
+        printed. Do NOT use it as an alumina oxidiser constant. It is however a
+        strong qualitative confirmation of the US5916855 two-regime picture:
+        the authors split their own data into 'region I, below 0.1 wt%
+        Fe(NO3)3' (rate rises steeply) and region II (plateau). A log-log fit of
+        the two non-zero points gives n = 0.15 (r2 = 1.0 trivially, 2 points) —
+        reported only to show how flat region II is. 20x oxidiser gives 1.3x rate.
+
+    cu_h2o2_ph_sign_inversion:
+      pairs_ph_h2o2_wt_pct_rate_nm_per_min:
+        - [3.0, 0.1, 8.0]
+        - [3.0, 2.0, 113.0]
+        - [8.3, 0.1, 287.0]
+        - [8.3, 2.0, 289.0]
+        - [10.0, 0.1, 350.0]
+        - [10.0, 2.0, 166.0]
+      fixed_conditions: "4 wt% alpha-alumina (20 nm primary / 150 nm aggregate), glycine 0.1 M, 1.0 psi, platen 30 rpm / wafer 30 rpm, IC1000, 150 mL/min, +/-14 nm/min"
+      source: "Ihnfeldt 2008, Table 6.2, solutions c and d"
+      confidence: literature
+      note: >
+        THE OXIDISER EFFECT CHANGES SIGN WITH pH, on one tool with one abrasive:
+          pH 3.0  : 0.1 -> 2.0 wt% H2O2 gives 8 -> 113 nm/min (strongly UP)
+          pH 8.3  : 287 -> 289 nm/min (no change, inside +/-14)
+          pH 10.0 : 350 -> 166 nm/min (halved, DOWN)
+        Any monotonic oxidiser term will fail at least one of these three.
+
+    sic_kmno4:
+      marginal_means_wt_pct_rate_nm_per_min: [[1, 8.8913], [2, 11.242], [3, 11.3443], [4, 11.4467], [5, 11.7533]]
+      fitted_value: 0.163
+      r2: 0.819
+      fixed_conditions: "4H-SiC (0001) Si, alumina 500 nm, 4 psi, platen 90 rpm / head 100 rpm, Suba 800, 90 mL/min, 60 min"
+      source: "Gong et al., Materials 17(3) 679 (2024), DOI 10.3390/ma17030679, Table 2 — KMnO4 factor marginal means over the L25 array; fit performed here"
+      confidence: derived
+      note: >
+        Saturating: almost all of the gain is in the 1 -> 2 wt% step
+        (8.89 -> 11.24), then flat to 5 wt%. Consistent with Langmuir-type
+        oxidiser adsorption. The paper's own range analysis makes KMnO4 the
+        STRONGEST of its three factors (R = 0.1717).
+        WARNING: this same table was already used to back out
+        `oxidizer_langmuir_K` for the sic_alumina_kmno4 pack in fab-sim
+        (validation/datasets/gong2024_4hsic_alumina_kmno4_L25.yaml,
+        used_for_calibration: true). Re-using it as validation would be
+        self-grading.
+
+    sic_kmno4_molar:
+      value: "0.05 M KMnO4 at pH 2 with 2 wt% / 100 nm alumina -> 6412 nm/h (C face), 1554 nm/h (Si face)"
+      source: "Chen et al. 2020, DOI 10.1134/S1070427220060099"
+      confidence: literature
+      note: "Single best-point only; the pH 2-10 sweep in that paper is figure-based and was not digitised."
+
+# =====================================================================
+gamma_alumina:                # gamma / transition (delta, theta) alumina
+# =====================================================================
+
+  properties:
+    description: >
+      Transition aluminas (gamma, delta, theta): defect-spinel metastable phases
+      produced by dehydrating boehmite or by flame hydrolysis (fumed alumina).
+      Softer and lower-density than corundum, much higher specific surface area,
+      and they aggregate into chains rather than existing as discrete spheres.
+      In CMP they are the classic W-plug abrasive (Cabot SEMI-SPERSE W-A355 and
+      its relatives), and they are what most pre-2000 "alumina" W slurries
+      actually contained.
+
+    hardness_gpa:
+      value: null
+      unit: GPa
+      source: null
+      confidence: unverified
+      note: "TODO(owner): no measured hardness for gamma/transition alumina was found. It is qualitatively softer than alpha, evidenced functionally by the removal-rate gap below, but no number is available."
+
+    hardness_mohs:
+      value: null
+      unit: "Mohs"
+      source: null
+      confidence: unverified
+      note: "TODO(owner): not sourced. Do not copy the alpha value (Mohs 9) across — the phases are functionally different (see removal_rate_vs_alpha)."
+
+    youngs_modulus_gpa:
+      value: null
+      unit: GPa
+      source: null
+      confidence: unverified
+      note: "TODO(owner): not sourced."
+
+    density_g_cm3:
+      value: null
+      unit: "g/cm^3"
+      source: null
+      confidence: unverified
+      note: "TODO(owner): not sourced from any document read in this pass."
+
+    iep_ph:
+      value: null
+      unit: "pH"
+      source: null
+      confidence: unverified
+      note: >
+        TODO(owner): the IEP ~9 measured by Gopal & Talbot is for a commercial
+        'alumina' CMP slurry (EKC Tech) whose phase is not stated, so it is
+        recorded under `alumina`, not here. Boehmite/gamma surfaces are
+        hydroxyl-terminated like alpha and would be expected nearby, but that is
+        an expectation, not a measurement.
+
+    typical_primary_size_nm:
+      value: 50
+      unit: nm
+      source: "M. Bielmann, U. Mahajan, R. K. Singh, D. O. Shah, B. J. Palla, 'Enhanced Tungsten Chemical Mechanical Polishing Using Stable Alumina Slurries', Electrochem. Solid-State Lett. 2(3) 148-150 (1999), DOI 10.1149/1.1390765 — experimental section: 'The polishing slurries contained 10 wt % gamma-alumina particles (primary size ~50 nm diam)'"
+      confidence: literature
+      note: >
+        PRIMARY particle size as specified by the maker, NOT a dispersed d50.
+        The same paper concedes 'due to agglomeration, the effective size of
+        abrasive particles may increase'. The paper separately uses 300-500 nm
+        alumina for SEM adhesion imaging only — do not confuse the two numbers.
+        Quoted here via fab-sim/knowledge/cmp/
+        w-cmp-abrasive-d50-bielmann1999-osti-cabot-conflict.md, which records
+        the verbatim excerpts; the ESL PDF itself is paywalled at IOPscience and
+        the full text was NOT re-read in this pass.
+
+    removal_rate_vs_alpha:
+      value: "transition alumina polishes W at a LOW rate compared with alpha alumina and SiC, on the same tool"
+      source: "J. Wang, I. K. Cherian, A. G. Haerle (Saint-Gobain), Electrochem. Solid-State Lett. 13(6) H182 (2010), DOI 10.1149/1.3358135, abstract: 'The best oxide defectivities were achieved with transition alumina and silicon carbide. However, the transition alumina polished tungsten at a low rate compared to the other abrasives tested.'"
+      confidence: literature
+      note: >
+        THE reason this file keeps the phases separate. Read from the published
+        abstract (full text paywalled); no ratio is quoted, so the magnitude of
+        the gap is unknown. TODO(owner): obtain ESL 13(6) H182 full text for the
+        alpha-vs-transition rate numbers.
+
+  # -------------------------------------------------------------------
+  film_anchors:
+  # -------------------------------------------------------------------
+
+    - film: w
+      rate_nm_per_min: 810.0
+      uncertainty_nm_per_min: 40
+      pressure_psi: 6.5
+      velocity_m_s: 2.042
+      velocity_source: "derived from 150 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: 10.0
+      d50_nm: 50
+      d50_qualifier: "PRIMARY particle size, not a dispersed d50"
+      ph: 4.0
+      oxidizer: "K3Fe(CN)6 (potassium ferricyanide) 0.1-0.15 M; pH set with HNO3"
+      pad: "IC-1000 / SUBA IV"
+      phase_stated: true
+      source: "Bielmann, Mahajan, Singh, Shah, Palla, Electrochem. Solid-State Lett. 2(3) 148-150 (1999), DOI 10.1149/1.1390765 — surfactant-STABILISED slurry, 4 repeats"
+      confidence: literature
+      note: >
+        Film: CVD W, 0.6 um. QUOTED VIA fab-sim/knowledge/cmp/
+        w-cmp-abrasive-d50-bielmann1999-osti-cabot-conflict.md section 4, which
+        records the verbatim excerpts and their python-verified internal
+        consistency; the ESL PDF is paywalled and was not re-read here.
+        Oxidiser is ferricyanide, NOT ferric nitrate — same Fe(III)/acidic
+        family, different species.
+
+    - film: w
+      rate_nm_per_min: 560.0
+      uncertainty_nm_per_min: 30
+      pressure_psi: 6.5
+      velocity_m_s: 2.042
+      velocity_source: "derived from 150 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: 10.0
+      d50_nm: 50
+      ph: 4.0
+      oxidizer: "K3Fe(CN)6 0.1-0.15 M"
+      pad: "IC-1000 / SUBA IV"
+      phase_stated: true
+      source: "Bielmann et al. 1999, DOI 10.1149/1.1390765 — UNSTABILISED (no surfactant) slurry"
+      confidence: literature
+      note: >
+        Pairs with the previous anchor: surfactant stabilisation alone gives
+        810/560 = 1.45x at identical P, V, wt%, size, pH and oxidiser.
+        Dispersion state is therefore worth ~45% of the rate — larger than most
+        size or concentration effects in this file.
+
+    - film: w
+      rate_nm_per_min: 235.0
+      pressure_psi: 5.0
+      velocity_m_s: 0.599
+      velocity_source: "derived from table 44 rpm, R_cc=0.13 m (assumed); spindle 41 rpm"
+      conc_wt_pct: 3.0
+      d50_nm: null
+      ph: null
+      oxidizer: "ferric nitrate 5.0 wt%"
+      pad: "Suba 500 / Suba IV"
+      phase_stated: false
+      source: "US5993686 TABLE I control sample 1 (3.0 wt% FUMED alumina, Cabot W-A355 SEMI-SPERSE + FE-10)"
+      confidence: unverified
+      note: >
+        DUPLICATE of the anchor with the same source under `alumina`, listed
+        here as well because FUMED alumina from flame hydrolysis is generally a
+        transition phase. The patent never states the phase, so neither
+        placement is certain. Confidence downgraded to unverified for that
+        reason. Do NOT count this row twice in a fit.
+
+  conc_exponent:
+    w:
+      raw_pairs_wt_pct_nm_per_min: null
+      fitted_value: null
+      r2: null
+      source: null
+      confidence: unverified
+      note: >
+        TODO(owner): Bielmann 1999 (DOI 10.1149/1.1390765) is a SINGLE-
+        concentration experiment (10 wt%) — no concentration series exists for
+        gamma alumina in this corpus. The companion Bielmann paper
+        (DOI 10.1149/1.1390851) states qualitatively that the W removal rate
+        'increase[s] with ... increased solids loading' but gives no pairs
+        (abstract only; full text paywalled).
+
+    oxide: &gamma_unknown
+      raw_pairs_wt_pct_nm_per_min: null
+      fitted_value: null
+      r2: null
+      source: null
+      confidence: unverified
+      note: "TODO(owner): no gamma-alumina concentration series found for this film."
+
+    cu: *gamma_unknown
+    sic: *gamma_unknown
+    sapphire: *gamma_unknown
+    poly_si: *gamma_unknown
+    snag: *gamma_unknown
+
+  size_exponent:
+    w:
+      raw_pairs_d50_nm_rate: null
+      fitted_value: null
+      r2: null
+      sign: "negative over 0.1-10 um (rate rises as size falls), per Bielmann 1999"
+      source: "Bielmann, Mahajan, Singh, Electrochem. Solid-State Lett. 2(8) 401-403 (1999), DOI 10.1149/1.1390851, abstract read from IOPscience: 'Alumina particles of similar phase and shape with size varying from 0.1 to 10 um diam were used ... The W removal rate was found to increase with decreasing particle size'"
+      confidence: unverified
+      note: >
+        PHASE ASSIGNMENT IS ASSUMED, not stated: the abstract says only
+        'alumina ... of similar phase'. It is placed here because the same
+        group's companion paper of the same year uses gamma-alumina. Full text
+        paywalled, no (d, rate) pairs obtained, so no exponent is fitted.
+        See `alumina.size_exponent.w` for the three-way conflict this sits in.
+
+    oxide: &gamma_size_unknown
+      raw_pairs_d50_nm_rate: null
+      fitted_value: null
+      r2: null
+      source: null
+      confidence: unverified
+      note: "TODO(owner): not sourced."
+
+    cu: *gamma_size_unknown
+    sic: *gamma_size_unknown
+    sapphire: *gamma_size_unknown
+    poly_si: *gamma_size_unknown
+    snag: *gamma_size_unknown
+
+  saturation:
+    note: "TODO(owner): no gamma-alumina saturation data (concentration, velocity, pressure or oxidiser) was found in this pass."
+
+  oxidizer_response:
+    w_ferricyanide:
+      value: "K3Fe(CN)6 0.1-0.15 M at pH 4 sustains 560-810 nm/min on CVD W with 10 wt% gamma-alumina at 6.5 psi / 150 rpm"
+      pairs_M_rate: null
+      source: "Bielmann et al. 1999, DOI 10.1149/1.1390765"
+      confidence: literature
+      note: >
+        Range statement only — the paper fixes the oxidiser and varies the
+        dispersion state, so there is no dose-response curve.
+        TODO(owner): a gamma-alumina + Fe(NO3)3 dose series is missing entirely.
+
+# =====================================================================
+gaps:
+  # Every quantity requested that could NOT be sourced, named explicitly.
+  # =====================================================================
+
+  - id: films_with_zero_alumina_anchors
+    what: "poly_si and snag (SnAg solder) blanket removal-rate anchors with alumina"
+    status: "NOT FOUND"
+    searched: >
+      fab-sim/papers + INDEX.json token scan, fab-sim/knowledge (grep polysilicon,
+      poly-Si, SnAg, Sn-Ag, solder CMP), fab-sim/data/corpus (sqlite + fulltext),
+      and 4 web searches. US7723234B2 ('Method for selective CMP of polysilicon')
+      was pulled from patentimages and its full text contains ZERO occurrences of
+      'alumin' — it is a silica/ceria patent. No alumina-on-SnAg CMP source was
+      located at all.
+    impact: "2 of the 7 requested films have no data whatsoever, for either phase."
+
+  - id: alpha_particle_hardness
+    what: "alpha-Al2O3 abrasive particle hardness in GPa (nanoindentation)"
+    status: "NOT FOUND (only Mohs 9, a qualitative scale)"
+    searched: "corpus knowledge notes; web search returned only paywalled sapphire-substrate nanoindentation papers, which measure the WAFER not the particle."
+    impact: "Any Hertz/plastic-indentation term that needs H_abrasive cannot be parameterised for alpha from this file."
+
+  - id: gamma_properties_all
+    what: "gamma/transition alumina hardness (GPa and Mohs), Young's modulus, density, IEP"
+    status: "NOT FOUND — all four are null"
+    impact: "The gamma phase has essentially no physical-property record here; only its functional signature (low W rate vs alpha, Saint-Gobain 2010) and one primary size (50 nm)."
+
+  - id: w_size_exponent_conflict
+    what: "sign of m in MRR ~ d^m for alumina on W"
+    status: "CONTESTED AND UNRESOLVED"
+    detail: >
+      Bielmann 1999 (ESL 2(8) 401) says NEGATIVE over 0.1-10 um; Wang/Cherian/
+      Haerle 2010 (ESL 13(6) H182) says POSITIVE and linear; Egan & Kim 2019
+      (JSS 8 P3206, open access, full text read) says NULL. All three are
+      primary W-CMP measurements. The first two are paywalled and only their
+      abstracts were read, so no raw pairs exist to arbitrate.
+    impact: "THIS IS THE BIGGEST REMAINING GAP. A particle-size term for W CMP cannot be signed, let alone valued, from the available evidence."
+    next_step: "Obtain full text of DOI 10.1149/1.1390851 and DOI 10.1149/1.3358135 (interlibrary or ECS membership) and extract their size-vs-rate tables."
+
+  - id: sic_conc_exponent_conflict
+    what: "n in MRR ~ C^n for alumina on SiC"
+    status: "CONTESTED"
+    detail: >
+      Entegris US20220315802A1 gives n = -0.406 (r2 0.92, 5 points, 0.1-5 wt%,
+      1 psi); Gong 2024 L25 marginal means give n = +0.035 (r2 0.14, 1-5 wt%,
+      4 psi, 500 nm); Su 2011 is non-monotonic with a maximum at 1.6 wt%.
+      Different pressures, different sizes, one patent whose absolute rates are
+      a 25-38x outlier against three independent papers.
+    impact: "Sign of the SiC concentration term is not settled."
+
+  - id: raw_pairs_locked_in_figures
+    what: "raw (x, rate) pairs that exist but only as graphs"
+    status: "NOT DIGITISED"
+    list:
+      - "US5916855 FIG. 3 — W rate vs alumina 1-7 wt% (would give the true w conc_exponent and both knees)"
+      - "US5916855 FIG. 4 — W rate vs Fe(NO3)3 3-9 wt% (normalised axis)"
+      - "US5916855 FIG. 5 — W rate vs Cu2+ 0.0003-0.01 wt%"
+      - "Guo 2004 Figs. 3/4/7/8 — Cu rate vs C (1.25-5 wt%) and vs V, both pads"
+      - "Su 2012 J. Semicond. Fig. 2 — 6H-SiC rate vs alumina size 1/1.5/2.5/3.5 um, both faces"
+      - "KR20130060211A Fig. 1 — sapphire rate vs pH 10-14, alumina vs silica curves"
+      - "Wang 2012 ECS Trans. Figs. 5(a)/6(a) — W rate vs abrasive wt%"
+    impact: "At least 5 of the requested exponents are fittable in principle but not from printed numbers."
+
+  - id: derived_wt_pct_and_velocity
+    what: "assumptions baked into some anchors"
+    status: "FLAGGED, not resolved"
+    detail: >
+      (a) Every velocity_m_s in this file is DERIVED from platen rpm with an
+          ASSUMED R_cc = 0.13 m — no source states R_cc. Band 0.09-0.17 m.
+      (b) US5391258 conc_wt_pct = 8.25 is derived from '1000 g of 33% solids
+          slurry' plus assumed 1.0 g/mL for 50% H2O2.
+      (c) Su 2011 wt% is g-per-500 mL converted at an assumed 1.0 g/mL.
+      (d) Su 2011/2012 d50 = 1500 nm is a W1.5 GRIT-GRADE conversion, not a
+          measured d50.
+    impact: "Absolute Preston coefficients derived from these anchors carry a factor-~2 uncertainty; rankings are unaffected."
+
+  - id: phase_unstated_sources
+    what: "sources that say only 'alumina' or 'fumed alumina'"
+    status: "PHASE UNRESOLVED"
+    list: ["US5916855", "US5993686", "US5391258", "US20220315802A1", "Gong 2024", "Chen 2020", "Wang 2012 ECS Trans."]
+    impact: >
+      Most of the W-CMP anchor set (the film the task asked for 4+ anchors on)
+      has an unstated phase. They are filed under `alumina` with
+      phase_stated: false. If the simulator branches on phase, these rows must
+      not silently become alpha.
+
+  - id: oxide_anchors_are_counterfilms
+    what: "dedicated alumina-on-oxide blanket study"
+    status: "NOT FOUND"
+    detail: "The three oxide rows in film_anchors are SiO2/TEOS counter-film rates measured inside W-CMP runs, useful for selectivity but not a standalone oxide dataset. No alumina oxide concentration or size series exists here."
+
+  - id: sapphire_series
+    what: "sapphire concentration series and size series with alumina"
+    status: "NOT FOUND"
+    detail: "KR20130060211A fixes 2 wt% / 0.25 um and varies only base, pH, pressure and rpm. Its claims allow 0.01-50 wt% and 0.05-10 um but report no rates across those ranges."
