@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **673 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **675 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -84,27 +84,32 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-BLOCKED-1 now names exactly what would unblock the lubrication gate: one
-dataset reporting measured film thickness (or slurry viscosity AND pad
-roughness) beside a rate-vs-speed sweep. Go and look for it — Sohn/Philipossian
-and the Araca group published dual-emission UV fluorescence film-thickness
-measurements with matched Stribeck curves, and Mariscal 2020 is already from
-that lineage. If such a dataset exists and is readable, register it and
-calibrate the λ scale; if it exists but is paywalled/unreadable, record the
-citation and the blocking reason in BLOCKED-1 so the next session does not
-repeat the search. Do not calibrate λ from a number that is not measured.
+BLOCKED-1 now points the velocity inversion at pad CONTACT, not fluid film:
+down force enters us6918821b2 and mariscal2020 with opposite sign while both
+stay boundary-lubricated. Test that directly with what is already in the model
+— `models/contact_gw.py` gives real contact area and summit count per row, and
+`situation.metrics` already exposes `summit_saturation` and `plasticity_index`.
+Compute them across both velocity datasets and check whether either separates
+the inverting rows the way λ failed to. If one does, that is the regime flag
+worth gating; if neither does, record it and stop — the inversion then needs a
+pad property (asperity density under load, or glazing) that no dataset in the
+corpus reports, and BLOCKED-1 should name THAT. Do not invent a threshold.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp
    rests on one Seidel 1990 point. Needs a second Si-substrate point.
-1. λ scale — UNCALIBRATED, and it now blocks a real gate. λ ORDERING predicts
-   over-prediction in both velocity datasets independently (Spearman ρ −0.714
-   us6918821b2, −0.517 mariscal2020: thicker modelled film ⇒ worse miss), but
-   every row sits at λ 0.014–0.187 against LAMBDA_BOUNDARY 1.0, so no Stribeck
-   flag can separate the rows where rate FALLS with speed. λ is computed from
-   an assumed viscosity and an assumed pad roughness; neither source reports
-   either. NEEDED: one dataset with measured film thickness (or viscosity AND
-   pad roughness) beside a rate-vs-speed sweep. Threshold NOT invented.
+1. Velocity inversion is NOT a lubrication effect — no dataset will fix it.
+   λ = 0.001401·(rpm/P) exactly, i.e. λ IS the pseudo-Sommerfeld number V/p
+   (Wu & Liao 2016, doi:10.5772/64484) up to one constant, so calibrating it
+   with measured viscosity/roughness only rescales and cannot reorder. The
+   inverting rows (λ .056/.112/.187) OVERLAP the non-inverting ones
+   (.021/.042/.070), and mariscal2020 — 9 rows that never invert — sits inside
+   that range. A threshold would need to be below .056 and above .070 at once.
+   (This corrects the earlier entry asking for a film-thickness dataset.)
+   Surviving evidence: λ ORDERING predicts over-prediction independently in
+   both datasets (ρ −0.714, −0.517). Down force enters the two with OPPOSITE
+   sign ⇒ next suspect is pad CONTACT (asperity population / real area), not
+   fluid film.
 2. `sti_ceria` 7,235 Å/min vs a 200–6,000 envelope; pack and envelope both
    cited, one is wrong for this recipe. 1 parked.
 3. Size exponent splits by ABRASIVE, not film; packs must scope and cite it.

@@ -31,17 +31,43 @@ over-predicts. That is the lubrication effect showing up exactly where physics
 says it should. But a monotone trend is not a threshold, and two datasets
 cannot calibrate one.
 
-WHAT IS MISSING, NAMED. lambda here is computed, not measured: it divides a
-modelled film thickness (itself a function of assumed slurry viscosity and
-sliding speed) by an assumed pad roughness. Neither patent reports slurry
-viscosity, pad roughness, nor a measured film thickness, so the absolute
-lambda scale is uncalibrated and only its ordering is trustworthy. To gate this
-regime honestly the corpus needs one dataset that reports measured film
-thickness (or viscosity AND pad roughness) alongside a rate-versus-speed sweep.
-That requirement is written into STATUS.md BLOCKED.
+AND NO CALIBRATION WOULD HELP — this is the decisive part.
 
-These tests pin both halves of the finding: the flag genuinely cannot fire, and
-the ordering evidence is real enough that it must not be quietly discarded.
+It is tempting to say lambda is merely uncalibrated (it divides a modelled film
+thickness, itself a function of an assumed viscosity, by an assumed pad
+roughness) and that a dataset reporting measured film thickness would unblock
+the gate. The arithmetic says otherwise. In this model
+
+    lambda = 0.001401 * (rpm / pressure)
+
+to five digits on every row, i.e. lambda IS the pseudo-Sommerfeld number V/p of
+the CMP lubrication literature (Wu & Liao, "Lubrication in Chemical and
+Mechanical Planarization", Advances in Tribology, 2016, doi:10.5772/64484,
+which also records the standard convention that the effective slurry film
+thickness is taken as the pad's arithmetic average roughness) up to a single
+multiplicative constant. Measuring viscosity and roughness would fix that
+constant. A constant cannot reorder anything, so it cannot create a separation
+that is not already there.
+
+And the separation is not there:
+
+    rows where rate FALLS with speed (1.5 psi)   lambda 0.056, 0.112, 0.187
+    rows where rate RISES with speed (4.0 psi)   lambda 0.021, 0.042, 0.070
+
+These OVERLAP. A threshold would have to be simultaneously below 0.056 and
+above 0.070. Worse, mariscal2020 — nine rows that never invert, in any
+combination — spans lambda 0.0135-0.0628, sitting inside the inverting range.
+
+So the velocity inversion is not a Sommerfeld/Stribeck phenomenon in the data
+available. Both datasets are boundary-lubricated by every published criterion,
+and they still behave oppositely, which means the discriminating variable is
+something else (down force enters the two datasets with opposite effect, which
+points at pad contact rather than fluid film). Gating on lubrication would be
+wrong, not merely premature.
+
+These tests pin all three parts: the flag genuinely cannot fire, no calibration
+could make it fire, and the lambda ORDERING evidence that remains real must not
+be quietly discarded either.
 """
 from __future__ import annotations
 
@@ -137,3 +163,32 @@ def test_the_lambda_signal_spans_the_regime_where_preston_inverts():
     assert worst[4] == max(lam for *_, lam in rows), (
         "the worst-predicted row is no longer the highest-lambda row")
     assert worst[0] == 1.5 and worst[1] == 200, worst
+
+
+# ---------------------------------------------------------------------------
+# and no calibration could rescue the gate
+# ---------------------------------------------------------------------------
+
+def test_lambda_is_the_pseudo_sommerfeld_number_up_to_one_constant():
+    """lambda = k * (rpm / pressure), so calibrating it only sets k."""
+    ratios = [lam / (rpm / pressure) for pressure, rpm, _, _, lam in _rows(PRESTON)]
+    spread = (max(ratios) - min(ratios)) / max(ratios)
+    assert spread < 0.01, (
+        f"lambda is no longer proportional to V/p (spread {spread:.3%}); the "
+        "argument that calibration cannot help must be re-derived")
+
+
+def test_no_threshold_can_separate_inverting_from_non_inverting_rows():
+    """The falsification. A scale factor cannot reorder overlapping sets."""
+    rows = _rows(PRESTON)
+    falling = sorted(lam for pressure, _, _, _, lam in rows if pressure == 1.5)
+    rising = sorted(lam for pressure, _, _, _, lam in rows if pressure == 4.0)
+
+    assert max(rising) > min(falling), (
+        "the two groups have separated; a lubrication gate may now be "
+        "justified — re-run the diagnosis before trusting this test")
+
+    # and the dataset that NEVER inverts sits inside the inverting range
+    mariscal = [lam for *_, lam in _rows(MARISCAL)]
+    assert min(mariscal) < max(falling) and max(mariscal) > min(falling), (
+        "mariscal2020 no longer overlaps the inverting rows")
