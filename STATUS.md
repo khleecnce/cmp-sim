@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **638 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **648 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -17,6 +17,15 @@
 - **Abrasive TYPE reaches the rate** (`slurry/abrasive_effects.py`): a swap
   rescales only by a published matched-condition ratio, withdraws the pack's
   measured exponents, says `ranking_only` when unanchored.
+- **The Cu pH optimum is a BOUND, from ONE system.** `ph_peak` was 4.0 =
+  "the pack's operating pH", with a note asking for a pH 2-6 sweep — which was
+  already in the repo. US20080090500A1 T4 falls monotonically pH 3->6 at all
+  three silica loadings, so the optimum is at or BELOW pH 3 and 4.0 predicted a
+  rise where the patent measures a 10-24% drop. Peak -> 3.0 (edge of data),
+  width 4.1 -> 4.45: shape 10.1% -> 4.3% on those 12 points. Refused to pool
+  the alkaline US9200180B2 leg for 17 points — it is BTA-free benzenesulfonic
+  and has its OWN pack; same trap `oxide_silica_aminosilane` was split to avoid.
+  ⚠ Zero effect on the corpus median: that table prints no down force.
 - **The oxidizer term's SIGN belongs to the pH branch — regime gate.**
   Miranda's 2x2 moves H2O2 1.5->3.5 wt% and gets +49% at pH 4, -86% at pH 8
   (interaction p=0.0207, Pourbaix: soluble Cu2+ vs hard CuO). One constant
@@ -48,15 +57,14 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-pH is now the worst axis (39.3%) and is no longer explained away: the slurry-
-system split fixed oxide, so what remains is Cu. `cu_h2o2_bta` carries
-ph_peak=4.0 at `confidence: low` — it is the pack's OPERATING pH, not a
-measured optimum, because the only Cu sweep in the corpus (US9200180B2,
-pH 6.2-9.9) is monotone and cannot locate a maximum. ph_response_width=4.1 is
-fitted to that same alkaline-only leg, so peak and width trade off freely.
-Find an ACIDIC Cu pH sweep (3+ points below pH 6) in the patent literature
-before touching either number; if none exists, say so and mark the pair
-jointly unidentifiable rather than refitting.
+The pH axis still reads 39.3%, but that median is now known to be polluted the
+same way velocity's was: it pools datasets that move several things at once,
+and its two worst members (netzband2020 ceria/oxide, carbide2023 L9) do not
+even beat predicting the mean. Isolate pH the way velocity was isolated —
+group rows so ONLY pH moves, count how many points in the whole corpus
+actually do that, and report the isolated error separately — before touching
+any pH constant. If the isolated set is as thin as velocity's was (29 pts),
+say so and stop; do not refit a term on pooled scatter.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp

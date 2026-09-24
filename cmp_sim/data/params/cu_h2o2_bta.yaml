@@ -94,30 +94,74 @@ params:
 
   # ── pH response, fitted to a MEASURED Cu sweep ─────────────────────────
   ph_peak:
-    value: 4.0
+    value: 3.0
     unit: pH
     note: >
-      Optimum pH for this acidic H2O2/BTA system. US9200180B2 measures a
-      monotone FALL across pH 6.2-9.9 (732 -> 214 A/min), so the maximum
-      lies at or below 6.2 and that sweep alone cannot locate it. 4.0 is
-      the pack's own operating pH (ph_ref), i.e. the pH the rest of this
-      pack's constants were measured at, which makes it the defensible
-      choice rather than a fitted one. TODO(owner): a sweep across pH 2-6
-      would pin it; until then a scan below pH 4 is an extrapolation.
+      An UPPER BOUND on the optimum, read from data, not a fitted optimum.
+
+      WHY IT MOVED FROM 4.0. The previous entry said "a sweep across pH 2-6
+      would pin it" and set 4.0 = ph_ref as a placeholder. That sweep was
+      already in the corpus: US2008/0090500A1 TABLE 4 runs pH 3/4/5/6 at three
+      silica loadings with glycine, BTA, H2O2, load, speeds, flow and time all
+      fixed — the same table cu_ph_acid_k was back-fitted from. It falls
+      monotonically at every loading:
+
+        silica 2 wt%   597 -> 537 -> 483 -> 393 A/min   (pH 3 -> 6)
+        silica 3 wt%   705 -> 617 -> 528 -> 451
+        silica 4 wt%   801 -> 644 -> 565 -> 520
+
+      There is no interior maximum anywhere in pH 3-6, so for THIS system the
+      optimum lies AT OR BELOW pH 3. A peak at 4.0 put the model's maximum
+      inside a measured falling limb, predicting a rise from pH 3 to 4 where
+      the patent measures a 10-24 % drop in all three series.
+
+      ⚠ WHY THE ALKALINE SWEEP IS NOT USED HERE. US9200180B2 continues the fall
+      to pH 9.9 and it is tempting to fit both legs together for 17 points. It
+      would be wrong: that series is BTA-FREE and benzenesulfonic-based, and
+      the repository already carries it under a SEPARATE pack
+      (`cu_alkaline_benzenesulfonic`) precisely because its composition
+      coordinate differs. The same discipline that split
+      `oxide_silica_aminosilane` from `oxide_silica` applies — the pH optimum
+      belongs to the slurry system, so pooling two systems to tighten a
+      constant would manufacture agreement. This value rests on the 12
+      system-matched points only.
+
+      WHY 3.0 AND NOT LOWER. 3.0 is the lowest pH measured in that table.
+      Placing the peak at the edge of the data is the weakest claim consistent
+      with it; any lower value extrapolates into pH the corpus never probes.
+      Treat this as "at or below 3", not as "the optimum is 3".
+
+      WHAT IT IS NOT. Not a claim that acidic Cu CMP peaks at pH 3 in general —
+      Miranda measures 1953 A/min at pH 4 against 1743 at pH 8 in a different
+      formulation. It is this pack's (glycine + BTA + H2O2 + silica) response,
+      over pH 3-6.
+      TODO(owner): a Cu sweep below pH 3 in THIS chemistry would convert this
+      bound into a value.
     source: >
-      operating point of this pack (= ph_ref); the alkaline branch is
-      constrained by us9200180b2_cu_ph_alkaline_sweep.yaml (5 points)
-    confidence: low
+      us20080090500a1_cu_ph_silica_cross.yaml (12 points, pH 3-6, three silica
+      loadings; US2008/0090500A1 TABLE 4). Shape fit with one free scale per
+      loading series; the alkaline US9200180B2 sweep is deliberately EXCLUDED
+      as a different slurry system (own pack: cu_alkaline_benzenesulfonic).
+    confidence: med
   ph_response_width:
-    value: 4.1
+    value: 4.45
     unit: pH
     note: >
-      Fitted to US9200180B2 (5 points, pH 6.2-9.9). Shape error 0.7% with
-      the floor below. Constrains the ALKALINE side only -- the acidic side
-      is unmeasured here, and because ph_peak itself is unmeasured (the
-      sweep is monotone), the width and the peak trade off against each
-      other. Both are provisional until an acidic Cu sweep exists.
-    source: us9200180b2_cu_ph_alkaline_sweep.yaml (5 measured points)
+      Fitted to the 12 acidic points of US2008/0090500A1 TABLE 4 with one free
+      scale per silica loading, so the width is constrained by shape rather
+      than by absolute level.
+
+      Was 4.1, fitted to a BTA-free alkaline series (US9200180B2) that belongs
+      to a different pack. Refitting on system-matched data alongside the
+      corrected peak takes the shape error on those 12 points from 10.13 % to
+      4.29 %.
+
+      ⚠ The peak/width trade-off is reduced, not removed: the peak is a BOUND
+      rather than a measured maximum, so a sweep below pH 3 could move both.
+      The fit is genuinely shallow in the width — 4.0 gives 5.35 % and 5.0
+      gives 5.31 % — so do not read 4.45 as precise to two digits.
+    source: >
+      us20080090500a1_cu_ph_silica_cross.yaml (12 points); shape fit, MAPE 4.3%
     confidence: med
   ph_mechanical_floor:
     value: 0.12
@@ -125,6 +169,18 @@ params:
     note: >
       Copper still removes at pH 9.9 (214 A/min against 732 at pH 6.2),
       so the floor is real and not a fitting convenience.
+
+      ⚠ CROSS-SYSTEM, and knowingly so. That evidence is the BTA-free
+      benzenesulfonic series (US9200180B2), which this repository treats as a
+      separate pack — the same reason `ph_peak` above refuses to fit on it.
+      It is kept here because the floor is a claim about the MECHANICAL
+      background surviving when the chemistry stops helping, which transfers
+      across formulations better than an optimum position does (the identical
+      argument the oxidizer floor makes), and because no alkaline point exists
+      in this pack's own chemistry. It is a bound on "removal does not stop",
+      not a calibrated value for this slurry.
+      TODO(owner): an alkaline point in the glycine/BTA chemistry would make
+      this a same-system number.
     source: us9200180b2_cu_ph_alkaline_sweep.yaml (pH 9.9 point)
     confidence: med
   abrasive_size_exponent:

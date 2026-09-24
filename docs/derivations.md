@@ -1314,3 +1314,55 @@ declining to answer. That is a real gain in usability — a 107 % prediction tha
 looks confident is worse than a refusal that names the missing experiment —
 and it is not a gain in accuracy. Closing it needs an alkaline-branch Cu/H₂O₂
 sweep with an inhibitor present, which is recorded as `TODO(owner)` in the pack.
+
+## The copper pH optimum is a bound, and it comes from one slurry system
+
+`cu_h2o2_bta` carried `ph_peak: 4.0` at `confidence: low`, justified as "the
+pack's own operating pH", with the note: *a sweep across pH 2–6 would pin it*.
+That sweep was already in the repository.
+
+US 2008/0090500 A1 TABLE 4 varies pH 3/4/5/6 at three silica loadings with
+glycine, BTA, H₂O₂, load, speeds, flow and time all fixed — the same table
+`cu_ph_acid_k` was back-fitted from — and the rate falls monotonically at every
+loading:
+
+| silica | pH 3 | pH 4 | pH 5 | pH 6 |
+|---|---:|---:|---:|---:|
+| 2 wt% | 597 | 537 | 483 | 393 |
+| 3 wt% | 705 | 617 | 528 | 451 |
+| 4 wt% | 801 | 644 | 565 | 520 |
+
+(Å/min.) There is no interior maximum, so **the optimum lies at or below pH 3**
+— a bound, not a measured peak. The old value placed the model's maximum inside
+a measured falling limb: it predicted a *rise* from pH 3 to 4 where all three
+series drop 10–24 %.
+
+### The peak goes at the edge of the data
+3.0 is the lowest pH measured. Putting the peak there is the weakest claim the
+data support; anything lower extrapolates into pH nobody probed. Refitting the
+width on the same 12 points gives 4.45 and takes the shape error from
+**10.13 % → 4.29 %**. The width fit is shallow (4.0 → 5.35 %, 5.0 → 5.31 %), so
+the note explicitly warns against reading 4.45 as precise.
+
+### The pooling trap, avoided on purpose
+US 9,200,180 B2 continues the fall to pH 9.9, and using both legs would give 17
+points instead of 12. **It would be wrong.** That series is BTA-free and
+benzenesulfonic-based, and this repository already files it under a separate
+pack, `cu_alkaline_benzenesulfonic`. Pooling two slurry systems to tighten a
+constant manufactures agreement — the same error `oxide_silica_aminosilane` was
+split off to avoid, where one TEOS film peaks at pH 4.9 with one abrasive and
+pH 11 with another.
+
+The fitted numbers happen to come out the same either way. The *justification*
+does not, and only the system-matched 12 points are cited. `ph_mechanical_floor`
+does still rest on the other system — kept, because a floor is a claim about
+the mechanical background surviving when chemistry stops helping, which
+transfers better than an optimum position — and it now says so in the entry
+rather than looking like same-system evidence.
+
+### What this did not do
+Nothing to the corpus median. The acidic table prints no down force, so it
+cannot be scored at all, and it is calibration data besides. The change is
+justified by shape against a printed table, and the test suite asserts that it
+is invisible to the headline — so that a future edit making the dataset
+scorable fails loudly instead of silently inheriting an unearned claim.
