@@ -561,6 +561,26 @@ def chemical_factor(resolved, temp_c: Optional[float] = None) -> ChemicalEffect:
                     f"pH {float(ph):g} is more than 2.5 widths from the "
                     f"optimum ({float(ph_peak):g}), so the rate rests on the "
                     "mechanical floor and the chemical term is extrapolated")
+            # A pack whose peak is a BOUND at the edge of its data has no
+            # measured limb on the far side of that edge. Falling away from an
+            # unmeasured edge is not a prediction, it is the shape of the
+            # assumed function, so say so — loudly, because the acid-side floor
+            # is frequently 0 and the rate then collapses towards zero.
+            ph_range = resolved.p_or("ph_valid_range", None)
+            if isinstance(ph_range, (list, tuple)) and len(ph_range) == 2:
+                low, high = float(ph_range[0]), float(ph_range[1])
+                if not (low <= float(ph) <= high):
+                    side = "below" if float(ph) < low else "above"
+                    floor_side = (acid_floor if float(ph) < low else ph_floor)
+                    warnings.append(
+                        f"pH {float(ph):g} is OUTSIDE the range this pack's pH "
+                        f"constants were measured over ({low:g}-{high:g}), "
+                        f"{side} it. The pH term is extrapolated with a floor "
+                        f"of {float(floor_side):.3f} on that side"
+                        + (", which is ZERO: the predicted rate decays towards "
+                           "nothing with no measurement supporting it, so treat "
+                           "it as a refusal rather than as a number"
+                           if not float(floor_side) else ""))
     elif ph is not None and ph_peak is not None and not ph_width:
         warnings.append(
             f"this pack declares an optimum pH ({float(ph_peak):g}) but no "

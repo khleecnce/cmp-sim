@@ -725,3 +725,16 @@ params:
       cmp_sim/data/validation/datasets/du2004_cu_h2o2_concentration_sweep.yaml.
       Peak position for THIS pack remains [GT07] as above.
     confidence: low
+
+  # ── the pH range these constants were measured over ────────────────────
+  ph_valid_range:
+    value: [3.0, 6.0]
+    unit: pH
+    note: >
+      The acidic Cu series behind ph_peak spans pH 3-6 (US20080090500A1 T4) and
+      ph_peak (3.0) is its lowest point, so the acid limb is unmeasured. Note
+      this is a different window from oxidizer_ph_window (2.0-6.25), which
+      scopes the OXIDISER constants; the two are separate claims about
+      different terms and are deliberately not merged.
+    source: "us20080090500a1_cu_ph_silica_cross.yaml (pH 3/4/5/6 at 3 loadings)"
+    confidence: high

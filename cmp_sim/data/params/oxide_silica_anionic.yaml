@@ -125,3 +125,17 @@ params:
 # the rest needs two additive pH channels (electrostatic contact + alkaline
 # hydrolysis), which is a change to the functional form and to every pack that
 # uses it, not a constant in this file. Recorded rather than fitted around.
+
+  # ── the pH range these constants were measured over ────────────────────
+  ph_valid_range:
+    value: [2.0, 6.0]
+    unit: pH
+    note: >
+      The source table's own span. ph_peak (2.0) is the LOWEST point in it, so
+      the acid side of the bell is entirely unmeasured — and
+      ph_acid_mechanical_floor is 0, which means a scan below pH 2 decays
+      towards zero on the strength of the assumed functional form alone.
+      Declaring the range makes the engine say so instead of returning a
+      confident small number (pH 1.0 -> 3.9 A/min, pH 0.5 -> 0.0 A/min).
+    source: "cn109609035b_oxide_anionic_silica_ph.yaml (7 rows, pH 2.0-6.0)"
+    confidence: high

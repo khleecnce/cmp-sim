@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **691 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **699 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -17,6 +17,15 @@
 - **Abrasive TYPE reaches the rate** (`slurry/abrasive_effects.py`): a swap
   rescales only by a published matched-condition ratio, withdraws the pack's
   measured exponents, says `ranking_only` when unanchored.
+- **Validity ranges: a bounded peak has an UNMEASURED side.** The three packs
+  whose `ph_peak` is a bound at the data edge (oxide_silica_anionic 2.0,
+  cu_alkaline_benzenesulfonic 6.2, cu_h2o2_bta 3.0) had no measured limb beyond
+  it and an acid floor of 0, so the model decayed to 0.00 A/min at pH 0.5 with
+  no warning (the "2.5 widths" check doesn't fire — pH 1.0 is only 2.0 widths).
+  Each now declares `ph_valid_range` = its source table's span, and the engine
+  warns outside it, naming the floor and calling a ZERO floor a refusal rather
+  than a number. cu_h2o2_bta carries TWO ranges (pH constants 3-6, oxidizer
+  constants 2-6.25) — different terms, different experiments, not merged.
 - **Pack blindness audit (`tests/test_pack_axis_blindness_audit.py`)**: fails
   if any pack declares no response on an axis its own datasets sweep. One hit —
   `w_fe_oxidizer` on pH — and it is a SOURCED NULL RESULT, re-derived by the
@@ -102,17 +111,16 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-The blindness audit only asks whether a pack DECLARES a term, not whether that
-term is scoped to the data behind it. `w_fe_oxidizer`'s null result is scoped
-(pH 3-6, stated) but most packs' constants are not: `oxidizer_ph_window` exists
-only on cu_h2o2_bta, and the Cu/oxide packs' pH bounds were only just pinned.
-Extend the audit to VALIDITY RANGES — for each pack constant fitted to a
-dataset, check the pack states the range it was measured over, and make the
-engine decline (not extrapolate) outside it, reusing the gate built for the
-oxidizer pH window. Start with the packs whose bounds this session established
-(cu_h2o2_bta, cu_alkaline_benzenesulfonic, oxide_silica_anionic), since their
-peaks are BOUNDS at the data edge and extrapolating past them is exactly the
-error the bounds were chosen to avoid.
+`ph_valid_range` is declared on the 3 packs whose peaks are bounds, but the
+other pH-active packs (oxide_silica, oxide_silica_aminosilane, sti_ceria,
+sic_ceria_h2o2) still have none, and sic_ceria_h2o2 additionally declares
+`ph_peak: 4.5` with `ph_response_width: None` — which the engine itself warns
+makes pH INERT. Work that list: for each pack find the dataset its pH constants
+came from, declare the range, and for sic_ceria_h2o2 decide from its data
+whether a width can be fitted or whether the peak should be withdrawn (an inert
+constant that looks active is worse than no constant). Extend
+tests/test_ph_validity_range_is_declared.py to cover every pH-active pack, so
+a new pack cannot ship a pH term with no stated range.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp

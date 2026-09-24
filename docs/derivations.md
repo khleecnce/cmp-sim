@@ -1755,3 +1755,50 @@ trusting the declaration.
 ⚠ Scope: the null covers pH 3–6 only. Nothing licenses an alkaline W slurry;
 outside that window the honest behaviour is to decline, not to extrapolate a
 flat response.
+
+## A peak pinned to the edge of the data has an unmeasured side
+
+Three packs now carry a `ph_peak` that is deliberately a **bound** rather than a
+fitted optimum — `oxide_silica_anionic` (2.0), `cu_alkaline_benzenesulfonic`
+(6.2), `cu_h2o2_bta` (3.0) — each sitting at the lowest pH its source table
+contains, because free fitting wanted a maximum at a pH nobody polished at.
+
+That discipline fixed one problem and created a quieter one. When the peak *is*
+the edge of the data, everything beyond it is the assumed bell and nothing else.
+And `ph_acid_mechanical_floor` is frequently 0, precisely because there is no
+measured acid limb to floor. So the model decays to nothing, with confidence:
+
+| pH | status | predicted |
+|---:|---|---:|
+| 2.0 | measured | 213.60 Å/min |
+| 1.0 | unmeasured | 3.90 Å/min |
+| 0.5 | unmeasured | **0.00 Å/min** |
+
+A CMP slurry that removes *exactly nothing* is not a prediction; it is the tail
+of a Gaussian being read as physics. The existing "more than 2.5 widths from the
+optimum" warning does not catch it either — at pH 1.0 the distance is 2.0
+widths, so the number came back clean.
+
+### The fix
+Each such pack declares `ph_valid_range`, the span of the source table its pH
+constants were fitted to, and the engine warns when asked outside it — naming
+the floor it is using on that side, and stating explicitly that a **zero** floor
+makes the answer a refusal rather than a number:
+
+> pH 0.5 is OUTSIDE the range this pack's pH constants were measured over
+> (2–6), below it. The pH term is extrapolated with a floor of 0.000 on that
+> side, which is ZERO: the predicted rate decays towards nothing with no
+> measurement supporting it, so treat it as a refusal rather than as a number.
+
+Above the range, where the alkaline floor *is* measured, the same warning fires
+without the refusal language — the two cases are genuinely different and the
+wording distinguishes them.
+
+Note that `cu_h2o2_bta` now carries two separate ranges: `ph_valid_range`
+(3.0–6.0, scoping the pH constants) and `oxidizer_ph_window` (2.0–6.25, scoping
+the oxidiser constants). They are claims about different terms, measured in
+different experiments, and are deliberately not merged.
+
+This is the validity-range half of the pack audit: the blindness audit asks
+whether a pack declares a term at all; this asks whether the term states where
+it may be believed.

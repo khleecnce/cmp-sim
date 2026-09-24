@@ -138,3 +138,15 @@ params:
       channel open in the alkaline region.
     source: same five rows as ph_peak (US9200180B2 Examples 8-12)
     confidence: med
+
+  # ── the pH range these constants were measured over ────────────────────
+  ph_valid_range:
+    value: [6.2, 9.9]
+    unit: pH
+    note: >
+      US9200180B2's pH series spans 6.2-9.9 and ph_peak (6.2) is its lowest
+      point, so nothing below pH 6.2 is measured. This pack is also applied to
+      datasets run at pH 10.2-11.1, slightly above the range; those are flagged
+      rather than silently trusted.
+    source: "us9200180b2_cu_ph_alkaline_sweep.yaml (5 rows, pH 6.2-9.9)"
+    confidence: high
