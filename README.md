@@ -1,6 +1,6 @@
 # CMP-Sim
 
-[![tests](https://img.shields.io/badge/tests-559%20passing-brightgreen)](#)
+[![tests](https://img.shields.io/badge/tests-587%20passing-brightgreen)](#)
 [![validation](https://img.shields.io/badge/literature%20gate-4%20datasets%20within%20%C2%B115%25-brightgreen)](#validation)
 [![accuracy](https://img.shields.io/badge/prediction-20.3%25%20median%2C%20330%20points-blue)](#2-how-accurate-is-it-on-every-axis-cmp-sim-accuracy)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -19,6 +19,12 @@ carries the warnings that tell you where not to trust it.
 [Learning from your own data](#learning-from-your-own-data). It opens only the
 physical factors your data can actually identify, locks the rest, and tells you
 which experiment to run next.
+
+Each **film** and each **abrasive type** is learned separately, never pooled —
+the differences between them are too large to average. See
+[the 3D tool view](#the-3d-tool-view-tool) for the click-to-enter-data UI, and
+[Abrasive type](#abrasive-type-ceria-is-not-silica-but-harder) for why ceria and
+silica cannot share a term.
 
 ## Run it
 
@@ -77,12 +83,16 @@ python3 -m venv .venv
 # interactive web UI (standard library only, no web framework)
 .venv/bin/python -m cmp_sim.api          # -> http://127.0.0.1:8765
 
+# two UIs over the same engine:
+#   GET  /        the form view  — every input on one page
+#   GET  /tool    the 3D tool view — click a part of the polisher to enter
+#                 its data (see below)
+
 # the same engine over HTTP, standard library only:
 #   POST /api/simulate   one run           GET /api/meta   films, packs, profiles
-#   POST /api/sweep      vary one input    GET /           the web UI
-#   GET  /api/accuracy   measured predictive error, overall and per axis
+#   POST /api/sweep      vary one input    GET /api/accuracy  measured error
 
-# 558 tests
+# 587 tests
 .venv/bin/python -m pytest -q
 ```
 
@@ -386,6 +396,68 @@ mistake collapsed a Cu rate 20x before it was caught. Tests pin every factor to
   actually reads. **An input that is not wired comes back as a warning rather
   than being silently dropped**, because an ignored input plus a confident
   number is the worst possible output.
+
+## The 3D tool view (`/tool`)
+
+An Applied Materials Reflexion-style 300 mm polisher you click to enter data:
+three platens, four carrier heads on a rotating carousel, a load cup at the
+fourth station, a conditioner sweep arm and a slurry delivery arm per platen.
+
+It is **geometry, not a rendered image**, and that is the point — the picture is
+driven by the recipe rather than decorating it:
+
+* the platen and head turn at the rpm you entered;
+* the pad's grooves are redrawn at the groove pitch you entered;
+* the slurry stream's density and speed follow the flow rate;
+* **the wafer's colour map is the simulated radial removal profile.**
+
+A bitmap could do none of this, and would have to be clicked by guessing pixel
+boxes. Here a click is a raycast onto the actual mesh.
+
+One honesty constraint is built into the picture: the solver predicts **one**
+polish step, so exactly one platen may claim to be simulated. Platen 1 is
+active — it carries the painted wafer and gets the slurry stream and full rpm.
+The other two turn slowly and are labelled inactive rather than implying three
+simulated steps.
+
+three.js is vendored under `cmp_sim/web/vendor/`, so the view works on a fab
+machine with no outbound network. If WebGL is unavailable the scene is replaced
+by a notice and every part stays reachable from the parts list.
+
+## Abrasive type: ceria is not "silica but harder"
+
+The abrasive is the first thing a slurry formulator changes, so it has its own
+layer (`slurry/abrasive_effects.py`) rather than being a lookup key.
+
+Each parameter pack declares the abrasive its `Kp` was calibrated with:
+
+| pack | `reference_abrasive` |
+|---|---|
+| `oxide_silica`, `poly_si_alkaline`, `si_substrate_alkaline` | `colloidal_silica` |
+| `sti_ceria`, `sic_ceria_h2o2` | `ceria` |
+| `cu_h2o2_bta`, `w_fe_oxidizer` | `alumina` |
+
+Swapping the abrasive invalidates the **absolute scale**, not just the
+exponents. Rescaling it honestly requires a ratio measured on the *same tool,
+same recipe, abrasive-only-swapped* — the only comparison where pad, pressure,
+velocity, pH and oxidizer all cancel. Those comparisons are rare, so the ratio
+table is mostly `null`, **and the emptiness is the honest state**: where no
+ratio exists the rate is flagged `ranking_only` — good for comparing recipes,
+not for quoting a number. Both UIs show this directly under the rate.
+
+A hardness ranking is **not** used as a substitute, because it does not predict
+CMP rate. Ceria (6.4 GPa) removes oxide ~3× faster than the much harder alumina
+route, and silica polishes sapphire. Ceria's advantage on oxide is chemical
+tooth (Si–O–Ce), not indentation — which is also why **ceria is ~3× silica on
+oxide but ~0.88× silica on Cu** (US5575885). One particle cannot carry one
+global "strength".
+
+A worked example of declining a number: US5575885's four-abrasive Cu table is a
+genuine matched comparison *with* an abrasive-free control, but its abrasives
+span 30–1300 nm. Since this model already has a particle-size term, applying
+those ratios double-counts size — it drove the Cu example below the published
+rate floor. The numbers and arithmetic are recorded; the values stay `null` with
+`TODO(owner)`.
 
 ## Honest limits — read before quoting a number
 
