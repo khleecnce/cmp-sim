@@ -2002,3 +2002,66 @@ further fitting on this set would be fitting its noise.
 ⚠ Only datasets with genuine replicates can be checked this way. Most of the
 corpus reports one rate per condition, so its noise floor is simply unknown —
 a limit of the evidence, not a licence to assume the floor is zero.
+
+## The oxidiser term's sign flips with pressure, inside a single experiment
+
+`jani2025_cu_rsm_composition_heldout` was the corpus's worst undiagnosed dataset:
+51.2% shape error, inside its pack's pH range, no replicates to excuse it.
+
+### Which term is dead
+Correlating each swept axis against measurement and against prediction over the
+13 rows:
+
+| axis | corr(measured) | corr(predicted) |
+|---|---:|---:|
+| oxidiser | **+0.76** | **+0.04** |
+| abrasive | +0.34 | +0.92 |
+| chelator | −0.11 | −0.05 |
+| promoter | +0.66 | +0.31 |
+
+The oxidiser is the dataset's strongest driver and the model is blind to it.
+Predicted rates span only 2.5× (4257–10596) against a measured 4.8×
+(3470–16750), and measured/predicted runs 0.41 to 1.69 — a 4.1× spread, so this
+is a shape failure, not an offset a `Kp` refit could absorb.
+
+`cu_h2o2_bta` puts `oxidizer_peak_wt_pct` at 3.0, so across 3–7 wt% the response
+only falls: 1.000, 0.979, 0.933, 0.905, 0.815. The data rise. The term points the
+wrong way.
+
+### Why it is not simply refitted
+The Cu oxidiser sweeps in this corpus contradict each other:
+
+| dataset | pH | sweep | rates | implied peak |
+|---|---:|---|---|---|
+| ihnfeldt2008 | 10.0 | 0 / 0.1 / 2.0 | 150 → 3500 → 1660 | ~0.1 |
+| jani2025 acidic | 3.0 | 3 / 4 / 6 | 22820 → 25780 | ≥ 6 |
+| us8501625b2 | 3.6 | 3 / 9 / 15 | **both signs** | — |
+
+A first hypothesis — the sign tracks BTA presence, passivated slurries falling
+and BTA-free ones rising — is **falsified**: us8501625b2 contains both signs at
+the same 0.08 mM BTA.
+
+### What the sign actually tracks
+Those two us8501625b2 groups are identical in every slurry variable — 0.17 wt%
+abrasive, 0.0078 M citric acid, 0.08 mM BTA, zero oxalic acid, 200 ml/min, pH
+3.6, 93 rpm — and differ in exactly one thing:
+
+    2 psi:  8200 → 7200 → 6300    monotone FALLING
+    1 psi:  1900 → 3900 → 3300    RISING, peak near 9 wt%
+
+The oxidiser sign is a function of **down force**, within one experiment, one
+slurry, one lab. That is mechanistically sensible: H₂O₂ grows a passivating film,
+and whether more film helps or hurts depends on whether the mechanics can clear
+it — which is why the falling group is also the higher-rate one.
+
+But the model has no pressure–oxidiser coupling, and two pressures from one patent
+cannot fit one. So none is invented, exactly as the velocity exponent was left
+unfitted when the corpus could not resolve it. jani2025's 51.2% stays on the board
+as an honest miss with a named cause.
+
+⚠ A second candidate this corpus cannot separate: the peak's citation (GT07) is
+for an **alumina**/glycine slurry while jani2025 is silica. Abrasive type and
+pressure co-vary across these datasets, so neither can be isolated.
+
+**What would resolve it:** one H₂O₂ sweep repeated at three or more down forces
+with everything else fixed.

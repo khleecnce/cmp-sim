@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **724 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **730 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -17,6 +17,16 @@
 - **Abrasive TYPE reaches the rate** (`slurry/abrasive_effects.py`): a swap
   rescales only by a published matched-condition ratio, withdraws the pack's
   measured exponents, says `ranking_only` when unanchored.
+- **The oxidizer term's SIGN flips with PRESSURE, inside one experiment.**
+  Diagnosed the worst remaining miss (jani2025 RSM heldout, 51.2%): oxidizer
+  correlates +0.76 with measurement but +0.04 with prediction — the term is blind,
+  not mis-scaled (ratio spread 4.1x rules out a Kp offset). Cu sweeps contradict:
+  ihnfeldt2008 peaks ~0.1 wt%, jani2025 still rising at 6, us8501625b2 shows BOTH
+  signs. "Sign tracks BTA" FALSIFIED (both signs at the same 0.08 mM). The two
+  groups differ ONLY in down force: 2 psi falls 8200->6300, 1 psi rises
+  1900->3900. Left UNFITTED — two pressures cannot fit a coupling — so 51.2%
+  stays an honest miss with a named cause. Confound: GT07's peak is ALUMINA,
+  jani2025 is silica; abrasive type and pressure co-vary and cannot be separated.
 - **Some datasets cannot be predicted better than they were measured.**
   hong2007's three IDENTICAL zero-inhibitor rows report 2650/2400/1850 A/min =
   13.0% replicate scatter, so 13% is the FLOOR on achievable error; the model's
@@ -144,17 +154,16 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-hong2007 is closed (at its noise floor) and sic2026 too, which leaves
-jani2025_cu_rsm_composition_heldout as the worst undiagnosed dataset: 51.2%
-shape error, INSIDE cu_h2o2_bta's pH range, and it has no replicates so no
-noise-floor excuse. It varies 4 axes at once (abrasive_wt_pct, oxidizer_wt_pct,
-chelator_M, promoter_M) and — the likely cause — its rates reach 14,650 A/min,
-3-4x anything else on this pack. Diagnose before fitting: check whether the
-model's error is a constant SCALE offset (a Kp/normalisation problem, since this
-is a held-out RSM set fitted elsewhere) or a SHAPE error on one of the 4 axes.
-Isolate each axis the way the SiC pH groups were isolated; the promoter (oxalic
-acid) is the term to check first, since promoter_M varies over 5 levels and no
-other Cu dataset constrains it.
+netzband2020_thermal_oxide_ceria_ph is now the only large miss left undiagnosed
+(49.2% vs flat 33.6%). It is known NOT to share a second pH channel with the
+other two ceria residuals, and it sits inside sti_ceria's declared pH range, so
+neither of this session's pH findings explains it. Diagnose it the same way
+jani2025 was: correlate each swept axis against measurement AND against
+prediction to find which term is blind, check whether the miss is a scale offset
+or a shape error, and only then ask whether the corpus can constrain the term at
+all. Note it was 4.5x UNDER-predicted earlier in the session, so start by
+checking whether the error is one-sided across all rows (a Kp/ceria-loading
+problem) or changes sign with pH (a shape problem).
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp

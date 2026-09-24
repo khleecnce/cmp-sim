@@ -738,3 +738,59 @@ params:
       different terms and are deliberately not merged.
     source: "us20080090500a1_cu_ph_silica_cross.yaml (pH 3/4/5/6 at 3 loadings)"
     confidence: high
+
+  # ── why the oxidizer peak is NOT refitted to the rising datasets ────────
+  #
+  # jani2025_cu_rsm_composition_heldout misses by 51.2% and the cause is this
+  # peak: at 3.0 wt% the response only FALLS across that dataset's 3-7 wt%
+  # range (1.000 / 0.979 / 0.933 / 0.905 / 0.815) while the measurement rises
+  # strongly. The oxidizer is that dataset's dominant axis — correlation +0.76
+  # with the measured rate against +0.04 with the predicted one — so the term is
+  # not mis-scaled, it points the wrong way.
+  #
+  # The obvious repair is to move the peak up. It is refused, because the Cu
+  # oxidizer sweeps in this corpus contradict each other:
+  #
+  #   ihnfeldt2008   pH 10.0   0.0/0.1/2.0 wt%   150 -> 3500 -> 1660  peak ~0.1
+  #   jani2025 acid  pH  3.0   3.0/4.0/6.0       22820 -> 25780       still rising
+  #   us8501625b2    pH  3.6   3.0/9.0/15.0      BOTH SIGNS (see below)
+  #
+  # A first hypothesis — that the sign tracks BTA presence, passivated slurries
+  # falling and BTA-free ones rising — is FALSIFIED: us8501625b2 shows both signs
+  # at the same 0.08 mM BTA.
+  #
+  # WHAT THE SIGN ACTUALLY TRACKS IS PRESSURE. Those two us8501625b2 groups are
+  # identical in every slurry variable (0.17 wt% abrasive, 0.0078 M citric acid,
+  # 0.08 mM BTA, 0 oxalic acid, 200 ml/min, pH 3.6, 93 rpm) and differ only in
+  # down force:
+  #
+  #     2 psi:  8200 -> 7200 -> 6300   monotone FALLING
+  #     1 psi:  1900 -> 3900 -> 3300   RISING, peak near 9 wt%
+  #
+  # Mechanistically reasonable — H2O2 grows a passivating film and whether more
+  # film helps or hurts depends on whether the mechanics can clear it, which is
+  # why the FALLING group is also the higher-rate one. But the model has no
+  # pressure-oxidizer coupling and two pressures from one patent cannot fit one,
+  # so none is invented. This mirrors the velocity exponent, left unfitted when
+  # the corpus could not resolve it.
+  #
+  # ⚠ A SECOND CANDIDATE THIS CORPUS CANNOT SEPARATE: the peak's citation (GT07)
+  # is for an ALUMINA/glycine slurry, whereas jani2025 is silica. Abrasive type
+  # and pressure co-vary across these datasets, so neither can be isolated.
+  #
+  # WHAT WOULD RESOLVE IT: one H2O2 sweep repeated at three or more down forces
+  # with everything else fixed. Then the coupling is a measurement rather than a
+  # guess. Recorded in tests/test_oxidizer_sign_tracks_pressure.py.
+  oxidizer_peak_is_pressure_dependent_unresolved:
+    value: true
+    unit: boolean
+    note: >
+      Diagnosis marker, not a physical parameter. Asserts that the single-peak
+      oxidizer model is known to be insufficient and that the missing variable is
+      down force. Prevents a future session from "fixing" jani2025 by moving the
+      peak, which would break ihnfeldt2008 and the 2 psi group of us8501625b2.
+    source: >
+      us8501625b2_cu_h2o2_pressure_series.yaml (1 psi vs 2 psi groups, identical
+      slurry); jani2025_cu_rsm_composition_heldout.yaml; GT07 for the 2-3.6 wt%
+      alumina/glycine peak
+    confidence: literature
