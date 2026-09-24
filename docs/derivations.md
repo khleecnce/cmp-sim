@@ -2234,3 +2234,41 @@ three kinds, declared where a reader can find it, and that a new undeclared one
 cannot appear silently.
 
 Enforced by `tests/test_borrowed_pack_audit.py` (8).
+
+## Declaring what each dataset polished
+
+The borrowed-pack audit named its own blind spot: 23 of 49 datasets declared no
+`film`, so a film-vs-pack mismatch was invisible there and inference from prose
+had to stand in. Each dataset's source *does* state the film, so this was
+transcription rather than inference — `scripts/declare_dataset_films.py` carries
+the evidence string per dataset (title, source line or notes) so a reviewer can
+check it without reopening the paper.
+
+`other` is used where the film genuinely has no pack (Mo, cemented carbide, Pt,
+Ti). That is the honest label: it keeps the audit able to see the mismatch
+instead of hiding it behind a null.
+
+Three results:
+
+* **Borrowings went from 7 visible to 14.** The new ones are all the same
+  ceria-on-oxide case already judged justified (`dandu2009`, `kenchappa2021`,
+  `mariscal2020`, `netzband2020`), plus `mo2026` (molybdenum, no pack) and the
+  two negative controls, which previously only prose inference could surface.
+* **Two datasets became scorable at all.** `entegris2022` and `gong2024` were
+  unscorable because the scorer needs a film; the corpus went 43 → 45 datasets
+  and 394 → 424 points.
+* **Nothing else moved.** Not one existing shape error changed, and the medians
+  held at 19.5% / 22.6% across a larger corpus — the strongest available evidence
+  that labelling data does not model it.
+
+One null remains by decision: `phm2016`'s wafer film is never disclosed, and
+labelling it `unknown` made the scorer drop the dataset entirely, so null is the
+correct value.
+
+⚠ The first attempt wrote the films straight into `legacy/`, which the project
+forbids. It was reverted (`git checkout -- legacy/`) and redone as overrides
+under `cmp_sim/data/validation/datasets/`, each carrying a header saying what it
+overrides and that no measured value differs. A test now asserts that every
+override actually shadows its legacy original.
+
+Enforced by `tests/test_borrowed_pack_audit.py` (11).

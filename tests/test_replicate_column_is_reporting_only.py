@@ -26,11 +26,13 @@ import sys
 from cmp_sim.core.predictive_score import score_dataset
 from cmp_sim.core.validation import dataset_paths
 
-#: the corpus medians as of the commit that added the column
+#: the corpus medians. They survived the film transcription unchanged, which is
+#: the strongest evidence that labelling data does not model it: the corpus grew
+#: from 43 to 45 scored datasets (394 -> 424 points) and the medians did not move.
 MEDIAN_SHAPE = 19.5
 MEDIAN_LOO = 22.6
-BEATS_MEAN = 33
-SCORED = 43
+BEATS_MEAN = 34
+SCORED = 45
 
 
 def _accuracy_json():

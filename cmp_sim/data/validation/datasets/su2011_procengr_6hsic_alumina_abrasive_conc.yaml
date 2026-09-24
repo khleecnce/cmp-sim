@@ -1,0 +1,98 @@
+# ── OVERRIDES THE INHERITED legacy/ COPY ────────────────────────────────
+# Only difference: `film:` is declared, transcribed from this dataset's own
+# source (evidence in the inline comment). legacy/ files are never edited in
+# place; the loader prefers this copy. No measured value is changed here.
+# 6H-SiC CMP -- 알루미나(백강옥) 연마입자 농도 vs MRR (독립 held-out, Entegris와 무관)
+#
+# ⚠ 판정#36(2026-09-15, EVIDENCE-RULES.md, knowledge/cmp/sic-abrasive-concentration-
+#   regime-ruling.md): 이 데이터셋의 비단조(6g->8g 증가, 8g->10g 감소)가
+#   sic_ceria_h2o2.yaml의 abrasive_conc_exponent(-0.406, 단조감소)와 정성 불일치하는
+#   것은 코드 결함이 아니라 **레짐 분리**로 판정됨 — 이 논문의 연마입자는 백강옥
+#   (white corundum, alpha-Al2O3, Mohs~9, 마이크론 W1.5급)인 반면 sic_ceria_h2o2의
+#   실제 연마입자는 세리아(나노, Mohs<6)다. Entegris 특허(US20220315802A1) 원문이
+#   Mohs<6(나노 산화물)과 Mohs>6(alpha-alumina 계열)를 스스로 별개 거동 레짐으로
+#   명시([0043]/[0057]) — 이 축이 레짐 경계. abrasive_conc_exponent는 -0.406으로 불변.
+#
+# source: SU Jianxiu, DU Jiaxia, LIU Haina, LIU Xinglong, "Research on Material Removal
+#   Rate of CMP 6H-SiC Crystal Substrate (0001) Si Surface Based on Abrasive Alumina
+#   (Al2O3)", Procedia Engineering 24 (2011) 441-446. doi:10.1016/j.proeng.2011.11.2673
+#   (Elsevier, papers/proeng-2011-11-2673-alumina-6h-sic.pdf 로컬 확보, fitz 텍스트 추출로
+#   §3.3 본문에서 직접 확인 — 수치는 그래프(Fig.3)가 아니라 §3.3 서술 문장에 인쇄된 값)
+#
+# ⚠ 이 논문은 기존 sic_ceria_h2o2 팩 조사(2026-09-11 12:xx MASTER-PLAN 기록)에서 이미
+#   검토됐으나, 그때는 **산화제(oxidant content) 축**만 시도했다(oxidizer_wt_pct/peak/curve_n이
+#   팩에 없어 4점 자기회귀=calibration이 되는 문제로 보류). 이 파일은 같은 논문의 **다른 축인
+#   연마입자(alumina) 농도(§3.3, 4/6/8/10g per 500mL)**를 쓴다 — 이 축은 sic_ceria_h2o2의
+#   abrasive_conc_exponent(-0.406, 출처: entegris2022_us20220315802a1)와는 완전히 다른 1차
+#   문헌이므로, Entegris 데이터가 그 파라미터의 유일한 출처이자 유일한 held-out이었던 순환
+#   문제(판정#33)를 깬다. abrasive_conc_exponent 도출에 이 논문은 전혀 쓰이지 않았다
+#   (knowledge/params/sic_ceria_h2o2.yaml 의 source는 entegris 노트뿐, 확인함).
+#
+# 재료계 주의: 6H-SiC + **알루미나(백강옥, W1.5 입도등급)** -- sic_ceria_h2o2 팩은 세리아 기준
+#   (abrasive_size_nm=120, Chen2017 RSC 세리아 실측). 화학(세리아 vs 알루미나)도, 입경 스케일
+#   (나노 vs 마이크론급 W1.5 입도등급, 원문에 정확한 nm값 미기재 -- 그래서 abrasive_size_nm은
+#   오버라이드하지 않는다)도 다르다. Entegris 데이터셋과 마찬가지로 **기계적 kappa 농도항
+#   (sim/factors.py의 abrasive_wt_pct 지수, 화학과 무관한 압흔 접촉모델)만** 테스트 대상으로
+#   삼는다 -- chi(pH 화학항)는 이 데이터로 테스트하지 않는다.
+#
+# wt% 환산: 원문은 500mL 슬러리 중 알루미나 투입량(g)만 제공(밀도 미기재). 나머지 성분
+#   (분산제 2mL, 산화제 5mL, 물)이 슬러리 대부분을 차지하므로 물 밀도(~1 g/mL) 근사로
+#   wt% = g / 500g * 100 으로 환산했다(그램수를 wt%로 나눈 것뿐, 숫자를 지어내지 않음).
+#   6g->1.2wt%, 8g->1.6wt%, 10g->2.0wt%. (4g 지점은 본문에 정확한 MRR 수치가 없고 Fig.3
+#   그래프에서만 보여 디지타이징 리스크가 있어 이번엔 제외 -- 3수준으로도 순위지표 충분.)
+#
+# 단위 변환: 원문 MRR 단위는 nm/h. nm/min = nm/h / 60.
+#
+# 고정 조건(§3.3): P=2psi, np(platen)=60rpm, nw(carrier)=65rpm, pH=9(알칼리 조정),
+#   분산제 2mL/500mL, 산화제 5mL/500mL, 실온(22C 항온 클린룸), 연마시간 30min,
+#   연마입자 입도등급 W1.5(그램수만 변화, 등급은 전 구간 고정).
+
+source: "SU Jianxiu et al., Procedia Engineering 24 (2011) 441-446, doi:10.1016/j.proeng.2011.11.2673, section 3.3 (abrasive content vs MRR, 6H-SiC + alumina)"
+doi: "10.1016/j.proeng.2011.11.2673"
+read_method: table
+film: sic  # source: 6H-SiC, per source
+pack: sic_ceria_h2o2
+in_scope: true
+scope_note: "6H-SiC + 알루미나(마이크론급 W1.5), sic_ceria_h2o2는 세리아/나노 기준 -- 기계적 kappa 농도항(abrasive_wt_pct) 방향성만 테스트, chi(pH) 화학항은 무관(Entegris 데이터셋과 같은 논리)."
+used_for_calibration: false
+
+conditions:
+  - label: "SS3.3-1: Al2O3 6g/500mL (1.2wt%)"
+    mrr_nm_per_min: 0.75
+    measured_mrr_nm_per_hour: 45.0
+    pressure_psi: 2.0
+    rpm_platen: 60
+    rpm_wafer: 65
+    read_method: table
+    overrides:
+      abrasive_wt_pct: 1.2
+      slurry_ph: 9
+  - label: "SS3.3-2: Al2O3 8g/500mL (1.6wt%)"
+    mrr_nm_per_min: 1.15833
+    measured_mrr_nm_per_hour: 69.5
+    pressure_psi: 2.0
+    rpm_platen: 60
+    rpm_wafer: 65
+    read_method: table
+    overrides:
+      abrasive_wt_pct: 1.6
+      slurry_ph: 9
+  - label: "SS3.3-3: Al2O3 10g/500mL (2.0wt%)"
+    mrr_nm_per_min: 0.93667
+    measured_mrr_nm_per_hour: 56.2
+    pressure_psi: 2.0
+    rpm_platen: 60
+    rpm_wafer: 65
+    read_method: table
+    overrides:
+      abrasive_wt_pct: 2.0
+      slurry_ph: 9
+
+notes: >
+  3수준(1.2/1.6/2.0 wt%), 비단조(6g->8g 증가, 8g->10g 감소 -- 원문 §3.3: "abrasive number
+  decrease with abrasive size increase" 류의 상충 기전 설명, 압흔-개수 트레이드오프로 저자가
+  해석). 현재 팩의 abrasive_conc_exponent(-0.406, 단조 감소 거듭제곱)는 이 비단조 형태를
+  원리적으로 재현할 수 없다 -- rho가 낮게 나올 수 있으며 이는 모델 결함이 아니라 두 저농도
+  구간(1.2~1.6wt%)의 거동이 현재 단조 멱함수로 커버되는 영역(Entegris 0.1~5wt% 단조감소) 밖
+  일 수 있음을 보여주는 정직한 신호다. abrasive_size(W1.5, 마이크론급 추정)는 원문에 정확한
+  nm값이 없어 오버라이드하지 않았다 -- 팩 기본값(120nm, 세리아 기준) 그대로 사용됨에 유의.

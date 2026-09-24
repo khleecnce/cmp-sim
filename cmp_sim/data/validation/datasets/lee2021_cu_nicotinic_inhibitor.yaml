@@ -1,0 +1,96 @@
+# ── OVERRIDES THE INHERITED legacy/ COPY ────────────────────────────────
+# Only difference: `film:` is declared, transcribed from this dataset's own
+# source (evidence in the inline comment). legacy/ files are never edited in
+# place; the loader prefers this copy. No measured value is changed here.
+# Cu 블랭킷 CMP — 억제제(니코틴산) 농도 3수준, 공정조건 고정
+source: >
+  K. Lee, S. Sun, G. Lee, G. Yoon, D. Kim, J. Hwang, H. Jeong, T. Song, U. Paik,
+  "Galvanic corrosion inhibition from aspect of bonding orbital theory in Cu/Ru barrier CMP",
+  Scientific Reports 11, 21214, 2021. doi:10.1038/s41598-021-00689-6
+  (Nature Portfolio 오픈액세스 CC BY, PMC8551296 전문 XML 확보: papers/PMC8551296.xml)
+  Table 3 "Results of the removal rate and selectivity between Cu/Ru films according to
+  inhibitor concentration"의 Cu removal rate 열(Å/30 s)을 그대로 옮겼다.
+
+# 피연마재: 300 mm 전해도금(EPD) Cu 블랭킷 웨이퍼. 실리콘 반도체 배선 재료계 안.
+# 슬러리: 콜로이달 SiO2 5.0 wt%(d~70 nm) + H2O2 3.0 wt% + 니코틴산 억제제, pH 10.
+#
+# ⚠ 2026-09-15 — 이상치 판정 C2 (정의역 밖). 규칙: tools/outlier_rules.py
+#
+#   이 데이터는 **pH 10** 이다. Cu pH 항이 선언한 게이트는 pH 2~6 이다
+#   (knowledge/cmp/cu-cmp-ph-mechanism.md): Cu 의 pH-MRR 곡선은 정점형이
+#   아니라 V자(골형)이고 pH 6~6.5 에서 최소를 지나 알칼리에서 재상승한다.
+#   따라서 pH 10 은 **곡선의 부호가 반대인 가지**다.
+#
+#   실측이 그 판정을 뒷받침한다:
+#       순위  ρ = +1.000  (3/3 완벽 — 억제제 농도 방향은 맞춘다)
+#       절대  MAPE = 4037 %
+#   순위는 맞고 절대값만 크게 틀리는 형태는 "물리 방향은 맞으나 그 영역의
+#   축척을 계산할 근거가 없다"는 뜻이다.
+#
+#   처리: in_scope 를 false 로 내린다. 제거가 아니라 **범위 표시**다.
+#     · 순위 검증에는 계속 쓴다 (억제제 농도↑ → 제거율↓ 방향은 유효)
+#     · 절대값 집계에서 뺀다 (게이트 밖 축척은 주장할 수 없다)
+#
+#   ⚠ 이 데이터를 절대값 집계에 넣고 싶다면 게이트를 넓히는 것이 아니라
+#     **알칼리 가지의 항을 새로 유도**해야 한다. 게이트를 늘려 데이터를
+#     삼키는 것은 물리를 버리는 것이다.
+in_scope: false
+used_for_calibration: false
+film: cu  # source: galvanic corrosion of Cu; Cu RR reported
+pack: cu_h2o2_bta
+
+conditions:
+  - label: "억제제 없음 (nicotinic acid 0 M)"
+    pressure_psi: 1.5
+    rpm_wafer: 79
+    rpm_platen: 80
+    mrr_nm_per_min: 19.196
+    read_method: table
+    overrides:
+      inhibitor_mM: 0.0
+      oxidizer_wt_pct: 3.0
+      abrasive_wt_pct: 5.0
+      abrasive_size_nm: 70.0
+      slurry_ph: 10.0
+      sfr_ml_min: 100.0
+
+  - label: "니코틴산 0.03 M"
+    pressure_psi: 1.5
+    rpm_wafer: 79
+    rpm_platen: 80
+    mrr_nm_per_min: 8.266
+    read_method: table
+    overrides:
+      inhibitor_mM: 30.0
+      oxidizer_wt_pct: 3.0
+      abrasive_wt_pct: 5.0
+      abrasive_size_nm: 70.0
+      slurry_ph: 10.0
+      sfr_ml_min: 100.0
+
+  - label: "니코틴산 0.05 M"
+    pressure_psi: 1.5
+    rpm_wafer: 79
+    rpm_platen: 80
+    mrr_nm_per_min: 5.246
+    read_method: table
+    overrides:
+      inhibitor_mM: 50.0
+      oxidizer_wt_pct: 3.0
+      abrasive_wt_pct: 5.0
+      abrasive_size_nm: 70.0
+      slurry_ph: 10.0
+      sfr_ml_min: 100.0
+
+notes: >
+  변수는 억제제 농도 하나뿐이고 나머지는 고정이다: POLI-300 coupon CMP,
+  IC1010/Suba IV 패드, 1.5 psi, 79/80 rpm, 슬러리 100 ml/min, 조건당 3회 반복.
+  단위 환산 — 논문 값은 Å/30 s다. ×2 하여 Å/min으로, 다시 ÷10 하여 nm/min으로 바꿨다:
+  95.98 → 19.196, 41.33 → 8.266, 26.23 → 5.246 nm/min. (예: 95.98 Å/30s = 191.96 Å/min)
+  ⚠ 억제제가 BTA가 아니라 니코틴산(3-피리딘카복실산)이다. 우리 팩의 inhibitor 항은
+  BTA 흡착 자유에너지(-35.4 kJ/mol)와 강도상수 k=3.0으로 만들어져 있어, 니코틴산의
+  흡착 세기를 그대로 표현하지 못한다. 농도를 mM로 넘겨 같은 Langmuir 항을 태운 것이므로
+  절대값은 신뢰할 수 없고 **순위(농도↑ → Cu MRR↓)만** 유효한 비교다.
+  또한 MRR 절대수준이 5~19 nm/min으로 산업 Cu CMP(수백 nm/min)보다 훨씬 낮은데,
+  이는 coupon 스케일 저압(1.5 psi) 평가이기 때문이다 — 계통 편향이 크게 나올 것이 예상된다.
+  Ru 막 결과(24.85 / 24.52 / 25.0 Å/30 s)는 우리 팩에 Ru 재료계가 없어 제외했다.

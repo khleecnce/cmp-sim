@@ -1,0 +1,80 @@
+# ── OVERRIDES THE INHERITED legacy/ COPY ────────────────────────────────
+# Only difference: `film:` is declared, transcribed from this dataset's own
+# source (evidence in the inline comment). legacy/ files are never edited in
+# place; the loader prefers this copy. No measured value is changed here.
+# 구리 CMP — pH 스윕 (알칼리 가지, 억제제 없음) US9200180B2 TABLE 4
+source: >
+  US9200180B2 (Air Products and Chemicals / 현 Versum·Merck),
+  "Chemical-mechanical planarization composition having benzenesulfonic acid and
+  per-compound oxidizing agents, and associated method for use", 2015.
+  https://patents.google.com/patent/US9200180B2
+  옮긴 곳: TABLE 4, Examples 15–19 — pH 를 6.2 → 9.9 로 바꾼 5 조건.
+  조성 고정: K-안정화 콜로이달 실리카 10 wt%, H2O2 1 wt%, 벤젠술폰산 1 wt%,
+  **BTA 없음**. 공정: Mirra 3400, Politex 패드, platen 90 rpm, head 84 rpm,
+  membrane pressure 2.0 psi, slurry 200 mL/min, ECD 구리 블랭킷 웨이퍼.
+  단위 환산: 원문 Å/min → nm/min (÷10).
+    pH 6.2 → 732 Å/min = 73.2 nm/min
+    pH 7.1 → 577       = 57.7
+    pH 8.7 → 334       = 33.4
+    pH 9.4 → 263       = 26.3
+    pH 9.9 → 214       = 21.4
+
+# ── 이 데이터셋이 존재하는 이유 ──────────────────────────────
+# 구리 pH-MRR 곡선은 V 자(골형)이고 골이 pH 6~6.5 다
+# (knowledge/cmp/cu-cmp-ph-mechanism.md). 지금까지 모델은 **산성 가지만**
+# 구현돼 있고 pH > 6 은 스코프 밖이었다. 그 결과 알칼리 조성(실측 6~19 nm/min)을
+# 산성 조성처럼 계산해 수백 nm/min 을 예측했다 — 절대값 예측이 막힌 핵심 원인이다.
+#
+# 이 표는 **알칼리 구간을 실제로 스윕한 유일한 계열**이다. 나머지 알칼리
+# 데이터셋은 전부 pH 단일값이라 기울기를 낼 수 없다.
+#
+# ⚠ 중요 — 이 계열은 V 자의 '재상승'을 보이지 않는다.
+#   문헌(Du&Desai 2003; Ilie&Ipate 2017)은 골 이후 알칼리에서 MRR 이 다시
+#   증가한다고 하는데, 이 5 점은 pH 9.9 까지 단조 감소한다(R²=0.9971).
+#   두 관측이 충돌하는 것이 아니라 **조성이 다르다**: 이 계열은 BTA 가 없고
+#   벤젠술폰산계라 재상승 지점이 pH 10 위로 밀려 있거나 없다.
+#   → 평균내지 말고 **조성 좌표를 갖는 별개 레짐**으로 다룬다.
+#
+# ⚠ 이 데이터셋은 알칼리 항의 계수를 역산하는 데 쓰인다.
+#   따라서 used_for_calibration: true 이고 held-out 성능 주장에 쓰면 안 된다.
+in_scope: true
+used_for_calibration: true
+film: cu  # source: US9200180B2 Cu CMP composition
+pack: cu_alkaline_benzenesulfonic
+
+conditions:
+  - label: "pH 6.2 (Example 15)"
+    pressure_psi: 2.0
+    rpm_wafer: 84
+    rpm_platen: 90
+    mrr_nm_per_min: 73.2
+    read_method: table
+    overrides: {slurry_ph: 6.2, abrasive_wt_pct: 10.0, oxidizer_wt_pct: 1.0, sfr_ml_min: 200.0, inhibitor_mM: 0.0}
+  - label: "pH 7.1 (Example 16)"
+    pressure_psi: 2.0
+    rpm_wafer: 84
+    rpm_platen: 90
+    mrr_nm_per_min: 57.7
+    read_method: table
+    overrides: {slurry_ph: 7.1, abrasive_wt_pct: 10.0, oxidizer_wt_pct: 1.0, sfr_ml_min: 200.0, inhibitor_mM: 0.0}
+  - label: "pH 8.7 (Example 17)"
+    pressure_psi: 2.0
+    rpm_wafer: 84
+    rpm_platen: 90
+    mrr_nm_per_min: 33.4
+    read_method: table
+    overrides: {slurry_ph: 8.7, abrasive_wt_pct: 10.0, oxidizer_wt_pct: 1.0, sfr_ml_min: 200.0, inhibitor_mM: 0.0}
+  - label: "pH 9.4 (Example 18)"
+    pressure_psi: 2.0
+    rpm_wafer: 84
+    rpm_platen: 90
+    mrr_nm_per_min: 26.3
+    read_method: table
+    overrides: {slurry_ph: 9.4, abrasive_wt_pct: 10.0, oxidizer_wt_pct: 1.0, sfr_ml_min: 200.0, inhibitor_mM: 0.0}
+  - label: "pH 9.9 (Example 19)"
+    pressure_psi: 2.0
+    rpm_wafer: 84
+    rpm_platen: 90
+    mrr_nm_per_min: 21.4
+    read_method: table
+    overrides: {slurry_ph: 9.9, abrasive_wt_pct: 10.0, oxidizer_wt_pct: 1.0, sfr_ml_min: 200.0, inhibitor_mM: 0.0}

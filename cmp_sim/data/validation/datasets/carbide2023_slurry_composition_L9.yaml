@@ -1,0 +1,131 @@
+# ── OVERRIDES THE INHERITED legacy/ COPY ────────────────────────────────
+# Only difference: `film:` is declared, transcribed from this dataset's own
+# source (evidence in the inline comment). legacy/ files are never edited in
+# place; the loader prefers this copy. No measured value is changed here.
+# 초경합금 인서트 CMP — 슬러리 조성만 바꾼 L9 (압력·회전수 완전 고정)
+source: >
+  "Experimental Study on Chemical-Mechanical Synergistic Preparation for Cemented
+  Carbide Insert Cutting Edge", Micromachines/Materials (2023). PMC11154297 (오픈액세스).
+  https://www.ncbi.nlm.nih.gov/pmc/articles/PMC11154297/
+  Table 1(조성 직교표), Table 2(고정 공정조건: 94.99 kPa, 70 rpm, 30 min),
+  Table 5(MRR nm/min, Ra) 인쇄값 그대로.
+
+# 재료계: 초경합금(WC-Co). 우리 팩은 Si 산화막/Cu/W용이라 범위 밖.
+in_scope: false
+used_for_calibration: false
+
+# ⚠ 2026-09-06 수정: 원래 이 파일은 조성을 label 텍스트에만 적고 모델에 전달하지
+# 않았다. 그 결과 9조건 전부 예측이 752.02로 동일했고 Spearman이 nan이 나왔다.
+# "화학층이 조성을 구분 못 한다"는 결론이 날 뻔했으나 실제로는 입력 누락이었다.
+# overrides 블록이 조성을 모델에 넘기는 유일한 통로다.
+film: other  # source: cemented carbide insert; no carbide pack exists
+pack: oxide_silica
+
+conditions:
+  - label: "No.1: 연마제10wt% 산화제6wt% 분산제4wt% pH11"
+    pressure_psi: 13.7771
+    rpm_wafer: 70
+    rpm_platen: 70
+    mrr_nm_per_min: 66.85
+    read_method: table
+    overrides:
+      oxidizer_wt_pct: 6
+      slurry_ph: 11
+      abrasive_wt_pct: 10
+      dispersant_wt_pct: 4
+  - label: "No.2: 연마제10wt% 산화제8wt% 분산제3wt% pH9.5"
+    pressure_psi: 13.7771
+    rpm_wafer: 70
+    rpm_platen: 70
+    mrr_nm_per_min: 74.81
+    read_method: table
+    overrides:
+      oxidizer_wt_pct: 8
+      slurry_ph: 9.5
+      abrasive_wt_pct: 10
+      dispersant_wt_pct: 3
+  - label: "No.3: 연마제10wt% 산화제10wt% 분산제2wt% pH8"
+    pressure_psi: 13.7771
+    rpm_wafer: 70
+    rpm_platen: 70
+    mrr_nm_per_min: 79.58
+    read_method: table
+    overrides:
+      oxidizer_wt_pct: 10
+      slurry_ph: 8
+      abrasive_wt_pct: 10
+      dispersant_wt_pct: 2
+  - label: "No.4: 연마제8wt% 산화제6wt% 분산제3wt% pH8"
+    pressure_psi: 13.7771
+    rpm_wafer: 70
+    rpm_platen: 70
+    mrr_nm_per_min: 39.79
+    read_method: table
+    overrides:
+      oxidizer_wt_pct: 6
+      slurry_ph: 8
+      abrasive_wt_pct: 8
+      dispersant_wt_pct: 3
+  - label: "No.5: 연마제8wt% 산화제8wt% 분산제2wt% pH11"
+    pressure_psi: 13.7771
+    rpm_wafer: 70
+    rpm_platen: 70
+    mrr_nm_per_min: 55.71
+    read_method: table
+    overrides:
+      oxidizer_wt_pct: 8
+      slurry_ph: 11
+      abrasive_wt_pct: 8
+      dispersant_wt_pct: 2
+  - label: "No.6: 연마제8wt% 산화제10wt% 분산제4wt% pH9.5"
+    pressure_psi: 13.7771
+    rpm_wafer: 70
+    rpm_platen: 70
+    mrr_nm_per_min: 57.3
+    read_method: table
+    overrides:
+      oxidizer_wt_pct: 10
+      slurry_ph: 9.5
+      abrasive_wt_pct: 8
+      dispersant_wt_pct: 4
+  - label: "No.7: 연마제6wt% 산화제6wt% 분산제2wt% pH9.5"
+    pressure_psi: 13.7771
+    rpm_wafer: 70
+    rpm_platen: 70
+    mrr_nm_per_min: 41.38
+    read_method: table
+    overrides:
+      oxidizer_wt_pct: 6
+      slurry_ph: 9.5
+      abrasive_wt_pct: 6
+      dispersant_wt_pct: 2
+  - label: "No.8: 연마제6wt% 산화제8wt% 분산제4wt% pH8"
+    pressure_psi: 13.7771
+    rpm_wafer: 70
+    rpm_platen: 70
+    mrr_nm_per_min: 50.93
+    read_method: table
+    overrides:
+      oxidizer_wt_pct: 8
+      slurry_ph: 8
+      abrasive_wt_pct: 6
+      dispersant_wt_pct: 4
+  - label: "No.9: 연마제6wt% 산화제10wt% 분산제3wt% pH11"
+    pressure_psi: 13.7771
+    rpm_wafer: 70
+    rpm_platen: 70
+    mrr_nm_per_min: 30.24
+    read_method: table
+    overrides:
+      oxidizer_wt_pct: 10
+      slurry_ph: 11
+      abrasive_wt_pct: 6
+      dispersant_wt_pct: 3
+
+notes: >
+  **의도적 대조군(negative control)이다.** 압력 94.99 kPa·회전수 70 rpm이 9조건 모두 동일하고
+  연마제 농도(6/8/10 wt%)·산화제 농도(6/8/10 wt%)·분산제·pH만 바뀐다. 실측 MRR은 30.24~79.58
+  nm/min로 2.6배 퍼져 있다.
+  우리 모델은 팩 단위로만 화학을 보고 조건별 조성을 입력받지 못하므로 9조건 예측이 전부 동일하다
+  → Spearman ρ가 판정불가(NaN)로 나오는 것이 정상이며, 그것이 곧 "sim/chemistry.py가 아직
+  조건별 조성에 배선되어 있지 않다"는 정량적 증거다. 이 데이터셋은 그 공백을 기록하려고 넣었다.

@@ -1,0 +1,381 @@
+# ── OVERRIDES THE INHERITED legacy/ COPY ────────────────────────────────
+# Only difference: `film:` is declared, transcribed from this dataset's own
+# source (evidence in the inline comment). legacy/ files are never edited in
+# place; the loader prefers this copy. No measured value is changed here.
+# Gong et al. 2024 — 4H-SiC(0001) Si면 CMP, 알루미나/KMnO4 산성 슬러리 L25 직교표(5수준 3인자)
+#
+# 출처: Gong J., Wang W., Liu W., Song Z., "Polishing Mechanism of CMP 4H-SiC Crystal
+#       Substrate (0001) Si Surface Based on an Alumina (Al2O3) Abrasive",
+#       Materials 17(3) 679, 2024. doi:10.3390/ma17030679 (MDPI, CC-BY 오픈액세스)
+# 읽은 방법: 로컬 코퍼스 전문 XML(data/corpus/fulltext/doi_10.3390_ma17030679.xml)의
+#       <table-wrap> Table 2 를 직접 파싱해 옮겼다(그래프 판독 아님, 인쇄된 표).
+#
+# 고정 조건(Table 1): 2인치 4H-SiC, Bruker CP-4, Suba 800 패드, 하중 4 psi,
+#       헤드 100 rpm / 플래튼 90 rpm, 유량 90 mL/min, 60 min, 알루미나 입경 500 nm,
+#       pH 는 HNO3/KOH 로 조정, 산화제는 과망간산염(KMnO4).
+# 변수 3축: pH 2/3/4/5/6 · 산화제 1/2/3/4/5 wt% · 연마입자 1/2/3/4/5 wt%
+#
+# ⚠ 단위 변환: 원문은 μm/h. 하네스는 nm/min 을 기대하므로 ×1000/60 했다.
+#   원문값은 measured_mrr_um_per_hour 에 함께 남긴다.
+#
+# ⚠ 원문 내부 불일치(그대로 기록): 본문은 최적 조합을 "pH=4" 라 쓰지만 같은 논문
+#   Table 3 의 k 값은 pH=5 가 최대(0.7113)이고 pH=4 는 0.6316 이다. 우리는 Table 2 의
+#   원 측정값만 쓰므로 이 불일치는 데이터에 영향이 없다. 미검증 사유로 남긴다.
+
+doi: "10.3390/ma17030679"
+source: "Gong et al., Materials 17(3) 679 (2024), doi:10.3390/ma17030679, Table 2 — 4H-SiC CMP L25 직교표(pH×KMnO4 wt%×Al2O3 wt%), MDPI CC-BY"
+read_method: table
+film: sic  # source: source line: '4H-SiC CMP L25'
+pack: sic_alumina_kmno4
+in_scope: true
+used_for_calibration: true
+scope_note: >
+  ⚠ 2026-09-19 (학습총괄): **used_for_calibration 을 false → true 로 뒤집었다.**
+  이 표(Table 2)의 KMnO4 주효과 5점에서 팩의 `oxidizer_langmuir_K`(2.28 1/wt%)를
+  역산했기 때문이다 — 계수를 뽑은 데이터로 성능을 주장하면 자기 답안지 채점이다
+  (QA F4). 그 역산 근거는 knowledge/chemistry/sic-kmno4-oxidant-adsorption-kinetics.md,
+  팩 반영은 knowledge/params/sic_alumina_kmno4.yaml 의 oxidizer_langmuir_K note.
+  이 뒤집기로 이 데이터셋은 held-out 집계에서 빠지며, **이 팩의 독립 검증은 이제
+  0건**이다 — 그 사실을 숨기지 않고 여기에 적는다. 이 팩의 held-out 을 되살리려면
+  Gong 2024 가 아닌 다른 4H-SiC×알루미나×KMnO4 문헌이 필요하다(다음 회차 발주 대상).
+
+  (아래는 뒤집기 이전의 기록 — 일부는 그 뒤 해소됐다.)
+  재료계 일치(4H-SiC Si면 + 알루미나 연마입자 + KMnO4 산화제 + 산성 pH) — 판정#49-B 로
+  분리한 sic_alumina_kmno4 팩과 같은 레짐이다. 당시에는 이 팩에 (a) KMnO4 산화제
+  형상항이 없고(판정#50 에서 종 게이트로 H2O2 Langmuir 상속을 차단, 자체 형상은 갭),
+  (b) 연마입자가 세리아가 아니라 pH 화학항(_ph_softening_term)이 켜지지 않았다.
+  그 뒤 (a) 는 이 표 자체로 채워졌고(=이 뒤집기의 이유), pH 축은 판정#61 이
+  SiC×산성 KMnO4 전용 항(_ph_sic_kmno4_acidic_term, Chen 2020)으로 따로 채웠다.
+  입경은 판정#62 가 원문 500 nm 를 팩에 자기선언해 해소했다.
+notes: >
+  L25(5^3) 직교표라 각 수준이 5회씩 반복되고 세 인자가 균형 배치돼 있다. 원문 극차분석
+  R 값은 산화제(0.1717) > pH(0.1104) > 연마입자(0.0978) 순으로, 우리 모델에서 죽어 있는
+  축이 실측상 가장 지배적이라는 뜻이다. 절대 MRR 은 0.46~0.83 μm/h(7.7~13.8 nm/min)
+  좁은 구간에 몰려 있어 순위 검정이 노이즈에 민감하다는 점도 함께 기록한다.
+
+conditions:
+  - label: "T2-01: pH2 KMnO4 1wt% Al2O3 1wt%"
+    mrr_nm_per_min: 8.6867
+    measured_mrr_um_per_hour: 0.5212
+    roughness_ra_nm: 0.348
+    pressure_psi: 4.0
+    rpm_platen: 90
+    rpm_wafer: 100
+    overrides:
+      abrasive_wt_pct: 1
+      oxidizer_wt_pct: 1
+      slurry_ph: 2
+      sfr_ml_min: 90
+      abrasive_size_nm: 500
+  - label: "T2-02: pH2 KMnO4 2wt% Al2O3 3wt%"
+    mrr_nm_per_min: 12.7750
+    measured_mrr_um_per_hour: 0.7665
+    roughness_ra_nm: 1.277
+    pressure_psi: 4.0
+    rpm_platen: 90
+    rpm_wafer: 100
+    overrides:
+      abrasive_wt_pct: 3
+      oxidizer_wt_pct: 2
+      slurry_ph: 2
+      sfr_ml_min: 90
+      abrasive_size_nm: 500
+  - label: "T2-03: pH2 KMnO4 3wt% Al2O3 5wt%"
+    mrr_nm_per_min: 13.2867
+    measured_mrr_um_per_hour: 0.7972
+    roughness_ra_nm: 0.365
+    pressure_psi: 4.0
+    rpm_platen: 90
+    rpm_wafer: 100
+    overrides:
+      abrasive_wt_pct: 5
+      oxidizer_wt_pct: 3
+      slurry_ph: 2
+      sfr_ml_min: 90
+      abrasive_size_nm: 500
+  - label: "T2-04: pH2 KMnO4 4wt% Al2O3 2wt%"
+    mrr_nm_per_min: 8.1767
+    measured_mrr_um_per_hour: 0.4906
+    roughness_ra_nm: 0.122
+    pressure_psi: 4.0
+    rpm_platen: 90
+    rpm_wafer: 100
+    overrides:
+      abrasive_wt_pct: 2
+      oxidizer_wt_pct: 4
+      slurry_ph: 2
+      sfr_ml_min: 90
+      abrasive_size_nm: 500
+  - label: "T2-05: pH2 KMnO4 5wt% Al2O3 4wt%"
+    mrr_nm_per_min: 10.7317
+    measured_mrr_um_per_hour: 0.6439
+    roughness_ra_nm: 0.113
+    pressure_psi: 4.0
+    rpm_platen: 90
+    rpm_wafer: 100
+    overrides:
+      abrasive_wt_pct: 4
+      oxidizer_wt_pct: 5
+      slurry_ph: 2
+      sfr_ml_min: 90
+      abrasive_size_nm: 500
+  - label: "T2-06: pH3 KMnO4 1wt% Al2O3 5wt%"
+    mrr_nm_per_min: 9.1983
+    measured_mrr_um_per_hour: 0.5519
+    roughness_ra_nm: 0.248
+    pressure_psi: 4.0
+    rpm_platen: 90
+    rpm_wafer: 100
+    overrides:
+      abrasive_wt_pct: 5
+      oxidizer_wt_pct: 1
+      slurry_ph: 3
+      sfr_ml_min: 90
+      abrasive_size_nm: 500
+  - label: "T2-07: pH3 KMnO4 2wt% Al2O3 2wt%"
+    mrr_nm_per_min: 7.6650
+    measured_mrr_um_per_hour: 0.4599
+    roughness_ra_nm: 0.311
+    pressure_psi: 4.0
+    rpm_platen: 90
+    rpm_wafer: 100
+    overrides:
+      abrasive_wt_pct: 2
+      oxidizer_wt_pct: 2
+      slurry_ph: 3
+      sfr_ml_min: 90
+      abrasive_size_nm: 500
+  - label: "T2-08: pH3 KMnO4 3wt% Al2O3 4wt%"
+    mrr_nm_per_min: 11.7533
+    measured_mrr_um_per_hour: 0.7052
+    roughness_ra_nm: 0.355
+    pressure_psi: 4.0
+    rpm_platen: 90
+    rpm_wafer: 100
+    overrides:
+      abrasive_wt_pct: 4
+      oxidizer_wt_pct: 3
+      slurry_ph: 3
+      sfr_ml_min: 90
+      abrasive_size_nm: 500
+  - label: "T2-09: pH3 KMnO4 4wt% Al2O3 1wt%"
+    mrr_nm_per_min: 10.7317
+    measured_mrr_um_per_hour: 0.6439
+    roughness_ra_nm: 0.123
+    pressure_psi: 4.0
+    rpm_platen: 90
+    rpm_wafer: 100
+    overrides:
+      abrasive_wt_pct: 1
+      oxidizer_wt_pct: 4
+      slurry_ph: 3
+      sfr_ml_min: 90
+      abrasive_size_nm: 500
+  - label: "T2-10: pH3 KMnO4 5wt% Al2O3 3wt%"
+    mrr_nm_per_min: 10.7317
+    measured_mrr_um_per_hour: 0.6439
+    roughness_ra_nm: 1.358
+    pressure_psi: 4.0
+    rpm_platen: 90
+    rpm_wafer: 100
+    overrides:
+      abrasive_wt_pct: 3
+      oxidizer_wt_pct: 5
+      slurry_ph: 3
+      sfr_ml_min: 90
+      abrasive_size_nm: 500
+  - label: "T2-11: pH4 KMnO4 1wt% Al2O3 4wt%"
+    mrr_nm_per_min: 8.1767
+    measured_mrr_um_per_hour: 0.4906
+    roughness_ra_nm: 0.176
+    pressure_psi: 4.0
+    rpm_platen: 90
+    rpm_wafer: 100
+    overrides:
+      abrasive_wt_pct: 4
+      oxidizer_wt_pct: 1
+      slurry_ph: 4
+      sfr_ml_min: 90
+      abrasive_size_nm: 500
+  - label: "T2-12: pH4 KMnO4 2wt% Al2O3 1wt%"
+    mrr_nm_per_min: 11.7533
+    measured_mrr_um_per_hour: 0.7052
+    roughness_ra_nm: 0.809
+    pressure_psi: 4.0
+    rpm_platen: 90
+    rpm_wafer: 100
+    overrides:
+      abrasive_wt_pct: 1
+      oxidizer_wt_pct: 2
+      slurry_ph: 4
+      sfr_ml_min: 90
+      abrasive_size_nm: 500
+  - label: "T2-13: pH4 KMnO4 3wt% Al2O3 3wt%"
+    mrr_nm_per_min: 8.6867
+    measured_mrr_um_per_hour: 0.5212
+    roughness_ra_nm: 1.828
+    pressure_psi: 4.0
+    rpm_platen: 90
+    rpm_wafer: 100
+    overrides:
+      abrasive_wt_pct: 3
+      oxidizer_wt_pct: 3
+      slurry_ph: 4
+      sfr_ml_min: 90
+      abrasive_size_nm: 500
+  - label: "T2-14: pH4 KMnO4 4wt% Al2O3 5wt%"
+    mrr_nm_per_min: 11.7533
+    measured_mrr_um_per_hour: 0.7052
+    roughness_ra_nm: 0.129
+    pressure_psi: 4.0
+    rpm_platen: 90
+    rpm_wafer: 100
+    overrides:
+      abrasive_wt_pct: 5
+      oxidizer_wt_pct: 4
+      slurry_ph: 4
+      sfr_ml_min: 90
+      abrasive_size_nm: 500
+  - label: "T2-15: pH4 KMnO4 5wt% Al2O3 2wt%"
+    mrr_nm_per_min: 12.2633
+    measured_mrr_um_per_hour: 0.7358
+    roughness_ra_nm: 2.468
+    pressure_psi: 4.0
+    rpm_platen: 90
+    rpm_wafer: 100
+    overrides:
+      abrasive_wt_pct: 2
+      oxidizer_wt_pct: 5
+      slurry_ph: 4
+      sfr_ml_min: 90
+      abrasive_size_nm: 500
+  - label: "T2-16: pH5 KMnO4 1wt% Al2O3 3wt%"
+    mrr_nm_per_min: 8.6867
+    measured_mrr_um_per_hour: 0.5212
+    roughness_ra_nm: 0.225
+    pressure_psi: 4.0
+    rpm_platen: 90
+    rpm_wafer: 100
+    overrides:
+      abrasive_wt_pct: 3
+      oxidizer_wt_pct: 1
+      slurry_ph: 5
+      sfr_ml_min: 90
+      abrasive_size_nm: 500
+  - label: "T2-17: pH5 KMnO4 2wt% Al2O3 5wt%"
+    mrr_nm_per_min: 11.7533
+    measured_mrr_um_per_hour: 0.7052
+    roughness_ra_nm: 0.766
+    pressure_psi: 4.0
+    rpm_platen: 90
+    rpm_wafer: 100
+    overrides:
+      abrasive_wt_pct: 5
+      oxidizer_wt_pct: 2
+      slurry_ph: 5
+      sfr_ml_min: 90
+      abrasive_size_nm: 500
+  - label: "T2-18: pH5 KMnO4 3wt% Al2O3 2wt%"
+    mrr_nm_per_min: 11.7533
+    measured_mrr_um_per_hour: 0.7052
+    roughness_ra_nm: 0.408
+    pressure_psi: 4.0
+    rpm_platen: 90
+    rpm_wafer: 100
+    overrides:
+      abrasive_wt_pct: 2
+      oxidizer_wt_pct: 3
+      slurry_ph: 5
+      sfr_ml_min: 90
+      abrasive_size_nm: 500
+  - label: "T2-19: pH5 KMnO4 4wt% Al2O3 4wt%"
+    mrr_nm_per_min: 13.7967
+    measured_mrr_um_per_hour: 0.8278
+    roughness_ra_nm: 0.149
+    pressure_psi: 4.0
+    rpm_platen: 90
+    rpm_wafer: 100
+    overrides:
+      abrasive_wt_pct: 4
+      oxidizer_wt_pct: 4
+      slurry_ph: 5
+      sfr_ml_min: 90
+      abrasive_size_nm: 500
+  - label: "T2-20: pH5 KMnO4 5wt% Al2O3 1wt%"
+    mrr_nm_per_min: 13.2867
+    measured_mrr_um_per_hour: 0.7972
+    roughness_ra_nm: 1.97
+    pressure_psi: 4.0
+    rpm_platen: 90
+    rpm_wafer: 100
+    overrides:
+      abrasive_wt_pct: 1
+      oxidizer_wt_pct: 5
+      slurry_ph: 5
+      sfr_ml_min: 90
+      abrasive_size_nm: 500
+  - label: "T2-21: pH6 KMnO4 1wt% Al2O3 2wt%"
+    mrr_nm_per_min: 9.7083
+    measured_mrr_um_per_hour: 0.5825
+    roughness_ra_nm: 0.268
+    pressure_psi: 4.0
+    rpm_platen: 90
+    rpm_wafer: 100
+    overrides:
+      abrasive_wt_pct: 2
+      oxidizer_wt_pct: 1
+      slurry_ph: 6
+      sfr_ml_min: 90
+      abrasive_size_nm: 500
+  - label: "T2-22: pH6 KMnO4 2wt% Al2O3 4wt%"
+    mrr_nm_per_min: 12.2633
+    measured_mrr_um_per_hour: 0.7358
+    roughness_ra_nm: 0.264
+    pressure_psi: 4.0
+    rpm_platen: 90
+    rpm_wafer: 100
+    overrides:
+      abrasive_wt_pct: 4
+      oxidizer_wt_pct: 2
+      slurry_ph: 6
+      sfr_ml_min: 90
+      abrasive_size_nm: 500
+  - label: "T2-23: pH6 KMnO4 3wt% Al2O3 1wt%"
+    mrr_nm_per_min: 11.2417
+    measured_mrr_um_per_hour: 0.6745
+    roughness_ra_nm: 0.21
+    pressure_psi: 4.0
+    rpm_platen: 90
+    rpm_wafer: 100
+    overrides:
+      abrasive_wt_pct: 1
+      oxidizer_wt_pct: 3
+      slurry_ph: 6
+      sfr_ml_min: 90
+      abrasive_size_nm: 500
+  - label: "T2-24: pH6 KMnO4 4wt% Al2O3 3wt%"
+    mrr_nm_per_min: 12.7750
+    measured_mrr_um_per_hour: 0.7665
+    roughness_ra_nm: 0.11
+    pressure_psi: 4.0
+    rpm_platen: 90
+    rpm_wafer: 100
+    overrides:
+      abrasive_wt_pct: 3
+      oxidizer_wt_pct: 4
+      slurry_ph: 6
+      sfr_ml_min: 90
+      abrasive_size_nm: 500
+  - label: "T2-25: pH6 KMnO4 5wt% Al2O3 5wt%"
+    mrr_nm_per_min: 11.7533
+    measured_mrr_um_per_hour: 0.7052
+    roughness_ra_nm: 0.116
+    pressure_psi: 4.0
+    rpm_platen: 90
+    rpm_wafer: 100
+    overrides:
+      abrasive_wt_pct: 5
+      oxidizer_wt_pct: 5
+      slurry_ph: 6
+      sfr_ml_min: 90
+      abrasive_size_nm: 500

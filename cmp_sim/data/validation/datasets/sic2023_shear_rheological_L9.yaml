@@ -1,0 +1,79 @@
+# ── OVERRIDES THE INHERITED legacy/ COPY ────────────────────────────────
+# Only difference: `film:` is declared, transcribed from this dataset's own
+# source (evidence in the inline comment). legacy/ files are never edited in
+# place; the loader prefers this copy. No measured value is changed here.
+# 4H-SiC 전단유동(SRP) 연마 — L9 직교배열 (압력 3수준 x 회전수 3수준 x 입도/농도)
+source: >
+  "Experimental Study on Shear Rheological Polishing of Si Surface of 4H-SiC Wafer",
+  Micromachines 14(4), 900 (2023). doi:10.3390/mi14040900 — MDPI 오픈액세스, PMC10143364.
+  Table 2(L9 배치)와 Table 3(결과, MRR nm/min)을 그대로 옮겼다.
+  워크피스 회전수 20 r/min은 Table 1(SRP parameters)에서.
+
+# 재료계: 4H-SiC + 전단유동 연마(SRP). 연마 방식 자체가 회전식 CMP와 다르다. 범위 밖.
+in_scope: false
+used_for_calibration: false
+film: sic  # source: title: 'Si Surface of 4H-SiC Wafer'
+pack: oxide_silica
+
+conditions:
+  - label: "No.1: 9.05kPa, 70r/min, 0.5um 3wt%"
+    pressure_psi: 1.3126
+    rpm_wafer: 20
+    rpm_platen: 70
+    mrr_nm_per_min: 6.5
+    read_method: table
+  - label: "No.2: 10.19kPa, 80r/min, 0.5um 6wt%"
+    pressure_psi: 1.4779
+    rpm_wafer: 20
+    rpm_platen: 80
+    mrr_nm_per_min: 7.8
+    read_method: table
+  - label: "No.3: 11.32kPa, 90r/min, 0.5um 9wt%"
+    pressure_psi: 1.6418
+    rpm_wafer: 20
+    rpm_platen: 90
+    mrr_nm_per_min: 13.3
+    read_method: table
+  - label: "No.4: 11.32kPa, 80r/min, 1.0um 3wt%"
+    pressure_psi: 1.6418
+    rpm_wafer: 20
+    rpm_platen: 80
+    mrr_nm_per_min: 43.4
+    read_method: table
+  - label: "No.5: 9.05kPa, 90r/min, 1.0um 6wt%"
+    pressure_psi: 1.3126
+    rpm_wafer: 20
+    rpm_platen: 90
+    mrr_nm_per_min: 34.7
+    read_method: table
+  - label: "No.6: 10.19kPa, 70r/min, 1.0um 9wt%"
+    pressure_psi: 1.4779
+    rpm_wafer: 20
+    rpm_platen: 70
+    mrr_nm_per_min: 30.3
+    read_method: table
+  - label: "No.7: 10.19kPa, 90r/min, 1.5um 3wt%"
+    pressure_psi: 1.4779
+    rpm_wafer: 20
+    rpm_platen: 90
+    mrr_nm_per_min: 22.4
+    read_method: table
+  - label: "No.8: 11.32kPa, 70r/min, 1.5um 6wt%"
+    pressure_psi: 1.6418
+    rpm_wafer: 20
+    rpm_platen: 70
+    mrr_nm_per_min: 21.9
+    read_method: table
+  - label: "No.9: 9.05kPa, 80r/min, 1.5um 9wt%"
+    pressure_psi: 1.3126
+    rpm_wafer: 20
+    rpm_platen: 80
+    mrr_nm_per_min: 28.7
+    read_method: table
+
+notes: >
+  압력(9.05/10.19/11.32 kPa)과 회전수(70/80/90 r/min)가 3수준씩 변하는 Preston형 스윕이지만
+  다이아몬드 입도(0.5/1.0/1.5 um)와 농도(3/6/9 wt%)가 동시에 변한다.
+  논문 자신의 S/N 분석에서 입도가 지배 인자이며 MRR이 입도에 대해 단봉(1.0um 최대)이다 —
+  우리 모델에는 입도 항이 없으므로 이 데이터셋은 "기계항만으로 어디까지 가나"의 하한을 준다.
+  CMP가 아니라 전단유동 연마(SRP)라 패드 접촉 기구가 다르다. 절대값 비교 부적합.

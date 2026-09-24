@@ -1,0 +1,164 @@
+# ── OVERRIDES THE INHERITED legacy/ COPY ────────────────────────────────
+# Only difference: `film:` is declared, transcribed from this dataset's own
+# source (evidence in the inline comment). legacy/ files are never edited in
+# place; the loader prefers this copy. No measured value is changed here.
+# 4H-SiC CMP — CuxO-CeO2/Al2O3 복합 연마입자 + H2O2, 농도 2축 (독립 held-out)
+#
+# source: Liang, Juan; Zhang, Yan; et al., "Chemical mechanical polishing on silicon
+#   carbide using developed ceria composite abrasives and their synergistic polishing
+#   mechanism", Nano Research (2026), doi:10.26599/NR.2026.94909100.
+#   Tsinghua University Press, CC-BY 오픈액세스. 출판사 PDF 직접 확보
+#   (papers/nr2026-ceria-composite-abrasive-sic-cmp.pdf, 49p, 7.73 MB, 2026-09-16 다운로드).
+#   수치는 §2.3 **본문에 인쇄된 값**이다(Fig. 3(h)/3(i) 그래프 판독이 아님).
+#
+# 실험 조건 (ESM §1.5 Polishing tests, 원문 그대로):
+#   - 웨이퍼: 2-inch(50.8 mm) conductive **4H-SiC**
+#   - 기본 슬러리: 연마입자 5 wt% + H2O2 8 wt% + DI water 87 wt%
+#   - 장비 UNIPOL-1200S, 폴리우레탄 패드, 90 r/min, **30 kPa**(= 4.351 psi),
+#     슬러리 유량 30 mL/min, 연마시간 60 min
+#   - MRR = (m0-m1)/(rho*s*t), rho(SiC)=3.2 g/cm3 — 중량법
+#
+# ⚠ used_for_calibration: false. 이 논문은 sic_ceria_h2o2 팩의 **어떤 파라미터에도**
+#   쓰이지 않았다(팩의 출처는 Wang figshare:31056549 / Chen2017 / Singh2007 /
+#   Oh2010 / Kim2024 / Entegris US20220315802A1 뿐 — 확인함). 진짜 held-out 이다.
+#
+# ⚠ 재료계 경계 (덮지 않고 적는다):
+#   1) 연마입자가 **순수 세리아가 아니라** CuxO-CeO2/Al2O3 복합입자다(알루미나 담체에
+#      CeO2 + CuxO Fenton-유사 촉매 담지, Table S2: 실측 Cu 1.09 wt%, Ce 1.03 wt%).
+#      즉 질량의 대부분은 알루미나이고 세리아는 표면 소수 성분이다.
+#   2) pH 가 **중성 7**이다(원문 §2.3: pH 5~9 중 7에서 MRR 최대 531.45 nm/h).
+#      이 팩의 기준 pH 는 10(알칼리)이다.
+#   3) 촉매(CuxO)가 H2O2 를 ·OH 로 분해하는 Fenton-유사 경로가 추가돼 있다 —
+#      이 팩(무촉매 알칼리 세리아/H2O2)에 없는 기전이다.
+#   → 따라서 **절대 MRR 대조는 의미가 없고**, 이 데이터가 테스트하는 것은
+#     κ 의 **연마입자 농도항 방향성**(기계적 접촉 모델, 산화제/촉매 화학과 독립)과
+#     χ 의 **산화제 농도항 방향성** 두 가지뿐이다. scope_note 에 그대로 남긴다.
+#
+# ⚠ pH 가정: 조성 스윕(Fig. 3(h)/3(i))의 pH 는 원문에 각 도면마다 재기재되지 않는다.
+#   §2.3 이 pH 7 을 최적으로 확정한 뒤 그 조건으로 나머지 스윕을 돈 것으로 읽힌다.
+#   4조건 **전체에 동일하게** slurry_ph: 7 을 준다 — 값이 틀리더라도 모든 조건에
+#   같은 상수로 걸리므로 순위(Spearman) 지표는 영향받지 않는다. 절대값은 어차피
+#   위 경계 때문에 쓰지 않는다.
+
+doi: "10.26599/NR.2026.94909100"
+source: >
+  Liang et al., Nano Research (2026), doi:10.26599/NR.2026.94909100, §2.3 본문 인쇄값
+  — 4H-SiC, CuxO-CeO2/Al2O3 복합 연마입자 1/5/9 wt% 및 H2O2 8/10 wt%, 30 kPa, 90 rpm.
+read_method: table
+film: sic  # source: source line: '4H-SiC'
+pack: sic_ceria_h2o2
+in_scope: true
+used_for_calibration: false
+# ⚠ 근거 접촉 신고 (자기채점 방지)
+#   이 데이터셋은 팩 파라미터 **도출에 쓰이지 않았다**(값은 Wang figshare DOE 에서
+#   나왔다). 다만 팩 note/source 에 이 논문 DOI 가 **방향 교차확인** 근거로
+#   인용돼 있으므로, 감사기가 "미신고 자기채점(F4)"으로 잡지 않도록 접촉 자체를
+#   신고한다. 신고된 부분 접촉(C4)이며 held-out 자격은 유지된다.
+calibration_contact:
+  - param: abrasive_conc_exponent
+    pack: sic_ceria_h2o2
+    what: >
+      팩의 abrasive_conc_exponent(+0.227) 는 Wang et al. figshare:31056549 DOE 의
+      매칭쌍 17개에서 적합됐다. 이 논문(Liang 2026)은 그 적합에 **한 점도
+      들어가지 않았고**, 파라미터 note/source 에 "부호 방향이 같다"는 교차확인
+      근거로만 인용돼 있다. 따라서 이 데이터셋의 ρ 는 자기 답안지 채점이 아니다 —
+      다만 인용 사실 자체는 접촉이므로 정직하게 신고한다.
+
+# ⚠ 판정#57 (2026-09-18): accuracy_gaps 가 절대값 3.97배 BIAS로 잡았다.
+#   Preston 정규화 k* 대조(knowledge/cmp/liang2026-composite-abrasive-absolute-mrr-bias.md)
+#   결과 원자료 raw rate 는 Wang DOE50 산포 안(정상)이었고, 편향은 팩의
+#   ph_softening_per_unit 캘리브레이션 범위(pH 9~11) 밖(pH 7)으로의 외삽 +
+#   미모델링 Fenton 촉매 경로에서 나온다는 것을 반사실 실험으로 확인했다.
+#   Kp 를 3.97배 올려 맞추면 같은 팩의 캘리브레이션 데이터(DOE50, n=50)와
+#   held-out(su2011)이 둘 다 3.7~4.1배 반대로 틀어진다 — Kp 불변, 절대값
+#   판정만 면제한다(순위는 그대로 집계).
+rank_only: true
+rank_only_ruling: >
+  판정#57: 절대값 3.97배 편향의 원인은 팩 Kp 결함이 아니라 pH 항(캘리브레이션
+  범위 pH 9~11) 밖으로의 외삽 + 이 팩에 없는 CuxO Fenton-유사 촉매 경로다.
+  Preston 정규화 k* 대조로 원자료 raw rate 가 Wang DOE50 산포(10배 범위) 안에
+  있음을 확인했고(이상치 아님), Kp 를 조정해 이 데이터셋을 맞추는 반사실
+  실험에서 같은 팩의 캘리브레이션 데이터(DOE50)와 held-out(su2011)이 각각
+  0.957→0.241배, 1.078→0.272배로 반대 방향 3.7~4.1배 틀어짐을 확인했다.
+  상세: knowledge/cmp/liang2026-composite-abrasive-absolute-mrr-bias.md.
+  순위(ρ=+1.000, p=0.042)는 그대로 집계한다 — 제거가 아니라 절대값 면제다.
+
+scope_note: >
+  4H-SiC + H2O2 계는 일치하나 연마입자가 CuxO-CeO2/Al2O3 복합(알루미나 담체)이고
+  pH 7 중성이며 Fenton-유사 촉매가 있다. 절대 MRR 비교 금지 — κ 연마입자 농도항과
+  χ 산화제 농도항의 **방향성**만 테스트 대상으로 삼는다.
+
+conditions:
+  - label: "abrasive 1 wt% (H2O2 8 wt%, pH7)"
+    mrr_nm_per_min: 3.8090
+    measured_mrr_nm_per_hour: 228.54
+    pressure_psi: 4.3511
+    rpm_platen: 90
+    rpm_wafer: 90
+    read_method: table
+    overrides:
+      abrasive_wt_pct: 1.0
+      oxidizer_wt_pct: 8.0
+      slurry_ph: 7.0
+      sfr_ml_min: 30
+
+  - label: "abrasive 5 wt% (H2O2 8 wt%, pH7) — 기준 조성"
+    mrr_nm_per_min: 8.9742
+    measured_mrr_nm_per_hour: 538.45
+    pressure_psi: 4.3511
+    rpm_platen: 90
+    rpm_wafer: 90
+    read_method: table
+    overrides:
+      abrasive_wt_pct: 5.0
+      oxidizer_wt_pct: 8.0
+      slurry_ph: 7.0
+      sfr_ml_min: 30
+
+  - label: "abrasive 9 wt% (H2O2 8 wt%, pH7)"
+    mrr_nm_per_min: 10.3578
+    measured_mrr_nm_per_hour: 621.47
+    pressure_psi: 4.3511
+    rpm_platen: 90
+    rpm_wafer: 90
+    read_method: table
+    overrides:
+      abrasive_wt_pct: 9.0
+      oxidizer_wt_pct: 8.0
+      slurry_ph: 7.0
+      sfr_ml_min: 30
+
+  - label: "H2O2 10 wt% (abrasive 5 wt%, pH7) — 산화제 정점"
+    mrr_nm_per_min: 9.5127
+    measured_mrr_nm_per_hour: 570.76
+    pressure_psi: 4.3511
+    rpm_platen: 90
+    rpm_wafer: 90
+    read_method: table
+    overrides:
+      abrasive_wt_pct: 5.0
+      oxidizer_wt_pct: 10.0
+      slurry_ph: 7.0
+      sfr_ml_min: 30
+
+notes: >
+  원문에 **인쇄된** 4점만 옮겼다. Fig. 3(h)의 3/7 wt%, Fig. 3(i)의 4/6/12 wt%는
+  그래프에만 있고 본문에 수치가 없어 제외했다(그래프 판독값을 만들지 않는다).
+
+  실측 방향: 연마입자 농도 1→5→9 wt% 에서 MRR 이 **단조 증가**한다
+  (228.54 → 538.45 → 621.47 nm/h). 원문 해석은 저농도(1~5 wt%)에서는 유효
+  입자수 부족, 고농도(7~9 wt%)에서는 점도 상승으로 응집체가 생겨 MRR 은 더
+  오르되 Sa 가 나빠진다는 것이다(Sa 최소는 5 wt%, 0.642 nm).
+
+  ⚠ 이 방향은 현재 sic_ceria_h2o2 팩의 abrasive_conc_exponent(-0.406, 단조 감소)와
+  **부호가 반대**다. 그 -0.406 은 산성 KMnO4/알루미나 Entegris 특허(US20220315802A1)
+  에서 나왔고, 그 데이터셋 자체는 판정#49-B 로 이미 sic_alumina_kmno4 팩으로
+  옮겨졌다 — 지수만 이 팩에 남아 있었다. 같은 계(4H-SiC + H2O2, 세리아 함유
+  연마입자) 관측은 전부 비음(非負) 방향이다: Wang figshare:31056549 DOE 50조건의
+  농도 1축 로그-로그 기울기 중앙값 +0.227(17쌍, 부트스트랩 95% -0.136~+0.598),
+  Gong 2024 L25 +0.036, Wei 2026(doi:10.3390/cryst16030179) 2→8 wt% 단조 증가,
+  그리고 이 논문 1→9 wt% 단조 증가.
+
+  산화제축(8→10 wt%)도 증가(538.45 → 570.76)이나, 원문 §2.3 은 10 wt% 초과에서
+  ·OH 소광으로 꺾인다고 한다 — 팩의 Langmuir 포화형이 6 vol% 밖으로는 외삽
+  금지라고 이미 선언돼 있으므로 이 두 점은 방향 확인용으로만 본다.

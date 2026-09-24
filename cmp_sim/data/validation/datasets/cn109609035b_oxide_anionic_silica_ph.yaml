@@ -42,6 +42,7 @@ source: >
 
 in_scope: true
 used_for_calibration: false
+film: oxide  # source: oxide polishing composition, charged abrasive
 pack: oxide_silica_anionic
 
 # ── fixed conditions (from the specification text) ─────────────────────────

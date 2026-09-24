@@ -27,12 +27,20 @@ defect.
    this audit adds: 12.3% LOOKS fine, and that is exactly the danger — a
    plausible number produced by constants fitted to a different material.
 
-THE REAL HOLE THE AUDIT FOUND
+THE HOLE THE AUDIT FOUND, AND CLOSED
 
-23 of 49 datasets declare no `film` at all, so a mismatch there is invisible to
-any film-vs-pack check. Inferring the film from each dataset's name and prose
-surfaced six more suspect rows — including the two negative controls above, which
-a reader of the report alone could not have distinguished from oversights.
+23 of 49 datasets declared no `film` at all, so a mismatch there was invisible to
+any film-vs-pack check, and prose inference had to stand in. Every film has since
+been transcribed from its own source (scripts/declare_dataset_films.py records
+the evidence per dataset). Borrowings went from 7 visible to 14, and two SiC
+datasets that the scorer could not use at all — `entegris2022` and `gong2024` —
+became scorable, taking the corpus from 43/49 to 45/49 and 394 to 424 points.
+
+Transcription is inert by construction: not one existing shape error moved, and
+the medians are unchanged at 19.5% / 22.6%.
+
+The single remaining null is `phm2016`, whose wafer film is never disclosed.
+Labelling it `unknown` made the scorer drop it, so null is the right value there.
 
 This test does not create packs to fix what it found; STATUS is explicit that the
 deliverable is knowing which scores rest on a borrowed constant. What it enforces
@@ -56,11 +64,20 @@ DECLARED_BORROWINGS = {
     "us20190127607a1_hdpoxide_ceriasilica_size_sweep": "mechanism",
     "us20190127607a1_teos_ceriasilica_size_sweep": "mechanism",
     "yang2023_quartz_ceria_L25": "mechanism",
+    # surfaced once films were transcribed: same ceria-on-oxide borrowing
+    "dandu2009_sio2_ceria_ph_sweep": "mechanism",
+    "kenchappa2021_softpad_hdp_oxide": "mechanism",
+    "mariscal2020_peteos_ceria_pressure_velocity_3x3": "mechanism",
+    "netzband2020_thermal_oxide_ceria_ph": "mechanism",
     # same slurry family, different metal film; W is the pack's own fitting set
     "bouvet2002_w_silica_size_sweep": "mechanism",
     # placeholder pack, film unsupported — must stay visible, never "fixed"
     "bouvet2002_ti_silica_size_sweep": "placeholder",
     "us8142675b2_pt_alumina_pressure_sweep": "placeholder",
+    "mo2026_double_sided_L16": "placeholder",
+    # deliberate negative controls, also registered in NEGATIVE_CONTROLS
+    "carbide2023_slurry_composition_L9": "negative_control",
+    "sic2023_shear_rheological_L9": "negative_control",
 }
 
 #: datasets deliberately run on the "wrong" pack to document a modelling gap
@@ -90,6 +107,55 @@ def _home(pack) -> str:
 
 def _declared_film(doc) -> str:
     return str(doc.get("film") or "?").lower()
+
+
+def test_every_dataset_declares_a_film_except_the_one_with_none_stated():
+    """The blind spot is closed: a null film can no longer hide a mismatch.
+
+    Films were transcribed from each dataset's own source (see
+    scripts/declare_dataset_films.py, which records the evidence per dataset).
+    phm2016 is the single exception: its wafer film is never disclosed, and
+    declaring 'unknown' made the scorer drop the dataset entirely, so null is
+    the correct value there rather than a placeholder.
+    """
+    undeclared = sorted(stem for stem, doc in _docs()
+                        if _declared_film(doc) in ("?", "none"))
+    assert undeclared == ["phm2016_dresser_usage_mrr"], (
+        f"{undeclared}: every dataset must declare the film it polished, "
+        "transcribed from its own source — use 'other' when no pack exists")
+
+
+def test_declaring_films_changed_no_prediction():
+    """Transcription must be inert: it labels data, it does not model it."""
+    from cmp_sim.cli import main  # noqa: F401  (import guard only)
+
+    # the two datasets that gained a score did so because the scorer needs a
+    # film at all — not because any existing number moved
+    for stem in ("entegris2022_us20220315802a1_sic_alumina_conc",
+                 "gong2024_4hsic_alumina_kmno4_L25"):
+        score = score_dataset(next(p for p in dataset_paths()
+                                   if p.stem == stem))
+        assert score.shape_mape is not None, (
+            f"{stem} was unscorable before its film was declared and must now "
+            "be scored")
+
+
+def test_the_overrides_do_not_touch_legacy():
+    """Project rule: inherited files are copied and overridden, never edited."""
+    from pathlib import Path
+
+    import cmp_sim
+    override_dir = (Path(cmp_sim.__file__).parent / "data" / "validation"
+                    / "datasets")
+    overrides = {p.stem for p in override_dir.glob("*.yaml")}
+    assert len(overrides) > 25, (
+        "the film overrides are missing; they must live under cmp_sim/data, "
+        "not be written into legacy/")
+    for path in dataset_paths():
+        if "legacy" in path.parts:
+            assert path.stem not in overrides, (
+                f"{path.stem}: an override exists but the loader still resolves "
+                "to the legacy copy — the override is not taking effect")
 
 
 def test_every_declared_film_mismatch_is_registered():
@@ -169,18 +235,25 @@ def test_negative_controls_say_why_they_use_the_wrong_pack():
             "notes no longer explain what gap its error documents")
 
 
-def test_most_datasets_declare_no_film_so_this_check_has_a_blind_spot():
-    """Name the audit's own limit rather than implying it is exhaustive."""
-    undeclared = [stem for stem, doc in _docs()
-                  if _declared_film(doc) in ("?", "none")]
-    total = len(list(_docs()))
-    assert len(undeclared) > total / 3, (
-        "if most datasets now declare a film, this audit became much stronger "
-        "and the blind-spot warning in its docstring should be revised")
+def test_the_negative_controls_are_now_visible_to_the_label_check():
+    """The blind spot this pair used to demonstrate is closed.
+
+    Before films were transcribed, `carbide2023` and `sic2023` declared no film,
+    so a label-vs-pack check could not see that they run on the oxide pack; only
+    inference from their prose surfaced them. They now declare `other` and `sic`
+    respectively, so they appear in the ordinary audit — which is why they are
+    registered in DECLARED_BORROWINGS as negative controls.
+    """
+    docs = dict(_docs())
+    for stem in NEGATIVE_CONTROLS:
+        assert _declared_film(docs[stem]) not in ("?", "none"), stem
+        assert DECLARED_BORROWINGS.get(stem) == "negative_control", (
+            f"{stem} is a deliberate negative control and must be registered "
+            "as one, not silently treated as a mechanism borrowing")
 
 
-def test_inferring_the_film_from_prose_surfaces_the_negative_controls():
-    """The blind spot is real: these two are invisible to the label check."""
+def test_prose_inference_is_no_longer_load_bearing():
+    """With films declared, the fallback heuristic finds nothing new."""
     surfaced = set()
     for stem, doc in _docs():
         if _declared_film(doc) not in ("?", "none"):
@@ -191,6 +264,6 @@ def test_inferring_the_film_from_prose_surfaces_the_negative_controls():
         home = _home(doc["pack"])
         if guesses and home != "?" and home not in guesses:
             surfaced.add(stem)
-    assert NEGATIVE_CONTROLS <= surfaced, (
-        f"{sorted(NEGATIVE_CONTROLS - surfaced)} should be surfaced by prose "
-        "inference; the label check alone cannot see them")
+    assert not surfaced, (
+        f"{sorted(surfaced)} still need prose inference to be spotted; declare "
+        "their film from the source instead of relying on the heuristic")

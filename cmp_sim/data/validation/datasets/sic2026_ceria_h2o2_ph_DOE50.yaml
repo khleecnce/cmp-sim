@@ -1,0 +1,587 @@
+# ── OVERRIDES THE INHERITED legacy/ COPY ────────────────────────────────
+# Only difference: `film:` is declared, transcribed from this dataset's own
+# source (evidence in the inline comment). legacy/ files are never edited in
+# place; the loader prefers this copy. No measured value is changed here.
+# 4H-SiC CMP — 세리아/H2O2 알칼리 슬러리 50조건 완전 DOE
+#
+# 출처: Wang et al., "Machine Learning-Driven Optimization of Silicon Carbide
+#       Chemical Mechanical Polishing with Surface Roughness Constraints",
+#       ACS Supporting Information, Table S3 "Original Polish dataset"
+# 라이선스: CC BY-NC 4.0
+# PDF: https://ndownloader.figshare.com/files/60987447 (859,882 B, 22p, 2026-09-08 직접 확인)
+#
+# ⚠ 정정(2026-09-09): 이전 주석은 "우리 팩(Si 산화막/Cu/W)의 범위 밖"이라 썼으나 이는
+#   sic_ceria_h2o2 팩이 신설되기 전의 낡은 서술이다. 이 팩은 애초에 **4H-SiC 전용**으로
+#   만들어졌으므로(위 knowledge/params/sic_ceria_h2o2.yaml 참고) 재료계는 정확히 일치한다
+#   → in_scope: true로 정정.
+#   단, 이 데이터의 pH 항 계수(ph_softening_per_unit)가 **이 DOE에서 역산**되었으므로
+#   (knowledge/params/sic_ceria_h2o2.yaml 참고) 이 데이터셋으로 다시 채점하면 자기 답안지로
+#   채점하는 꼴이다 → used_for_calibration: true로 명시하고 held-out 집계에서 제외한다.
+#   진짜 held-out은 별도 파일(entegris2022_us20220315802a1_sic_abrasive_conc.yaml)에 있다.
+#
+# 수준: CeO2 2/4/6 wt% · H2O2 2/4/6 vol% · pH 9/10/11
+#       압력 4.5/5.0/5.5 psi · head 60/80 rpm · platen 60/80 rpm
+#
+# ⚠ 단위 변환: 원문은 nm/h. 하네스는 nm/min을 기대하므로 /60 했다.
+#   원문값은 measured_mrr_nm_per_hour에 함께 남긴다(추적 가능하게).
+
+doi: "figshare:31056549 (ACS SI Table S3)"
+source: "Wang et al., figshare:31056549, ACS SI Table S3 — SiC CMP 50-run DOE"
+read_method: table
+film: sic  # source: source line: 'SiC CMP 50-run DOE'
+pack: sic_ceria_h2o2
+in_scope: true
+used_for_calibration: true
+scope_note: "4H-SiC ceria/H2O2 — sic_ceria_h2o2 팩과 재료계 일치(2026-09-09 정정). ph_softening_per_unit 계수를 이 데이터에서 역산했으므로 캘리브레이션 데이터다 — held-out 아님."
+
+conditions:
+  - label: "S3-01: CeO2 2wt% H2O2 6vol% pH9 5.5psi head60"
+    mrr_nm_per_min: 2.6667
+    measured_mrr_nm_per_hour: 160.0
+    roughness_ra_nm: 0.15
+    pressure_psi: 5.5
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 2
+      oxidizer_wt_pct: 6
+      slurry_ph: 9
+  - label: "S3-02: CeO2 2wt% H2O2 6vol% pH10 5.5psi head60"
+    mrr_nm_per_min: 3.1100
+    measured_mrr_nm_per_hour: 186.6
+    roughness_ra_nm: 0.218
+    pressure_psi: 5.5
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 2
+      oxidizer_wt_pct: 6
+      slurry_ph: 10
+  - label: "S3-03: CeO2 2wt% H2O2 6vol% pH11 5.5psi head60"
+    mrr_nm_per_min: 6.2683
+    measured_mrr_nm_per_hour: 376.1
+    roughness_ra_nm: 0.29
+    pressure_psi: 5.5
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 2
+      oxidizer_wt_pct: 6
+      slurry_ph: 11
+  - label: "S3-04: CeO2 2wt% H2O2 4vol% pH10 5.5psi head60"
+    mrr_nm_per_min: 2.7033
+    measured_mrr_nm_per_hour: 162.2
+    roughness_ra_nm: 0.128
+    pressure_psi: 5.5
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 2
+      oxidizer_wt_pct: 4
+      slurry_ph: 10
+  - label: "S3-05: CeO2 4wt% H2O2 6vol% pH11 5.5psi head60"
+    mrr_nm_per_min: 6.6933
+    measured_mrr_nm_per_hour: 401.6
+    roughness_ra_nm: 0.17
+    pressure_psi: 5.5
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 4
+      oxidizer_wt_pct: 6
+      slurry_ph: 11
+  - label: "S3-06: CeO2 4wt% H2O2 6vol% pH10 5.5psi head60"
+    mrr_nm_per_min: 6.6115
+    measured_mrr_nm_per_hour: 396.69
+    roughness_ra_nm: 0.129
+    pressure_psi: 5.5
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 4
+      oxidizer_wt_pct: 6
+      slurry_ph: 10
+  - label: "S3-07: CeO2 4wt% H2O2 4vol% pH10 5.5psi head60"
+    mrr_nm_per_min: 5.6667
+    measured_mrr_nm_per_hour: 340.0
+    roughness_ra_nm: 0.22
+    pressure_psi: 5.5
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 4
+      oxidizer_wt_pct: 4
+      slurry_ph: 10
+  - label: "S3-08: CeO2 6wt% H2O2 4vol% pH10 5.5psi head60"
+    mrr_nm_per_min: 4.6063
+    measured_mrr_nm_per_hour: 276.38
+    roughness_ra_nm: 0.246
+    pressure_psi: 5.5
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 6
+      oxidizer_wt_pct: 4
+      slurry_ph: 10
+  - label: "S3-09: CeO2 2wt% H2O2 2vol% pH10 5.5psi head60"
+    mrr_nm_per_min: 2.9685
+    measured_mrr_nm_per_hour: 178.11
+    roughness_ra_nm: 0.113
+    pressure_psi: 5.5
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 2
+      oxidizer_wt_pct: 2
+      slurry_ph: 10
+  - label: "S3-10: CeO2 4wt% H2O2 2vol% pH10 5.5psi head60"
+    mrr_nm_per_min: 5.4767
+    measured_mrr_nm_per_hour: 328.6
+    roughness_ra_nm: 0.303
+    pressure_psi: 5.5
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 4
+      oxidizer_wt_pct: 2
+      slurry_ph: 10
+  - label: "S3-11: CeO2 4wt% H2O2 6vol% pH9 5.5psi head60"
+    mrr_nm_per_min: 1.8067
+    measured_mrr_nm_per_hour: 108.4
+    roughness_ra_nm: 0.107
+    pressure_psi: 5.5
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 4
+      oxidizer_wt_pct: 6
+      slurry_ph: 9
+  - label: "S3-12: CeO2 6wt% H2O2 6vol% pH11 5.5psi head60"
+    mrr_nm_per_min: 6.3333
+    measured_mrr_nm_per_hour: 380.0
+    roughness_ra_nm: 0.121
+    pressure_psi: 5.5
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 6
+      oxidizer_wt_pct: 6
+      slurry_ph: 11
+  - label: "S3-13: CeO2 6wt% H2O2 6vol% pH10 5.5psi head60"
+    mrr_nm_per_min: 6.0000
+    measured_mrr_nm_per_hour: 360.0
+    roughness_ra_nm: 0.202
+    pressure_psi: 5.5
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 6
+      oxidizer_wt_pct: 6
+      slurry_ph: 10
+  - label: "S3-14: CeO2 6wt% H2O2 6vol% pH9 5.5psi head60"
+    mrr_nm_per_min: 1.9577
+    measured_mrr_nm_per_hour: 117.46
+    roughness_ra_nm: 0.287
+    pressure_psi: 5.5
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 6
+      oxidizer_wt_pct: 6
+      slurry_ph: 9
+  - label: "S3-15: CeO2 4wt% H2O2 6vol% pH10 5.0psi head60"
+    mrr_nm_per_min: 3.5180
+    measured_mrr_nm_per_hour: 211.08
+    roughness_ra_nm: 0.2
+    pressure_psi: 5.0
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 4
+      oxidizer_wt_pct: 6
+      slurry_ph: 10
+  - label: "S3-16: CeO2 4wt% H2O2 4vol% pH10 5.0psi head60"
+    mrr_nm_per_min: 3.1903
+    measured_mrr_nm_per_hour: 191.42
+    roughness_ra_nm: 0.099
+    pressure_psi: 5.0
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 4
+      oxidizer_wt_pct: 4
+      slurry_ph: 10
+  - label: "S3-17: CeO2 4wt% H2O2 2vol% pH10 5.0psi head60"
+    mrr_nm_per_min: 2.9100
+    measured_mrr_nm_per_hour: 174.6
+    roughness_ra_nm: 0.148
+    pressure_psi: 5.0
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 4
+      oxidizer_wt_pct: 2
+      slurry_ph: 10
+  - label: "S3-18: CeO2 4wt% H2O2 6vol% pH11 5.0psi head60"
+    mrr_nm_per_min: 4.0967
+    measured_mrr_nm_per_hour: 245.8
+    roughness_ra_nm: 0.177
+    pressure_psi: 5.0
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 4
+      oxidizer_wt_pct: 6
+      slurry_ph: 11
+  - label: "S3-19: CeO2 4wt% H2O2 4vol% pH11 5.0psi head60"
+    mrr_nm_per_min: 6.0600
+    measured_mrr_nm_per_hour: 363.6
+    roughness_ra_nm: 0.237
+    pressure_psi: 5.0
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 4
+      oxidizer_wt_pct: 4
+      slurry_ph: 11
+  - label: "S3-20: CeO2 4wt% H2O2 2vol% pH11 5.0psi head60"
+    mrr_nm_per_min: 2.4933
+    measured_mrr_nm_per_hour: 149.6
+    roughness_ra_nm: 0.129
+    pressure_psi: 5.0
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 4
+      oxidizer_wt_pct: 2
+      slurry_ph: 11
+  - label: "S3-21: CeO2 4wt% H2O2 6vol% pH11 4.5psi head60"
+    mrr_nm_per_min: 3.8650
+    measured_mrr_nm_per_hour: 231.9
+    roughness_ra_nm: 0.174
+    pressure_psi: 4.5
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 4
+      oxidizer_wt_pct: 6
+      slurry_ph: 11
+  - label: "S3-22: CeO2 4wt% H2O2 4vol% pH9 4.5psi head60"
+    mrr_nm_per_min: 2.0267
+    measured_mrr_nm_per_hour: 121.6
+    roughness_ra_nm: 0.218
+    pressure_psi: 4.5
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 4
+      oxidizer_wt_pct: 4
+      slurry_ph: 9
+  - label: "S3-23: CeO2 4wt% H2O2 2vol% pH9 4.5psi head60"
+    mrr_nm_per_min: 1.2433
+    measured_mrr_nm_per_hour: 74.6
+    roughness_ra_nm: 0.214
+    pressure_psi: 4.5
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 4
+      oxidizer_wt_pct: 2
+      slurry_ph: 9
+  - label: "S3-24: CeO2 2wt% H2O2 4vol% pH10 4.5psi head60"
+    mrr_nm_per_min: 2.8267
+    measured_mrr_nm_per_hour: 169.6
+    roughness_ra_nm: 0.182
+    pressure_psi: 4.5
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 2
+      oxidizer_wt_pct: 4
+      slurry_ph: 10
+  - label: "S3-25: CeO2 2wt% H2O2 6vol% pH10 4.5psi head60"
+    mrr_nm_per_min: 2.3083
+    measured_mrr_nm_per_hour: 138.5
+    roughness_ra_nm: 0.167
+    pressure_psi: 4.5
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 2
+      oxidizer_wt_pct: 6
+      slurry_ph: 10
+  - label: "S3-26: CeO2 4wt% H2O2 6vol% pH10 4.5psi head60"
+    mrr_nm_per_min: 4.5117
+    measured_mrr_nm_per_hour: 270.7
+    roughness_ra_nm: 0.135
+    pressure_psi: 4.5
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 4
+      oxidizer_wt_pct: 6
+      slurry_ph: 10
+  - label: "S3-27: CeO2 4wt% H2O2 4vol% pH10 4.5psi head60"
+    mrr_nm_per_min: 3.3087
+    measured_mrr_nm_per_hour: 198.52
+    roughness_ra_nm: 0.137
+    pressure_psi: 4.5
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 4
+      oxidizer_wt_pct: 4
+      slurry_ph: 10
+  - label: "S3-28: CeO2 6wt% H2O2 4vol% pH11 4.5psi head60"
+    mrr_nm_per_min: 4.6667
+    measured_mrr_nm_per_hour: 280.0
+    roughness_ra_nm: 0.22
+    pressure_psi: 4.5
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 6
+      oxidizer_wt_pct: 4
+      slurry_ph: 11
+  - label: "S3-29: CeO2 2wt% H2O2 4vol% pH11 4.5psi head60"
+    mrr_nm_per_min: 2.6667
+    measured_mrr_nm_per_hour: 160.0
+    roughness_ra_nm: 0.14
+    pressure_psi: 4.5
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 2
+      oxidizer_wt_pct: 4
+      slurry_ph: 11
+  - label: "S3-30: CeO2 4wt% H2O2 6vol% pH9 4.5psi head60"
+    mrr_nm_per_min: 1.5237
+    measured_mrr_nm_per_hour: 91.42
+    roughness_ra_nm: 0.131
+    pressure_psi: 4.5
+    rpm_platen: 60
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 4
+      oxidizer_wt_pct: 6
+      slurry_ph: 9
+  - label: "S3-31: CeO2 2wt% H2O2 4vol% pH10 5.0psi head80"
+    mrr_nm_per_min: 6.3950
+    measured_mrr_nm_per_hour: 383.7
+    roughness_ra_nm: 0.366
+    pressure_psi: 5.0
+    rpm_platen: 60
+    rpm_wafer: 80
+    overrides:
+      abrasive_wt_pct: 2
+      oxidizer_wt_pct: 4
+      slurry_ph: 10
+  - label: "S3-32: CeO2 4wt% H2O2 2vol% pH9 5.0psi head80"
+    mrr_nm_per_min: 4.0000
+    measured_mrr_nm_per_hour: 240.0
+    roughness_ra_nm: 0.382
+    pressure_psi: 5.0
+    rpm_platen: 60
+    rpm_wafer: 80
+    overrides:
+      abrasive_wt_pct: 4
+      oxidizer_wt_pct: 2
+      slurry_ph: 9
+  - label: "S3-33: CeO2 4wt% H2O2 6vol% pH10 5.0psi head80"
+    mrr_nm_per_min: 13.0100
+    measured_mrr_nm_per_hour: 780.6
+    roughness_ra_nm: 0.311
+    pressure_psi: 5.0
+    rpm_platen: 60
+    rpm_wafer: 80
+    overrides:
+      abrasive_wt_pct: 4
+      oxidizer_wt_pct: 6
+      slurry_ph: 10
+  - label: "S3-34: CeO2 6wt% H2O2 2vol% pH11 5.0psi head80"
+    mrr_nm_per_min: 7.5183
+    measured_mrr_nm_per_hour: 451.1
+    roughness_ra_nm: 0.289
+    pressure_psi: 5.0
+    rpm_platen: 60
+    rpm_wafer: 80
+    overrides:
+      abrasive_wt_pct: 6
+      oxidizer_wt_pct: 2
+      slurry_ph: 11
+  - label: "S3-35: CeO2 4wt% H2O2 2vol% pH9 5.5psi head60"
+    mrr_nm_per_min: 2.6667
+    measured_mrr_nm_per_hour: 160.0
+    roughness_ra_nm: 0.4
+    pressure_psi: 5.5
+    rpm_platen: 80
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 4
+      oxidizer_wt_pct: 2
+      slurry_ph: 9
+  - label: "S3-36: CeO2 6wt% H2O2 4vol% pH10 5.5psi head60"
+    mrr_nm_per_min: 6.9550
+    measured_mrr_nm_per_hour: 417.3
+    roughness_ra_nm: 0.452
+    pressure_psi: 5.5
+    rpm_platen: 80
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 6
+      oxidizer_wt_pct: 4
+      slurry_ph: 10
+  - label: "S3-37: CeO2 4wt% H2O2 4vol% pH11 5.5psi head60"
+    mrr_nm_per_min: 8.5000
+    measured_mrr_nm_per_hour: 510.0
+    roughness_ra_nm: 0.372
+    pressure_psi: 5.5
+    rpm_platen: 80
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 4
+      oxidizer_wt_pct: 4
+      slurry_ph: 11
+  - label: "S3-38: CeO2 2wt% H2O2 2vol% pH9 5.5psi head60"
+    mrr_nm_per_min: 2.0000
+    measured_mrr_nm_per_hour: 120.0
+    roughness_ra_nm: 0.352
+    pressure_psi: 5.5
+    rpm_platen: 80
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 2
+      oxidizer_wt_pct: 2
+      slurry_ph: 9
+  - label: "S3-39: CeO2 6wt% H2O2 6vol% pH10 5.5psi head80"
+    mrr_nm_per_min: 15.0000
+    measured_mrr_nm_per_hour: 900.0
+    roughness_ra_nm: 1.14
+    pressure_psi: 5.5
+    rpm_platen: 60
+    rpm_wafer: 80
+    overrides:
+      abrasive_wt_pct: 6
+      oxidizer_wt_pct: 6
+      slurry_ph: 10
+  - label: "S3-40: CeO2 4wt% H2O2 2vol% pH11 4.5psi head80"
+    mrr_nm_per_min: 3.3333
+    measured_mrr_nm_per_hour: 200.0
+    roughness_ra_nm: 0.315
+    pressure_psi: 4.5
+    rpm_platen: 60
+    rpm_wafer: 80
+    overrides:
+      abrasive_wt_pct: 4
+      oxidizer_wt_pct: 2
+      slurry_ph: 11
+  - label: "S3-41: CeO2 4wt% H2O2 6vol% pH10 4.5psi head80"
+    mrr_nm_per_min: 6.0000
+    measured_mrr_nm_per_hour: 360.0
+    roughness_ra_nm: 0.276
+    pressure_psi: 4.5
+    rpm_platen: 60
+    rpm_wafer: 80
+    overrides:
+      abrasive_wt_pct: 4
+      oxidizer_wt_pct: 6
+      slurry_ph: 10
+  - label: "S3-42: CeO2 2wt% H2O2 6vol% pH9 4.5psi head80"
+    mrr_nm_per_min: 2.6750
+    measured_mrr_nm_per_hour: 160.5
+    roughness_ra_nm: 0.283
+    pressure_psi: 4.5
+    rpm_platen: 60
+    rpm_wafer: 80
+    overrides:
+      abrasive_wt_pct: 2
+      oxidizer_wt_pct: 6
+      slurry_ph: 9
+  - label: "S3-43: CeO2 4wt% H2O2 4vol% pH10 4.5psi head80"
+    mrr_nm_per_min: 7.5000
+    measured_mrr_nm_per_hour: 450.0
+    roughness_ra_nm: 0.638
+    pressure_psi: 4.5
+    rpm_platen: 80
+    rpm_wafer: 80
+    overrides:
+      abrasive_wt_pct: 4
+      oxidizer_wt_pct: 4
+      slurry_ph: 10
+  - label: "S3-44: CeO2 6wt% H2O2 2vol% pH9 4.5psi head80"
+    mrr_nm_per_min: 2.5133
+    measured_mrr_nm_per_hour: 150.8
+    roughness_ra_nm: 0.599
+    pressure_psi: 4.5
+    rpm_platen: 80
+    rpm_wafer: 80
+    overrides:
+      abrasive_wt_pct: 6
+      oxidizer_wt_pct: 2
+      slurry_ph: 9
+  - label: "S3-45: CeO2 6wt% H2O2 4vol% pH10 5.5psi head80"
+    mrr_nm_per_min: 16.0000
+    measured_mrr_nm_per_hour: 960.0
+    roughness_ra_nm: 1.51
+    pressure_psi: 5.5
+    rpm_platen: 80
+    rpm_wafer: 80
+    overrides:
+      abrasive_wt_pct: 6
+      oxidizer_wt_pct: 4
+      slurry_ph: 10
+  - label: "S3-46: CeO2 2wt% H2O2 6vol% pH11 5.0psi head60"
+    mrr_nm_per_min: 4.6883
+    measured_mrr_nm_per_hour: 281.3
+    roughness_ra_nm: 0.319
+    pressure_psi: 5.0
+    rpm_platen: 80
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 2
+      oxidizer_wt_pct: 6
+      slurry_ph: 11
+  - label: "S3-47: CeO2 2wt% H2O2 4vol% pH10 5.0psi head60"
+    mrr_nm_per_min: 6.0117
+    measured_mrr_nm_per_hour: 360.7
+    roughness_ra_nm: 0.299
+    pressure_psi: 5.0
+    rpm_platen: 80
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 2
+      oxidizer_wt_pct: 4
+      slurry_ph: 10
+  - label: "S3-48: CeO2 4wt% H2O2 2vol% pH9 5.0psi head60"
+    mrr_nm_per_min: 2.0000
+    measured_mrr_nm_per_hour: 120.0
+    roughness_ra_nm: 0.326
+    pressure_psi: 5.0
+    rpm_platen: 80
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 4
+      oxidizer_wt_pct: 2
+      slurry_ph: 9
+  - label: "S3-49: CeO2 4wt% H2O2 6vol% pH10 5.0psi head60"
+    mrr_nm_per_min: 8.0300
+    measured_mrr_nm_per_hour: 481.8
+    roughness_ra_nm: 0.319
+    pressure_psi: 5.0
+    rpm_platen: 80
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 4
+      oxidizer_wt_pct: 6
+      slurry_ph: 10
+  - label: "S3-50: CeO2 6wt% H2O2 2vol% pH11 5.0psi head60"
+    mrr_nm_per_min: 3.5000
+    measured_mrr_nm_per_hour: 210.0
+    roughness_ra_nm: 0.44
+    pressure_psi: 5.0
+    rpm_platen: 80
+    rpm_wafer: 60
+    overrides:
+      abrasive_wt_pct: 6
+      oxidizer_wt_pct: 2
+      slurry_ph: 11
