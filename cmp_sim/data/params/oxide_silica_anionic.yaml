@@ -1,0 +1,127 @@
+# Oxide / TEOS CMP with an ANIONIC (negatively charged) colloidal silica.
+#
+# Why this pack exists — the third silica optimum on the same film
+# ----------------------------------------------------------------
+# The repository now holds three pH sweeps on TEOS oxide, all with colloidal
+# silica, whose maxima are nine pH units apart:
+#
+#   oxide_silica              plain silica, 20 wt%       peak pH 11
+#   oxide_silica_aminosilane  cationic core-shell        peak pH 4.9
+#   THIS PACK                 anionic silica, 1 wt%      peak at or below pH 2
+#
+# The charge sign of the abrasive, not the film, sets where removal peaks.
+# CN109609035B's own explanation: an anionic particle and a TEOS surface are
+# both negative above the oxide's IEP (~2.5), so they repel; the only place
+# the particle can reach the surface is where that repulsion has not yet
+# switched on. Removal is therefore highest at the ACID end and dies as pH
+# rises — the exact mirror of the cationic core-shell pack, where the particle
+# is positive and the attraction is strongest in mid-acid.
+#
+# Scored against `oxide_silica` (peak pH 11) this dataset was the worst
+# isolated-pH group in the corpus at 94.7 %: the model predicted 2.2 A/min
+# where 109 was measured, and a RISE from pH 2 to 6 where the patent measures
+# a 9x fall. That is not a constant needing a nudge; it is the wrong system.
+
+base: oxide_silica
+description: "Oxide / anionic colloidal silica (acid-end optimum, electrostatic repulsion limited)"
+
+params:
+  reference_abrasive:
+    value: colloidal_silica
+    unit: abrasive database key
+    note: >
+      Still colloidal silica, so the inherited silica size exponent applies;
+      what differs is the particle's surface CHARGE and therefore the pH
+      response. An abrasive swap out of silica is refused here for the same
+      reasons as in the parent pack.
+    source: "CN109609035B Example 1 (anionic colloidal silica, Fuso Chemical)"
+    confidence: literature
+
+  ph_peak:
+    value: 2.0
+    unit: pH
+    note: >
+      An UPPER BOUND, at the edge of the data — the same discipline
+      `cu_h2o2_bta`'s ph_peak uses, and for the same reason.
+
+      CN109609035B Example 1 Table 1 sweeps pH 2.0 to 6.0 at fixed 1 wt%
+      anionic silica, 2 psi, 175 mL/min on a Mirra:
+
+        pH    2.0   2.5   3.0   3.5   4.0   5.0   6.0
+        A/min 109    32    16    15    11     5    12
+
+      The maximum is the FIRST point, so the optimum lies at or below pH 2 and
+      this sweep cannot locate it. Free fitting prefers to run off the end of
+      the data (pH 0.5 scores 24.4 % against 32.1 % at pH 2.0), which is
+      precisely why the peak is pinned to the lowest measured pH instead: a
+      better number bought by extrapolating into pH nobody measured is not a
+      better model. TODO(owner): a point below pH 2 would convert the bound
+      into a value.
+
+      MECHANISM. Both the anionic particle and the TEOS surface are negative
+      above the oxide's isoelectric point (~2.5); pH 2 sits below it, where the
+      film is not yet fully charged and the particle can still reach it.
+      Raising pH charges the surface, the repulsion switches on, and contact —
+      hence removal — collapses.
+    source: >
+      cn109609035b_oxide_anionic_silica_ph.yaml (7 points, pH 2-6;
+      CN109609035B Example 1 Table 1, printed table read from the patent's
+      table image)
+    confidence: med
+
+  ph_response_width:
+    value: 0.50
+    unit: pH
+    note: >
+      Fitted to the same 7 points with the peak pinned at 2.0. Far narrower
+      than the parent pack's 3.1 because this system collapses 7x within one
+      pH unit (109 -> 16 between pH 2 and 3), where plain silica changes
+      gently over the same span.
+    source: "cn109609035b_oxide_anionic_silica_ph.yaml (7 points); shape fit"
+    confidence: med
+
+  ph_mechanical_floor:
+    value: 0.11
+    unit: fraction of peak rate
+    note: >
+      Removal does not stop when the repulsion is fully on: 5-12 A/min persists
+      from pH 5 to 6 against 109 at the peak. The abrasive is still under load
+      and still removes, which is what a mechanical floor asserts.
+    source: "cn109609035b_oxide_anionic_silica_ph.yaml (pH 5 and 6 points)"
+    confidence: med
+
+  ph_acid_mechanical_floor:
+    value: 0.0
+    unit: fraction of peak rate
+    note: >
+      Unconstrained and deliberately left at zero. The sweep's lowest point IS
+      the peak, so nothing below it is measured and there is no acid-side limb
+      to floor. Any positive value here would be invented. This means a scan
+      below pH 2 falls away with no support — correct, because the data end
+      there.
+    source: "not measured: pH 2.0 is the lowest point in the source table"
+    confidence: low
+
+  ph_ref:
+    value: 2.0
+    unit: pH
+    note: >
+      The pH at which this pack's own reference rate is taken, i.e. the peak
+      row of the source table. Kp is normalised here rather than at the parent
+      pack's pH 10.5, which belongs to a different slurry system.
+    source: "cn109609035b_oxide_anionic_silica_ph.yaml (pH 2.0 row)"
+    confidence: med
+
+# ── what this pack does NOT claim ────────────────────────────────────────
+# The single-bell pH response cannot reproduce the measured UPTURN at pH 6
+# (5 -> 12 A/min from pH 5 to 6). With every parameter free the best this
+# functional form achieves on these 7 points is ~24 %, and the residual is
+# concentrated on that upturn: a monotone-decaying bell has no way to rise
+# again. The patent reads the upturn as the onset of the alkaline hydrolysis
+# route that dominates `oxide_silica` at pH 11 — i.e. a SECOND mechanism
+# appearing, not a wider bell.
+#
+# So this pack takes the dataset from 94.7 % to ~32 % and stops there. Closing
+# the rest needs two additive pH channels (electrostatic contact + alkaline
+# hydrolysis), which is a change to the functional form and to every pack that
+# uses it, not a constant in this file. Recorded rather than fitted around.

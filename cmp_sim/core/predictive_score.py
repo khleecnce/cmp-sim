@@ -43,6 +43,8 @@ PACK_FILM = {
     "oxide_silica": "oxide",
     "oxide_silica_calibrated_pad": "oxide",
     "oxide_silica_aminosilane": "oxide",
+    "oxide_silica_anionic": "oxide",
+    "cu_alkaline_benzenesulfonic": "cu",
     "sti_ceria": "sti",
     "cu_h2o2_bta": "cu",
     "w_fe_oxidizer": "w",

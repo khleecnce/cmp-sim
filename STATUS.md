@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **648 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **657 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -17,6 +17,16 @@
 - **Abrasive TYPE reaches the rate** (`slurry/abrasive_effects.py`): a swap
   rescales only by a published matched-condition ratio, withdraws the pack's
   measured exponents, says `ranking_only` when unanchored.
+- **pH is NOT thin (unlike velocity) and the optimum follows the abrasive's
+  CHARGE.** Isolated-pH groups: 12 groups / 66 pts (velocity had 29), isolated
+  median ~30% vs pooled 39.3% — isolation does not rescue it, so the term is
+  genuinely the weakest physics. Worst group (CN109609035B, 94.7%) was a THIRD
+  silica system: anionic silica peaks at or below pH 2 on the same TEOS film
+  where cationic core-shell peaks at 4.9 and plain silica at 11 — ordered by
+  particle charge vs the oxide's IEP. New pack `oxide_silica_anionic`:
+  94.7% -> 32.1%, pH axis 39.3% -> 32.1%, li2021 untouched at 0.2%.
+  ⚠ Stops at 32%: the measured pH-6 UPTURN needs a second additive pH channel
+  (alkaline hydrolysis), a functional-form change — recorded, not fitted around.
 - **The Cu pH optimum is a BOUND, from ONE system.** `ph_peak` was 4.0 =
   "the pack's operating pH", with a note asking for a pH 2-6 sweep — which was
   already in the repo. US20080090500A1 T4 falls monotonically pH 3->6 at all
@@ -57,14 +67,15 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-The pH axis still reads 39.3%, but that median is now known to be polluted the
-same way velocity's was: it pools datasets that move several things at once,
-and its two worst members (netzband2020 ceria/oxide, carbide2023 L9) do not
-even beat predicting the mean. Isolate pH the way velocity was isolated —
-group rows so ONLY pH moves, count how many points in the whole corpus
-actually do that, and report the isolated error separately — before touching
-any pH constant. If the isolated set is as thin as velocity's was (29 pts),
-say so and stop; do not refit a term on pooled scatter.
+The pH work is now blocked on a FUNCTIONAL-FORM limit, not a constant: three
+datasets (cn109609035b pH-6 upturn 32.1%, netzband2020 49.2%, dandu2009 31.5%)
+all leave residuals shaped like a SECOND pH channel the single bell cannot
+make. Before writing one, establish whether it is the same second channel in
+all three — alkaline hydrolysis rising as the electrostatic/contact term dies —
+by checking the sign and location of each residual against the bell. If they
+agree, an additive two-channel pH response is justified and must be derived
+once and applied to EVERY pack; if they do not, say so and stop. Do not add a
+per-pack fudge term.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp
@@ -92,11 +103,12 @@ say so and stop; do not refit a term on pooled scatter.
 
 Gate: 4 in-scope datasets within ±15% (need 3) → **PASS**
 
-All axes (377 pts, 39/49 scored + 2 DECLINED): median **19.5%** trend,
-**21.7%** LOO. By axis — size 11.2%, oxidizer 20.2%, loading 22.9%,
-pressure 25.3%, pH 39.3%, velocity 44.1%. ⚠ Two caveats, both against us:
-the axis medians pool datasets that vary several things at once (velocity's
-44.1% is 11.7% once isolated), and the corpus median improved partly because
-2 Cu datasets are now DECLINED rather than answered wrongly — honesty, not
-accuracy.
+All axes (394 pts, 43/49 scored + 2 DECLINED): median **20.2%** trend,
+**22.6%** LOO. By axis — size 11.2%, oxidizer 20.2%, loading 22.9%,
+pressure 25.3%, pH 32.1%, velocity 44.1%. ⚠ Caveats, all against us: the axis
+medians pool datasets that vary several things at once — velocity's 44.1% is
+11.7% once isolated (thin axis, 29 pts), while pH's holds up under isolation
+(12 groups / 66 pts, ~30%) so it IS the weakest term. 2 Cu datasets are
+DECLINED rather than answered wrongly (honesty, not accuracy), and the median
+ticked 19.5 -> 20.2% because 4 newly-scorable datasets entered the pool.
 Resume handover: `~/CMP-SIM-FOR-RESUME.md`

@@ -1,0 +1,150 @@
+# Blanket SiO2 (TEOS) CMP — ANIONIC colloidal silica, 1 wt%, 7-level pH sweep.
+#
+# WHY THIS FILE OVERRIDES THE INHERITED COPY
+# ------------------------------------------
+# One line differs: `pack`. Everything else — source, conditions, numbers,
+# caveats — is the inherited file's work and is reproduced unchanged.
+#
+# The inherited copy points at `oxide_silica` and says, in its own notes, that
+# the point of registering it was to find out whether that pack "correctly
+# predicts a monotone fall in this acidic region, or has a dead zone on the
+# acid side". The backtest answered: it has the wrong sign. Scored against
+# `oxide_silica` (ph_peak 11.0) this was the worst isolated-pH group in the
+# corpus at 94.7 %, predicting 2.2 A/min where 109 was measured and a RISE
+# across pH 2->6 where the table falls 9x.
+#
+# That is not a mis-set constant. It is the third distinct silica system on
+# this film:
+#
+#   plain silica, 20 wt%          peak pH 11     (oxide_silica, Li 2021)
+#   cationic core-shell           peak pH 4.9    (oxide_silica_aminosilane)
+#   anionic silica, 1 wt%         peak <= pH 2   (THIS FILE)
+#
+# so it is repointed at `oxide_silica_anionic`, following the same rule the
+# aminosilane split established: the pH optimum belongs to the SLURRY SYSTEM,
+# not to the film, and packs are split rather than bells widened.
+#
+# ⚠ HONEST RESULT. This takes the dataset from 94.7 % to ~32 %, not to a pass.
+# The single-bell pH form cannot reproduce the measured UPTURN at pH 6
+# (5 -> 12 A/min), which the patent attributes to the alkaline hydrolysis
+# route taking over — a second mechanism, not a wider bell. The residual is
+# concentrated there and is recorded in the pack rather than fitted around.
+
+source: >
+  CN109609035B, "Polishing composition comprising charged abrasive",
+  Fujifilm Electronic Materials USA Inc (US-application-based patent family).
+  https://patents.google.com/patent/CN109609035B
+  Example 1 (anionic silica), Table 1 printed values. The table renders on
+  Google Patents as a scanned image, so it was read from the table image
+  cached at papers/patents/CN109609035B.html:
+  https://patentimages.storage.googleapis.com/0f/68/a3/83adfefe52c850/BDA0001627408970000221.png
+  The numbers inside the image are a printed table, hence read_method: table.
+
+in_scope: true
+used_for_calibration: false
+pack: oxide_silica_anionic
+
+# ── fixed conditions (from the specification text) ─────────────────────────
+# Anionic silica (Fuso Chemical) 1 wt%, acid/base pH adjuster, water.
+# Applied Materials Mirra polisher, 2 psi down force, 175 mL/min slurry flow,
+# 8-inch SiN/SiO2(TEOS)-clad blanket wafers. Head/platen rpm are not stated in
+# the text — set to 60/60 as in dandu2009. Since only pH varies, the absolute
+# rpm acts as one constant factor on every row and does not affect a rank or
+# shape metric. Not suitable for absolute-rate comparison.
+
+conditions:
+  - label: "pH 2.0 (1 wt% anionic silica)"
+    pressure_psi: 2.0
+    rpm_wafer: 60
+    rpm_platen: 60
+    mrr_nm_per_min: 10.9
+    read_method: table
+    overrides:
+      sfr_ml_min: 175
+      slurry_ph: 2.0
+      abrasive_wt_pct: 1.0
+  - label: "pH 2.5"
+    pressure_psi: 2.0
+    rpm_wafer: 60
+    rpm_platen: 60
+    mrr_nm_per_min: 3.2
+    read_method: table
+    overrides:
+      sfr_ml_min: 175
+      slurry_ph: 2.5
+      abrasive_wt_pct: 1.0
+  - label: "pH 3.0"
+    pressure_psi: 2.0
+    rpm_wafer: 60
+    rpm_platen: 60
+    mrr_nm_per_min: 1.6
+    read_method: table
+    overrides:
+      sfr_ml_min: 175
+      slurry_ph: 3.0
+      abrasive_wt_pct: 1.0
+  - label: "pH 3.5"
+    pressure_psi: 2.0
+    rpm_wafer: 60
+    rpm_platen: 60
+    mrr_nm_per_min: 1.5
+    read_method: table
+    overrides:
+      sfr_ml_min: 175
+      slurry_ph: 3.5
+      abrasive_wt_pct: 1.0
+  - label: "pH 4.0"
+    pressure_psi: 2.0
+    rpm_wafer: 60
+    rpm_platen: 60
+    mrr_nm_per_min: 1.1
+    read_method: table
+    overrides:
+      sfr_ml_min: 175
+      slurry_ph: 4.0
+      abrasive_wt_pct: 1.0
+  - label: "pH 5.0"
+    pressure_psi: 2.0
+    rpm_wafer: 60
+    rpm_platen: 60
+    mrr_nm_per_min: 0.5
+    read_method: table
+    overrides:
+      sfr_ml_min: 175
+      slurry_ph: 5.0
+      abrasive_wt_pct: 1.0
+  - label: "pH 6.0 (slight upturn)"
+    pressure_psi: 2.0
+    rpm_wafer: 60
+    rpm_platen: 60
+    mrr_nm_per_min: 1.2
+    read_method: table
+    overrides:
+      sfr_ml_min: 175
+      slurry_ph: 6.0
+      abrasive_wt_pct: 1.0
+
+notes: >
+  Variable: pH alone (2.0 -> 6.0, mostly in 0.5 steps). Down force (2 psi) and
+  anionic silica concentration (1 wt%) are fixed across every row.
+
+  Original units are A/min, divided by 10 for nm/min:
+  109 -> 10.9, 32 -> 3.2, 16 -> 1.6, 15 -> 1.5, 11 -> 1.1, 5 -> 0.5, 12 -> 1.2.
+
+  THE PHYSICS THIS TESTS. The specification explains that an anionic
+  (negatively charged) silica and a TEOS surface — itself negative above its
+  isoelectric point of ~2.5 — repel each other, so SiO2 removal is highest
+  where that repulsion has not yet switched on. The table bears this out:
+  maximum 10.9 nm/min at pH 2, monotone decline to pH 5, then a slight upturn
+  at pH 6 (0.5 -> 1.2).
+
+  Li 2021, the calibration source for the plain-silica pack, reports the
+  OPPOSITE: a peak in the alkaline region (pH 10-12.5). The two datasets are
+  not in conflict — they are different slurry systems, which is why they now
+  sit in different packs.
+
+  ⚠ Particle size is not stated (the text says only "anionic silica from Fuso
+  Chemical"), so no abrasive_size_nm override is given and the pack default
+  (50 nm) applies.
+  ⚠ Slurry flow (175 mL/min) is carried as an override for the record; it is
+  constant across rows and so cannot affect a shape metric.

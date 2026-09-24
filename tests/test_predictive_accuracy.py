@@ -208,32 +208,50 @@ def test_the_two_oxide_loading_datasets_still_disagree():
         "abrasive_conc_half_wt_pct was not re-tuned to a single dataset")
 
 
-def test_the_anionic_silica_system_is_recorded_as_mis_served():
-    """CN109609035B is predicted badly (about 95%) and that is the honest
-    state, not an oversight.
+def test_the_anionic_silica_system_got_its_own_pack_not_a_wider_bell():
+    """CN109609035B was ~95% wrong, and the fix was a pack split.
 
-    It measures a 22x FALL from pH 2 to pH 5 with anionic-surfactant
-    stabilised silica, i.e. its optimum is near pH 2. oxide_silica's optimum
-    is pH 11, measured by Li 2021 on a conventional alkaline slurry. The two
-    are different slurry SYSTEMS that happen to share a film and an abrasive
-    mineral, so serving both from one pack means the acid series sits entirely
-    on the mechanical floor.
+    It measures a 22x FALL from pH 2 to pH 5 with anionic silica, i.e. its
+    optimum is at or below pH 2. `oxide_silica`'s optimum is pH 11, measured by
+    Li 2021 on a conventional alkaline slurry. Same film, same abrasive
+    mineral, opposite charge sign — different slurry SYSTEMS, so serving both
+    from one pack put the acid series entirely on the mechanical floor.
 
-    The options were: widen the bell until it covers pH 2-12 (which would
-    flatten the pH dependence everywhere and wreck Li 2021, currently 0.2%),
-    or add a separate pack for surfactant-stabilised acidic silica (needs its
-    own Kp, which no dataset here provides). Neither is an improvement, so the
-    error stays and is named.
+    The earlier version of this test recorded the error as accepted, listing
+    two options: widen the bell to span pH 2-12 (which would flatten the pH
+    dependence everywhere and wreck Li 2021), or give the system its own pack.
+    The second was taken, following `oxide_silica_aminosilane`.
+
+    The assertions below are the ones that make it a fix rather than a
+    flattering refit: the split must not have moved the other two silica
+    systems, and the residual must still be honest about what the single-bell
+    form cannot do.
     """
     from cmp_sim.core.predictive_score import score_dataset
 
-    s = score_dataset(next(p for p in dataset_paths()
-                           if p.stem == "cn109609035b_oxide_anionic_silica_ph"))
-    assert s.shape_mape is not None, "it must at least RUN; it once returned 0.0"
-    assert s.shape_mape > 50.0, (
-        "cn109609035b is now fitted well. If a real fix landed, update this "
-        "test; if oxide_silica's pH optimum was widened to cover it, check "
-        "that li2021_oxide_silica_ph did not regress")
+    def _score(stem):
+        return score_dataset(next(p for p in dataset_paths() if p.stem == stem))
+
+    anionic = _score("cn109609035b_oxide_anionic_silica_ph")
+    assert anionic.shape_mape is not None, "it must at least RUN"
+    assert anionic.shape_mape < 40.0, anionic.shape_mape
+    assert anionic.beats_flat
+
+    # The other two silica systems must be untouched — that is the whole point
+    # of splitting rather than widening.
+    assert _score("li2021_oxide_silica_ph").shape_mape < 1.0, (
+        "the plain-silica calibration regressed, so the bell WAS widened")
+    assert _score("us9422456b2_teos_silica_ph_pressure").shape_mape < 30.0, (
+        "the cationic core-shell pack regressed")
+
+    # And the residual must not be fitted away: a monotone-decaying bell cannot
+    # reproduce the measured upturn at pH 6, which the patent attributes to a
+    # second (alkaline hydrolysis) mechanism.
+    assert anionic.shape_mape > 20.0, (
+        "the anionic dataset is now fitted closely, which a single-bell pH "
+        "response should not manage against the pH 6 upturn. Check that a "
+        "second pH channel was not quietly added, or that the upturn point "
+        "was not dropped")
 
 
 def test_sic_declares_no_loading_saturation():

@@ -1366,3 +1366,67 @@ cannot be scored at all, and it is calibration data besides. The change is
 justified by shape against a printed table, and the test suite asserts that it
 is invisible to the headline — so that a future edit making the dataset
 scorable fails loudly instead of silently inheriting an unearned claim.
+
+## The pH axis is not thin — and the optimum belongs to the abrasive's charge
+
+### First, the diagnosis that had to come before any refit
+When velocity looked like the worst axis, isolating it dissolved the problem:
+only 29 points in the corpus vary speed with everything else fixed, and on the
+one isolated sweep the error was 11.7 %, not 44.1 %. The same test had to be run
+on pH before touching a pH constant, because a pooled median cannot distinguish
+*the term is wrong* from *these datasets move four things at once*.
+
+Grouping rows so that **only** pH varies gives **12 groups and 66 points** —
+more than twice velocity's isolated set — and an isolated median of ~30 %
+against a pooled 39.3 %. Isolation does not rescue pH. The term really is the
+weakest physics in the model, and there is enough data to work on it.
+
+### What the isolated groups then showed
+The worst of them, at 94.7 %, was CN 109609035 B: anionic colloidal silica on
+TEOS oxide, 7 pH levels at fixed loading, pressure and flow.
+
+| pH | 2.0 | 2.5 | 3.0 | 3.5 | 4.0 | 5.0 | 6.0 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| measured (Å/min) | 109 | 32 | 16 | 15 | 11 | 5 | 12 |
+| `oxide_silica` predicted | 2.2 | 2.3 | 2.5 | 2.8 | 3.5 | 7.3 | 18.3 |
+
+The model predicted a *rise* across the range where the patent measures a 9×
+fall, and sat two orders of magnitude low. Not a mis-set constant — the wrong
+system.
+
+### Three silica systems, three optima, nine pH units apart
+The repository now holds three pH sweeps on the **same TEOS film with the same
+abrasive mineral**, and their maxima are ordered by the abrasive's surface
+charge:
+
+| pack | abrasive | optimum |
+|---|---|---|
+| `oxide_silica_anionic` | anionic silica, 1 wt% | ≤ pH 2 |
+| `oxide_silica_aminosilane` | cationic core-shell | pH 4.9 |
+| `oxide_silica` | plain silica, 20 wt% | pH 11 |
+
+The mechanism is electrostatic and is stated by the patents themselves. TEOS
+oxide is negative above its isoelectric point (~2.5). An **anionic** particle is
+therefore repelled as soon as the surface charges up, so removal survives only
+at the acid end. A **cationic** shell is attracted instead, peaking in mid-acid
+until its amine deprotonates and both surfaces turn negative. **Plain** silica
+has neither and follows the alkaline hydrolysis route.
+
+So the pH optimum is a property of the slurry system, not of the film — the
+same conclusion the aminosilane split reached, now confirmed by a third point
+that extends the ordering in the opposite direction. Each gets its own pack;
+widening one bell to span pH 2–11 would predict a rate everywhere and the right
+rate nowhere, and would destroy Li 2021 (currently 0.2 %).
+
+### The honest residual
+The split takes CN 109609035 B from **94.7 % to 32.1 %**, and stops there. The
+measured series turns **up** at pH 6 (5 → 12 Å/min), and a monotone-decaying
+bell cannot rise again — with every parameter free, the best this functional
+form manages on these 7 points is ~24 %, with the residual concentrated on that
+one point. The patent reads the upturn as the alkaline hydrolysis route
+switching on, i.e. a *second mechanism*, not a wider bell. Closing it needs two
+additive pH channels — a change to the functional form and to every pack that
+uses it — so it is recorded in the pack and in a test rather than fitted around.
+
+Corpus effect: pH axis 39.3 % → 32.1 %, and four datasets that could not be
+scored at all (no pack knew their film) now score.
