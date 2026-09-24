@@ -2167,3 +2167,32 @@ False would assert the error exceeds a floor nobody measured.
 
 Enforced by `tests/test_noise_floor_can_exist_unmeasured.py` (6) and
 `tests/test_replicate_column_is_reporting_only.py` (5).
+
+## One exponent cannot serve three films — the titanium case
+
+`bouvet2002_ti_silica_size_sweep` carried the corpus's largest miss relative to
+its own floor: 30.7% shape error against a ~2.7% digitisation floor, on the size
+axis, which is otherwise the model's strongest (11.2% median). That combination
+looks exactly like a broken size term, and it isn't.
+
+The paper gives three size sweeps — Ti, W and oxide — from one figure, one slurry
+family, one tool. Only the film changes, and the three empirical exponents are
+**Ti −0.454, W −0.049, oxide +0.001**. All three are scored with `oxide_silica`,
+whose `abrasive_size_exponent` is −0.05: W's value. So the pack is correct for
+two of the three films and wrong for the third, and that single mismatch is the
+whole error.
+
+The tempting fix — fit Ti's −0.45 — was rejected because it would validate
+itself. These four points are the only titanium data in the corpus, so a constant
+fitted to them would be tested on them alone; its error would fall to near zero
+while saying nothing about generalisation. The evidence is thinner than the trend
+looks, too: R² = 0.89 as a pure power law, with a −13.9% residual at 25 nm, on
+four digitised points.
+
+The verdict is therefore that **Ti is unsupported**, stated in the data
+(`film: other`, pack flagged as a placeholder for shape/rank use only) rather
+than papered over. The miss stays in the score deliberately: an unsupported film
+that vanishes from the report is worse than a visible 30.7%.
+
+Recorded as limit 9 in `docs/limits.md`; enforced by
+`tests/test_titanium_is_unsupported.py` (7).

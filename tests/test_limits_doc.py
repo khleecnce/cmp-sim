@@ -52,6 +52,7 @@ LIMIT_ENFORCING_TESTS = {
     "test_noise_floor_can_exist_unmeasured.py",
     "test_replicate_column_is_reporting_only.py",
     "test_pack_axis_blindness_audit.py",
+    "test_titanium_is_unsupported.py",
 }
 
 

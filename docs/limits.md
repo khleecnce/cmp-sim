@@ -241,3 +241,45 @@ is a statement about pH 3–6 and nothing wider; outside that window the honest
 behaviour is to decline rather than to extrapolate a flat response.
 
 **Enforced by** `tests/test_pack_axis_blindness_audit.py`.
+
+---
+
+## 9. Titanium is an unsupported film, and one figure cannot make it supported
+
+**The measurement.** `bouvet2002_ti_silica_size_sweep` is the corpus's largest
+miss relative to its own floor: **30.7%** shape error against a ~2.7%
+digitisation floor, on the size axis — otherwise the model's best (11.2%).
+
+Three files come from the same paper, the same figure, the same slurry family and
+the same tool. Only the film differs, and the three films disagree completely
+about what particle size does:
+
+| d50 (nm) | Ti | W | oxide |
+|---|---|---|---|
+| 12 | 2055 | 3097 | 1355 |
+| 25 | 1840 | 2975 | 1875 |
+| 45 | 1141 | 2743 | 1564 |
+| 75 | 946 | 2893 | 1402 |
+
+Empirical size exponent: **Ti −0.454, W −0.049, oxide +0.001**. All three are
+scored with `pack: oxide_silica`, whose `abrasive_size_exponent` is **−0.05** —
+W's value to two decimals. The pack is right for W (2.3%) and oxide (11.2%) and
+wrong for Ti, and that one mismatched exponent is the entire 30.7%.
+
+**The refit that was rejected.** Fitting a Ti exponent of −0.45. It would have
+taken the error to near zero — and told us nothing. These four points are the
+**only** titanium data in the corpus, so the constant would be tested on exactly
+the data it was fitted to. The data is also weaker than the clean trend suggests:
+as a pure power law Ti gives R² = 0.89 with a −13.9% residual at 25 nm, on four
+*digitised* points.
+
+**What would resolve it.** A second, independent Ti size sweep from a different
+group, with a printed rate table rather than a figure. Two datasets make a fitted
+exponent testable; one makes it self-validating.
+
+The dataset already declares `film: other` and flags its pack as a placeholder
+for shape/rank use only. The miss stays **visible** in the score rather than
+being excluded — an unsupported film that quietly disappears from the report is
+worse than a 30.7% a reader can see and interrogate.
+
+**Enforced by** `tests/test_titanium_is_unsupported.py`.

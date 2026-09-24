@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **759 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **766 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -26,7 +26,13 @@
   _ti 2.7%), and nothing-stated. That separates bouvet2002_w (2.3% vs 1.0% floor,
   finished) from bouvet2002_ti (30.7% vs 2.7%, a real miss) — previously
   indistinguishable. `at_noise_floor` is None, never False, when unmeasured.
-- **`docs/limits.md` — one page for what the model REFUSES to predict.** 8 entries,
+- **Ti declared UNSUPPORTED (limit 9).** bouvet2002_ti was the largest miss vs its
+  own floor (30.7% vs 2.7% digitisation). Cause found: three sweeps from ONE figure
+  (Ti/W/oxide, same tool+slurry) have exponents -0.454 / -0.049 / +0.001, and the
+  shared pack carries -0.05 = W's value. Fitting Ti's -0.45 was REJECTED: it is the
+  only Ti data in the corpus, so the constant would be tested on its own fitting
+  set (and R^2 is only 0.89 on 4 digitised points). Miss kept visible in the score.
+- **`docs/limits.md` — one page for what the model REFUSES to predict.** 9 entries,
   each with the measurement that establishes the limit, the refit that was rejected
   and its cost, and the experiment that would lift it. Distinct from
   open-questions.md (undecided items): these are DECIDED refusals. Guarded by
@@ -179,15 +185,14 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-bouvet2002_ti_silica_size_sweep is now the clearest undiagnosed miss in the
-corpus: 30.7% shape error against a 2.7% transcription floor, an order of
-magnitude above it, on a size sweep — the axis that is otherwise the model's
-best (11.2%). Its sibling files from the SAME figure score 2.3% (W) and well
-under that (oxide), so the tool, the slurry family and the digitisation are all
-shared; only the film differs. Diagnose why Ti breaks. Note the pack is flagged
-a placeholder (no Ti parameter pack exists, shape/rank use only), so the honest
-outcome may be to declare Ti unsupported rather than to fit one — but decide
-that from the residual's SHAPE, not from the pack's absence.
+The Ti diagnosis exposed a general hazard worth auditing: `oxide_silica` is
+scored against datasets whose film is NOT oxide (Ti at least), and its size
+exponent turned out to be W's. Sweep every dataset for the same pattern — a pack
+used on a film it was not fitted to — and for each, state whether the borrowing
+is justified (same mechanism, measured ratio) or is a silent film mismatch like
+Ti's. Report it as a table in the audit test. Do NOT create new packs to fix what
+it finds; the deliverable is knowing which scores rest on a borrowed constant,
+because a good number from the wrong pack is worse than a visible bad one.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp
