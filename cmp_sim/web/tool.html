@@ -352,6 +352,8 @@ const DRAWERS = {
   platen: () => DRAWERS.tool(),
   head: () => DRAWERS.tool(),
   nozzle: () => DRAWERS.slurry(),
+  carousel: () => DRAWERS.tool(),
+  loadcup: () => DRAWERS.wafer(),
 
   disk: () => ({
     title: 'Conditioner disk',
@@ -587,12 +589,14 @@ $('dgo').onclick = run;
 
   // the legend doubles as a keyboard/no-3D route into every drawer
   const seen = new Set();
-  const order = ['wafer', 'head', 'pad', 'platen', 'disk', 'slurry', 'frame'];
+  const order = ['wafer', 'head', 'pad', 'platen', 'disk', 'slurry',
+                 'loadcup', 'carousel'];
   $('legendbtns').innerHTML = order.filter(p => !seen.has(p) && seen.add(p) !== false)
     .map(p => `<button data-part="${p}">${
-      ({ wafer: 'Wafer / film stack', head: 'Carrier head', pad: 'Pad',
+      ({ wafer: 'Wafer / film stack', head: 'Carrier head', pad: 'Pad (platen 1)',
          platen: 'Platen & speeds', disk: 'Conditioner disk',
-         slurry: 'Slurry supply unit', frame: 'Process setup' })[p]}</button>`).join('');
+         slurry: 'Slurry supply unit', loadcup: 'Load cup (wafer in/out)',
+         carousel: 'Carousel / process setup' })[p]}</button>`).join('');
   $('legendbtns').querySelectorAll('button').forEach(b =>
     b.addEventListener('click', () => openDrawer(b.dataset.part)));
 

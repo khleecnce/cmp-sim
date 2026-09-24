@@ -1,4 +1,4 @@
-/* CMP tool scene — a clickable polisher, built in geometry rather than painted.
+/* CMP tool scene — an AMAT Reflexion-style polisher you click to enter data.
  *
  * Why geometry and not an AI-rendered image
  * ----------------------------------------
@@ -6,9 +6,34 @@
  * A generated bitmap can only be clicked by guessing pixel boxes, and it drifts
  * from the model: if the platen is at 60 rpm the picture cannot show it. Every
  * part here is a real mesh, so a click is a raycast hit on the actual object,
- * the platen and head really rotate at the recipe's rpm, the slurry arm really
- * delivers at the recipe's flow, and the wafer's colour map is the SIMULATED
- * radial removal profile rather than decoration.
+ * the platens and heads really rotate at the recipe's rpm, the slurry arm
+ * really delivers at the recipe's flow, and the wafer's colour map is the
+ * SIMULATED radial removal profile rather than decoration.
+ *
+ * Why THIS layout — the Reflexion platform
+ * ----------------------------------------
+ * Modelled on the Applied Materials Reflexion / Reflexion LK 300 mm platform,
+ * the tool the owner's customers actually run:
+ *
+ *   - THREE polishing platens, not one. A Cu flow is bulk -> barrier -> buff
+ *     across three platens, so a single-platen picture cannot represent the
+ *     process the user is designing.
+ *   - FOUR carrier heads on a rotating CAROUSEL, which indexes wafers platen to
+ *     platen. This is the defining feature of the platform's silhouette.
+ *   - A LOAD CUP at the fourth carousel station for wafer transfer, which is
+ *     why there are four heads for three platens.
+ *   - A conditioner sweep arm per platen, and a slurry delivery arm per platen.
+ *
+ * Source for the architecture: Applied Materials Reflexion / Reflexion LK
+ * product literature and Entrepix's Reflexion refurbishment documentation
+ * (three platens, four carriers on a carousel transfer mechanism, multi-zone
+ * heads in the Titan 3-zone .. Horizon 12-zone families).
+ *
+ * The SIMULATION is still single-platen: the solver predicts one polish step.
+ * Platen 1 is therefore the "active" platen — it is the one carrying the wafer
+ * whose profile is painted, and the one whose pad the recipe describes. The
+ * other two are shown because the tool has them, and are labelled as inactive
+ * rather than pretending to be simulated.
  *
  * Parts that carry data (click to open that section of the form):
  *   wafer / carrier head   -> wafer + film stack
@@ -16,21 +41,33 @@
  *   conditioner disk       -> diamond disk and conditioning
  *   slurry supply unit     -> slurry formulation (the tank, not the nozzle:
  *                             the formulator's mental model is the supply drum)
- *   tool frame             -> pressure, speeds, flow, time
+ *   carousel / frame       -> pressure, speeds, flow, time
  */
 import * as THREE from './three.module.min.js';
 import { OrbitControls } from './OrbitControls.js';
 
 const PARTS = {
-  wafer:      { label: 'Wafer / film stack',   section: 'wafer'  },
-  head:       { label: 'Carrier head',         section: 'tool'   },
-  pad:        { label: 'Pad',                  section: 'pad'    },
-  platen:     { label: 'Platen',               section: 'tool'   },
-  disk:       { label: 'Conditioner disk',     section: 'disk'   },
-  slurry:     { label: 'Slurry supply unit',   section: 'slurry' },
-  nozzle:     { label: 'Slurry delivery arm',  section: 'slurry' },
-  frame:      { label: 'Tool / process setup', section: 'tool'   },
+  wafer:      { label: 'Wafer / film stack',      section: 'wafer'  },
+  head:       { label: 'Carrier head',            section: 'tool'   },
+  pad:        { label: 'Pad (platen 1)',          section: 'pad'    },
+  platen:     { label: 'Platen',                  section: 'tool'   },
+  disk:       { label: 'Conditioner disk',        section: 'disk'   },
+  slurry:     { label: 'Slurry supply unit',      section: 'slurry' },
+  nozzle:     { label: 'Slurry delivery arm',     section: 'slurry' },
+  carousel:   { label: 'Carousel / process setup',section: 'tool'   },
+  loadcup:    { label: 'Load cup (wafer in/out)', section: 'wafer'  },
+  frame:      { label: 'Tool / process setup',    section: 'tool'   },
 };
+
+// Platen centres on the Reflexion deck. Three platens sit on a circle around
+// the carousel axis; the fourth carousel station is the load cup.
+const R_DECK = 1.02;                       // carousel arm reach
+const STATIONS = [0, 1, 2, 3].map(i => {
+  const a = -Math.PI / 2 + i * (Math.PI / 2);    // 4 stations, 90 deg apart
+  return { i, a, x: Math.cos(a) * R_DECK, z: Math.sin(a) * R_DECK };
+});
+const PLATEN_STATIONS = [0, 1, 2];         // stations 0..2 carry platens
+const LOADCUP_STATION = 3;                 // station 3 is the load cup
 
 export function createScene(canvas, onPick) {
   // preserveDrawingBuffer: an end-to-end test must be able to read the rendered
@@ -45,41 +82,44 @@ export function createScene(canvas, onPick) {
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x0b0d12);
-  scene.fog = new THREE.Fog(0x0b0d12, 2.4, 7.5);
+  scene.fog = new THREE.Fog(0x0b0d12, 7.0, 20.0);
 
-  const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
-  // Framed to include the slurry supply unit at x = -1.35: an earlier, closer
-  // camera cropped it off the left edge, so the part the formulator cares about
-  // most was the one part not visible.
-  camera.position.set(2.05, 1.70, 2.60);
+  const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 120);
+  // Framed to hold the WHOLE machine: a 1.8-unit-radius deck, the carousel mast
+  // standing 1.3 above it, and the slurry cabinet out at (-2.05, 1.55). The
+  // first attempt at this camera sat at 3.0 units and the deck overflowed the
+  // frame with the cabinet entirely off-screen — verified by screenshot, not by
+  // eye-balling the numbers.
+  camera.position.set(4.9, 3.5, 5.4);
 
   const controls = new OrbitControls(camera, renderer.domElement);
-  controls.target.set(-0.16, 0.20, 0.10);
+  // Aimed slightly toward the cabinet side so the supply unit stays in frame.
+  controls.target.set(-0.35, 0.25, 0.25);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
-  controls.minDistance = 1.0;
-  controls.maxDistance = 6.0;
+  controls.minDistance = 1.6;
+  controls.maxDistance = 16.0;
   controls.maxPolarAngle = Math.PI * 0.49;
 
   // ── lighting: one key light with shadows, plus fill, plus a rim ──
-  scene.add(new THREE.HemisphereLight(0x8fa8c8, 0x14161c, 0.55));
-  const key = new THREE.DirectionalLight(0xffffff, 2.1);
-  key.position.set(2.2, 3.4, 1.8);
+  scene.add(new THREE.HemisphereLight(0x8fa8c8, 0x14161c, 0.58));
+  const key = new THREE.DirectionalLight(0xffffff, 2.0);
+  key.position.set(3.4, 5.0, 2.6);
   key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048);
   key.shadow.camera.near = 0.5;
-  key.shadow.camera.far = 12;
-  key.shadow.camera.left = -2.2;
-  key.shadow.camera.right = 2.2;
-  key.shadow.camera.top = 2.2;
-  key.shadow.camera.bottom = -2.2;
+  key.shadow.camera.far = 18;
+  key.shadow.camera.left = -3.4;
+  key.shadow.camera.right = 3.4;
+  key.shadow.camera.top = 3.4;
+  key.shadow.camera.bottom = -3.4;
   key.shadow.bias = -0.0008;
   scene.add(key);
   const fill = new THREE.DirectionalLight(0x6f9bd1, 0.45);
-  fill.position.set(-2.4, 1.2, -1.6);
+  fill.position.set(-3.0, 1.6, -2.2);
   scene.add(fill);
-  const rim = new THREE.SpotLight(0x4da3ff, 1.4, 8, 0.6, 0.5, 1.4);
-  rim.position.set(-1.0, 2.0, -2.2);
+  const rim = new THREE.SpotLight(0x4da3ff, 1.6, 12, 0.7, 0.5, 1.4);
+  rim.position.set(-1.6, 2.8, -3.0);
   scene.add(rim);
 
   // ── materials ───────────────────────────────────────────────────
@@ -87,7 +127,9 @@ export function createScene(canvas, onPick) {
     steel:  new THREE.MeshStandardMaterial({ color: 0x9aa4b2, metalness: 0.92, roughness: 0.34 }),
     dark:   new THREE.MeshStandardMaterial({ color: 0x2b303a, metalness: 0.65, roughness: 0.55 }),
     panel:  new THREE.MeshStandardMaterial({ color: 0x3a4150, metalness: 0.35, roughness: 0.62 }),
+    deck:   new THREE.MeshStandardMaterial({ color: 0x323845, metalness: 0.45, roughness: 0.58 }),
     pad:    new THREE.MeshStandardMaterial({ color: 0xd9dbe0, metalness: 0.02, roughness: 0.95 }),
+    padOff: new THREE.MeshStandardMaterial({ color: 0x8e939c, metalness: 0.02, roughness: 0.95 }),
     wafer:  new THREE.MeshStandardMaterial({ color: 0x8899aa, metalness: 0.55, roughness: 0.22,
                                             vertexColors: true }),
     glass:  new THREE.MeshStandardMaterial({ color: 0x9fd8ff, metalness: 0.1, roughness: 0.08,
@@ -102,52 +144,56 @@ export function createScene(canvas, onPick) {
   const pickable = [];
   function tag(mesh, part) {
     mesh.userData.part = part;
-    mesh.userData.baseEmissive = 0x000000;
     pickable.push(mesh);
     return mesh;
   }
 
   // ── floor ───────────────────────────────────────────────────────
   const floor = new THREE.Mesh(
-    new THREE.CircleGeometry(4.2, 64),
+    new THREE.CircleGeometry(7.0, 64),
     new THREE.MeshStandardMaterial({ color: 0x11141a, roughness: 0.9, metalness: 0.1 }));
   floor.rotation.x = -Math.PI / 2;
-  floor.position.y = -0.34;
+  floor.position.y = -0.62;
   floor.receiveShadow = true;
   scene.add(floor);
 
-  // ── tool base / frame ───────────────────────────────────────────
+  // ── tool frame: the deck the platens are set into ───────────────
   const frame = new THREE.Group();
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 1.02, 0.30, 64), M.panel);
-  base.position.y = -0.18;
-  base.castShadow = base.receiveShadow = true;
-  frame.add(tag(base, 'frame'));
+  const deck = new THREE.Mesh(new THREE.CylinderGeometry(1.72, 1.80, 0.36, 72), M.deck);
+  deck.position.y = -0.20;
+  deck.castShadow = deck.receiveShadow = true;
+  frame.add(tag(deck, 'frame'));
 
-  const skirt = new THREE.Mesh(new THREE.TorusGeometry(0.93, 0.035, 12, 64), M.steel);
-  skirt.rotation.x = Math.PI / 2;
-  skirt.position.y = -0.03;
-  frame.add(tag(skirt, 'frame'));
+  const deckRim = new THREE.Mesh(new THREE.TorusGeometry(1.72, 0.04, 12, 80), M.steel);
+  deckRim.rotation.x = Math.PI / 2;
+  deckRim.position.y = -0.02;
+  frame.add(tag(deckRim, 'frame'));
+
+  // base cabinets under the deck — the tool is a floor machine, and without a
+  // body the platens look like they are floating on a table.
+  for (let i = 0; i < 4; i++) {
+    const a = i * (Math.PI / 2) + Math.PI / 4;
+    const cab = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.46, 0.85), M.panel);
+    cab.position.set(Math.cos(a) * 1.12, -0.60, Math.sin(a) * 1.12);
+    cab.rotation.y = -a;
+    cab.castShadow = cab.receiveShadow = true;
+    frame.add(tag(cab, 'frame'));
+  }
   scene.add(frame);
 
-  // ── platen + pad (rotates) ──────────────────────────────────────
-  const platenGroup = new THREE.Group();
-  const platen = new THREE.Mesh(new THREE.CylinderGeometry(0.88, 0.88, 0.07, 96), M.steel);
-  platen.position.y = 0.0;
-  platen.castShadow = platen.receiveShadow = true;
-  platenGroup.add(tag(platen, 'platen'));
-
-  const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.86, 0.86, 0.035, 96), M.pad);
-  pad.position.y = 0.052;
-  pad.castShadow = pad.receiveShadow = true;
-  platenGroup.add(tag(pad, 'pad'));
-
-  // GROOVES AS A TEXTURE, NOT AS GEOMETRY. Concentric tori at a 2 mm pitch
-  // means ~190 rings on a 30-inch pad; at screen scale they alias into a moiré
-  // shimmer that reads as a rendering fault rather than as a grooved pad. A
-  // canvas texture with mipmaps and anisotropic filtering resolves cleanly at
-  // every zoom AND still moves with the pitch, which is the point — the picture
-  // has to be honest about the recipe.
+  // ── the three platens ───────────────────────────────────────────
+  // Platen 1 (station 0) is the ACTIVE one: the solver simulates a single
+  // polish step, so exactly one platen may claim to be the simulated one.
+  const PLATEN_R = 0.62;
+  const platens = [];
   let grooveTex = null;
+
+  /* GROOVES AS A TEXTURE, NOT AS GEOMETRY. Concentric tori at a 2 mm pitch
+   * means ~190 rings on a 30-inch pad; at screen scale they alias into a moiré
+   * shimmer that reads as a rendering fault rather than as a grooved pad. A
+   * canvas texture with mipmaps and anisotropic filtering resolves cleanly at
+   * every zoom AND still moves with the pitch, which is the point — the picture
+   * has to be honest about the recipe. */
   function buildGrooves(pitchMm, widthMm) {
     const pitch = Math.max(0.5, Number(pitchMm) || 2.0);       // mm
     const width = Math.max(0.1, Number(widthMm) || 0.5);       // mm
@@ -172,60 +218,119 @@ export function createScene(canvas, onPick) {
     grooveTex.colorSpace = THREE.SRGBColorSpace;
     M.pad.map = grooveTex;
     M.pad.needsUpdate = true;
+    M.padOff.map = grooveTex;
+    M.padOff.needsUpdate = true;
   }
   buildGrooves(2.0, 0.5);
-  scene.add(platenGroup);
 
-  // ── carrier head + wafer (rotates, off-centre like a real tool) ──
-  const headGroup = new THREE.Group();
-  headGroup.position.set(0.40, 0, 0);
+  for (const si of PLATEN_STATIONS) {
+    const st = STATIONS[si];
+    const g = new THREE.Group();
+    g.position.set(st.x, 0, st.z);
 
-  const spindle = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.85, 24), M.steel);
-  spindle.position.y = 0.62;
-  spindle.castShadow = true;
-  headGroup.add(tag(spindle, 'head'));
+    const body = new THREE.Mesh(
+      new THREE.CylinderGeometry(PLATEN_R, PLATEN_R, 0.10, 80), M.steel);
+    body.castShadow = body.receiveShadow = true;
+    g.add(tag(body, 'platen'));
 
-  const headBody = new THREE.Mesh(new THREE.CylinderGeometry(0.155, 0.17, 0.15, 48), M.dark);
-  headBody.position.y = 0.34;
-  headBody.castShadow = headBody.receiveShadow = true;
-  headGroup.add(tag(headBody, 'head'));
+    const pad = new THREE.Mesh(
+      new THREE.CylinderGeometry(PLATEN_R - 0.015, PLATEN_R - 0.015, 0.035, 80),
+      si === 0 ? M.pad : M.padOff);
+    pad.position.y = 0.067;
+    pad.castShadow = pad.receiveShadow = true;
+    g.add(tag(pad, 'pad'));
 
-  // CUT-AWAY CARRIER. A real carrier head covers the wafer completely — the
-  // wafer faces down and you never see it. Modelling that faithfully made the
-  // wafer unclickable and invisible, which defeats the one thing this view is
-  // for: the wafer's colour map IS the predicted removal profile. So the head
-  // is drawn as a hub plus three arms reaching to a retaining ring, leaving the
-  // wafer face open. It is a cut-away, and the arms make that read as a
-  // deliberate section rather than a missing part.
-  const armMat = M.dark;
-  for (let i = 0; i < 3; i++) {
-    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.045, 0.055), armMat);
-    const a = (i / 3) * Math.PI * 2;
-    arm.position.set(Math.cos(a) * 0.16, 0.285, Math.sin(a) * 0.16);
-    arm.rotation.y = -a;
-    arm.castShadow = true;
-    headGroup.add(tag(arm, 'head'));
+    // retaining ring around the platen, as on the real deck
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(PLATEN_R + 0.02, 0.028, 10, 72),
+                                si === 0 ? M.accent : M.dark);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = 0.02;
+    g.add(tag(ring, 'platen'));
+
+    scene.add(g);
+    platens.push({ group: g, station: si, active: si === 0 });
   }
 
-  const retainer = new THREE.Mesh(new THREE.TorusGeometry(0.315, 0.020, 10, 64), M.accent);
-  retainer.rotation.x = Math.PI / 2;
-  retainer.position.y = 0.168;
-  headGroup.add(tag(retainer, 'head'));
+  // ── carousel: four carrier heads, indexing between stations ─────
+  const carousel = new THREE.Group();
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.34, 0.20, 40), M.dark);
+  hub.position.y = 1.16;
+  hub.castShadow = true;
+  carousel.add(tag(hub, 'carousel'));
 
-  // the wafer: a disc whose vertex colours carry the SIMULATED radial profile
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.17, 1.30, 32), M.steel);
+  mast.position.y = 0.55;
+  mast.castShadow = true;
+  carousel.add(tag(mast, 'carousel'));
+
+  const heads = [];
+  for (const st of STATIONS) {
+    // the arm out to this station
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(R_DECK, 0.10, 0.17), M.dark);
+    arm.position.set(Math.cos(st.a) * R_DECK / 2, 1.16, Math.sin(st.a) * R_DECK / 2);
+    arm.rotation.y = -st.a;
+    arm.castShadow = true;
+    carousel.add(tag(arm, 'carousel'));
+
+    const headGroup = new THREE.Group();
+    headGroup.position.set(st.x, 0, st.z);
+
+    const spindle = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.052, 0.72, 24), M.steel);
+    spindle.position.y = 0.80;
+    spindle.castShadow = true;
+    headGroup.add(tag(spindle, 'head'));
+
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.155, 0.172, 0.16, 48), M.dark);
+    body.position.y = 0.40;
+    body.castShadow = body.receiveShadow = true;
+    headGroup.add(tag(body, 'head'));
+
+    /* CUT-AWAY CARRIER on the active head. A real carrier head covers the wafer
+     * completely — the wafer faces down and you never see it. Modelling that
+     * faithfully made the wafer unclickable and invisible, which defeats the one
+     * thing this view is for: the wafer's colour map IS the predicted removal
+     * profile. So the active head is drawn as a hub plus three arms reaching to
+     * a retaining ring, leaving the wafer face open. The arms make it read as a
+     * deliberate section rather than a missing part. The three idle heads are
+     * drawn closed, which is what they actually look like. */
+    const isActive = st.i === 0;
+    if (isActive) {
+      for (let k = 0; k < 3; k++) {
+        const a = (k / 3) * Math.PI * 2;
+        const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.042, 0.052), M.dark);
+        spoke.position.set(Math.cos(a) * 0.16, 0.335, Math.sin(a) * 0.16);
+        spoke.rotation.y = -a;
+        spoke.castShadow = true;
+        headGroup.add(tag(spoke, 'head'));
+      }
+    } else {
+      const shell = new THREE.Mesh(new THREE.CylinderGeometry(0.315, 0.315, 0.10, 48), M.dark);
+      shell.position.y = 0.27;
+      shell.castShadow = true;
+      headGroup.add(tag(shell, 'head'));
+    }
+
+    const retainer = new THREE.Mesh(new THREE.TorusGeometry(0.315, 0.020, 10, 64),
+                                    isActive ? M.accent : M.steel);
+    retainer.rotation.x = Math.PI / 2;
+    retainer.position.y = isActive ? 0.215 : 0.215;
+    headGroup.add(tag(retainer, 'head'));
+
+    carousel.add(headGroup);
+    heads.push({ group: headGroup, station: st.i, active: isActive });
+  }
+  scene.add(carousel);
+
+  // the wafer under the ACTIVE head: a disc whose vertex colours carry the
+  // simulated radial profile
   const WAFER_RINGS = 48;
-  const waferGeom = new THREE.CircleGeometry(0.30, 96, 0, Math.PI * 2);
-  // CircleGeometry gives one ring of vertices; use a radial grid instead so a
-  // profile can be painted across the radius.
-  const rg = new THREE.RingGeometry(0.0001, 0.30, 96, WAFER_RINGS);
+  const rg = new THREE.RingGeometry(0.0001, 0.295, 96, WAFER_RINGS);
   const colors = new Float32Array(rg.attributes.position.count * 3);
   rg.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   const wafer = new THREE.Mesh(rg, M.wafer);
   wafer.rotation.x = -Math.PI / 2;
-  wafer.position.y = 0.155;
-  wafer.castShadow = false;
-  headGroup.add(tag(wafer, 'wafer'));
-  scene.add(headGroup);
+  wafer.position.y = 0.20;
+  heads[0].group.add(tag(wafer, 'wafer'));
 
   /** Paint the wafer with a radial removal-rate profile. */
   function paintWafer(radiusMm, rateArr) {
@@ -236,14 +341,12 @@ export function createScene(canvas, onPick) {
       col.needsUpdate = true;
       return;
     }
-    const rMax = radiusMm[radiusMm.length - 1] || 1;
     let lo = Infinity, hi = -Infinity;
     for (const v of rateArr) { if (v < lo) lo = v; if (v > hi) hi = v; }
     const span = (hi - lo) || 1;
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i), y = pos.getY(i);
-      const frac = Math.min(1, Math.sqrt(x * x + y * y) / 0.30);
-      // sample the profile at this radius
+      const frac = Math.min(1, Math.sqrt(x * x + y * y) / 0.295);
       const idx = Math.min(rateArr.length - 1, Math.round(frac * (rateArr.length - 1)));
       const t = (rateArr[idx] - lo) / span;
       // blue (slow) -> cyan -> amber (fast): a diverging map reads a droop or
@@ -257,94 +360,152 @@ export function createScene(canvas, onPick) {
   }
   paintWafer([0, 1], null);
 
-  // ── conditioner disk on its own sweep arm ───────────────────────
-  const condPivot = new THREE.Group();
-  condPivot.position.set(-0.55, 0, 0.0);
-  const condArm = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.05, 0.10), M.dark);
-  condArm.position.set(0.20, 0.42, 0);
-  condArm.castShadow = true;
-  condPivot.add(tag(condArm, 'disk'));
-  const condPost = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.55, 20), M.steel);
-  condPost.position.y = 0.30;
-  condPost.castShadow = true;
-  condPivot.add(tag(condPost, 'disk'));
+  // ── load cup at the fourth station ──────────────────────────────
+  // This is WHY there are four heads for three platens: one station is always
+  // loading or unloading while the other three polish.
+  const cupSt = STATIONS[LOADCUP_STATION];
+  const cup = new THREE.Group();
+  cup.position.set(cupSt.x, 0, cupSt.z);
+  const cupBowl = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.34, 0.30, 0.16, 48, 1, true), M.steel);
+  cupBowl.position.y = 0.06;
+  cupBowl.castShadow = true;
+  cup.add(tag(cupBowl, 'loadcup'));
+  const cupFloor = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.30, 0.02, 48), M.dark);
+  cupFloor.position.y = -0.02;
+  cup.add(tag(cupFloor, 'loadcup'));
+  const cupRing = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.022, 10, 56), M.accent);
+  cupRing.rotation.x = Math.PI / 2;
+  cupRing.position.y = 0.14;
+  cup.add(tag(cupRing, 'loadcup'));
+  scene.add(cup);
 
-  const diskGroup = new THREE.Group();
-  diskGroup.position.set(0.42, 0.33, 0);
-  const diskBody = new THREE.Mesh(new THREE.CylinderGeometry(0.135, 0.135, 0.055, 40), M.steel);
-  diskBody.castShadow = true;
-  diskGroup.add(tag(diskBody, 'disk'));
-  const diskFace = new THREE.Mesh(new THREE.CylinderGeometry(0.132, 0.132, 0.012, 40), M.diamond);
-  diskFace.position.y = -0.031;
-  diskGroup.add(tag(diskFace, 'disk'));
-  // diamond grit specks, so the disk reads as a diamond disk and not a puck
-  const grit = new THREE.InstancedMesh(
-    new THREE.OctahedronGeometry(0.0055, 0),
-    new THREE.MeshStandardMaterial({ color: 0xdfe6ef, metalness: 0.3, roughness: 0.15 }),
-    260);
-  const m4 = new THREE.Matrix4();
-  for (let i = 0; i < 260; i++) {
-    const a = Math.random() * Math.PI * 2;
-    const r = 0.03 + Math.sqrt(Math.random()) * 0.098;
-    m4.makeTranslation(Math.cos(a) * r, -0.036, Math.sin(a) * r);
-    grit.setMatrixAt(i, m4);
+  // ── conditioner sweep arm on each platen ────────────────────────
+  const conditioners = [];
+  for (const p of platens) {
+    const st = STATIONS[p.station];
+    // pivot sits just outside the platen, arm sweeps the disk across the radius
+    const outward = new THREE.Vector3(st.x, 0, st.z).normalize();
+    const pivot = new THREE.Group();
+    pivot.position.set(st.x + outward.x * (PLATEN_R + 0.20), 0,
+                       st.z + outward.z * (PLATEN_R + 0.20));
+
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.048, 0.058, 0.62, 20), M.steel);
+    post.position.y = 0.26;
+    post.castShadow = true;
+    pivot.add(tag(post, 'disk'));
+
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.048, 0.095), M.dark);
+    arm.position.set(-0.23, 0.50, 0);
+    arm.rotation.y = Math.atan2(outward.z, outward.x);
+    arm.castShadow = true;
+    // rotate the arm group so it reaches back over the platen centre
+    const armHolder = new THREE.Group();
+    armHolder.rotation.y = Math.atan2(outward.z, outward.x);
+    const armMesh = new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.048, 0.095), M.dark);
+    armMesh.position.set(-0.25, 0.50, 0);
+    armMesh.castShadow = true;
+    armHolder.add(tag(armMesh, 'disk'));
+
+    const diskGroup = new THREE.Group();
+    diskGroup.position.set(-0.46, 0.42, 0);
+    const diskBody = new THREE.Mesh(new THREE.CylinderGeometry(0.115, 0.115, 0.05, 36), M.steel);
+    diskBody.castShadow = true;
+    diskGroup.add(tag(diskBody, 'disk'));
+    const diskFace = new THREE.Mesh(new THREE.CylinderGeometry(0.112, 0.112, 0.012, 36), M.diamond);
+    diskFace.position.y = -0.028;
+    diskGroup.add(tag(diskFace, 'disk'));
+    // diamond grit specks, so the disk reads as a diamond disk and not a puck
+    const grit = new THREE.InstancedMesh(
+      new THREE.OctahedronGeometry(0.005, 0),
+      new THREE.MeshStandardMaterial({ color: 0xdfe6ef, metalness: 0.3, roughness: 0.15 }),
+      200);
+    const m4 = new THREE.Matrix4();
+    for (let i = 0; i < 200; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = 0.025 + Math.sqrt(Math.random()) * 0.082;
+      m4.makeTranslation(Math.cos(a) * r, -0.033, Math.sin(a) * r);
+      grit.setMatrixAt(i, m4);
+    }
+    diskGroup.add(grit);
+    armHolder.add(diskGroup);
+    pivot.add(armHolder);
+    scene.add(pivot);
+    conditioners.push({ pivot, diskGroup, active: p.active });
   }
-  diskGroup.add(grit);
-  condPivot.add(diskGroup);
-  scene.add(condPivot);
 
-  // ── slurry supply unit (drum + pump cabinet + arm + nozzle) ─────
+  // ── slurry: one supply cabinet, a delivery arm over each platen ──
   const supply = new THREE.Group();
-  supply.position.set(-1.35, 0, 0.85);
+  supply.position.set(-2.05, 0, 1.55);
 
-  const cabinet = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.60, 0.40), M.panel);
-  cabinet.position.y = -0.04;
+  const cabinet = new THREE.Mesh(new THREE.BoxGeometry(0.60, 0.78, 0.52), M.panel);
+  cabinet.position.y = -0.18;
   cabinet.castShadow = cabinet.receiveShadow = true;
   supply.add(tag(cabinet, 'slurry'));
 
-  const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.44, 32), M.glass);
+  const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.20, 0.52, 32), M.glass);
   drum.position.y = 0.48;
   supply.add(tag(drum, 'slurry'));
-  // the fill level is driven by nothing physical, so it is a fixed prop; the
-  // slurry's *flow* is animated instead, because flow IS a recipe input.
-  const drumFill = new THREE.Mesh(new THREE.CylinderGeometry(0.152, 0.152, 0.26, 32), M.fluid);
-  drumFill.position.y = 0.39;
+  // the fill level is a fixed prop; the slurry's FLOW is animated instead,
+  // because flow is a recipe input and fill level is not.
+  const drumFill = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.30, 32), M.fluid);
+  drumFill.position.y = 0.37;
   supply.add(tag(drumFill, 'slurry'));
-  const drumCap = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.035, 32), M.steel);
-  drumCap.position.y = 0.715;
+  const drumCap = new THREE.Mesh(new THREE.CylinderGeometry(0.215, 0.215, 0.04, 32), M.steel);
+  drumCap.position.y = 0.76;
   supply.add(tag(drumCap, 'slurry'));
 
-  const readout = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.14, 0.02), M.accent);
-  readout.position.set(0, 0.10, 0.205);
+  const readout = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.17, 0.02), M.accent);
+  readout.position.set(0, 0.02, 0.27);
   supply.add(tag(readout, 'slurry'));
   scene.add(supply);
 
-  // delivery line from the cabinet to over the pad
-  const linePts = [
-    new THREE.Vector3(-1.35, 0.30, 0.85),
-    new THREE.Vector3(-1.05, 0.62, 0.62),
-    new THREE.Vector3(-0.55, 0.60, 0.28),
-    new THREE.Vector3(-0.12, 0.42, 0.10),
-  ];
-  const line = new THREE.Mesh(
-    new THREE.TubeGeometry(new THREE.CatmullRomCurve3(linePts), 48, 0.022, 10, false),
-    M.dark);
-  line.castShadow = true;
-  scene.add(tag(line, 'nozzle'));
-  const nozzle = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.09, 20), M.steel);
-  nozzle.position.set(-0.12, 0.37, 0.10);
-  nozzle.rotation.x = Math.PI;
-  scene.add(tag(nozzle, 'nozzle'));
+  // delivery arm over each platen, fed from the cabinet
+  const nozzles = [];
+  for (const p of platens) {
+    const st = STATIONS[p.station];
+    const outward = new THREE.Vector3(st.x, 0, st.z).normalize();
+    const armX = st.x + outward.x * (PLATEN_R + 0.10);
+    const armZ = st.z + outward.z * (PLATEN_R + 0.10);
+    const tipX = st.x - outward.x * 0.10;
+    const tipZ = st.z - outward.z * 0.10;
 
-  // slurry stream: particle count and speed follow the recipe's flow rate
-  const STREAM_N = 140;
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.042, 0.70, 16), M.steel);
+    post.position.set(armX, 0.30, armZ);
+    post.castShadow = true;
+    scene.add(tag(post, 'nozzle'));
+
+    const pts = [
+      new THREE.Vector3(-2.05, 0.30, 1.55),
+      new THREE.Vector3((armX - 2.05) / 2, 0.80, (armZ + 1.55) / 2),
+      new THREE.Vector3(armX, 0.66, armZ),
+      new THREE.Vector3(tipX, 0.52, tipZ),
+    ];
+    const line = new THREE.Mesh(
+      new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 44, 0.020, 10, false), M.dark);
+    line.castShadow = true;
+    scene.add(tag(line, 'nozzle'));
+
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.032, 0.085, 18), M.steel);
+    tip.position.set(tipX, 0.47, tipZ);
+    tip.rotation.x = Math.PI;
+    scene.add(tag(tip, 'nozzle'));
+
+    nozzles.push({ x: tipX, y: 0.43, z: tipZ, active: p.active });
+  }
+
+  // slurry stream on the ACTIVE platen: count and speed follow the flow rate.
+  // Only the simulated platen gets a stream — an idle platen showing flow would
+  // claim a process that is not being modelled.
+  const activeNozzle = nozzles.find(n => n.active) || nozzles[0];
+  const STREAM_N = 150;
   const streamGeom = new THREE.BufferGeometry();
   const sPos = new Float32Array(STREAM_N * 3);
   const sLife = new Float32Array(STREAM_N);
   for (let i = 0; i < STREAM_N; i++) sLife[i] = Math.random();
   streamGeom.setAttribute('position', new THREE.BufferAttribute(sPos, 3));
   const stream = new THREE.Points(streamGeom, new THREE.PointsMaterial({
-    color: 0xbfe6ff, size: 0.018, transparent: true, opacity: 0.85,
+    color: 0xbfe6ff, size: 0.017, transparent: true, opacity: 0.85,
     sizeAttenuation: true }));
   scene.add(stream);
 
@@ -366,7 +527,7 @@ export function createScene(canvas, onPick) {
         if (m.userData.part !== hovered.userData.part) continue;
         if (!m.userData.origMat) m.userData.origMat = m.material;
         const hi = m.userData.hiMat || (m.userData.hiMat = (() => {
-          const c = m.material.clone();
+          const c = m.userData.origMat.clone();
           c.emissive = new THREE.Color(0x2f6ea8);
           c.emissiveIntensity = 0.9;
           return c;
@@ -421,15 +582,26 @@ export function createScene(canvas, onPick) {
     const dt = Math.min(0.05, clock.getDelta());
     const t = clock.elapsedTime;
 
-    platenGroup.rotation.y += (state.rpmPlaten / 60) * 2 * Math.PI * dt;
-    headGroup.rotation.y   += (state.rpmHead   / 60) * 2 * Math.PI * dt;
-    if (state.conditioning) {
-      diskGroup.rotation.y += 2.2 * Math.PI * dt;
-      // the sweep arm oscillates across the pad radius
-      condPivot.rotation.y = 0.55 * Math.sin((2 * Math.PI / state.sweepPeriodS) * t);
+    // Only the ACTIVE platen and head turn at the recipe's rpm. The idle
+    // stations turn slowly, so the tool looks alive without implying that
+    // three polish steps are being simulated.
+    for (const p of platens) {
+      const rpm = p.active ? state.rpmPlaten : state.rpmPlaten * 0.18;
+      p.group.rotation.y += (rpm / 60) * 2 * Math.PI * dt;
+    }
+    for (const h of heads) {
+      const rpm = h.active ? state.rpmHead : state.rpmHead * 0.18;
+      h.group.rotation.y += (rpm / 60) * 2 * Math.PI * dt;
     }
 
-    // slurry stream: more flow = faster and denser
+    if (state.conditioning) {
+      for (const c of conditioners) {
+        c.diskGroup.rotation.y += (c.active ? 2.2 : 0.5) * Math.PI * dt;
+        c.pivot.rotation.y = 0.42 * Math.sin((2 * Math.PI / state.sweepPeriodS) * t);
+      }
+    }
+
+    // slurry stream on the active platen: more flow = faster and denser
     const speed = 0.25 + (state.flow / 200) * 0.9;
     const visible = Math.round(Math.min(STREAM_N, 20 + (state.flow / 400) * STREAM_N));
     for (let i = 0; i < STREAM_N; i++) {
@@ -437,14 +609,13 @@ export function createScene(canvas, onPick) {
       sLife[i] += dt * speed;
       if (sLife[i] > 1) sLife[i] -= 1;
       const u = sLife[i];
-      // fall from the nozzle, then spread outward on the pad surface
-      const drop = 0.30 * u;
-      const y = 0.33 - drop;
-      const spread = u > 0.82 ? (u - 0.82) * 1.6 : 0;
+      const drop = 0.33 * u;
+      const y = activeNozzle.y - drop;
+      const spread = u > 0.82 ? (u - 0.82) * 1.7 : 0;
       const a = i * 2.399963;                       // golden angle, even fan
-      sPos[i * 3 + 0] = -0.12 + Math.cos(a) * (0.012 + spread);
-      sPos[i * 3 + 1] = Math.max(0.075, y);
-      sPos[i * 3 + 2] = 0.10 + Math.sin(a) * (0.012 + spread);
+      sPos[i * 3 + 0] = activeNozzle.x + Math.cos(a) * (0.012 + spread);
+      sPos[i * 3 + 1] = Math.max(0.10, y);
+      sPos[i * 3 + 2] = activeNozzle.z + Math.sin(a) * (0.012 + spread);
     }
     streamGeom.attributes.position.needsUpdate = true;
     stream.visible = state.flow > 0;
