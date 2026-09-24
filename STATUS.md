@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **657 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **663 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -17,6 +17,15 @@
 - **Abrasive TYPE reaches the rate** (`slurry/abrasive_effects.py`): a swap
   rescales only by a published matched-condition ratio, withdraws the pack's
   measured exponents, says `ranking_only` when unanchored.
+- **NO universal "second pH channel" — hypothesis tested and FALSIFIED.**
+  The three pH residuals are three different shapes, and two of them share a
+  pack: dandu2009 is a BELL (peak pH 4-5.5), netzband2020 is a V (minimum at
+  pH 6, both ends high), same `sti_ceria`, same film, same abrasive. A rising
+  alkaline term would have to lift netzband 4.3-4.6x at pH 8/10 — exactly where
+  dandu already matches to 1.03/0.96. Fixing one breaks the other, so NOTHING
+  was added to the model; the contradiction is pinned as a measurement fact.
+  Real lead (recorded, not built): Netzband varies the Ce3+/Ce4+ OXIDATION
+  STATE, which the pack holds fixed — a ceria-specific coupling, not a pH term.
 - **pH is NOT thin (unlike velocity) and the optimum follows the abrasive's
   CHARGE.** Isolated-pH groups: 12 groups / 66 pts (velocity had 29), isolated
   median ~30% vs pooled 39.3% — isolation does not rescue it, so the term is
@@ -67,15 +76,15 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-The pH work is now blocked on a FUNCTIONAL-FORM limit, not a constant: three
-datasets (cn109609035b pH-6 upturn 32.1%, netzband2020 49.2%, dandu2009 31.5%)
-all leave residuals shaped like a SECOND pH channel the single bell cannot
-make. Before writing one, establish whether it is the same second channel in
-all three — alkaline hydrolysis rising as the electrostatic/contact term dies —
-by checking the sign and location of each residual against the bell. If they
-agree, an additive two-channel pH response is justified and must be derived
-once and applied to EVERY pack; if they do not, say so and stop. Do not add a
-per-pack fudge term.
+Velocity (44.1%) is now the worst axis again, and the earlier diagnosis said it
+is THIN (29 isolated pts) rather than wrong — but it also found the exponent on
+the one isolated in-scope sweep is +0.86, not Preston's +1.0. Test whether that
+deficit is real or an artefact of those 3x3 points: collect every isolated
+velocity group in the corpus, fit an exponent to each, and report the spread.
+If they cluster below 1.0, the Preston velocity exponent is a pack parameter
+this model currently hard-codes, and that is the finding; if they scatter
+across 1.0, say the axis cannot resolve it and stop. Do not fit a global
+exponent to pooled points.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp

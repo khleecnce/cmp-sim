@@ -1430,3 +1430,52 @@ uses it — so it is recorded in the pack and in a test rather than fitted aroun
 
 Corpus effect: pH axis 39.3 % → 32.1 %, and four datasets that could not be
 scored at all (no pack knew their film) now score.
+
+## There is no universal "second pH channel" — a hypothesis, falsified
+
+Three datasets left residuals shaped like a missing second mechanism, and the
+rule was set before any code was written: check whether it is the **same**
+second channel in all three; if so, derive one additive two-channel pH response
+and apply it to every pack; if not, say so and stop. Do not add a per-pack
+fudge term.
+
+It is not the same channel. The three measured shapes are different shapes:
+
+| dataset | system | shape |
+|---|---|---|
+| CN 109609035 B | anionic silica / oxide | monotone fall, slight upturn at pH 6 |
+| Dandu 2009 | ceria / oxide | single bell, peak pH 4–5.5 |
+| Netzband 2020 | ceria / oxide | a **V**: minimum at pH 6, both ends high |
+
+The last two are the **same pack** (`sti_ceria`), same film, same abrasive
+mineral — and they disagree about the shape itself, not about a constant:
+
+```
+dandu2009     43 → 953 → 2763 → 3474 → 3443 → 3504 → 993 → 694 → 643   (pH 2→10)
+netzband2020  198 (pH 4) → 113 (pH 6) → 200 (pH 8) → 213 (pH 10)
+```
+
+A bell with one maximum cannot also be a V with one minimum. And the arithmetic
+kills the proposed fix directly: Netzband is under-predicted **4.3×** at pH 8
+and **4.6×** at pH 10, so a rising alkaline channel would have to lift the model
+several-fold there — exactly where Dandu already matches to **1.03** and
+**0.96**. Fixing one breaks the other.
+
+The anionic dataset does not support the channel either: its dominant residual
+is a single point at pH 5 (ratio 0.44), while the pH 6 upturn it was supposed to
+explain sits at 1.06 — already fine.
+
+### What was done instead
+Nothing to the model. The contradiction is pinned as a measurement-level fact in
+`tests/test_no_universal_second_ph_channel.py`, including a direct guard on
+Dandu's alkaline agreement, so that any future edit introducing a generic
+alkaline term must confront both ceria datasets rather than quietly trading one
+for the other.
+
+### Where the real lead points
+Netzband & Dunn's title names a mechanism our pH term has no channel for: the
+**cerium oxidation state**. Their paper varies Ce³⁺/Ce⁴⁺ deliberately, and
+`sti_ceria` carries `ce3_fraction` as a *fixed* number with the pack's own note
+saying no closed form was found in the literature. A pH-dependent Ce³⁺ fraction
+would be a ceria-specific coupling — not a universal second pH channel — and it
+needs its own evidence before it is built. Recorded, not guessed.
