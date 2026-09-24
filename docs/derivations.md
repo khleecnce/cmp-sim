@@ -995,3 +995,76 @@ confirmed against the thesis prose's own 2.2x and 1.2x ratios) instead of the
 response is non-monotonic and depends on both abrasive chemistry and deposition
 method; a single number would be false, so the derived exponent is used and the
 regime is flagged `unverified`.
+
+---
+
+## Abrasive TYPE: what changes when you swap ceria for silica
+
+### The gap this closes
+`slurry.abrasive.kind` was accepted by the schema, stored on the recipe, and
+used to look up particle properties — but it did not reach the rate. Sweeping
+silica → ceria → alumina → zirconia on the oxide pack returned **1601 Å/min for
+all four**. `abrasives.yaml` was a 1,500-line database that no Python module
+imported.
+
+This matters more than a missing factor, because the abrasive is the first thing
+a slurry formulator changes.
+
+### Why a hardness ratio is NOT used
+The tempting fix — scale the rate by particle hardness — is wrong, and
+`abrasive_effects.py` refuses to do it:
+
+* Ceria (6.4 GPa) removes SiO₂ roughly **3×** faster than alumina (≈20 GPa)
+  achieves on that film. Harder cuts *slower* here.
+* Silica polishes sapphire, which is far harder than silica itself.
+
+Ceria's advantage on oxide is **chemical tooth** (Ce–O–Si bond formation), not
+indentation. A Mohs or GPa ratio presented as a rate ratio would be an invented
+number wearing someone else's citation.
+
+### The anchor model
+Each pack's `kp_m_per_pa` was back-calculated from a measurement that already
+contained one particular abrasive. That abrasive is now declared explicitly:
+
+| pack | `reference_abrasive` |
+|---|---|
+| `oxide_silica`, `poly_si_alkaline`, `si_substrate_alkaline` | `colloidal_silica` |
+| `sti_ceria`, `sic_ceria_h2o2` | `ceria` |
+| `cu_h2o2_bta`, `w_fe_oxidizer` | `alumina` |
+
+Swapping the abrasive invalidates the **absolute scale**, not merely the
+exponents. Rescaling requires a ratio measured on the *same tool, same recipe,
+abrasive-only-swapped* — the only comparison in which pad, pressure, velocity,
+pH and oxidizer all cancel. Those live in `abrasives.yaml → relative_rate`.
+
+Such comparisons are rare, so that table is mostly `null`, and **the emptiness is
+the honest state**. Where no ratio exists the engine applies *no* scale factor
+and flags the result `ranking_only`: usable to compare recipes, not to quote a
+predicted rate. Both UIs show this directly under the number.
+
+Ratios are never **chained**. A ratio declared against a reference other than the
+pack's own is refused, because multiplying two ratios measured on two different
+tools multiplies their errors.
+
+### Withdrawing the exponents
+A pack's measured `abrasive_size_exponent` belongs to the abrasive it was
+measured with. The sign does not even survive the swap:
+
+| abrasive | size exponent on oxide |
+|---|---:|
+| colloidal silica | −0.05 |
+| alumina | +0.29 |
+| ceria | +0.87 |
+
+So on a swap the pack's measured exponents are **withdrawn** and the run says
+which ones and why. Withdrawal is explicit rather than a reset to `null`:
+`null` was never neutral — it selects the derived −0.84, which is wrong in sign
+for 8 of the 10 published sweeps (BLOCKED #3). The withdrawn axes are listed in
+`result.abrasive_type.withdrawn`.
+
+### Why `Abrasive.kind` now defaults to `None`
+It used to default to `"silica"`. Harmless while the type had no effect —
+actively wrong once it did, because every recipe that never mentioned an
+abrasive silently became a *deliberate silica swap*, including the ceria
+validation datasets. A default must never masquerade as a user's choice.
+`None` means "use the pack's own abrasive"; a string means the user chose.

@@ -24,15 +24,23 @@
   before going public; no copyrighted article text is tracked.
 - Films: Cu, W, oxide, STI-ceria, poly-Si, Si substrate, SiC, SnAg.
   Data: 55 additives × 9 films, 11 abrasives × 9 films
-- Legacy 2nd transfer absorbed (`legacy/HANDOVER-2.md`). **567 tests pass**
+- **Abrasive TYPE reaches the rate** (`slurry/abrasive_effects.py`): packs
+  declare `reference_abrasive`; a swap rescales only by a published
+  matched-condition ratio, withdraws the pack's measured exponents, and says
+  `ranking_only` when unanchored. Was: all 4 abrasives → identical 1601 Å/min.
+- **3D tool view** (`/tool`): click wafer / head / pad / platen / disk / slurry
+  supply to enter that part's data; wafer colour map is the predicted radial
+  profile; three.js vendored for offline fab machines.
+- Legacy 2nd transfer absorbed (`legacy/HANDOVER-2.md`). **583 tests pass**
   (the four cited-value conflicts from the transfer are resolved; the
   remaining known limits are listed under BLOCKED, not failing tests).
 
 ## NEXT
-Owner decision on the λ roughness scale (BLOCKED #1): does the lubrication
-threshold move with the new literature σ = 2.0 µm, or is `pad_height_beta_inv_m`
-(exponential scale) the wrong quantity to divide film thickness by (RMS)?
-The rest of the regime layer is downstream of that answer.
+Fill `abrasives.yaml → relative_rate` from matched-condition literature. Only
+1 of 35 film×abrasive pairs is anchored today (oxide+ceria = 3.0× silica); the
+other 34 run `ranking_only`. Two research agents are mining matched pairs and a
+per-film validation index. Until they land, an abrasive swap ranks recipes
+correctly but does not predict an absolute rate.
 
 ## BLOCKED
 Reasoning, numbers and sources for each: `docs/open-questions.md`.
