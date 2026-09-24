@@ -2196,3 +2196,41 @@ that vanishes from the report is worse than a visible 30.7%.
 
 Recorded as limit 9 in `docs/limits.md`; enforced by
 `tests/test_titanium_is_unsupported.py` (7).
+
+## Which scores rest on a borrowed constant
+
+The titanium finding generalises: `oxide_silica` was scored against a titanium
+dataset and applied tungsten's exponent. A good number from the wrong pack is
+worse than a visible bad one, because nothing in the report separates them. So
+every dataset was swept for a pack used on a film it was not fitted to. Seven
+declared mismatches turned up, in three kinds — and only the third is a defect:
+
+1. **Justified by mechanism** (5). `sti_ceria` lends itself to oxide datasets.
+   That is borrowing by film label but not by physics: the pack records that its
+   measured exponents split by **abrasive** (+0.87 over three ceria sweeps)
+   rather than by film, and STI ceria slurries polish oxide. Likewise
+   `bouvet2002_w` on `oxide_silica` — W is the pack's own fitting set, which is
+   why it scores 2.3%.
+2. **Deliberate negative controls** (2). `carbide2023` (36.2%) and `sic2023`
+   (71.2%) are carbide/SiC experiments carried on the oxide pack *on purpose*,
+   each noting the gap its bad number documents: per-condition chemistry not
+   wired through, and an absent particle-size term. Their errors are the
+   measurement.
+3. **Placeholder packs on unsupported films** (2). `bouvet2002_ti` (30.7%) and
+   `us8142675b2_pt` (12.3%). Ti is already declared unsupported. **Pt is what
+   this audit adds, and it is the dangerous one: 12.3% looks fine.** A plausible
+   number from constants fitted to a different material is not evidence about
+   platinum, and only the audit says so.
+
+The audit also found its own blind spot, which is larger than the finding: **23
+of 49 datasets declare no `film` at all**, so a label-vs-pack check cannot see
+them. Inferring the film from each dataset's name and prose surfaced six more
+suspect rows — including both negative controls, which a reader of the report
+alone could not have told apart from oversights.
+
+No packs were created in response. The deliverable is knowing which scores rest
+on a borrowed constant; what is enforced is that every borrowing is one of the
+three kinds, declared where a reader can find it, and that a new undeclared one
+cannot appear silently.
+
+Enforced by `tests/test_borrowed_pack_audit.py` (8).

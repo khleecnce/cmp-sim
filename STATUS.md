@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **766 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **774 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -26,6 +26,15 @@
   _ti 2.7%), and nothing-stated. That separates bouvet2002_w (2.3% vs 1.0% floor,
   finished) from bouvet2002_ti (30.7% vs 2.7%, a real miss) — previously
   indistinguishable. `at_noise_floor` is None, never False, when unmeasured.
+- **Borrowed-pack audit** (`tests/test_borrowed_pack_audit.py`): 7 datasets score a
+  film with another film's pack, in 3 kinds — justified by mechanism (5: sti_ceria
+  on oxide, since its exponents split by ABRASIVE not film), deliberate negative
+  controls (2: carbide2023/sic2023 on the oxide pack on purpose, each noting the
+  gap its bad number documents), and placeholder packs on unsupported films (2).
+  **New find: us8142675b2_pt scores 12.3% on an oxide pack — a PLAUSIBLE number
+  from another material's constants**, which is more dangerous than Ti's visible
+  30.7%. Audit's own blind spot named: 23/49 datasets declare no film at all, so
+  prose inference was needed to surface both negative controls. No packs created.
 - **Ti declared UNSUPPORTED (limit 9).** bouvet2002_ti was the largest miss vs its
   own floor (30.7% vs 2.7% digitisation). Cause found: three sweeps from ONE figure
   (Ti/W/oxide, same tool+slurry) have exponents -0.454 / -0.049 / +0.001, and the
@@ -185,14 +194,15 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-The Ti diagnosis exposed a general hazard worth auditing: `oxide_silica` is
-scored against datasets whose film is NOT oxide (Ti at least), and its size
-exponent turned out to be W's. Sweep every dataset for the same pattern — a pack
-used on a film it was not fitted to — and for each, state whether the borrowing
-is justified (same mechanism, measured ratio) or is a silent film mismatch like
-Ti's. Report it as a table in the audit test. Do NOT create new packs to fix what
-it finds; the deliverable is knowing which scores rest on a borrowed constant,
-because a good number from the wrong pack is worse than a visible bad one.
+Close the blind spot the borrowed-pack audit named: 23 of 49 datasets declare no
+`film`, so the label-vs-pack check cannot see them and prose inference had to
+stand in. Fill in `film:` for every dataset from its own source — the film is
+stated in each paper/patent, so this is transcription, not inference — using
+`other` where the film genuinely has no pack (as Ti and Pt already do). Then
+tighten the audit to fail on ANY undeclared film rather than merely warning that
+most are missing. Expect new mismatches to surface; classify them, do not fix
+them by creating packs. Verify the corpus medians are unmoved: declaring a film
+must not change a single prediction.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp
