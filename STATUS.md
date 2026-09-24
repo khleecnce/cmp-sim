@@ -36,14 +36,22 @@
   remaining known limits are listed under BLOCKED, not failing tests).
 
 ## NEXT
-Fill `abrasives.yaml → relative_rate` from matched-condition literature. Only
-1 of 35 film×abrasive pairs is anchored today (oxide+ceria = 3.0× silica); the
-other 34 run `ranking_only`. Two research agents are mining matched pairs and a
-per-film validation index. Until they land, an abrasive swap ranks recipes
-correctly but does not predict an absolute rate.
+Fill `abrasives.yaml → relative_rate` from matched-condition literature that is
+also SIZE-MATCHED. Only 1 of 35 film×abrasive pairs is anchored (oxide+ceria =
+3.0× silica); the other 34 run `ranking_only`. US5575885's four-abrasive Cu
+table is matched on tool/pad/load/chemistry but spans 30–1300 nm, so applying
+it double-counts the engine's own size term (drove Cu to 677.9 A/min, under the
+published floor) — recorded, left null. Two research agents are mining
+size-matched pairs and a per-film validation index.
 
 ## BLOCKED
 Reasoning, numbers and sources for each: `docs/open-questions.md`.
+0. **`si` over-predicts at bare defaults**: 10,776 A/min vs a 100–3,000
+   envelope at 3 psi / 60 rpm with no slurry given. Pre-existing (present with
+   no abrasive named, so not from the abrasive layer); the sanity guard fires
+   correctly and `examples/si_substrate.yaml` runs at 2,227. The pack's Kp is
+   anchored at one Seidel 1990 point and extrapolates hard. Needs a second
+   Si-substrate point before the envelope or the Kp can be judged.
 1. **λ scale — the 2nd transfer broke the strongest validation result.**
    `base.yaml` pad stats went to literature values (σ 0.3 → 2.0 µm), so the
    US6918821B2 collapse point fell λ = 1.24 → 0.187 and no longer leaves
