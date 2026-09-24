@@ -1954,3 +1954,51 @@ unrelated oxidiser-data-gap gate. The assertion had to be narrowed to gates
 whose *reason* is the pH range — the distinction between "declined for this
 reason" and "declined at all" matters here for exactly the same reason it
 mattered when the oxidiser gate was first scoped.
+
+## Some datasets cannot be predicted better than they were measured
+
+STATUS listed `hong2007_cu_ads_bta_polish_rate` as a failure: 14.8% shape error
+against a flat baseline of 12.6%, the model apparently losing to predicting the
+dataset's own mean. Since hong2007 is a BTA adsorption series, the inhibitor term
+was the obvious suspect.
+
+Two things are wrong with that reading.
+
+**The flat baseline is not 12.6%.** It is 14.8% — identical to the model's, to
+four decimal places. The model does not lose to the mean, it *is* the mean here:
+the inhibitor term is flat across these points, so the two predictions coincide.
+The recorded 12.6% was stale.
+
+**And the tie is correct, because of what the dataset's own replicates show.**
+Three rows are identical in every override — pH, oxidiser, abrasive, chelator,
+promoter, flow, and `inhibitor_mM = 0` — and report:
+
+    2650, 2400, 1850 Å/min
+
+Mean 2300, mean absolute deviation **13.0%**. No model can score better than 13.0%
+here, because the measurement does not resolve rates more finely than that. Both
+14.8% figures sit at the noise floor.
+
+The inhibitor levels barely escape that scatter either: the zero-inhibitor
+replicates span 1850–2650, the 10 mM point (2200) falls **inside** that span, and
+the 0.5 mM point (1700) sits only 8% below its floor. One of the two levels is
+indistinguishable from no inhibitor at all and the other is marginal — no Langmuir
+coverage curve can be established from this, and a term that declines to fit one
+is behaving correctly.
+
+### The same test, corpus-wide
+| dataset | replicate scatter | shape | flat |
+|---|---:|---:|---:|
+| `sic2026_ceria_h2o2_ph_DOE50` | 38.5% | **34.0%** | 62.5% |
+| `us9200180b2_cu_benzenesulfonic_series` | 24.6% | 26.8% | 29.6% |
+| `hong2007_cu_ads_bta_polish_rate` | 13.0% | 14.8% | 14.8% |
+
+The SiC entry is the instructive one. Its 34.0% has been treated throughout this
+session as the SiC model's weak point, and it is in fact **better than the set's
+own reproducibility**. The pH refit earlier in this session moved it 39.3 → 34.0,
+crossing from above the noise floor to below it: that refit was worth doing, and
+further fitting on this set would be fitting its noise.
+
+⚠ Only datasets with genuine replicates can be checked this way. Most of the
+corpus reports one rate per condition, so its noise floor is simply unknown —
+a limit of the evidence, not a licence to assume the floor is zero.
