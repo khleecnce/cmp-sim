@@ -53,6 +53,8 @@ LIMIT_ENFORCING_TESTS = {
     "test_replicate_column_is_reporting_only.py",
     "test_pack_axis_blindness_audit.py",
     "test_titanium_is_unsupported.py",
+    "test_silica_variant_packs_earn_their_split.py",
+    "test_parameter_evidence_inventory.py",
 }
 
 

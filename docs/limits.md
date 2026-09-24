@@ -283,3 +283,44 @@ being excluded — an unsupported film that quietly disappears from the report i
 worse than a 30.7% a reader can see and interrogate.
 
 **Enforced by** `tests/test_titanium_is_unsupported.py`.
+
+---
+
+## 10. A pack can look complete and be evidenced in one axis only
+
+**The measurement.** `oxide_silica_anionic` and `oxide_silica_aminosilane` are
+the two least-evidenced packs in the corpus (11% and 16% of their parameters
+exercised by any dataset). Both are silica-on-oxide variants carrying a different
+pH optimum. Diffing each against its parent `oxide_silica`:
+
+| variant | parameters differing | all pH? |
+|---|---|---|
+| `oxide_silica_anionic` | 6 of 124 | yes |
+| `oxide_silica_aminosilane` | 7 of 125 | yes |
+
+Every other constant — Preston coefficient, pad mechanics, abrasive exponents,
+conditioning, pattern terms — is inherited unchanged.
+
+**The refit that was rejected.** Merging the variants back into the parent, which
+would have removed two thinly-evidenced files. Re-scoring each variant's dataset
+with the parent pack instead:
+
+    cn109609035b_oxide_anionic_silica_ph    32.1%  ->   94.7%   (+62.5 points)
+    us9422456b2_teos_silica_ph_pressure     25.3%  ->  126.6%  (+101.3 points)
+
+The splits are decisively justified — one bell centred at pH 11 cannot also serve
+pH 2 and pH 4.9 — so the packs stay.
+
+**The limit.** They are justified *in pH and nothing else*. A reader opening a
+62-parameter variant file could reasonably conclude that an anionic-silica slurry
+had been characterised independently; it has been characterised in pH, on seven
+rows, and borrows the rest. That is what inheritance is for, but the failure mode
+is silent because the pack looks complete. Each pack now says so in its own
+header.
+
+**What would resolve it.** Any dataset for these slurry systems that sweeps a
+non-pH axis — pressure, abrasive size or loading — would turn inherited constants
+into evidenced ones. Today there is not one.
+
+**Enforced by** `tests/test_silica_variant_packs_earn_their_split.py`,
+`tests/test_parameter_evidence_inventory.py`.

@@ -154,3 +154,29 @@ params:
       than a fit.
     source: "us9422456b2_teos_silica_ph_pressure.yaml (11 pH levels)"
     confidence: high
+
+  # ── WHAT THIS SPLIT BUYS, AND WHAT IT DOES NOT ──────────────────────────
+  #
+  # Measured, by re-scoring this pack's dataset with the PARENT oxide_silica
+  # pack instead:
+  #
+  #   us9422456b2_teos_silica_ph_pressure    25.3%  ->  126.6%  (+101.3 points)
+  #
+  # So the split is decisively justified: the cationic core-shell abrasive's
+  # optimum sits at pH 4.9, and forcing the parent's pH 11 bell on it quintuples
+  # the error.
+  #
+  # But the split buys ONLY the pH response. Diffing this pack against its
+  # parent, 7 of 125 parameters differ, and all seven are pH constants:
+  #
+  #   ph_peak 11.0 -> 4.9 · ph_ref 10.5 -> 4.9 · ph_response_width 3.1 -> 1.24
+  #   ph_mechanical_floor 0.12 -> 0.018 · ph_acid_mechanical_floor 0.01 -> 0.014
+  #   ph_valid_range [10.0,12.5] -> [2.5,11.0] · ph_pressure_response_note
+  #
+  # EVERYTHING else is INHERITED unchanged from oxide_silica — including
+  # kp_m_per_pa, which is already flagged as a disclosed mismatch above. The
+  # pack is characterised in pH, on 22 rows across two axes, and borrows the
+  # rest. Only 16% of its parameters are exercised by any dataset
+  # (see tests/test_parameter_evidence_inventory.py).
+  #
+  # Enforced by tests/test_silica_variant_packs_earn_their_split.py.

@@ -139,3 +139,34 @@ params:
       confident small number (pH 1.0 -> 3.9 A/min, pH 0.5 -> 0.0 A/min).
     source: "cn109609035b_oxide_anionic_silica_ph.yaml (7 rows, pH 2.0-6.0)"
     confidence: high
+
+  # ── WHAT THIS SPLIT BUYS, AND WHAT IT DOES NOT ──────────────────────────
+  #
+  # Measured, by re-scoring this pack's dataset with the PARENT oxide_silica
+  # pack instead:
+  #
+  #   cn109609035b_oxide_anionic_silica_ph   32.1%  ->  94.7%   (+62.5 points)
+  #
+  # So the split is decisively justified: one bell centred at pH 11 cannot also
+  # serve an anionic silica whose optimum is pH 2, and merging would roughly
+  # triple the error.
+  #
+  # But the split buys ONLY the pH response. Diffing this pack against its
+  # parent, 6 of 124 parameters differ, and all six are pH constants:
+  #
+  #   ph_peak 11.0 -> 2.0 · ph_ref 10.5 -> 2.0 · ph_response_width 3.1 -> 0.5
+  #   ph_mechanical_floor 0.12 -> 0.11 · ph_acid_mechanical_floor 0.01 -> 0.0
+  #   ph_valid_range [10.0,12.5] -> [2.0,6.0]
+  #
+  # EVERYTHING else — Preston coefficient, pad mechanics, abrasive exponents,
+  # conditioning, pattern terms — is INHERITED unchanged from oxide_silica.
+  # A reader seeing a full parameter file here could reasonably assume an
+  # anionic-silica slurry had been characterised independently. It has not: it
+  # is characterised in pH, on SEVEN rows of one sweep, and borrows the rest.
+  #
+  # That is what pack inheritance is for, and it is defensible — but it is
+  # stated here because the failure mode is silent: the pack looks complete.
+  # This pack is the least-evidenced in the corpus (11% of its parameters are
+  # exercised by any dataset; see tests/test_parameter_evidence_inventory.py).
+  #
+  # Enforced by tests/test_silica_variant_packs_earn_their_split.py.

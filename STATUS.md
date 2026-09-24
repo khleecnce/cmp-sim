@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **792 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **798 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -26,6 +26,14 @@
   _ti 2.7%), and nothing-stated. That separates bouvet2002_w (2.3% vs 1.0% floor,
   finished) from bouvet2002_ti (30.7% vs 2.7%, a real miss) — previously
   indistinguishable. `at_noise_floor` is None, never False, when unmeasured.
+- **What a pack split buys (limit 10).** The 2 thinnest packs are justified — but
+  in pH ONLY. Re-scoring their datasets with the parent oxide_silica: anionic
+  32.1%->94.7%, aminosilane 25.3%->126.6%. So keep the split. But the diff vs
+  parent is 6/124 and 7/125 parameters and EVERY one is pH — Kp, pad, abrasive
+  exponents all inherited. A 62-parameter file implies independent
+  characterisation it does not have; both packs now say so in their headers.
+  ⚠ First diff used pack.get() (returns None for all keys) and reported the packs
+  as IDENTICAL; correct accessor is pack.param(). Guarded by a test.
 - **Parameter-evidence inventory (README table + test).** Per pack, how many
   fitted constants does the data actually exercise? **290/628 = 46%; 338 are
   not.** Spread matters more: cu_h2o2_bta 68% (86 rows/11 axes) vs
@@ -217,15 +225,16 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-The inventory ranks packs by evidence; act on the weakest end. oxide_silica_anionic
-(11% exercised, 7 rows, ONE axis) and oxide_silica_aminosilane (16%, 22 rows, 2
-axes) are the two thinnest, and both are silica-on-oxide variants that exist to
-carry a different pH optimum. Check whether they are justified as separate packs
-at all: measure what each actually adds over scoring its datasets with the parent
-oxide_silica pack. If a variant's only evidenced difference is its pH peak, say
-so in the pack and in docs/limits.md rather than implying a fully independent
-parameter set. Do NOT merge or delete packs — the deliverable is knowing what the
-split buys.
+Limit 10 says the variant packs inherit kp_m_per_pa unchanged, and
+oxide_silica_aminosilane already carries a "DISCLOSED MISMATCH" note admitting
+its Kp comes from the parent. Kp sets absolute rate, so this is the one inherited
+constant whose borrowing is directly checkable: every dataset's measured A/min is
+right there. For each pack, back out the Kp its own data implies (fit scale on
+the absolute rates, not the shape) and compare with the declared value. Report
+the ratio per pack. Expect large factors for the borrowers — that is the finding.
+Do NOT refit any Kp; several datasets are explicitly flagged absolute-value-
+incomparable (benchtop coupons, scaled units, SRP), so exclude those and say
+which were excluded and why.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp

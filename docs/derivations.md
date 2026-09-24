@@ -2361,3 +2361,41 @@ It is an argument against reading a single median as if it certified the whole
 model.
 
 Enforced by `tests/test_parameter_evidence_inventory.py` (6).
+
+## What a pack split buys
+
+The evidence inventory ranked `oxide_silica_anionic` (11% exercised, 7 rows, one
+axis) and `oxide_silica_aminosilane` (16%, 22 rows, two axes) as the thinnest
+packs in the corpus. Both exist to carry a different pH optimum, so the fair
+question is whether they earn separate files at all.
+
+Measured by re-scoring each variant's dataset with the **parent** `oxide_silica`
+pack:
+
+    cn109609035b_oxide_anionic_silica_ph    32.1%  ->   94.7%   (+62.5 points)
+    us9422456b2_teos_silica_ph_pressure     25.3%  ->  126.6%  (+101.3 points)
+
+Merging would roughly triple and quintuple the errors. The pH optimum follows the
+abrasive's surface charge, and one bell centred at pH 11 cannot also serve pH 2
+and pH 4.9. The splits stay.
+
+**But they buy only that.** Diffing each variant against its parent, 6 of 124 and
+7 of 125 parameters differ — and every one is a pH constant. Preston coefficient,
+pad mechanics, abrasive exponents, conditioning and pattern terms are all
+inherited unchanged. A reader opening a 62-parameter variant file could
+reasonably conclude the slurry had been characterised independently. It has been
+characterised in pH, on seven rows, and borrows everything else.
+
+That is exactly what pack inheritance is for and it is defensible — but it is now
+stated in each pack's own header, because the failure mode is silent: the file
+looks complete.
+
+⚠ Method note. The first diff used `pack.get(key)`, which returns None for every
+key, and reported the variants as *identical* to their parent — 0 and 1
+differences between packs that score 62 and 101 points apart. The working
+accessor is `pack.param(key)`. A diff claiming no differences between packs that
+demonstrably disagree is a broken diff, not a finding, and
+`test_the_diff_uses_the_accessor_that_works` now guards it.
+
+Recorded as limit 10 in `docs/limits.md`; enforced by
+`tests/test_silica_variant_packs_earn_their_split.py` (6).
