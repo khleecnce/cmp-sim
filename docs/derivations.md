@@ -2122,3 +2122,48 @@ for inventing a per-pack one.
 This is the third structural limit this session has named rather than absorbed
 into constants, alongside the unresolvable velocity exponent and the
 pressure-coupled oxidiser sign.
+
+## A noise floor can exist and still be unmeasurable
+
+`cmp-sim accuracy` now prints `repl%` — each dataset's own reproducibility,
+computed from rows identical in every condition — beside its shape error, and
+marks rows already at that floor. Three datasets are at theirs
+(`hong2007_cu_ads_bta_polish_rate`, `sic2026_ceria_h2o2_ph_DOE50`,
+`us9200180b2_cu_benzenesulfonic_series`), so they stop reading as model failures.
+
+The column is blank for 38 of 43 scored datasets, and the audit behind this entry
+is about not over-reading that blank. Auditing every file's provenance prose for
+averaging, replicate counts and error bars, the corpus falls into **four** states,
+not two:
+
+1. **Replicates present.** 5 datasets. hong2007 repeats its zero-inhibitor
+   condition three times — 2650 / 2400 / 1850 A/min — giving a 13.0% floor
+   against a 14.8% model error.
+2. **Rates are averages and the spread is withheld.** `du2004` states its rates
+   are five-run averages and lists "error bars or standard deviations on the
+   five-run averages" among what the paper does not report. The floor is real,
+   non-zero, and unrecoverable. Reporting `null` is correct; reporting 0 would
+   be a claim nobody measured.
+3. **Digitized from a figure, read error stated.** A *transcription* floor:
+   `bouvet2002_w` ~±3 nm/min (1.0% of its typical rate), `bouvet2002_ti`
+   ~±4 nm/min (2.7%).
+4. **Nothing stated.** The floor is simply unknown.
+
+State 3 shows why the distinction is worth the column. bouvet2002_w scores 2.3%
+against a 1.0% transcription floor — there is essentially nothing left to win.
+bouvet2002_ti scores 30.7% against a 2.7% floor — an order of magnitude above it,
+so that miss is real and worth diagnosing. Without the floors, 2.3% and 30.7%
+read as the same kind of number: a good one and a bad one, rather than "finished"
+and "unexplained".
+
+The change is reporting-only and tested as such: the medians (19.5% / 22.6%),
+the scored count (43) and the beats-the-mean count (33) are all unmoved, and no
+floored dataset is exempted from the median. `replicate_scatter` is derived from
+the measured rates alone, so it cannot drift with the model — it is a fixed
+yardstick, not a second opinion.
+
+`at_noise_floor` returns `None`, never `False`, when the floor is unmeasured:
+False would assert the error exceeds a floor nobody measured.
+
+Enforced by `tests/test_noise_floor_can_exist_unmeasured.py` (6) and
+`tests/test_replicate_column_is_reporting_only.py` (5).

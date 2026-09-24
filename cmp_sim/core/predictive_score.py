@@ -94,6 +94,26 @@ class Score:
     #: rewards a future edit that removes the gate and guesses instead.
     gated: int = 0
     gated_reason: Optional[str] = None
+    #: Mean |deviation from group mean| / group mean over rows that are
+    #: IDENTICAL in every condition, as a percentage — the dataset's own
+    #: reproducibility, and therefore a FLOOR on the error any model can
+    #: achieve on it. None when the dataset repeats no condition, which is the
+    #: common case: one rate per condition leaves the floor unmeasured, and an
+    #: unmeasured floor must not be read as a floor of zero.
+    replicate_scatter: Optional[float] = None
+
+    @property
+    def at_noise_floor(self) -> Optional[bool]:
+        """Is the error already at the dataset's own reproducibility?
+
+        True means further fitting on this dataset is fitting its noise, and a
+        shape error that looks poor is not evidence of a broken term. None means
+        the dataset has no replicates, so the question cannot be answered — not
+        that the answer is no.
+        """
+        if self.shape_mape is None or self.replicate_scatter is None:
+            return None
+        return self.shape_mape <= self.replicate_scatter * 1.3
 
     @property
     def beats_flat(self) -> Optional[bool]:
@@ -116,6 +136,10 @@ class Score:
             "predict_the_mean_mape_percent": (None if self.flat_mape is None
                                               else round(self.flat_mape, 1)),
             "beats_predicting_the_mean": self.beats_flat,
+            "replicate_scatter_percent": (
+                None if self.replicate_scatter is None
+                else round(self.replicate_scatter, 1)),
+            "at_own_noise_floor": self.at_noise_floor,
             "gated_points": self.gated,
             "gated_reason": self.gated_reason,
             "error": self.error,
@@ -134,6 +158,36 @@ def _measured(row: Dict[str, Any]) -> Optional[float]:
         if row.get(key) is not None:
             return float(row[key]) * 10.0 / 60.0
     return None
+
+
+def _replicate_scatter(rows: List[Dict[str, Any]]) -> Optional[float]:
+    """The dataset's own reproducibility, as a percentage.
+
+    Rows that are IDENTICAL in every condition are replicates: their spread is
+    measurement noise, and no model can score better than it. Returns None when
+    no condition repeats — one rate per condition leaves the floor UNMEASURED,
+    which is not the same as a floor of zero and must not be reported as one.
+
+    Reporting only. Nothing here feeds the score.
+    """
+    groups: Dict[Any, List[float]] = {}
+    for row in rows:
+        key = (tuple(sorted((k, str(v))
+                            for k, v in (row.get("overrides") or {}).items())),
+               row.get("pressure_psi"), row.get("rpm_platen"),
+               row.get("rpm_head"))
+        rate = _measured(row)
+        if rate:
+            groups.setdefault(key, []).append(rate)
+
+    deviations: List[float] = []
+    for rates in groups.values():
+        if len(rates) > 1:
+            mean = sum(rates) / len(rates)
+            deviations += [abs(r - mean) / mean for r in rates]
+    if not deviations:
+        return None
+    return 100 * sum(deviations) / len(deviations)
 
 
 def _varying_axes(rows: List[Dict[str, Any]]) -> List[str]:
@@ -266,7 +320,8 @@ def score_dataset(path: Path) -> Score:
     rows = [r for r in (doc.get("conditions") or []) if _measured(r) is not None]
     film = doc.get("film") or PACK_FILM.get(str(doc.get("pack") or "")) or "?"
     score = Score(dataset=path.stem, film=str(film),
-                  n=len(rows), axes=_varying_axes(rows))
+                  n=len(rows), axes=_varying_axes(rows),
+                  replicate_scatter=_replicate_scatter(rows))
     if len(rows) < 3:
         score.error = f"only {len(rows)} usable rows"
         return score
@@ -344,18 +399,26 @@ def score_all(only_non_pv: bool = False) -> List[Score]:
 
 def report(scores: List[Score]) -> str:
     lines = [f"{'dataset':44s} {'film':8s} {'n':>3s} {'shape%':>7s} "
-             f"{'LOO%':>7s} {'mean%':>7s} {'beats':>6s}  axes",
-             "-" * 118]
+             f"{'LOO%':>7s} {'mean%':>7s} {'repl%':>7s} {'beats':>6s}  axes",
+             "-" * 128]
     for s in sorted(scores, key=lambda x: (x.shape_mape is None,
                                            x.shape_mape or 0)):
         if s.error:
             lines.append(f"{s.dataset[:44]:44s} {s.film[:8]:8s} {s.n:3d} "
-                         f"{'--':>7s} {'--':>7s} {'--':>7s} {'--':>6s}  {s.error}")
+                         f"{'--':>7s} {'--':>7s} {'--':>7s} {'--':>7s} "
+                         f"{'--':>6s}  {s.error}")
             continue
+        # blank, not zero, where the dataset repeats no condition: the floor is
+        # unmeasured there and printing 0.0 would assert a floor of zero
+        repl = (f"{s.replicate_scatter:7.1f}" if s.replicate_scatter is not None
+                else f"{'':>7s}")
+        beats = "yes" if s.beats_flat else "NO"
+        if s.at_noise_floor:
+            beats = "floor"
         lines.append(
             f"{s.dataset[:44]:44s} {s.film[:8]:8s} {s.n:3d} "
             f"{s.shape_mape:7.1f} {s.loo_mape:7.1f} {s.flat_mape:7.1f} "
-            f"{'yes' if s.beats_flat else 'NO':>6s}  {','.join(s.axes)}")
+            f"{repl} {beats:>6s}  {','.join(s.axes)}")
     ran = [s for s in scores if s.shape_mape is not None]
     if ran:
         lines.append("")
@@ -363,7 +426,19 @@ def report(scores: List[Score]) -> str:
                      f"{sum(s.n for s in ran)} measured points")
         lines.append(f"median shape error {sorted(s.shape_mape for s in ran)[len(ran)//2]:.1f}%, "
                      f"median leave-one-out {sorted(s.loo_mape for s in ran)[len(ran)//2]:.1f}%")
-        lost = [s.dataset for s in ran if not s.beats_flat]
+        floored = [s for s in ran if s.at_noise_floor]
+        with_repl = [s for s in ran if s.replicate_scatter is not None]
+        if with_repl:
+            lines.append(
+                f"repl% is the dataset's OWN reproducibility — a floor on any "
+                f"model's error. Measured on {len(with_repl)}/{len(ran)}; blank "
+                f"means UNMEASURED, not zero.")
+        if floored:
+            lines.append(
+                f"'floor' = error already at that floor, so further fitting "
+                f"there fits noise: " + ", ".join(s.dataset for s in floored))
+        lost = [s.dataset for s in ran
+                if not s.beats_flat and not s.at_noise_floor]
         if lost:
             lines.append(f"does NOT beat predicting the mean on {len(lost)}: "
                          + ", ".join(lost[:6]))

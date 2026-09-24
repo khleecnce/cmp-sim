@@ -329,6 +329,10 @@ def _cmd_accuracy(args) -> int:
                 "median_leave_one_out_percent": (
                     round(loo[len(loo) // 2], 1) if loo else None),
                 "beat_predicting_the_mean": sum(1 for s in ran if s.beats_flat),
+                "replicate_scatter_measured_on": sum(
+                    1 for s in ran if s.replicate_scatter is not None),
+                "at_own_noise_floor": sorted(
+                    s.dataset for s in ran if s.at_noise_floor),
             },
             "how_to_read": {
                 "shape": "scale fitted to the dataset; measures the TREND, "
@@ -338,6 +342,15 @@ def _cmd_accuracy(args) -> int:
                                  "- the only number quotable as accuracy",
                 "predict_the_mean": "baseline; if the model does not beat it, "
                                     "the physics added nothing on that dataset",
+                "replicate_scatter": "the dataset's OWN reproducibility, from "
+                                     "rows identical in every condition - a "
+                                     "FLOOR on any model's error. null means no "
+                                     "condition repeats, so the floor is "
+                                     "UNMEASURED, which is not a floor of zero",
+                "at_own_noise_floor": "error already at that floor: a poor-"
+                                      "looking shape error there is not "
+                                      "evidence of a broken term, and further "
+                                      "fitting fits noise",
             },
         }, indent=2))
         return 0

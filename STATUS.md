@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **748 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **759 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -17,6 +17,15 @@
 - **Abrasive TYPE reaches the rate** (`slurry/abrasive_effects.py`): a swap
   rescales only by a published matched-condition ratio, withdraws the pack's
   measured exponents, says `ranking_only` when unanchored.
+- **`cmp-sim accuracy` now prints `repl%` — each dataset's own reproducibility.**
+  Reporting only: medians (19.5%/22.6%), scored count (43) and beats-mean (33) all
+  unmoved, asserted by test. Three datasets marked `floor` (already at their own
+  noise) so they stop reading as model failures. Audit of all 49 files found the
+  blank column covers THREE states, not one: rates-are-averages-with-spread-
+  withheld (du2004 says so), digitized-with-stated-read-error (bouvet2002_w 1.0%,
+  _ti 2.7%), and nothing-stated. That separates bouvet2002_w (2.3% vs 1.0% floor,
+  finished) from bouvet2002_ti (30.7% vs 2.7%, a real miss) — previously
+  indistinguishable. `at_noise_floor` is None, never False, when unmeasured.
 - **`docs/limits.md` — one page for what the model REFUSES to predict.** 8 entries,
   each with the measurement that establishes the limit, the refit that was rejected
   and its cost, and the experiment that would lift it. Distinct from
@@ -170,16 +179,15 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-The noise-floor finding exposed a gap in how accuracy is reported: only 5 of 49
-datasets carry replicates, so for the other 44 the achievable error floor is
-unknown, yet every one is scored against the same +/-15% ambition. Make that
-visible in the tooling rather than only in prose — have `cmp-sim accuracy` print
-each dataset's replicate scatter alongside its shape error (blank where there are
-no replicates), and mark the rows already at their floor so they stop reading as
-failures. Do NOT change any scoring or the median; this is a reporting change
-only, and the test must assert the median is unmoved. Then check the one thing
-this session did not: whether any dataset's replicates were silently AVERAGED
-when the YAML was written, which would hide a noise floor that actually exists.
+bouvet2002_ti_silica_size_sweep is now the clearest undiagnosed miss in the
+corpus: 30.7% shape error against a 2.7% transcription floor, an order of
+magnitude above it, on a size sweep — the axis that is otherwise the model's
+best (11.2%). Its sibling files from the SAME figure score 2.3% (W) and well
+under that (oxide), so the tool, the slurry family and the digitisation are all
+shared; only the film differs. Diagnose why Ti breaks. Note the pack is flagged
+a placeholder (no Ti parameter pack exists, shape/rank use only), so the honest
+outcome may be to declare Ti unsupported rather than to fit one — but decide
+that from the residual's SHAPE, not from the pack's absence.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp

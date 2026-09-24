@@ -192,9 +192,30 @@ better than the set's own reproducibility.
 
 ⚠ Only 5 datasets have genuine replicates. For the rest the noise floor is
 **unknown**, which is a limit of the evidence and not a licence to assume it is
-zero.
+zero. The blank `repl%` column in `cmp-sim accuracy` covers *three* different
+states, and collapsing them into "no noise here" is the mistake this entry
+guards against:
 
-**Enforced by** `tests/test_replicate_noise_floor.py`.
+* the rates **are** averages and the source withholds the spread — the floor is
+  real and unrecoverable (`du2004` says so explicitly of its five-run averages);
+* the rates were **digitized from a figure** with the read error stated — a
+  *transcription* floor (`bouvet2002_w` ~1.0% of typical rate, `bouvet2002_ti`
+  ~2.7%);
+* nothing is stated at all.
+
+The transcription floors earn the column: `bouvet2002_w` scores 2.3% against a
+1.0% floor and is effectively finished, while `bouvet2002_ti` scores 30.7%
+against 2.7% and is a genuine unexplained miss. Without the floors both read as
+"one good number, one bad number".
+
+**What would resolve it.** Replicate runs at a handful of conditions per
+dataset — three repeats of one condition is enough to bound the floor. This is
+the cheapest missing experiment in the whole corpus and would tell us how much of
+the remaining 19.5% median is even addressable.
+
+**Enforced by** `tests/test_replicate_noise_floor.py`,
+`tests/test_noise_floor_can_exist_unmeasured.py`,
+`tests/test_replicate_column_is_reporting_only.py`.
 
 ---
 

@@ -47,6 +47,10 @@ LIMIT_ENFORCING_TESTS = {
     "test_ph_validity_range_is_declared.py",
     "test_out_of_range_ph_is_a_warning_not_a_gate.py",
     "test_replicate_noise_floor.py",
+    # the same limit, extended: a floor can exist and still be unmeasurable,
+    # and the column that reports it must not become a scoring change
+    "test_noise_floor_can_exist_unmeasured.py",
+    "test_replicate_column_is_reporting_only.py",
     "test_pack_axis_blindness_audit.py",
 }
 
