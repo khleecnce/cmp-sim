@@ -1,0 +1,151 @@
+# Blanket W CMP — H2O2 concentration series, 0 to 6.1 wt%, five printed rows.
+#
+# WHY THIS FILE OVERRIDES THE INHERITED COPY
+# ------------------------------------------
+# The inherited file is correct about the numbers and about its own caveats.
+# What it lacks is a `pack_overrides:` block declaring THIS formulation's
+# zero-oxidizer floor, and without it the dataset was scoring 51.7 % — the
+# worst oxidizer result in the corpus — on the strength of ONE point.
+#
+# Per-point error as shipped (fitted scale, `cmp-sim accuracy`):
+#
+#     H2O2 wt%     0.00    2.03    4.06    4.07    6.10
+#     error     +220.5%  +26.6%   +0.4%   -0.2%  -10.7%
+#
+# The four oxidizer-bearing rows average 9.5 %. The entire 51.7 % headline is
+# the zero-oxidizer row, predicted 3.2x too high.
+#
+# THE CAUSE IS A FORMULATION MISMATCH, NOT A BROKEN TERM
+# ------------------------------------------------------
+# The oxidizer term is additive at zero: rate = floor + (1 - floor)*shape, and
+# the floor is the ABRASIVE-ONLY rate as a fraction of the reference rate. The
+# pack declares floor = 0.14, which the inherited knowledge base derives from
+# free-abrasive metal CMP and states explicitly is set by the MECHANICAL path
+# (abrasive hardness, load) rather than by chemistry — dropping to ~0.02 with
+# the abrasives removed.
+#
+# This patent is a **fixed-abrasive pad with an abrasive-free solution** (3M,
+# Mirra 3400, MWR66 pad — the inherited file already flags this as a domain
+# mismatch and marks the dataset `rank_only`). There are no free abrasives to
+# supply a 14 % mechanical background, and the table says so directly:
+#
+#     96 A/min at 0 wt% H2O2 / 2396 A/min at 4.06 wt% = 0.040
+#
+# That ratio is READ FROM TWO ROWS OF THE SAME TABLE, not fitted. Declaring it
+# takes the dataset from 51.7 % to 8.7 %.
+#
+# ⚠ HONEST ACCOUNTING OF WHAT THAT NUMBER PROVES. The floor is defined as the
+# zero-oxidizer rate over the reference rate, so declaring it necessarily makes
+# the zero point fit — it is close to tautological on that row, and the
+# residual there is 8.8 % only because the engine normalises at the pack's
+# reference of 3.0 wt% while this table's reference is 4.06 wt%. The number to
+# quote for the SHAPE is therefore the four oxidizer-bearing rows: **8.6 %**,
+# essentially unchanged from the 9.5 % they scored before. Nothing was tuned;
+# a measured constant was moved from the table into the model, and the headline
+# stopped being dominated by a formulation the pack was never told about.
+# This is the same treatment `du2004_cu_h2o2_concentration_sweep.yaml` already
+# applies for its own glycine-free peak position, for the same reason.
+#
+# The dataset stays `rank_only: true`. The absolute-rate bias (the pack's Kp
+# sits 1.8-3.4x above three independent Preston back-calculations) is a
+# separate, already-recorded finding and is NOT what this file changes.
+
+source: >
+  US 8,070,843 B2 (3M Innovative Properties Co), "Polishing fluids and methods
+  for CMP", 2011. https://patents.google.com/patent/US8070843B2
+  Numbers from: TABLE 1 "Polishing Solution Parameters and Tungsten Removal
+  Results", Examples 1-4 and Comparative Example CE-5, "Removal Rate" column
+  (A/min): 96 / 1508 / 2396 / 2410 / 2965.
+  Process from the specification's "General Polishing Procedure": Mirra 3400,
+  MWR66 fixed-abrasive pad, membrane pressure 27.6 kPa (4.0 psi), platen
+  79 rpm, carrier 101 rpm, 150 mL/min, 60 s per wafer, blanket W wafers.
+
+film: w
+pack: w_fe_oxidizer
+in_scope: true
+used_for_calibration: false
+rank_only: true
+rank_only_ruling: >
+  Unchanged from the inherited file: absolute rate is systematically biased
+  (obs/pred 0.089-0.320) for two independently confirmed reasons — the pack's
+  Kp is 1.8-3.4x above three primary-literature Preston back-calculations, and
+  this patent's fixed-abrasive mechanism is outside the pack's free-abrasive
+  domain. Rank and shape only. Re-anchoring Kp is a separate decision, recorded
+  in the pack, and deliberately not taken here.
+
+# ── this formulation's own constants, not the pack's ──────────────────────
+# Same discipline as du2004: a constant that is a property of the FORMULATION
+# rather than of the film is declared by the dataset, with the measurement it
+# comes from, instead of being merged into the pack.
+pack_overrides:
+  oxidizer_mech_floor: 0.040    # 96 A/min at 0 wt% / 2396 A/min at 4.06 wt%,
+                                # Table 1 rows CE-5 and Example 2. No free
+                                # abrasive in this system, so the pack's
+                                # free-abrasive 0.14 background does not apply.
+
+conditions:
+  - label: "H2O2 0 wt% (CE-5, Fe 1180 ppm)"
+    pressure_psi: 4.0
+    rpm_wafer: 101
+    rpm_platen: 79
+    mrr_nm_per_min: 9.6
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      oxidizer_wt_pct: 0.0
+  - label: "H2O2 2.03 wt% (Example 3, Fe 60 ppm)"
+    pressure_psi: 4.0
+    rpm_wafer: 101
+    rpm_platen: 79
+    mrr_nm_per_min: 150.8
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      oxidizer_wt_pct: 2.03
+  - label: "H2O2 4.06 wt% (Example 2, Fe 5 ppm)"
+    pressure_psi: 4.0
+    rpm_wafer: 101
+    rpm_platen: 79
+    mrr_nm_per_min: 239.6
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      oxidizer_wt_pct: 4.06
+  - label: "H2O2 4.07 wt% (Example 1, Fe 1180 ppm)"
+    pressure_psi: 4.0
+    rpm_wafer: 101
+    rpm_platen: 79
+    mrr_nm_per_min: 241.0
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      oxidizer_wt_pct: 4.07
+  - label: "H2O2 6.10 wt% (Example 4, Fe 60 ppm)"
+    pressure_psi: 4.0
+    rpm_wafer: 101
+    rpm_platen: 79
+    mrr_nm_per_min: 296.5
+    read_method: table
+    overrides:
+      sfr_ml_min: 150
+      oxidizer_wt_pct: 6.10
+
+notes: >
+  Variable = H2O2 concentration (0 / 2.03 / 4.06 / 4.07 / 6.10 wt%). Pressure,
+  speeds, pad and time are identical across all five rows.
+
+  MONOTONIC OVER THE WHOLE RANGE — no peak is observed. The Kaufman maximum, if
+  it exists for this Fe(III)/H2O2 system, lies beyond 6.1 wt%. This dataset
+  therefore validates the RISING limb only and says nothing about peak
+  position; the pack's own `oxidizer_peak_wt_pct` note already records that the
+  peak is unobserved and that (n, C_peak) is formally unidentifiable from
+  sub-peak data.
+
+  UNMODELLED CONFOUND, quantified rather than ignored: the Fe(III) activator
+  varies 5-1180 ppm across the rows. At the near-fixed 4.06/4.07 wt% H2O2 pair
+  the 236x change in Fe moves the rate by 0.6 % (2396 vs 2410 A/min), so Fe is
+  not the governing variable in this range. It is still not a single-variable
+  DOE, and Fe concentration has no channel into the model.
+
+  The 4.06 and 4.07 wt% rows are a near-duplicate pair by construction; they
+  are kept because their agreement is what bounds the Fe confound above.

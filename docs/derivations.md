@@ -1197,3 +1197,54 @@ full-text. The dataset's honest score goes 32.4 % → 69.0 % — *worse*, becaus
 it is now being asked the question it actually answers, and the paper's own
 extreme-difference ranking puts pressure first and speed behind three chemical
 factors. It stays `in_scope: false` (quartz glass, CeO₂–LaOF composite).
+
+## The oxidizer floor belongs to the mechanical path
+
+The oxidizer term is additive at zero concentration:
+
+```
+rate ∝ floor + (1 − floor)·shape(C)
+```
+
+`floor` is the abrasive-only rate at zero oxidizer, as a fraction of the
+reference rate. A purely multiplicative term would predict **zero removal with
+no oxidizer**, which no measurement supports — an abrasive under load removes
+material regardless.
+
+The inherited knowledge base is explicit that this constant is set by the
+MECHANICAL path, not by chemistry: it converges to 0.12–0.27 across four
+independent free-abrasive metal systems, holds across metal species, pH 2–9 and
+with or without a complexant, rises to 0.28–0.37 with hard abrasives at high
+load — and **falls to ~0.02 when the abrasives are removed**.
+
+### The dataset that made the distinction matter
+US 8,070,843 B2 polishes W with a **fixed-abrasive pad and an abrasive-free
+solution**. Scored with the pack's free-abrasive 0.14 it reported 51.7 %, the
+worst oxidizer result in the corpus. Per point:
+
+| H₂O₂ wt% | 0.00 | 2.03 | 4.06 | 4.07 | 6.10 |
+|---|---:|---:|---:|---:|---:|
+| error, pack floor 0.14 | **+220.5 %** | +26.6 % | +0.4 % | −0.2 % | −10.7 % |
+| error, measured floor 0.040 | +8.8 % | +23.8 % | +0.9 % | +0.4 % | +9.4 % |
+
+The whole headline was one row. The floor this system actually has is printed
+in the same table it is being scored against: 96 Å/min at 0 wt% over
+2396 Å/min at 4.06 wt% = **0.040**, read from two rows, not fitted.
+
+### What the improvement does and does not prove
+Declaring the floor necessarily fixes the zero row — the floor *is* that
+ratio, so the move from 51.7 % to 8.7 % is close to tautological on that point.
+The number that measures the MODEL is the four oxidizer-bearing rows, and they
+are essentially unchanged: **9.5 % → 8.6 %**. Nothing was tuned; a measured
+constant was moved out of the table and into the model, and the headline
+stopped being dominated by a formulation the pack was never told about.
+
+The pack keeps its own 0.14, which is correct for the free-abrasive systems it
+was measured on. The override lives in the dataset, the same discipline
+`du2004_cu_h2o2_concentration_sweep.yaml` already uses for its glycine-free
+peak position: a constant that belongs to the FORMULATION is declared by the
+formulation, not merged into the film's pack.
+
+The dataset stays `rank_only`. Its absolute-rate bias — the pack's Kp sits
+1.8–3.4× above three independent Preston back-calculations — is a separate,
+still-open finding that this change does not touch.
