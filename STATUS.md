@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **613 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **617 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -17,6 +17,12 @@
 - **Abrasive TYPE reaches the rate** (`slurry/abrasive_effects.py`): a swap
   rescales only by a published matched-condition ratio, withdraws the pack's
   measured exponents, says `ranking_only` when unanchored.
+- **Velocity is the THINNEST axis, not the weakest term** — the 44.1% median
+  came from Taguchi arrays that never repeat a chemistry at two speeds. Only
+  29 points in the whole corpus isolate velocity; on the one in-scope isolated
+  sweep (Mariscal 3x3) the error is 11.7% and the exponent +0.86 vs Preston's
+  +1.0. Also fixed a data-fidelity bug: the Yang L25 recorded 2 of its 6
+  factors, so four chemical factors' scatter was being read as velocity error.
 - Size-matched abrasive-ratio hunt CLOSED with 15 honest nulls
   (`research/rate_ratios_matched.yaml`) — 0 of 15 pairs pass both gates, so
   34/35 film×abrasive pairs stay `ranking_only`.
@@ -28,11 +34,12 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-Velocity is now the worst axis (44.1% median). Diagnose before touching a
-constant: only `us6564116b2` (20.3%) and `us6918821b2` (44.1%, kept failing as
-the lubrication control) vary it cleanly, so the median may be thin rather than
-weak. Pull the velocity legs out of `sic2026_..._DOE50` and
-`yang2023_quartz_ceria_L25` and score them alone first.
+Oxidizer is the weakest axis that is actually measurable (39.3%, and unlike pH
+it has no structural excuse yet). Isolate it the way velocity was isolated —
+group rows so only the oxidizer moves — before touching a constant. Candidates:
+`us8070843b2_w_h2o2_series` (51.7%), `us8501625b2_cu_h2o2_pressure_series`
+(20.2%), `du2004` (6.2%). The W leg failing 8x worse than the Cu leg on the
+same H2O2 axis is the lead.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp
@@ -62,4 +69,6 @@ Gate: 4 in-scope datasets within ±15% (need 3) → **PASS**
 
 All axes (388 pts, 41/49 datasets): median **20.3%** trend, **23.6%** LOO.
 By axis — size 11.2%, loading 22.9%, pressure 25.3%, oxidizer 39.3%,
-pH 39.3%, velocity 44.1%. Resume handover: `~/CMP-SIM-FOR-RESUME.md`
+pH 39.3%, velocity 44.1%. ⚠ The axis medians pool datasets that vary several
+things at once; velocity's 44.1% is 11.7% once isolated (see DONE).
+Resume handover: `~/CMP-SIM-FOR-RESUME.md`

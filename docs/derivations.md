@@ -1144,3 +1144,56 @@ structural limit showing, not noise. Closing it needs a rate-limiting-step
 (series-resistance) form, not another constant; recorded as a `null` key with
 `TODO(owner)` in the pack and asserted as data in
 `tests/test_ph_system_split.py::test_below_ph_3_5_the_measured_rate_ignores_pressure`.
+
+## Is the velocity axis weak, or is the corpus thin?
+
+`cmp-sim accuracy --axis velocity` reported a 44.1 % median and that promoted
+velocity to "worst axis". The number is not a velocity measurement. The axis
+filter selects every dataset in which speed varies *among other things*, so an
+L25 that moves speed, pressure, pH, abrasive loading and dispersant together
+donates its entire error to the velocity column.
+
+### Isolating the axis
+Group the rows of each dataset so that every field except platen speed is
+identical, keep only groups with two or more distinct speeds, and fit one scale
+per group. Across the whole 49-dataset corpus that leaves **29 points in 11
+groups from 3 datasets**:
+
+| dataset | groups | pts | MAPE | measured exponent in MRR ∝ V ⁿ |
+|---|---:|---:|---:|---:|
+| Mariscal 2020 PETEOS/ceria 3×3 | 3 | 9 | **11.7 %** | **+0.86** |
+| US6918821B2 Cu/IC1000 | 2 | 6 | 36.8 % | +0.22 |
+| sic2023 shear-rheological L9 | 3 | 9 | 68.6 % | −1.40 |
+| US6564116B2 oxide L25 | 0 | 0 | — | — |
+| yang2023 quartz L25 | 0 | 0 | — | — |
+
+The conclusion inverts the headline. On the one **in-scope** dataset that
+isolates velocity the error is 11.7 %, and the measured exponent is +0.86
+against Preston's +1.0 — sub-linear, but not a different law. The two datasets
+dragging the median are documented exclusions: US6918821B2 is the repo's
+lubrication-transition negative control, and sic2023 is shear-rheological
+polishing rather than rotary CMP (`in_scope: false`, exponent −1.40, i.e. the
+rate *falls* with speed).
+
+Velocity is the **thinnest** axis in the corpus, not the weakest model term,
+and the honest fix is data, not a new constant. Asserted in
+`tests/test_velocity_axis.py`, which fails if the isolated-point count grows —
+so the diagnosis is re-done rather than silently inherited.
+
+### Why a Taguchi array can never settle this
+An orthogonal array never repeats a chemistry at two speeds; that is what makes
+it orthogonal. US6564116B2 and yang2023 both appear under
+`--axis velocity` and contribute **zero** isolated velocity points between
+them. Any axis median that includes them is measuring the model's response to
+everything at once.
+
+### A data-fidelity bug this exposed
+`legacy/.../yang2023_quartz_ceria_L25.yaml` recorded only two of the paper's
+six factors — pressure and speed. Abrasive concentration, pH, dispersant
+concentration and slurry flow changed on every row and were not written down,
+so the harness read four chemical factors' worth of scatter as velocity error.
+The local override restores all six from Table 1 + Table A1 of the PMC
+full-text. The dataset's honest score goes 32.4 % → 69.0 % — *worse*, because
+it is now being asked the question it actually answers, and the paper's own
+extreme-difference ranking puts pressure first and speed behind three chemical
+factors. It stays `in_scope: false` (quartz glass, CeO₂–LaOF composite).

@@ -1,0 +1,329 @@
+# Quartz-glass CMP with a CeO2-LaOF slurry — L25 orthogonal array, SIX factors.
+#
+# WHY THIS FILE OVERRIDES THE INHERITED COPY
+# ------------------------------------------
+# legacy/validation/datasets/yang2023_quartz_ceria_L25.yaml records only two of
+# the paper's six factors: pressure (D) and platen speed (E). The other four —
+# abrasive concentration (A), pH (B), dispersant concentration (C) and slurry
+# flow (F) — change on every row and were not written down.
+#
+# That is not a cosmetic omission. With four factors invisible, the scoring
+# harness groups all 25 rows into one "chemistry group" and reads the residual
+# as a VELOCITY error, when most of it is chemistry the model was never told
+# about. The dataset was reporting 32.4% against the velocity axis on that
+# basis. Its own extreme-difference analysis ranks pressure (D) as the LARGEST
+# effect on MRR and puts speed behind three chemical factors, so attributing the
+# scatter to velocity had the paper's own conclusion backwards.
+#
+# Factor levels, Table 1 of the paper (verbatim):
+#   A abrasive concentration (wt%)   0.25 / 0.5 / 1 / 3 / 5
+#   B polishing solution pH          9 / 9.5 / 10 / 10.2 / 10.5
+#   C dispersant concentration (wt%) 0.25 / 0.35 / 0.5 / 0.75 / 1
+#   D polishing pressure (kPa)       20 / 25 / 30 / 35 / 40
+#   E polishing speed (rpm)          60 / 80 / 100 / 120 / 140
+#   F polishing fluid flow (mL/min)  2 / 4 / 6 / 8 / 10
+# Assignment and results: Table A1 (Appendix A), read from the PMC full-text
+# XML (PMC9920658), 25 rows of A-F level indices plus Sa and MRR.
+#
+# Pressures converted 1 kPa = 0.145038 psi; the inherited file's two decoded
+# rows (No.1 "20kPa, 60rpm", No.3 "25kPa, 120rpm") agree with this decode, so
+# the level table is being read the same way, only more completely.
+#
+# ⚠ STILL OUT OF SCOPE, and the reason has not changed: the workpiece is quartz
+# glass and the abrasive is a CeO2-LaOF composite, not an STI oxide with plain
+# ceria. `sti_ceria` is borrowed for its ceria-on-silicate chemistry only.
+# Recording the four missing factors makes the dataset HONEST, not in-scope.
+
+source: >
+  Y. Yang et al., "Dispersion and Polishing Mechanism of a Novel CeO2-LaOF-Based
+  Chemical Mechanical Polishing Slurry for Quartz Glass", Materials 16(3), 1148
+  (2023). doi:10.3390/ma16031148 (MDPI open access, PMC9920658).
+  Factor levels from Table 1; the L25 assignment and the MRR column from
+  Table A1. MRR unit nm/min, per the body text ("MRR was 194.20 nm/min").
+
+in_scope: false
+used_for_calibration: false
+film: oxide
+pack: sti_ceria
+
+conditions:
+  - label: "No.1: 20 kPa, 60 rpm, 0.25 wt%, pH 9, disp 0.25 wt%, 2 mL/min"
+    pressure_psi: 2.9008
+    rpm_wafer: 60
+    rpm_platen: 60
+    mrr_nm_per_min: 273.3
+    read_method: table
+    flow_ml_min: 2
+    overrides:
+      abrasive_wt_pct: 0.25
+      slurry_ph: 9
+      dispersant_wt_pct: 0.25
+  - label: "No.2: 35 kPa, 140 rpm, 0.25 wt%, pH 9.5, disp 0.5 wt%, 4 mL/min"
+    pressure_psi: 5.0763
+    rpm_wafer: 140
+    rpm_platen: 140
+    mrr_nm_per_min: 138.26
+    read_method: table
+    flow_ml_min: 4
+    overrides:
+      abrasive_wt_pct: 0.25
+      slurry_ph: 9.5
+      dispersant_wt_pct: 0.5
+  - label: "No.3: 25 kPa, 120 rpm, 0.25 wt%, pH 10, disp 1.0 wt%, 6 mL/min"
+    pressure_psi: 3.6259
+    rpm_wafer: 120
+    rpm_platen: 120
+    mrr_nm_per_min: 118.96
+    read_method: table
+    flow_ml_min: 6
+    overrides:
+      abrasive_wt_pct: 0.25
+      slurry_ph: 10
+      dispersant_wt_pct: 1.0
+  - label: "No.4: 40 kPa, 100 rpm, 0.25 wt%, pH 10.2, disp 0.35 wt%, 8 mL/min"
+    pressure_psi: 5.8015
+    rpm_wafer: 100
+    rpm_platen: 100
+    mrr_nm_per_min: 168.8
+    read_method: table
+    flow_ml_min: 8
+    overrides:
+      abrasive_wt_pct: 0.25
+      slurry_ph: 10.2
+      dispersant_wt_pct: 0.35
+  - label: "No.5: 30 kPa, 80 rpm, 0.25 wt%, pH 10.5, disp 0.75 wt%, 10 mL/min"
+    pressure_psi: 4.3511
+    rpm_wafer: 80
+    rpm_platen: 80
+    mrr_nm_per_min: 62.7
+    read_method: table
+    flow_ml_min: 10
+    overrides:
+      abrasive_wt_pct: 0.25
+      slurry_ph: 10.5
+      dispersant_wt_pct: 0.75
+  - label: "No.6: 35 kPa, 100 rpm, 0.5 wt%, pH 9, disp 1.0 wt%, 10 mL/min"
+    pressure_psi: 5.0763
+    rpm_wafer: 100
+    rpm_platen: 100
+    mrr_nm_per_min: 112.53
+    read_method: table
+    flow_ml_min: 10
+    overrides:
+      abrasive_wt_pct: 0.5
+      slurry_ph: 9
+      dispersant_wt_pct: 1.0
+  - label: "No.7: 25 kPa, 80 rpm, 0.5 wt%, pH 9.5, disp 0.35 wt%, 2 mL/min"
+    pressure_psi: 3.6259
+    rpm_wafer: 80
+    rpm_platen: 80
+    mrr_nm_per_min: 155.94
+    read_method: table
+    flow_ml_min: 2
+    overrides:
+      abrasive_wt_pct: 0.5
+      slurry_ph: 9.5
+      dispersant_wt_pct: 0.35
+  - label: "No.8: 40 kPa, 60 rpm, 0.5 wt%, pH 10, disp 0.75 wt%, 4 mL/min"
+    pressure_psi: 5.8015
+    rpm_wafer: 60
+    rpm_platen: 60
+    mrr_nm_per_min: 262.04
+    read_method: table
+    flow_ml_min: 4
+    overrides:
+      abrasive_wt_pct: 0.5
+      slurry_ph: 10
+      dispersant_wt_pct: 0.75
+  - label: "No.9: 30 kPa, 140 rpm, 0.5 wt%, pH 10.2, disp 0.25 wt%, 6 mL/min"
+    pressure_psi: 4.3511
+    rpm_wafer: 140
+    rpm_platen: 140
+    mrr_nm_per_min: 67.52
+    read_method: table
+    flow_ml_min: 6
+    overrides:
+      abrasive_wt_pct: 0.5
+      slurry_ph: 10.2
+      dispersant_wt_pct: 0.25
+  - label: "No.10: 20 kPa, 120 rpm, 0.5 wt%, pH 10.5, disp 0.5 wt%, 8 mL/min"
+    pressure_psi: 2.9008
+    rpm_wafer: 120
+    rpm_platen: 120
+    mrr_nm_per_min: 308.66
+    read_method: table
+    flow_ml_min: 8
+    overrides:
+      abrasive_wt_pct: 0.5
+      slurry_ph: 10.5
+      dispersant_wt_pct: 0.5
+  - label: "No.11: 25 kPa, 140 rpm, 1 wt%, pH 9, disp 0.75 wt%, 8 mL/min"
+    pressure_psi: 3.6259
+    rpm_wafer: 140
+    rpm_platen: 140
+    mrr_nm_per_min: 186.48
+    read_method: table
+    flow_ml_min: 8
+    overrides:
+      abrasive_wt_pct: 1
+      slurry_ph: 9
+      dispersant_wt_pct: 0.75
+  - label: "No.12: 40 kPa, 120 rpm, 1 wt%, pH 9.5, disp 0.25 wt%, 10 mL/min"
+    pressure_psi: 5.8015
+    rpm_wafer: 120
+    rpm_platen: 120
+    mrr_nm_per_min: 250.79
+    read_method: table
+    flow_ml_min: 10
+    overrides:
+      abrasive_wt_pct: 1
+      slurry_ph: 9.5
+      dispersant_wt_pct: 0.25
+  - label: "No.13: 30 kPa, 100 rpm, 1 wt%, pH 10, disp 0.5 wt%, 2 mL/min"
+    pressure_psi: 4.3511
+    rpm_wafer: 100
+    rpm_platen: 100
+    mrr_nm_per_min: 226.67
+    read_method: table
+    flow_ml_min: 2
+    overrides:
+      abrasive_wt_pct: 1
+      slurry_ph: 10
+      dispersant_wt_pct: 0.5
+  - label: "No.14: 20 kPa, 80 rpm, 1 wt%, pH 10.2, disp 1.0 wt%, 4 mL/min"
+    pressure_psi: 2.9008
+    rpm_wafer: 80
+    rpm_platen: 80
+    mrr_nm_per_min: 109.32
+    read_method: table
+    flow_ml_min: 4
+    overrides:
+      abrasive_wt_pct: 1
+      slurry_ph: 10.2
+      dispersant_wt_pct: 1.0
+  - label: "No.15: 35 kPa, 60 rpm, 1 wt%, pH 10.5, disp 0.35 wt%, 6 mL/min"
+    pressure_psi: 5.0763
+    rpm_wafer: 60
+    rpm_platen: 60
+    mrr_nm_per_min: 122.18
+    read_method: table
+    flow_ml_min: 6
+    overrides:
+      abrasive_wt_pct: 1
+      slurry_ph: 10.5
+      dispersant_wt_pct: 0.35
+  - label: "No.16: 40 kPa, 80 rpm, 3 wt%, pH 9, disp 0.5 wt%, 6 mL/min"
+    pressure_psi: 5.8015
+    rpm_wafer: 80
+    rpm_platen: 80
+    mrr_nm_per_min: 229.89
+    read_method: table
+    flow_ml_min: 6
+    overrides:
+      abrasive_wt_pct: 3
+      slurry_ph: 9
+      dispersant_wt_pct: 0.5
+  - label: "No.17: 30 kPa, 60 rpm, 3 wt%, pH 9.5, disp 1.0 wt%, 8 mL/min"
+    pressure_psi: 4.3511
+    rpm_wafer: 60
+    rpm_platen: 60
+    mrr_nm_per_min: 122.18
+    read_method: table
+    flow_ml_min: 8
+    overrides:
+      abrasive_wt_pct: 3
+      slurry_ph: 9.5
+      dispersant_wt_pct: 1.0
+  - label: "No.18: 20 kPa, 140 rpm, 3 wt%, pH 10, disp 0.35 wt%, 10 mL/min"
+    pressure_psi: 2.9008
+    rpm_wafer: 140
+    rpm_platen: 140
+    mrr_nm_per_min: 223.46
+    read_method: table
+    flow_ml_min: 10
+    overrides:
+      abrasive_wt_pct: 3
+      slurry_ph: 10
+      dispersant_wt_pct: 0.35
+  - label: "No.19: 35 kPa, 120 rpm, 3 wt%, pH 10.2, disp 0.75 wt%, 2 mL/min"
+    pressure_psi: 5.0763
+    rpm_wafer: 120
+    rpm_platen: 120
+    mrr_nm_per_min: 127.0
+    read_method: table
+    flow_ml_min: 2
+    overrides:
+      abrasive_wt_pct: 3
+      slurry_ph: 10.2
+      dispersant_wt_pct: 0.75
+  - label: "No.20: 25 kPa, 100 rpm, 3 wt%, pH 10.5, disp 0.25 wt%, 4 mL/min"
+    pressure_psi: 3.6259
+    rpm_wafer: 100
+    rpm_platen: 100
+    mrr_nm_per_min: 181.66
+    read_method: table
+    flow_ml_min: 4
+    overrides:
+      abrasive_wt_pct: 3
+      slurry_ph: 10.5
+      dispersant_wt_pct: 0.25
+  - label: "No.21: 30 kPa, 120 rpm, 5 wt%, pH 9, disp 0.35 wt%, 4 mL/min"
+    pressure_psi: 4.3511
+    rpm_wafer: 120
+    rpm_platen: 120
+    mrr_nm_per_min: 138.26
+    read_method: table
+    flow_ml_min: 4
+    overrides:
+      abrasive_wt_pct: 5
+      slurry_ph: 9
+      dispersant_wt_pct: 0.35
+  - label: "No.22: 20 kPa, 100 rpm, 5 wt%, pH 9.5, disp 0.75 wt%, 6 mL/min"
+    pressure_psi: 2.9008
+    rpm_wafer: 100
+    rpm_platen: 100
+    mrr_nm_per_min: 303.84
+    read_method: table
+    flow_ml_min: 6
+    overrides:
+      abrasive_wt_pct: 5
+      slurry_ph: 9.5
+      dispersant_wt_pct: 0.75
+  - label: "No.23: 35 kPa, 80 rpm, 5 wt%, pH 10, disp 0.25 wt%, 8 mL/min"
+    pressure_psi: 5.0763
+    rpm_wafer: 80
+    rpm_platen: 80
+    mrr_nm_per_min: 78.77
+    read_method: table
+    flow_ml_min: 8
+    overrides:
+      abrasive_wt_pct: 5
+      slurry_ph: 10
+      dispersant_wt_pct: 0.25
+  - label: "No.24: 25 kPa, 60 rpm, 5 wt%, pH 10.2, disp 0.5 wt%, 10 mL/min"
+    pressure_psi: 3.6259
+    rpm_wafer: 60
+    rpm_platen: 60
+    mrr_nm_per_min: 139.86
+    read_method: table
+    flow_ml_min: 10
+    overrides:
+      abrasive_wt_pct: 5
+      slurry_ph: 10.2
+      dispersant_wt_pct: 0.5
+  - label: "No.25: 40 kPa, 140 rpm, 5 wt%, pH 10.5, disp 1.0 wt%, 2 mL/min"
+    pressure_psi: 5.8015
+    rpm_wafer: 140
+    rpm_platen: 140
+    mrr_nm_per_min: 271.69
+    read_method: table
+    flow_ml_min: 2
+    overrides:
+      abrasive_wt_pct: 5
+      slurry_ph: 10.5
+      dispersant_wt_pct: 1.0
+notes: >
+  The paper's own extreme-difference ranking on MRR puts polishing PRESSURE
+  first; speed is not the dominant factor. Any error this dataset reports
+  against the velocity axis should be read with that in mind — a 5-level speed
+  sweep in which four chemical factors also move is not a velocity measurement.
