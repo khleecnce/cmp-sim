@@ -21,6 +21,21 @@ base: oxide_silica
 description: "Oxide / colloidal silica: hydrolysis mechanism, contact stress, pattern and thermal terms"
 
 params:
+  reference_abrasive:
+    value: colloidal_silica
+    unit: abrasive database key
+    note: >
+      Which abrasive this pack's kp_m_per_pa was calibrated with. NOT a
+      formulation input - it is the declaration that makes an abrasive SWAP
+      detectable. Kp was fitted to US9499721B2, whose example tables polish TEOS
+      with a COLLOIDAL SILICA slurry, and the pack's size exponent (-0.05) is
+      the silica-group value fitted across five silica sweeps. Running ceria or
+      alumina through this pack therefore replaces those exponents with the ones
+      scoped to that abrasive, and warns that the absolute rate is still
+      anchored to silica - see cmp_sim/slurry/abrasive_effects.py.
+    source: "US9499721B2 TEOS/colloidal-silica example tables (this pack's Kp fit)"
+    confidence: literature
+
   ph_acid_mechanical_floor:
     value: 0.010
     unit: fraction of peak rate

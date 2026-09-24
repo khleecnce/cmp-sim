@@ -33,6 +33,17 @@ description: >
 base: cu_alkaline_benzenesulfonic
 
 params:
+  reference_abrasive:
+    value: colloidal_silica
+    unit: abrasive database key
+    note: >
+      This pack's abrasive_size_exponent note already scopes its 0.0 to COLLOIDAL
+      SILICA on copper (TW202115224A spherical subset, 15-160 nm). Declaring the
+      reference abrasive as a key makes that scope machine-readable, so the
+      engine can detect a swap instead of relying on a human reading the note.
+    source: "this pack's own abrasive_size_exponent note (TW202115224A silica subset)"
+    confidence: literature
+
   abrasive_size_exponent:
     value: 0.0
     unit: "-"

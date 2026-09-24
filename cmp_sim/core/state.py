@@ -37,8 +37,18 @@ class Additive:
 
 @dataclass
 class Abrasive:
-    """Abrasive particle population."""
-    kind: str = "silica"                 # silica | ceria | alumina | diamond | none
+    """Abrasive particle population.
+
+    ``kind`` is ``None`` by default, NOT "silica". The old "silica" default was
+    harmless only while the abrasive type had no effect on the prediction. Once
+    the type was wired in (``slurry/abrasive_effects.py``), that default started
+    claiming every unspecified recipe was a silica slurry — so a ceria validation
+    dataset, which states its pack but not its abrasive, was read as "silica run
+    through the ceria pack", i.e. an abrasive SWAP, and had its ceria exponents
+    withdrawn. ``None`` means "not stated", and the engine then uses the pack's
+    own ``reference_abrasive``, which is what the pack was calibrated with.
+    """
+    kind: Optional[str] = None            # silica | ceria | alumina | zirconia | diamond | none
     conc_wt_pct: Optional[float] = None
     d50_nm: Optional[float] = None
     d99_nm: Optional[float] = None       # large-particle tail -> defect proxy

@@ -86,6 +86,8 @@ class ResolvedRecipe:
     profile: Any = None
     #: the detected physical situation
     situation: Any = None
+    #: what the abrasive TYPE in this recipe does (AbrasiveResolution)
+    abrasive_resolution: Any = None
 
     # ── pack access ────────────────────────────────────────────
     def p(self, key: str) -> Any:
@@ -375,11 +377,77 @@ def _kappa_contact_hook(rr: ResolvedRecipe) -> Dict[str, Any]:
     return out
 
 
+def _abrasive_type_hook(rr: ResolvedRecipe) -> Dict[str, Any]:
+    """Which ABRASIVE is this, and what does swapping it change?
+
+    Runs before ``_abrasive_hook`` because it rewrites the very exponents that
+    hook reads. Before this existed, ``slurry.abrasive.kind`` had no effect on
+    the rate at all: silica, ceria, alumina, zirconia and diamond returned a
+    bit-identical 1601 A/min on examples/oxide_baseline.yaml.
+    """
+    from cmp_sim.slurry import abrasive_effects as ae
+
+    kind = getattr(rr.recipe.slurry.abrasive, "kind", None)
+    reference = rr.p_or("reference_abrasive", None)
+    declares = {k: (rr.p_or(k, None) is not None) for k in ae.ABRASIVE_SCOPED_KEYS}
+    res = ae.resolve(kind=kind, film=str(rr.recipe.wafer.film or ""),
+                     reference_kind=reference, pack_declares=declares)
+    rr.abrasive_resolution = res
+
+    # Rewrite the pack in place so the downstream abrasive hook reads the
+    # exponents scoped to the abrasive ACTUALLY used, not the pack's own.
+    from sim.params import Param
+    for key, value in res.overrides.items():
+        rr.pack.params[key] = Param(
+            key=key, value=value, unit="dimensionless",
+            source=f"abrasives.yaml: {res.kind} on {rr.recipe.wafer.film}",
+            confidence="literature",
+            note="scoped to the abrasive in this recipe, replacing the pack's "
+                 f"value for '{res.reference_kind}'",
+            owner="abrasive_effects")
+    for key, why in res.withdrawn.items():
+        rr.pack.params[key] = Param(
+            key=key, value=None, unit="dimensionless",
+            source=f"withdrawn by abrasive_effects for {res.kind}",
+            confidence="unverified", note=why, owner="abrasive_effects")
+
+    out: Dict[str, Any] = {"notes": res.notes, "warnings": res.warnings,
+                           "abrasive_type": res.as_dict()}
+    if res.relative_rate is not None:
+        out["name"] = "abrasive_type"
+        out["value"] = res.relative_rate
+    return out
+
+
 def _abrasive_hook(rr: ResolvedRecipe) -> Dict[str, Any]:
     """P3 — abrasive count / size / load mechanics."""
     if not rr.profile.enabled("abrasive"):
         return {}
     from cmp_sim.models import luo_dornfeld as ld
+
+    # When the abrasive was swapped and no exponents exist for the one actually
+    # used, the composition axis is UNKNOWN, not neutral. Falling through to the
+    # derived exponent is the specific trap this project already paid for: a
+    # null abrasive_size_exponent selected a derived -0.84 whose sign was wrong
+    # for 8 of 10 measured sweeps. So the axis is reported as unevaluated and
+    # the rate stays at the reference composition rather than being moved by a
+    # number that belongs to a different abrasive.
+    res = getattr(rr, "abrasive_resolution", None)
+    if res is not None and res.withdrawn and not res.overrides:
+        return {"name": "chi_abrasive", "value": None,
+                "notes": [],
+                "warnings": [
+                    f"abrasive loading and particle size were NOT applied: the "
+                    f"exponents in this pack were fitted for "
+                    f"'{res.reference_kind}' and the abrasive in this recipe is "
+                    f"'{res.kind}', for which the abrasive database has no fitted "
+                    f"concentration or size exponent on film "
+                    f"'{rr.recipe.wafer.film}'. The derived exponent was NOT used "
+                    f"as a fallback: it once had the wrong SIGN on 8 of 10 "
+                    f"measured sweeps, so substituting it would move the rate in "
+                    f"a direction nothing measured. Supply measurements: with "
+                    f"'{res.kind}' at two loadings and two sizes to unlock this "
+                    f"axis."]}
 
     conc = rr.p_or("abrasive_wt_pct", None)
     conc_ref = rr.p_or("abrasive_ref_wt_pct", None)
@@ -671,8 +739,12 @@ def simulate(recipe: Recipe) -> Result:
     notes.extend(rr.formulation_notes)
     warnings.extend(rr.formulation_warnings)
 
+    # _abrasive_type_hook must precede _abrasive_hook: it rewrites the
+    # concentration and size exponents to the ones scoped to the abrasive
+    # actually in the recipe, which is what _abrasive_hook then reads.
     hooks = list(_FACTOR_HOOKS) + [_exponent_hook, _kappa_contact_hook,
-                                   _abrasive_hook, _chemistry_hook]
+                                   _abrasive_type_hook, _abrasive_hook,
+                                   _chemistry_hook]
     if rr.profile.enabled("transport"):
         hooks.append(_supply_diagnostic)
     if rr.profile.enabled("damage"):
@@ -689,6 +761,8 @@ def simulate(recipe: Recipe) -> Result:
         warnings.extend(out.get("warnings", []))
         if out.get("regime"):
             extras["abrasive_regime"] = out["regime"]
+        if out.get("abrasive_type"):
+            extras["abrasive_type"] = out["abrasive_type"]
         if out.get("terms"):
             extras["chemistry_terms"] = {k: round(float(v), 5)
                                          for k, v in out["terms"].items()}

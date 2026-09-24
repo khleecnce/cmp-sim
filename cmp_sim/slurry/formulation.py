@@ -50,10 +50,31 @@ ROLE_TO_KEYS: Dict[str, Tuple[str, ...]] = {
 WIRED_ROLES = {"oxidizer", "inhibitor", "passivator"}
 
 
+#: Parsed database YAML keyed by (path, mtime_ns, size), mirroring the pack
+#: loader's cache in core/params.py. The abrasive database is 125 KB and is now
+#: consulted several times per run by slurry/abrasive_effects.py, so re-parsing
+#: it each time made the test suite take minutes instead of seconds. The mtime
+#: is part of the key so editing the database takes effect immediately: a stale
+#: cache during a data-tuning session would be a silent wrong answer.
+_DB_CACHE: Dict[Tuple[str, int, int], Dict[str, Any]] = {}
+
+
 def _load_db(path: Path) -> Dict[str, Any]:
     if not path.exists():
         return {}
-    return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    try:
+        st = path.stat()
+        key = (str(path), st.st_mtime_ns, st.st_size)
+    except OSError:                                      # pragma: no cover
+        return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    hit = _DB_CACHE.get(key)
+    if hit is None:
+        hit = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        _DB_CACHE[key] = hit
+    # Callers only READ these trees (lookups and value extraction), so the
+    # shared instance is handed out directly rather than deep-copied - copying
+    # 125 KB per lookup was most of the cost this cache exists to remove.
+    return hit
 
 
 def additive_database() -> Dict[str, Any]:

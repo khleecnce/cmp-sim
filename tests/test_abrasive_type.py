@@ -1,0 +1,262 @@
+"""The abrasive TYPE must change the answer — and say what it cannot change.
+
+The bug this file exists to prevent
+-----------------------------------
+``slurry.abrasive.kind`` used to be accepted, stored, used only to look up a
+density for the viscosity estimate, and otherwise discarded. Running
+``examples/oxide_baseline.yaml`` with silica, ceria, alumina, zirconia and
+diamond returned a bit-identical 1601.0 A/min five times. The owner's whole
+reason for asking for per-abrasive treatment is that the differences between
+those particles are too large to pool, so returning one number for all five was
+answering a question nobody asked.
+
+Equally important is the other half: where no published same-recipe comparison
+exists, the simulator must NOT invent a ratio (a hardness ranking is not a rate
+ranking) and must NOT fall back to a derived exponent that belongs to a
+different abrasive. It has to say the axis is unevaluated.
+"""
+from __future__ import annotations
+
+import pytest
+
+from cmp_sim.core.solver import simulate
+from cmp_sim.core.state import (Abrasive, Disk, Pad, Recipe, Slurry, Tool,
+                                Wafer)
+
+
+def _run(kind, film="oxide", pack="oxide_silica", conc=12.0, d50=70.0):
+    return simulate(Recipe(
+        model="full",
+        wafer=Wafer(film=film, diameter_mm=300, initial_thickness_nm=1000,
+                    n_radial=21),
+        slurry=Slurry(pack=pack, ph=10.5,
+                      abrasive=Abrasive(kind=kind, conc_wt_pct=conc, d50_nm=d50)),
+        pad=Pad(shore_d=57.0, groove_width_mm=0.5, groove_pitch_mm=2.0,
+                groove_depth_mm=0.75),
+        disk=Disk(),
+        tool=Tool(pressure_psi=3.0, rpm_platen=66.31, rpm_head=66.31,
+                  flow_ml_min=200, time_s=60)))
+
+
+def _abr(result):
+    return result.extras.get("abrasive_type") or {}
+
+
+# ── the bug itself ───────────────────────────────────────────────────
+def test_swapping_the_abrasive_changes_the_rate():
+    """The regression test for the identical-five-numbers bug."""
+    rates = {k: _run(k).mean_rr_angstrom_per_min
+             for k in ("silica", "ceria", "alumina", "zirconia")}
+    assert len(set(round(v, 3) for v in rates.values())) > 1, (
+        "every abrasive returned the same removal rate, so the abrasive type is "
+        f"still being discarded: {rates}")
+    # Ceria is the one pairing with a published ratio, and it is faster.
+    assert rates["ceria"] > rates["silica"], rates
+
+
+def test_ceria_uses_the_published_ratio_and_names_it():
+    """The only licensed rescale in the table, applied with its citation."""
+    r = _run("ceria")
+    assert r.factors.get("abrasive_type") == pytest.approx(3.0)
+    info = _abr(r)
+    assert info["relative_rate"] == pytest.approx(3.0)
+    assert "10.1149/1.2949085" in (info["relative_rate_source"] or ""), info
+    assert info["ranking_only"] is False
+
+
+def test_an_unanchored_abrasive_says_the_scale_is_not_its_own():
+    """No published ratio -> no invented one, and the run says so.
+
+    Alumina on oxide has no same-tool comparison against colloidal silica in
+    this corpus. The rate must not be rescaled by a hardness ratio, and the
+    result must declare itself a ranking rather than an anchored prediction.
+    """
+    r = _run("alumina")
+    info = _abr(r)
+    assert info["ranking_only"] is True
+    assert info["relative_rate"] is None
+    assert "abrasive_type" not in r.factors, (
+        "a rate factor was applied for an abrasive with no published ratio")
+    joined = " ".join(r.warnings)
+    assert "not the abrasive this pack was calibrated with" in joined
+    assert "hardness ranking" in joined, (
+        "the result must say WHY it refused to substitute hardness, or the "
+        "refusal reads as a missing feature")
+
+
+def test_hardness_order_is_never_used_as_a_rate_order():
+    """Harder abrasive != faster. Diamond must not out-predict ceria here.
+
+    Diamond is ~5x harder than ceria and has no oxide rate ratio, so if any
+    hardness-based fallback ever creeps in, diamond will overtake ceria on oxide
+    and this test will catch it.
+    """
+    assert _run("diamond").mean_rr_angstrom_per_min < _run("ceria").mean_rr_angstrom_per_min
+
+
+# ── exponents are scoped to the abrasive, not the film ───────────────
+def test_the_packs_exponents_are_withdrawn_not_reused_on_a_swap():
+    """Silica's -0.05 must not be applied to a ceria or alumina run."""
+    info = _abr(_run("alumina"))
+    assert set(info["withdrawn"]) >= {"abrasive_size_exponent",
+                                      "abrasive_conc_exponent"}, info
+    why = " ".join(info["withdrawn"].values())
+    assert "split by ABRASIVE" in why and "colloidal_silica" in why
+
+
+def test_a_withdrawn_axis_is_unevaluated_rather_than_silently_derived():
+    """The trap: null was not neutral.
+
+    A null ``abrasive_size_exponent`` used to select the DERIVED -0.84, whose
+    sign was wrong for 8 of 10 measured sweeps. After a swap the composition
+    axis must be reported as not applied, not quietly filled from the
+    derivation.
+    """
+    r = _run("alumina")
+    assert "chi_abrasive" not in r.factors
+    joined = " ".join(r.warnings)
+    assert "were NOT applied" in joined
+    assert "derived exponent was NOT used" in joined
+
+
+def test_size_has_no_effect_once_the_axis_is_withdrawn():
+    """And it must be inert, not half-applied."""
+    small = _run("alumina", d50=30.0).mean_rr_angstrom_per_min
+    large = _run("alumina", d50=300.0).mean_rr_angstrom_per_min
+    assert small == pytest.approx(large), (
+        "the size axis was withdrawn, so it must not move the rate at all")
+
+
+def test_the_matching_abrasive_still_responds_to_size_and_loading():
+    """Withdrawal must not break the calibrated case it does not apply to."""
+    small = _run("silica", d50=30.0).mean_rr_angstrom_per_min
+    large = _run("silica", d50=300.0).mean_rr_angstrom_per_min
+    assert small != pytest.approx(large), (
+        "silica through the silica pack must keep its measured size response")
+    lean = _run("silica", conc=1.0).mean_rr_angstrom_per_min
+    rich = _run("silica", conc=20.0).mean_rr_angstrom_per_min
+    assert rich > lean
+
+
+# ── the reference declaration itself ─────────────────────────────────
+def test_the_reference_abrasive_factor_is_exactly_one():
+    """The project's central rule: a factor is 1.0 at the pack's reference.
+
+    The pack's Kp already contains its own abrasive, so naming that abrasive
+    must not rescale anything — otherwise the same physics is counted twice.
+    """
+    named = _run("silica")
+    info = _abr(named)
+    assert info["matches_reference"] is True
+    assert "abrasive_type" not in named.factors
+    # And leaving it unstated must give the identical answer, since the pack's
+    # reference abrasive is what it was calibrated with either way.
+    unstated = _run(None)
+    assert named.mean_rr_angstrom_per_min == pytest.approx(
+        unstated.mean_rr_angstrom_per_min)
+
+
+def test_every_pack_declares_which_abrasive_it_was_calibrated_with():
+    """Without it, an abrasive swap cannot be detected at all.
+
+    A pack may declare ``null`` — SnAg does, because it has no Kp and therefore
+    no calibration whose abrasive could be named — but it must declare the key,
+    with a note saying why it is null.
+    """
+    from cmp_sim.core.params import available_packs, load_pack
+
+    missing = []
+    for name in available_packs():
+        try:
+            pack = load_pack(name)
+        except Exception:
+            continue
+        if "kp_m_per_pa" not in pack.params:
+            continue                      # base/infrastructure packs
+        param = pack.params.get("reference_abrasive")
+        if param is None:
+            missing.append(name)
+            continue
+        if param.value is None:
+            assert "TODO" in (param.note or ""), (
+                f"pack '{name}' declares reference_abrasive: null with no "
+                "TODO(owner) note saying why")
+    assert not missing, (
+        f"these packs cannot detect an abrasive swap: {missing}")
+
+
+def test_a_declared_reference_abrasive_resolves_in_the_database():
+    """A reference naming an abrasive the database does not know is a typo."""
+    from cmp_sim.core.params import available_packs, load_pack
+    from cmp_sim.slurry.abrasive_effects import canonical_kind
+
+    bad = {}
+    for name in available_packs():
+        try:
+            pack = load_pack(name)
+        except Exception:
+            continue
+        param = pack.params.get("reference_abrasive")
+        if param is None or param.value is None:
+            continue
+        if canonical_kind(str(param.value)) is None:
+            bad[name] = param.value
+    assert not bad, f"reference_abrasive not in the abrasive database: {bad}"
+
+
+def test_an_unknown_abrasive_is_reported_not_treated_as_the_reference():
+    r = _run("unobtainium")
+    info = _abr(r)
+    assert info["ranking_only"] is True
+    assert any("is not in the abrasive database" in w for w in r.warnings)
+
+
+def test_aliases_resolve_to_the_same_abrasive():
+    """`ceo2` and `ceria` must not be two different slurries."""
+    a = _run("ceria").mean_rr_angstrom_per_min
+    b = _run("ceo2").mean_rr_angstrom_per_min
+    assert a == pytest.approx(b)
+
+
+def test_colloidal_and_fumed_silica_are_not_the_same_entry():
+    """Different PSD and aggregate structure; the DB keeps them apart."""
+    from cmp_sim.slurry.abrasive_effects import canonical_kind
+
+    assert canonical_kind("colloidal_silica") == "colloidal_silica"
+    assert canonical_kind("fumed_silica") == "fumed_silica"
+    assert canonical_kind("silica") == "colloidal_silica"
+
+
+# ── the ratio table's own discipline ────────────────────────────────
+def test_a_ratio_measured_against_another_reference_is_refused_not_chained():
+    """Chaining two ratios from two tools multiplies their errors.
+
+    The W table holds a silica/alumina entry. Asking for silica on the OXIDE
+    pack (reference colloidal_silica) must not pick it up, and asking on a pack
+    whose reference does not match a declared ratio must refuse rather than
+    rescale.
+    """
+    from cmp_sim.slurry import abrasive_effects as ae
+
+    # ceria/colloidal_silica exists on oxide...
+    hit = ae._relative_rate("oxide", "ceria", "colloidal_silica")
+    assert hit[0] == pytest.approx(3.0)
+    # ...but the same entry must not be served for a different reference.
+    miss = ae._relative_rate("oxide", "ceria", "alumina")
+    assert miss[0] is None
+    assert "chaining ratios" in (miss[2] or "")
+
+
+def test_every_filled_ratio_carries_a_source_and_a_reference():
+    """A rate ratio without its reference abrasive is meaningless."""
+    from cmp_sim.slurry.abrasive_effects import _db
+
+    for film, row in (_db().get("relative_rate", {}) or {}).items():
+        for kind, spec in (row or {}).items():
+            assert "reference" in spec, f"{film}/{kind} has no reference abrasive"
+            if spec.get("value") is not None:
+                assert spec.get("source"), f"{film}/{kind} has a value but no source"
+                assert spec.get("confidence") in {"literature", "vendor", "derived"}, spec
+            else:
+                assert "TODO" in (spec.get("note") or ""), (
+                    f"{film}/{kind} is null without a TODO(owner) note")

@@ -37,6 +37,18 @@ base: sic_ceria_h2o2
 description: "4H-SiC: ceria/H2O2 alkaline slurry, Kp refitted to SiC's own DOE"
 
 params:
+  reference_abrasive:
+    value: ceria
+    unit: abrasive database key
+    note: >
+      Kp was back-calculated from Wang et al. ACS SI Table S3 point S3-27, a
+      CeO2 4 wt% / H2O2 4 vol% / pH 10 SiC polish - a ceria measurement. The
+      pack's own size-exponent note records that SiC's two sweeps are alumina
+      (+0.24) and silica (+0.10) while ceria elsewhere gives +0.87, i.e. the
+      abrasives disagree on this film too, so the swap must be detected.
+    source: "Wang et al. ACS SI Table S3 point S3-27 (this pack's Kp anchor)"
+    confidence: literature
+
   abrasive_conc_half_wt_pct:
     value: null
     unit: wt%

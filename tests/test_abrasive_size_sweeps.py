@@ -167,7 +167,17 @@ def test_the_patents_own_ratio_column_confirms_the_row_pairing():
 
 
 # ── the measured value must actually be used ─────────────────────────
-def _rate(film, pack, d50):
+def _rate(film, pack, d50, kind="alumina"):
+    """A run at one particle size.
+
+    ``kind`` defaults to ALUMINA because these tests exercise the copper pack,
+    whose measured +0.33 size exponent comes from Lai 2001's ALUMINA sweep and
+    whose reference_abrasive is alumina. The default used to be "silica", which
+    was harmless only while the abrasive kind had no effect on the result: once
+    the kind was wired in, asking for silica and expecting alumina's exponent
+    became a contradiction inside one test. The docstring below always said
+    alumina; only the input did not.
+    """
     from cmp_sim.core.solver import simulate
     from cmp_sim.core.state import (Abrasive, Disk, Pad, Recipe, Slurry, Tool,
                                     Wafer)
@@ -175,7 +185,7 @@ def _rate(film, pack, d50):
     return simulate(Recipe(
         model="auto", wafer=Wafer(film=film, n_radial=11),
         slurry=Slurry(pack=pack, abrasive=Abrasive(
-            kind="silica", d50_nm=d50, conc_wt_pct=3.0)),
+            kind=kind, d50_nm=d50, conc_wt_pct=3.0)),
         pad=Pad(groove_width_mm=0.5, groove_pitch_mm=2.0, groove_depth_mm=0.75),
         disk=Disk(),
         tool=Tool(pressure_psi=3.0, rpm_platen=60, rpm_head=60, time_s=60)))
@@ -227,7 +237,10 @@ def test_the_exponent_splits_by_abrasive_not_by_film():
     assert silica < 0 < ceria, (silica, ceria)
     assert abs(ceria - silica) > 0.5
 
-    result = _rate("oxide", "oxide_silica", 200)
+    # Silica through the silica pack: no swap, so the pack's own measured
+    # exponent is the one the engine applies. Naming the abrasive explicitly is
+    # the point of the test — this is where the scoping has to be honoured.
+    result = _rate("oxide", "oxide_silica", 200, kind="silica")
     notes = " ".join(result.notes + (result.extras.get("abrasive") or {}).get("notes", []))
     assert "MEASURED sweeps for this abrasive" in notes
 

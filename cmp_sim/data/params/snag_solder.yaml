@@ -72,6 +72,20 @@ base: base
 description: "SnAg (tin-silver) solder microbump CMP for advanced packaging: hardness and topography sourced, Preston coefficient NOT PUBLISHED (null)"
 
 params:
+  reference_abrasive:
+    value: null
+    unit: abrasive database key
+    note: >
+      TODO(owner): NOT FILLED, and deliberately. No primary source publishes a
+      SnAg or pure-Sn CMP removal rate with the pressure and velocity it was
+      measured at, so this pack has kp_m_per_pa: null and there is no
+      calibration whose abrasive could be named. Declaring one would imply a
+      calibration that does not exist. The engine reports "this pack does not
+      declare reference_abrasive" for SnAg runs, which is the correct state:
+      the abrasive cannot be checked because nothing here was calibrated.
+    source: null
+    confidence: unverified
+
 
   cmp_maturity:
     value: unestablished

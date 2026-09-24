@@ -60,6 +60,17 @@ base: base
 description: "Silicon substrate (bare Si wafer) CMP: alkaline colloidal silica, OH- hydrolysis mechanism"
 
 params:
+  reference_abrasive:
+    value: colloidal_silica
+    unit: abrasive database key
+    note: >
+      Bare-Si substrate polish with alkaline COLLOIDAL SILICA: kp_m_per_pa was
+      back-calculated from [ZHU25] (doi:10.3390/mi16040450), whose slurry is
+      colloidal silica + KOH. Declared so a ceria or alumina Si recipe is
+      flagged rather than predicted on silica's numbers.
+    source: "doi:10.3390/mi16040450 ([ZHU25]) - this pack's Kp derivation, colloidal silica"
+    confidence: literature
+
 
   film:
     value: silicon

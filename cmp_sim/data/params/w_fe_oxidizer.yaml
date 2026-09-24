@@ -32,6 +32,26 @@ base: w_fe_oxidizer
 description: "Tungsten / Fe-H2O2, Kp refitted to two printed patent example tables"
 
 params:
+  reference_abrasive:
+    value: alumina
+    unit: abrasive database key
+    note: >
+      Alumina, but with a HONEST CAVEAT that lowers the confidence to med.
+      The pack's material constants are alumina: abrasive_density_kg_m3 = 3950
+      (alpha-Al2O3, CRC corundum) and abrasive_size_nm = 50 nm from Bielmann
+      1999's gamma-alumina W-CMP slurry (doi:10.1149/1.1390765). But the Kp
+      value 7.0e-14 is the mean of fits to TWO patents, and one of them
+      (US2011/0186542A1) uses a DIAMOND abrasive at 0.01-0.04 wt% - which is
+      also why abrasive_conc_half_wt_pct is pinned at 0.01 wt% and flagged as
+      not a general tungsten value. So this pack's scale is a W-chemistry
+      average across two abrasives rather than a single-abrasive calibration.
+      'alumina' is declared because the material constants and the mainstream
+      W slurry chemistry are alumina; treat a swap warning from this pack as
+      approximate in both directions.
+      TODO(owner): re-fit Kp on alumina-only W data to make this exact.
+    source: "this pack's abrasive_density_kg_m3 (CRC alpha-Al2O3) and kp_m_per_pa notes; caveat from US2011/0186542A1 (diamond)"
+    confidence: med
+
   abrasive_conc_half_wt_pct:
     value: 0.01
     unit: wt%

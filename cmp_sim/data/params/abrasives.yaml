@@ -1475,6 +1475,99 @@ abrasives:
         confidence: unverified
 
 # =====================================================================
+# PUBLISHED RATE RATIOS BETWEEN ABRASIVES ON THE SAME FILM
+# =====================================================================
+# Why this table is separate, and short.
+#
+# A pack's kp_m_per_pa was back-calculated from a measurement that already
+# contained one particular abrasive. Swapping the abrasive therefore invalidates
+# the ABSOLUTE scale, not just the exponents. Rescaling it requires a ratio
+# measured on the SAME tool with the SAME recipe apart from the abrasive - the
+# only comparison in which everything else cancels.
+#
+# Such comparisons are rare, so this table is mostly empty, and that emptiness
+# is the honest state. Where no entry exists, cmp_sim/slurry/abrasive_effects.py
+# applies NO scale factor and warns that the absolute rate is still anchored to
+# the pack's own abrasive.
+#
+# HARDNESS RANKING IS NOT USED AS A SUBSTITUTE. Mohs order does not predict CMP
+# rate: ceria (6.44 GPa) removes oxide roughly 3x faster than the harder-cutting
+# alumina route achieves on that film, and silica polishes sapphire, which is far
+# harder than silica. A hardness ratio presented as a rate ratio would be an
+# invented number carrying someone else's citation.
+#
+# Schema: relative_rate[film][abrasive] =
+#   {value: <rate(abrasive) / rate(reference)>, reference: <abrasive key>,
+#    source: ..., confidence: ..., note: ...}
+# A ratio declared against a reference OTHER than the pack's own reference
+# abrasive is refused rather than chained, because chaining two ratios measured
+# on two different tools multiplies their errors.
+relative_rate:
+
+  oxide:
+    ceria:
+      value: 3.0
+      reference: colloidal_silica
+      unit: dimensionless
+      source: "https://doi.org/10.1149/1.2949085"
+      confidence: literature
+      note: >
+        The ceria-shell defectivity study states the ceria oxide removal rate is
+        roughly 3x that of conventional silica slurry, alongside higher
+        defectivity. This is a STATED APPROXIMATE RATIO from a paper whose
+        subject is defectivity, not a least-squares fit of a matched-condition
+        pair, so it is good to about a factor of 2 and carries no pressure or
+        velocity dependence of its own. It is used because it is the only
+        same-film silica/ceria comparison in this corpus; supersede it with a
+        matched-recipe measurement when one exists.
+    alumina:
+      value: null
+      reference: colloidal_silica
+      unit: dimensionless
+      source: null
+      confidence: unverified
+      note: >
+        TODO(owner): no same-tool, same-recipe alumina-vs-silica oxide rate
+        comparison found. Alumina is not a mainstream oxide abrasive, so the
+        published alumina oxide rates come from unrelated tools and recipes and
+        cannot be divided.
+    zirconia:
+      value: null
+      reference: colloidal_silica
+      unit: dimensionless
+      source: null
+      confidence: unverified
+      note: >
+        TODO(owner): zirconia is a minor CMP abrasive with no matched-condition
+        oxide comparison found. Absolute zirconia oxide rate is unanchored.
+
+  w:
+    colloidal_silica:
+      value: null
+      reference: alumina
+      unit: dimensionless
+      source: null
+      confidence: unverified
+      note: >
+        TODO(owner): silica-based W slurries are documented as LOWER W:oxide
+        selectivity than alumina (https://doi.org/10.5772/intechopen.75408), a
+        direction but not a ratio. No matched-condition blanket-W rate pair
+        found. Direction alone must not become a number.
+
+  sin:
+    colloidal_silica:
+      value: null
+      reference: ceria
+      unit: dimensionless
+      source: null
+      confidence: unverified
+      note: >
+        TODO(owner): ceria nitride rate is suppressed to <2 nm/min by additives
+        (https://doi.org/10.1149/1.3596181), so the ceria/silica nitride ratio
+        depends entirely on which additive is present and is not a property of
+        the abrasive pair. Do not reduce this to a single number.
+
+# =====================================================================
 meta:
   schema_version: 1
   films_covered: [oxide, sin, cu, w, poly_si, si, sic, sapphire, snag]

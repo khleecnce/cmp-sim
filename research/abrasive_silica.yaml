@@ -1,0 +1,915 @@
+# =====================================================================
+# abrasive_silica.yaml — quantitative literature dataset for SiO2 abrasive in CMP
+# Scope: SILICA ONLY. Colloidal and fumed are kept strictly separate.
+# Author: research subagent, 2026-09-24. Sources = local corpus
+#   (~/fab-sim/papers, ~/fab-sim/papers/patents, ~/fab-sim/knowledge,
+#    ~/fab-sim/validation/datasets).
+#
+# RULES OBEYED HERE
+#  - every number carries value / unit / source / confidence
+#  - confidence vocabulary: literature | vendor | derived | unverified
+#  - nothing is invented. Unknown -> value: null + note: "TODO(owner): ..."
+#  - rate anchors without BOTH pressure and velocity are flagged in `note`.
+#
+# VELOCITY CONVENTION (read this before using velocity_m_s)
+#   Almost no CMP paper/patent reports linear relative velocity; they report
+#   platen rpm. Where only rpm is known, velocity_m_s is DERIVED as
+#       v = omega_platen * R_cc,  R_cc = 0.13 m
+#   R_cc (wafer-centre-to-platen-centre distance) is NOT reported by any of
+#   these sources; 0.13 m is the representative value already used across the
+#   fab-sim knowledge base (see knowledge/cmp/w-cmp-preston-kp-oxidizer-rate-
+#   literature-reproduction.md section 3, where it is documented as the dominant
+#   uncertainty, band 0.09-0.17 m). Such entries are confidence: derived and
+#   carry velocity_source: "derived from platen rpm, R_cc=0.13 m (assumed)".
+#   Treat absolute Kp inversions from them as +/- a factor of ~2.
+# =====================================================================
+
+meta:
+  abrasive: SiO2
+  morphologies: [colloidal_silica, fumed_silica]
+  rate_unit_convention: "nm/min (patent Angstrom/min divided by 10)"
+  pressure_unit: psi
+  created: 2026-09-24
+  schema_version: 1
+
+# =====================================================================
+colloidal_silica:
+
+  properties:
+    description: >
+      Wet-chemistry (ion-exchange / sol-gel) silica: discrete, near-spherical,
+      amorphous primary particles, narrow PSD, low aggregate content.
+    manufacturing_route:
+      value: "ion exchange of alkali silicate / dissolved fumed silica, then controlled nucleation-growth in the liquid phase"
+      source: "US8211193B2 (Fujifilm Planar Solutions), claims + spec, via freepatentsonline.com/8211193.html"
+      confidence: literature
+    primary_particle_size_range_nm:
+      value: [2, 100]
+      unit: nm
+      source: "US8211193B2"
+      confidence: literature
+    mean_particle_size_range_nm:
+      value: [10, 200]
+      unit: nm
+      source: "US8211193B2"
+      confidence: literature
+    shape:
+      value: spherical
+      source: "Kim 2018, IntechOpen review chapter, DOI 10.5772/intechopen.75408, section 'Silica abrasive'"
+      confidence: literature
+      note: "review chapter (secondary); used for qualitative shape only"
+    na_impurity_ppm:
+      value: "<1"
+      unit: ppm
+      source: "US8211193B2"
+      confidence: literature
+    hardness_gpa:
+      value: 7.3
+      uncertainty: 0.3
+      unit: GPa
+      method: "Vickers, room temperature, FUSED (bulk amorphous) silica"
+      source: "Michel, Serbena, Lepienski, J. Non-Cryst. Solids 352, 3550-3555 (2006), DOI 10.1016/j.jnoncrysol.2006.02.113"
+      confidence: unverified
+      note: >
+        Abstract/secondary summary only — full text is paywalled and was NOT read;
+        and the specimen is bulk fused silica, not a CMP nanoparticle. Morphology
+        (colloidal vs fumed) is NOT resolved by this number.
+        TODO(owner): measure or source nanoindentation hardness of actual
+        colloidal silica particles if the Hertz/indentation term is to be trusted.
+    youngs_modulus_gpa:
+      value: 72
+      unit: GPa
+      source: "cross-reference standard value for fused silica cited in knowledge/cmp/abrasive-hardness-hertz-indentation-removal-volume.md; not from a primary measurement in this corpus"
+      confidence: unverified
+      note: "TODO(owner): replace with a primary citation (E of amorphous SiO2)."
+    density_g_cm3:
+      value: null
+      unit: g/cm3
+      source: null
+      confidence: unverified
+      note: "TODO(owner): no primary source for colloidal-silica particle density found in the local corpus. Bulk amorphous SiO2 ~2.2 g/cm3 is common knowledge but was not sourced here."
+    iep_ph:
+      value: "<2.0"
+      unit: pH
+      method: "zeta potential vs pH, Fig.3"
+      source: "Choi, Lee, Singh, Electrochem. Solid-State Lett. 7(7) G141-G144 (2004), DOI 10.1149/1.1738472 (Levasil 50CK, D50 ~110 nm)"
+      confidence: literature
+
+  film_anchors:
+
+    # ---------- oxide (TEOS / thermal / PECVD) ----------
+    - film: oxide_teos
+      rate_nm_per_min: 94.0
+      pressure_psi: 1.5
+      velocity_m_s: 1.361
+      velocity_source: "derived from platen 100 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: 0.5
+      d50_nm: 54
+      ph: 4.7
+      pad: "IC1010 (Mirra, 200 mm)"
+      additives: "aminopropyl-trialkoxysilane core-shell surface treatment; 0.5 wt% Pluriol 300; 600 ppm acetic acid buffer; 12 ppm Kathon LX"
+      source: "US9499721B2 (Cabot Microelectronics, 2016), Example 18 / TABLE 18, composition 18A"
+      confidence: literature
+      note: "Original units 940 A/min. Same table gives the full pressure x concentration matrix used for conc_exponent below."
+
+    - film: oxide_teos
+      rate_nm_per_min: 207.0
+      pressure_psi: 3.0
+      velocity_m_s: 1.361
+      velocity_source: "derived from platen 100 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: 1.0
+      d50_nm: 54
+      ph: 4.7
+      pad: "IC1010 (Mirra, 200 mm)"
+      additives: "aminosilane core-shell; Pluriol 300 0.5 wt%; acetic acid; Kathon LX"
+      source: "US9499721B2 Example 18 / TABLE 18, composition 18B"
+      confidence: literature
+      note: "2070 A/min"
+
+    - film: oxide_teos
+      rate_nm_per_min: 314.0
+      pressure_psi: 4.0
+      velocity_m_s: 1.361
+      velocity_source: "derived from platen 100 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: 2.0
+      d50_nm: 54
+      ph: 4.7
+      pad: "IC1010 (Mirra, 200 mm)"
+      additives: "aminosilane core-shell; Pluriol 300 0.5 wt%; acetic acid; Kathon LX"
+      source: "US9499721B2 Example 18 / TABLE 18, composition 18D"
+      confidence: literature
+      note: "3140 A/min; quoted verbatim in the patent text as the headline result"
+
+    - film: oxide_teos
+      rate_nm_per_min: 403.0
+      pressure_psi: 5.0
+      velocity_m_s: 1.361
+      velocity_source: "derived from platen 100 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: 3.0
+      d50_nm: 54
+      ph: 4.7
+      pad: "IC1010 (Mirra, 200 mm)"
+      additives: "aminosilane core-shell; Pluriol 300 0.5 wt%; acetic acid; Kathon LX"
+      source: "US9499721B2 Example 18 / TABLE 18, composition 18F"
+      confidence: literature
+      note: "4030 A/min"
+
+    - film: oxide_teos
+      rate_nm_per_min: 140.7
+      pressure_psi: 2.5
+      velocity_m_s: 1.361
+      velocity_source: "derived from platen 100 rpm, R_cc=0.13 m (assumed); head 101 rpm"
+      conc_wt_pct: 3.0
+      d50_nm: 40
+      ph: 3.5
+      pad: "NexPlanar E6088 (Mirra, 200 mm), Saesol C1 conditioner in-situ 6 lbs"
+      additives: "0.3 wt% H2O2; glycine 4200 ppm + arginine 300 ppm (pre-dilution); tetrabutylammonium hydroxide; iron nitrate nonahydrate; malonic acid; Kathon LX. Abrasive = Fuso PL-2 colloidal silica"
+      source: "US10676647B1 (CMC Materials), Example 5 / TABLE 5B, composition 4H"
+      confidence: literature
+      note: "1407 A/min blanket TEOS. This is a W-buff slurry; TEOS is the counter-film. Part of the 40/100/120 nm size series."
+
+    - film: oxide_teos
+      rate_nm_per_min: 53.2
+      pressure_psi: 2.5
+      velocity_m_s: 1.361
+      velocity_source: "derived from platen 100 rpm, R_cc=0.13 m (assumed); head 101 rpm"
+      conc_wt_pct: 3.0
+      d50_nm: 100
+      ph: 3.5
+      pad: "NexPlanar E6088"
+      additives: "0.3 wt% H2O2; glycine 4200 ppm + arginine 300 ppm; TBAH; Fe(NO3)3.9H2O; malonic acid. Abrasive = Fuso PL-5"
+      source: "US10676647B1 Example 5 / TABLE 5B, composition 4B"
+      confidence: literature
+      note: "532 A/min"
+
+    - film: oxide_teos
+      rate_nm_per_min: 36.6
+      pressure_psi: 2.5
+      velocity_m_s: 1.361
+      velocity_source: "derived from platen 100 rpm, R_cc=0.13 m (assumed); head 101 rpm"
+      conc_wt_pct: 3.0
+      d50_nm: 120
+      ph: 3.5
+      pad: "NexPlanar E6088"
+      additives: "0.3 wt% H2O2; glycine 4200 ppm + arginine 300 ppm; TBAH; Fe(NO3)3.9H2O; malonic acid. Abrasive = Fuso PL-7"
+      source: "US10676647B1 Example 5 / TABLE 5B, composition 4I"
+      confidence: literature
+      note: "366 A/min"
+
+    - film: oxide_thermal
+      rate_nm_per_min: 172.7
+      pressure_psi: 3.0
+      velocity_m_s: 1.497
+      velocity_source: "derived from platen 110 rpm, R_cc=0.13 m (assumed); head 108 rpm"
+      conc_wt_pct: 20.0
+      d50_nm: 80
+      ph: 11.0
+      pad: "IC1010 (universal-300B, 300 mm, 1.3 um thermal SiO2)"
+      additives: "K+ 0.25 mol/L"
+      source: "Li et al., ECS J. Solid State Sci. Technol. 10, 123008 (2021), DOI 10.1149/2162-8777/ac3e44, Fig.1 (values quoted in the body text)"
+      confidence: literature
+      note: "1727 A/min, the pH-11 peak of that series. read_method digitized/body-text, not a printed table."
+
+    - film: oxide_thermal
+      rate_nm_per_min: 13.0
+      uncertainty_nm_per_min: 2
+      pressure_psi: 4.0
+      velocity_m_s: 1.225
+      velocity_source: "derived from platen 90 rpm, R_cc=0.13 m (assumed); carrier 90 rpm"
+      conc_wt_pct: 1.0
+      d50_nm: 50
+      ph: 2.0
+      pad: IC1000
+      additives: "none (bare silica dispersion; HNO3/KOH for pH)"
+      source: "Penta, Veera, Babu, Langmuir 27, 3502-3510 (2011), DOI 10.1021/la104257k, Table 4"
+      confidence: literature
+      note: "Thermal oxide 2000 nm grown at ~900 C. Low-rate acidic reference point; body text quotes ~15 nm/min at pH 2."
+
+    - film: oxide_thermal
+      rate_nm_per_min: 1.0
+      uncertainty_nm_per_min: 1
+      pressure_psi: 4.0
+      velocity_m_s: 1.225
+      velocity_source: "derived from platen 90 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: 1.0
+      d50_nm: 50
+      ph: 10.0
+      pad: IC1000
+      additives: "none (bare 1% colloidal silica, Nyacol)"
+      source: "Penta et al. 2011, DOI 10.1021/la104257k, Table 3"
+      confidence: literature
+      note: "Bare colloidal silica at pH 10 removes essentially nothing from oxide in this system (<1 nm/min) — the alkaline counterpart of the pH-2 anchor above."
+
+    # ---------- silicon nitride ----------
+    - film: sin
+      rate_nm_per_min: 33.0
+      uncertainty_nm_per_min: 2
+      pressure_psi: 4.0
+      velocity_m_s: 1.225
+      velocity_source: "derived from platen 90 rpm, R_cc=0.13 m (assumed); carrier 90 rpm"
+      conc_wt_pct: 1.0
+      d50_nm: 50
+      ph: 2.0
+      pad: IC1000
+      additives: "none (bare colloidal silica, Nyacol, zeta -15 mV at pH 2)"
+      source: "Penta et al. 2011, DOI 10.1021/la104257k, Table 4"
+      confidence: literature
+      note: "LPCVD Si3N4 500 nm. Nitride IEP ~5, so below IEP the (+) nitride and (-) silica attract -> highest nitride rate."
+
+    - film: sin
+      rate_nm_per_min: 1.0
+      uncertainty_nm_per_min: 1
+      pressure_psi: 4.0
+      velocity_m_s: 1.225
+      velocity_source: "derived from platen 90 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: 1.0
+      d50_nm: 50
+      ph: 10.0
+      pad: IC1000
+      additives: "none (bare colloidal silica)"
+      source: "Penta et al. 2011, DOI 10.1021/la104257k, Table 3"
+      confidence: literature
+      note: "Above nitride IEP the rate collapses to <1 nm/min. Gives a 33x acid/alkaline nitride contrast at fixed P, V, C, d50."
+
+    # ---------- poly-Si ----------
+    - film: poly_si
+      rate_nm_per_min: 230.0
+      uncertainty_nm_per_min: 27
+      pressure_psi: 4.0
+      velocity_m_s: 1.225
+      velocity_source: "derived from platen 90 rpm, R_cc=0.13 m (assumed); carrier 90 rpm"
+      conc_wt_pct: 1.0
+      d50_nm: 50
+      ph: 10.0
+      pad: IC1000
+      additives: "none (bare colloidal silica, Nyacol)"
+      source: "Penta et al. 2011, DOI 10.1021/la104257k, Table 3"
+      confidence: literature
+      note: "LPCVD poly-Si 2000 nm. Same slurry gives oxide and nitride <1 nm/min -> intrinsic poly:oxide selectivity >230 for bare colloidal silica at pH 10."
+
+    - film: poly_si
+      rate_nm_per_min: 636.0
+      uncertainty_nm_per_min: 69
+      pressure_psi: 4.0
+      velocity_m_s: 1.225
+      velocity_source: "derived from platen 90 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: 1.0
+      d50_nm: 50
+      ph: 10.0
+      pad: IC1000
+      additives: "250 ppm PDADMAC (cationic polymer, MW ~200 000)"
+      source: "Penta et al. 2011, DOI 10.1021/la104257k, Table 3"
+      confidence: literature
+      note: "Additive-enhanced anchor at otherwise identical P, V, C, d50, pH — the 230 -> 636 nm/min pair isolates the additive term."
+
+    - film: poly_si
+      rate_nm_per_min: 397.0
+      uncertainty_nm_per_min: 31
+      pressure_psi: 4.0
+      velocity_m_s: 1.225
+      velocity_source: "derived from platen 90 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: 1.0
+      d50_nm: 50
+      ph: 10.0
+      pad: IC1000
+      additives: "PDADMAC-modified silica (adsorbed polymer, free polymer washed out)"
+      source: "Penta et al. 2011, DOI 10.1021/la104257k, Table 3"
+      confidence: literature
+
+    # ---------- bulk Si wafer ----------
+    - film: si
+      rate_nm_per_min: 177.1
+      pressure_psi: 5.7
+      velocity_m_s: 0.939
+      velocity_source: "derived from platen 69 rpm, R_cc=0.13 m (assumed); carrier 71 rpm"
+      conc_wt_pct: 1.0
+      d50_nm: 83.3
+      ph: 10.90
+      pad: "SUBA 600 (rectangular groove), POLI-300"
+      additives: "NaOH 0.125 wt%"
+      source: "Bae et al., Nanomaterials 12(21), 3893 (2022), DOI 10.3390/nano12213893, Table S1"
+      confidence: literature
+      note: "d50 83.3 nm is the secondary (in-slurry) size of a 60 nm primary colloidal silica; 4x4 cm coupons cut from 8-inch (100) Si."
+
+    - film: si
+      rate_nm_per_min: 193.2
+      pressure_psi: 5.7
+      velocity_m_s: 0.939
+      velocity_source: "derived from platen 69 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: 1.0
+      d50_nm: 83.3
+      ph: 10.90
+      pad: "SUBA 600"
+      additives: "KOH 0.069 wt%"
+      source: "Bae et al. 2022, DOI 10.3390/nano12213893, Table S1"
+      confidence: literature
+
+    - film: si
+      rate_nm_per_min: 552.8
+      pressure_psi: 5.7
+      velocity_m_s: 0.939
+      velocity_source: "derived from platen 69 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: 1.0
+      d50_nm: 83.3
+      ph: 10.90
+      pad: "SUBA 600"
+      additives: "ethylenediamine (EDA) 0.10 wt%"
+      source: "Bae et al. 2022, DOI 10.3390/nano12213893"
+      confidence: literature
+      note: "Same pH and same OH- concentration as the NaOH/KOH anchors -> the 3.1x gain is NOT a pH effect (adsorption + reduced electrostatic repulsion)."
+
+    # ---------- Cu ----------
+    - film: cu
+      rate_nm_per_min: 43.4
+      pressure_psi: 9.8
+      velocity_m_s: 0.817
+      velocity_source: "derived from table 60 rpm, R_cc=0.13 m (assumed). NOTE: Struers LabPol-VT coupon polisher (Cu pucks), NOT a wafer tool; R_cc=0.13 m is almost certainly too large here."
+      conc_wt_pct: 1.0
+      d50_nm: null
+      ph: 3.0
+      pad: polyurethane
+      additives: "glycine 1 wt%; benzotriazole 1 mM; H2O2 3 wt%"
+      source: "US20080090500A1 (PPG Industries), Example 4 / TABLE 4"
+      confidence: literature
+      note: >
+        434 A/min. Down force 30 N (~9.8 psi), carrier and table both 60 rpm.
+        TODO(owner): silica particle size and morphology are not given — the
+        patent describes a precipitated/milled silica, so assigning it to the
+        colloidal branch is an assumption. d50 left null deliberately.
+
+    - film: cu
+      rate_nm_per_min: 80.1
+      pressure_psi: 9.8
+      velocity_m_s: 0.817
+      velocity_source: "derived from 60 rpm, R_cc=0.13 m (assumed); coupon polisher, see caveat above"
+      conc_wt_pct: 4.0
+      d50_nm: null
+      ph: 3.0
+      pad: polyurethane
+      additives: "glycine 1 wt%; BTA 1 mM; H2O2 3 wt%"
+      source: "US20080090500A1 Example 4 / TABLE 4"
+      confidence: literature
+      note: "801 A/min — top of the 1-4 wt% concentration series at pH 3."
+
+    - film: cu
+      rate_nm_per_min: 92.5
+      pressure_psi: 3.0
+      velocity_m_s: 0.953
+      velocity_source: "derived from table 70 rpm, R_cc=0.13 m (assumed); carrier 68 rpm. 200 mm blanket Cu wafer."
+      conc_wt_pct: 11.0
+      d50_nm: null
+      ph: 5.0
+      pad: null
+      additives: "glycine 1 wt%; BTA 1 mM; H2O2 5 wt%; slurry 190 mL/min; carrier back pressure 0 psig"
+      source: "US20080090500A1, Example 7 / TABLE 8 (incremental Cu removed, 1-2 min interval: 925 A/min)"
+      confidence: literature
+      note: "Full-wafer anchor (Prometrix RS-35, 49-point average), unlike the puck-polisher rows. Pad type not stated in the example."
+
+    # ---------- W ----------
+    - film: w
+      rate_nm_per_min: 26.9
+      pressure_psi: 2.5
+      velocity_m_s: 1.361
+      velocity_source: "derived from platen 100 rpm, R_cc=0.13 m (assumed); head 101 rpm"
+      conc_wt_pct: 3.0
+      d50_nm: 100
+      ph: 3.5
+      pad: "NexPlanar E6088 (Mirra, 200 mm blanket W 8000 A)"
+      additives: "0.3 wt% H2O2; glycine 4200 ppm + arginine 300 ppm; TBAH; Fe(NO3)3.9H2O; malonic acid. Fuso PL-5"
+      source: "US10676647B1, Example 5 / TABLE 5B, composition 4B"
+      confidence: literature
+      note: "269 A/min. Paired 1:1 with the TEOS anchor of the same composition -> W:TEOS selectivity at identical P and V."
+
+    - film: w
+      rate_nm_per_min: 30.2
+      pressure_psi: 2.5
+      velocity_m_s: 1.361
+      velocity_source: "derived from platen 100 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: 3.0
+      d50_nm: 40
+      ph: 3.5
+      pad: "NexPlanar E6088"
+      additives: "as above; Fuso PL-2"
+      source: "US10676647B1, TABLE 5B, composition 4H"
+      confidence: literature
+
+    - film: w
+      rate_nm_per_min: 26.5
+      pressure_psi: 2.5
+      velocity_m_s: 1.361
+      velocity_source: "derived from platen 100 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: 3.0
+      d50_nm: 120
+      ph: 3.5
+      pad: "NexPlanar E6088"
+      additives: "as above; Fuso PL-7"
+      source: "US10676647B1, TABLE 5B, composition 4I"
+      confidence: literature
+
+  conc_exponent:
+    # MRR ~ C^n, fitted in log-log space by least squares on the raw pairs below.
+    oxide_teos:
+      raw_pairs_wt_pct_nm_per_min:
+        at_1p5_psi: [[0.5, 94.0], [1.0, 110.0], [1.5, 113.0], [2.0, 117.0], [2.5, 120.0], [3.0, 124.0]]
+        at_3p0_psi: [[0.5, 140.0], [1.0, 207.0], [1.5, 226.0], [2.0, 229.0], [2.5, 243.0], [3.0, 248.0]]
+        at_4p0_psi: [[0.5, 135.0], [1.0, 256.0], [1.5, 294.0], [2.0, 314.0], [2.5, 319.0]]
+        at_5p0_psi: [[1.0, 269.0], [1.5, 348.0], [2.0, 363.0], [2.5, 386.0], [3.0, 403.0]]
+      fitted_value:
+        at_1p5_psi: 0.145
+        at_3p0_psi: 0.303
+        at_4p0_psi: 0.534
+        at_5p0_psi: 0.350
+      r2:
+        at_1p5_psi: 0.961
+        at_3p0_psi: 0.894
+        at_4p0_psi: 0.891
+        at_5p0_psi: 0.922
+      piecewise_at_3psi:
+        below_knee_0p5_to_1p0_wt_pct: 0.564
+        above_knee_1p5_to_3p0_wt_pct: 0.144
+      source: "US9499721B2 Example 18 / TABLE 18 (54 nm aminosilane core-shell colloidal silica, pH 4.7, IC1010, 100 rpm, 150 mL/min); fit performed here (numpy polyfit on ln C vs ln MRR)"
+      confidence: derived
+      note: >
+        A single power law does NOT describe this series: the exponent drops from
+        ~0.56 below 1 wt% to ~0.14 above 1.5 wt%. The pooled per-pressure values
+        (0.15-0.53) straddle the classic 1/3. Use the piecewise form, or better,
+        a saturating form (see `saturation`). The 4 psi row also contains an
+        inversion at 0.5 wt% (135 nm/min at 4 psi < 140 nm/min at 3 psi) =
+        abrasive starvation, which no power law can express.
+    cu:
+      raw_pairs_wt_pct_nm_per_min:
+        at_ph3: [[1.0, 43.4], [2.0, 59.7], [3.0, 70.5], [4.0, 80.1]]
+        at_ph4: [[1.0, 48.8], [2.0, 53.7], [3.0, 61.7], [4.0, 64.4]]
+        at_ph5: [[1.0, 41.2], [2.0, 48.3], [3.0, 52.8], [4.0, 56.5]]
+        at_ph6: [[1.0, 34.2], [2.0, 39.3], [3.0, 45.1], [4.0, 52.0]]
+      fitted_value:
+        at_ph3: 0.441
+        at_ph4: 0.208
+        at_ph5: 0.227
+        at_ph6: 0.293
+      r2:
+        at_ph3: 0.999
+        at_ph4: 0.963
+        at_ph5: 1.000
+        at_ph6: 0.959
+      source: "US20080090500A1 Example 4 / TABLE 4 (9.8 psi, 60 rpm, glycine 1 wt% + BTA 1 mM + H2O2 3 wt%); fit performed here"
+      confidence: derived
+      note: >
+        Median n = 0.26, i.e. clearly sub-linear and near the 1/3 cube-root
+        regime. The zero-abrasive row of the same table (0 wt% -> 25.9 / 10.6 /
+        17.6 / 15.1 nm/min at pH 3/4/5/6) is chemical etch and was EXCLUDED from
+        the fit (ln 0 undefined); a correct model needs MRR = chem + k*C^n.
+    w:
+      raw_pairs_wt_pct_nm_per_min: null
+      fitted_value: 0.333
+      r2: null
+      source: "Wang, Peng, Xia, Kitajima, Tsai, 'Removal Mechanism of Tungsten CMP Process', ECS Trans. 41(43) 103-111 (2012), DOI 10.1149/1.4717508 — abstract and Analysis section: 'The removal rate was observed to scale with the cubic root of the abrasive concentration'; Fig.6(b) shows a linear fit vs C^(1/3)"
+      confidence: literature
+      note: >
+        The exponent is stated by the authors and supported by their Fig.6(b)
+        linearisation, but the underlying (wt%, rate) pairs are only in Fig.5(a) /
+        6(a) as graphs — not in the text and not digitised here. r2 unknown.
+        Also: the paper does not state the abrasive chemistry, so its assignment
+        to colloidal silica is NOT established.
+        TODO(owner): digitise ECS Trans. 41(43) Fig.6(a) or replace with a W
+        concentration series whose abrasive type is explicit.
+    poly_si:
+      raw_pairs_wt_pct_nm_per_min: null
+      fitted_value: null
+      r2: null
+      source: null
+      confidence: unverified
+      note: "TODO(owner): no poly-Si colloidal-silica concentration series found in the local corpus (Penta 2011 uses a single 1 wt% loading)."
+    sin:
+      raw_pairs_wt_pct_nm_per_min: null
+      fitted_value: null
+      r2: null
+      source: null
+      confidence: unverified
+      note: "TODO(owner): no nitride concentration series found."
+    si:
+      raw_pairs_wt_pct_nm_per_min: null
+      fitted_value: null
+      r2: null
+      source: null
+      confidence: unverified
+      note: "TODO(owner): Bae 2022 sweeps the accelerator, not the abrasive (fixed 1 wt%)."
+
+  size_exponent:
+    # MRR ~ d^m, fitted in log-log space.
+    oxide_teos:
+      raw_pairs_d50_nm_rate_nm_per_min: [[40, 140.7], [100, 53.2], [120, 36.6]]
+      fitted_value: -1.173
+      r2: 0.986
+      source: "US10676647B1 Example 5 / TABLE 5B, compositions 4H (Fuso PL-2, 40 nm), 4B (PL-5, 100 nm), 4I (PL-7, 120 nm) — identical chemistry (glycine 4200 ppm + arginine 300 ppm, pH 3.5, 3 wt% silica, 0.3 wt% H2O2) and identical polish conditions (2.5 psi, 100/101 rpm); fit performed here"
+      confidence: derived
+      note: >
+        Strongly NEGATIVE: smaller particles polish TEOS much faster in this
+        acidic W-buff chemistry (surface-area-controlled limit). This conflicts
+        in sign with the 40->80 nm rising branch reported by Li 2021 for
+        alkaline oxide CMP — see oxide_conflict_note.
+        n=3 points, so the exponent is indicative, not precise.
+    oxide_conflict_note: >
+      Li et al. 2021 (DOI 10.1149/2162-8777/ac3e44) report a PEAK in oxide MRR at
+      d50 ~80 nm for 20-30 wt% colloidal silica at alkaline pH, with the two
+      limiting laws R ~ C^(1/3) d^(-1/3) (surface-area controlled) and
+      R ~ C^(-1/3) d^(4/3) (indentation controlled); they assign 40->80 nm to the
+      rising indentation branch and 80->130 nm to the falling surface-area branch.
+      The US10676647B1 series (acidic, 3 wt%, 40-120 nm) is monotonically falling,
+      i.e. consistent only with the surface-area branch over its whole range.
+      These are different chemistries/loadings, not a contradiction to be averaged:
+      a single global m for oxide is not defensible. Li 2021's own MRR vs d50
+      numbers are graph-only and were NOT digitised here.
+    w:
+      raw_pairs_d50_nm_rate_nm_per_min: [[40, 30.2], [100, 26.9], [120, 26.5]]
+      fitted_value: -0.121
+      r2: 0.997
+      source: "US10676647B1 TABLE 5B, compositions 4H/4B/4I; fit performed here"
+      confidence: derived
+      note: >
+        Essentially flat (m ~ -0.12, a 14% span over a 3x size range) — W removal
+        in this chemistry is chemically rate-limited, so particle size barely
+        matters. Independently corroborated by Bouvet et al., JVST B 20(4) 1556
+        (2002), DOI 10.1116/1.1490393, who found PVD-W removal rate independent of
+        colloidal silica size (12-75 nm) and of silica content ('the limiting
+        factor is chemical related'). NOTE: that Bouvet paper was NOT read in full
+        here — it is cited via knowledge/cmp/w-cmp-preston-kp-oxidizer-rate-
+        literature-reproduction.md.
+    cu:
+      raw_pairs_d50_nm_rate_nm_per_min: null
+      fitted_value: null
+      r2: null
+      source: null
+      confidence: unverified
+      note: "TODO(owner): validation/datasets/tw202115224a_cu_abrasive_size_pressure.yaml holds a Cu size x pressure series but its abrasive identity as silica was not confirmed in this pass."
+    poly_si:
+      raw_pairs_d50_nm_rate_nm_per_min: null
+      fitted_value: null
+      r2: null
+      source: null
+      confidence: unverified
+      note: "TODO(owner): no poly-Si silica size series found."
+    sin:
+      raw_pairs_d50_nm_rate_nm_per_min: null
+      fitted_value: null
+      r2: null
+      source: null
+      confidence: unverified
+      note: "TODO(owner): no nitride silica size series found."
+    si:
+      raw_pairs_d50_nm_rate_nm_per_min: null
+      fitted_value: null
+      r2: null
+      source: null
+      confidence: unverified
+      note: "TODO(owner): no Si-wafer silica size series found."
+
+  saturation:
+    oxide_teos:
+      knee_wt_pct:
+        value: 1.5
+        unit: wt%
+        source: "US9499721B2 Example 18 / TABLE 18 + patent text: 'At 1.5, 2, 2.5, and 3 weight percent colloidal silica the TEOS removal rates were similar to the control'"
+        confidence: literature
+      evidence:
+        marginal_slope_at_3psi_below_knee:
+          value: 1340
+          unit: "A/min per wt%"
+          range_wt_pct: [0.5, 1.0]
+        marginal_slope_at_3psi_above_knee:
+          value: 100
+          unit: "A/min per wt%"
+          range_wt_pct: [2.5, 3.0]
+        slope_collapse_factor: 13.4
+        total_gain_1p0_to_3p0_wt_pct_at_1p5psi:
+          value: 12.7
+          unit: "%"
+      confidence: derived
+      note: >
+        Knee is pressure-dependent: at 1.5 psi the curve is already flat past
+        1 wt%, at 4-5 psi it is still climbing at 2.5-3 wt%. Physically the knee
+        moves right with pressure (more real contact area = more sites to fill).
+        A pure power law cannot reproduce this; a site-occupancy / Langmuir form
+        is required.
+    cu:
+      knee_wt_pct:
+        value: null
+        source: "US20080090500A1 TABLE 4 spans 1-4 wt% and is still rising at 4 wt%"
+        confidence: literature
+        note: "TODO(owner): Cu saturation knee is above the measured range; no knee observable."
+    other_films:
+      value: null
+      note: "TODO(owner): no published concentration series reaching saturation was found for poly_si, sin, si, or w with colloidal silica."
+
+  ph_response:
+    oxide_alkaline:
+      raw_pairs_ph_nm_per_min: [[10.0, 155.1], [11.0, 172.7], [12.5, 140.7]]
+      shape: "peak"
+      peak_ph: 11.0
+      rise_pct_10_to_11: 11.3
+      fall_pct_11_to_12p5: 18.5
+      conditions: "20 wt% colloidal silica, d50 80 nm, K+ 0.25 mol/L, 3 psi, 108/110 rpm, IC1010, thermal SiO2"
+      source: "Li et al. 2021, DOI 10.1149/2162-8777/ac3e44, Fig.1 / body text"
+      confidence: literature
+      mechanism: "pH 10->11: OH- hydrolysis of Si-O-Si softens the surface -> MRR up. pH 11->12.5: both abrasive and film become more negative -> electrostatic repulsion -> mechanical contact down -> MRR down."
+    oxide_acidic:
+      raw_pairs_ph_nm_per_min: [[2.0, 10.9], [2.5, 3.2], [3.0, 1.6], [3.5, 1.5], [4.0, 1.1], [5.0, 0.5], [6.0, 1.2]]
+      shape: "steep monotonic decay from pH 2 to pH 5, slight rebound at pH 6"
+      power_law_fit_ph2_to_ph5:
+        form: "MRR = A * pH^B"
+        A: 68.1
+        B: -3.09
+        log_mse: 0.306
+        n_points: 5
+      log_quadratic_fit_ph2_to_ph6:
+        form: "ln MRR = a*pH^2 + b*pH + c"
+        a: 0.336472
+        b: -3.228411
+        c: 7.349046
+        log_mse: 0.3562
+        vertex_ph: 4.80
+        n_points: 7
+      conditions: "1 wt% anionic colloidal silica (Fuso), 2 psi, Mirra, 175 mL/min, 8-inch TEOS blanket"
+      source: "CN109609035B (Fujifilm Electronic Materials USA), Example 1 / Table 1 (printed table read from the Google Patents image); fits reproduced from knowledge/cmp/silica-cmp-ph-acidic-repulsion-choi-power-law.md"
+      confidence: derived
+      note: "Mechanism corroborated qualitatively by Choi, Lee, Singh 2004 (DOI 10.1149/1.1738472): rate maximum at pH ~2 near the silica IEP, falling to a minimum near pH 9 as electrostatic repulsion grows, then rising again above pH 10 as silica dissolution creates a soft gel layer. Choi reports no numeric table, so no fit is attributed to it."
+    oxide_acid_vs_alkaline_single_system:
+      pairs: [[2.0, 13.0], [10.0, 1.0]]
+      conditions: "1 wt% colloidal silica d50 50 nm, 4 psi, 90/90 rpm, IC1000, no additive"
+      source: "Penta et al. 2011, DOI 10.1021/la104257k, Tables 3 and 4"
+      confidence: literature
+      note: ">13x drop from pH 2 to pH 10 within ONE experimental system — the cleanest single-lab confirmation of the repulsion-dominated acidic branch."
+    poly_si:
+      shape: "increasing with pH over pH 2-10 (OH- attack on Si-Si bonds)"
+      raw_pairs_ph_nm_per_min: null
+      quantified_points: [[10.0, 230.0]]
+      source: "Penta et al. 2011, DOI 10.1021/la104257k, Fig.3 + text: 'pH has a strong effect on the poly-Si RRs because of the influence of OH- ion concentration on Si-Si bond breakage'; the pH-10 value is from Table 3"
+      confidence: literature
+      note: >
+        TODO(owner): the full poly-Si pH curve for 1% silica is in Fig.3 as a
+        graph only — not digitised here, so only the direction plus the pH-10
+        point are sourced. Underlying kinetics (Seidel 1990, DOI 10.1149/1.2086277):
+        Si + 4 OH- -> Si(OH)4 + 4 e-, with rate proportional to [H2O]^4 [KOH]^(1/4),
+        i.e. a very weak quarter-power OH- dependence that peaks and then falls when
+        water is displaced (~20 wt% KOH in the literature) — so the poly-Si pH
+        response is peak-shaped, not monotonic, if extended far enough.
+    silica_iep_ph:
+      value: "<2.0"
+      source: "Choi, Lee, Singh 2004, DOI 10.1149/1.1738472, Fig.3 (zeta potential)"
+      confidence: literature
+    nitride_iep_ph:
+      value: 5
+      source: "Penta et al. 2011, DOI 10.1021/la104257k (citing its ref 13); explains the 33 -> <1 nm/min nitride collapse across pH 2 -> 6"
+      confidence: literature
+      note: "Film property, included because it controls the silica-nitride interaction."
+
+# =====================================================================
+fumed_silica:
+
+  properties:
+    description: >
+      Flame-hydrolysis (pyrogenic) silica: primary particles fuse in the flame
+      into branched, non-redispersible AGGREGATES. Broad PSD with a coarse tail.
+      This aggregate structure — not the primary size — sets the polishing and
+      defect behaviour, which is why it must never be merged with colloidal data.
+    manufacturing_route:
+      value: "SiCl4 + 2 H2 + O2 -> SiO2 + 4 HCl (gas-phase flame hydrolysis)"
+      source: "Kim 2018, IntechOpen review, DOI 10.5772/intechopen.75408"
+      confidence: literature
+      note: "review chapter (secondary source)"
+    aggregate_size:
+      value: ">30"
+      unit: nm
+      source: "Kim 2018, DOI 10.5772/intechopen.75408 ('larger than 300 Angstrom')"
+      confidence: literature
+    typical_slurry_d50_nm:
+      value: 140
+      unit: nm
+      source: "Basim, Adler, Mahajan, Singh, Moudgil, J. Electrochem. Soc. 147(9) 3523-3528 (2000) — Rodel 1200 commercial fumed silica slurry, 'mean particle size of 0.14 um'"
+      confidence: literature
+      note: "One specific commercial product, not a general property of fumed silica."
+    rate_vs_colloidal:
+      value: "higher removal rate, worse scratch performance, at equal nominal loading"
+      source: "Kim 2018, DOI 10.5772/intechopen.75408"
+      confidence: literature
+      note: >
+        Qualitative only. TODO(owner): no side-by-side quantitative comparison at
+        matched conditions exists in this corpus EXCEPT US9499721B2 Example 18,
+        where 12.5 wt% fumed (SS25) is matched by only ~1.5 wt% colloidal — i.e.
+        per unit solids the fumed slurry is roughly 8x LESS efficient, which is
+        the opposite of the review's generalisation. Do not rely on Kim 2018 here.
+    hardness_gpa:
+      value: null
+      unit: GPa
+      source: null
+      confidence: unverified
+      note: "TODO(owner): no morphology-specific hardness for fumed silica exists in this corpus. The 7.3 GPa fused-silica value listed under colloidal is a bulk amorphous number and is NOT a fumed-aggregate property (aggregates fail by breaking necks, not by indentation)."
+    youngs_modulus_gpa:
+      value: null
+      source: null
+      confidence: unverified
+      note: "TODO(owner): not sourced."
+    density_g_cm3:
+      value: null
+      source: null
+      confidence: unverified
+      note: "TODO(owner): not sourced; aggregate effective density differs from skeletal density."
+    iep_ph:
+      value: null
+      source: null
+      confidence: unverified
+      note: "TODO(owner): silica IEP <2 was measured on a COLLOIDAL sol (Levasil 50CK); no fumed-specific IEP measurement was found."
+
+  film_anchors:
+
+    - film: oxide_pecvd
+      rate_nm_per_min: 1000.0
+      pressure_psi: 7.0
+      velocity_m_s: 2.042
+      velocity_source: "derived from 150 rpm (pad AND wafer both 150 rpm), R_cc=0.13 m (assumed). NOTE: Struers Rotopol 31 tabletop polisher with 1x1 inch coupons — R_cc=0.13 m is very likely too large for this tool, so the absolute velocity is weak even though P and rpm are exact."
+      conc_wt_pct: 12.0
+      d50_nm: 140
+      ph: 10.5
+      pad: "IC1000/Suba IV stacked (Rodel)"
+      additives: "none beyond the commercial Rodel 1200 formulation"
+      source: "Basim et al., J. Electrochem. Soc. 147(9) 3523-3528 (2000), 'Material removal rate' section: 'The oxide removal rate of the baseline Rodel 1200 slurry was 10,000 A/min'"
+      confidence: literature
+      note: "1.5 um PECVD SiO2 on p-Si, 30 s polish, 100 mL/min, 7.0 psi (492 g/cm2). The reference fumed-silica oxide anchor: high loading, high pressure, high rate."
+
+    - film: oxide_teos
+      rate_nm_per_min: 120.0
+      pressure_psi: 1.5
+      velocity_m_s: 1.361
+      velocity_source: "derived from platen 100 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: 12.5
+      d50_nm: null
+      ph: null
+      pad: "IC1010 (Mirra, 200 mm)"
+      additives: "Semi-Sperse SS25 as supplied (Cabot Microelectronics)"
+      source: "US9499721B2 Example 18 / TABLE 18, 'Control' row"
+      confidence: literature
+      note: "1200 A/min. TODO(owner): SS25 d50 and pH are not given in the patent — vendor data sheet needed."
+
+    - film: oxide_teos
+      rate_nm_per_min: 226.0
+      pressure_psi: 3.0
+      velocity_m_s: 1.361
+      velocity_source: "derived from platen 100 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: 12.5
+      d50_nm: null
+      ph: null
+      pad: "IC1010 (Mirra)"
+      additives: "SS25 as supplied"
+      source: "US9499721B2 TABLE 18, Control row"
+      confidence: literature
+
+    - film: oxide_teos
+      rate_nm_per_min: 297.0
+      pressure_psi: 4.0
+      velocity_m_s: 1.361
+      velocity_source: "derived from platen 100 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: 12.5
+      d50_nm: null
+      ph: null
+      pad: "IC1010 (Mirra)"
+      additives: "SS25 as supplied"
+      source: "US9499721B2 TABLE 18, Control row"
+      confidence: literature
+
+    - film: oxide_teos
+      rate_nm_per_min: 372.0
+      pressure_psi: 5.0
+      velocity_m_s: 1.361
+      velocity_source: "derived from platen 100 rpm, R_cc=0.13 m (assumed)"
+      conc_wt_pct: 12.5
+      d50_nm: null
+      ph: null
+      pad: "IC1010 (Mirra)"
+      additives: "SS25 as supplied"
+      source: "US9499721B2 TABLE 18, Control row"
+      confidence: literature
+      note: >
+        The 4-point Control pressure series (1.5 / 3 / 4 / 5 psi at fixed
+        12.5 wt%) is the only clean fumed-silica pressure series in this dataset.
+        Fitting MRR ~ P^a over these 4 points gives a = 0.935 (R2 = 0.9996),
+        i.e. near-Prestonian. Fit performed here; confidence: derived.
+
+  conc_exponent:
+    oxide:
+      raw_pairs_wt_pct_nm_per_min: null
+      fitted_value: null
+      r2: null
+      source: null
+      confidence: unverified
+      note: >
+        TODO(owner): no fumed-silica concentration series was found. US9499721B2
+        has only one fumed point (12.5 wt%). Basim 2000 cites a 2-15 wt% series
+        from the authors' own earlier study but prints no (wt%, rate) table.
+    all_other_films:
+      value: null
+      confidence: unverified
+      note: "TODO(owner): none found."
+
+  size_exponent:
+    oxide:
+      raw_pairs_d50_nm_rate_nm_per_min: null
+      fitted_value: null
+      r2: null
+      source: null
+      confidence: unverified
+      note: >
+        TODO(owner): no fumed-silica d50 series exists. The closest data,
+        Basim 2000, SPIKES a 140 nm fumed baseline with 0.5 / 1.0 / 1.5 um
+        sol-gel particles; the rate falls monotonically with spike level
+        (10 000 A/min baseline; one exception, 10 300 A/min at 1.1 wt% of
+        1.5 um). That is a contamination-tail experiment, not a d50 sweep,
+        so no exponent may be fitted from it.
+    all_other_films:
+      value: null
+      confidence: unverified
+      note: "TODO(owner): none found."
+
+  saturation:
+    oxide:
+      knee_wt_pct: null
+      confidence: unverified
+      note: >
+        TODO(owner): not measured for fumed silica in this corpus. Indirect
+        evidence only: US9499721B2 shows 12.5 wt% fumed being matched by 1.5 wt%
+        colloidal, and Oliver (ed.) 2004, 'CMP of Semiconductor Materials',
+        Springer p.234 is cited by that patent as reporting a sharp oxide-rate
+        drop when fumed silica is reduced 15 -> 12 -> 9 wt%. That is a SECONDARY
+        citation to a textbook and must not be used as a numeric anchor.
+
+  ph_response:
+    value: null
+    confidence: unverified
+    note: >
+      TODO(owner): no fumed-silica pH sweep was found. All silica pH data in this
+      dataset (Li 2021, CN109609035B, Choi 2004, Penta 2011) use colloidal sols.
+      Do NOT transfer the colloidal pH curve to fumed silica without evidence:
+      aggregate break-up and the coarse tail are themselves pH-dependent.
+
+# =====================================================================
+# Everything that could NOT be sourced
+# =====================================================================
+gaps:
+  - "fumed_silica: concentration exponent n for EVERY film (no published series with printed (wt%, rate) pairs)."
+  - "fumed_silica: size exponent m for EVERY film (no d50 sweep at fixed chemistry; Basim 2000 is a coarse-tail spiking study)."
+  - "fumed_silica: saturation knee (only the indirect 12.5 wt% vs 1.5 wt% colloidal equivalence, plus a textbook secondary citation)."
+  - "fumed_silica: pH response curve — none at all."
+  - "fumed_silica: hardness, Young's modulus, density, IEP — no morphology-specific primary values."
+  - "fumed_silica: anchors for sin, poly_si, w, cu, si — the only fumed anchors found are on oxide."
+  - "fumed_silica: d50 and pH of the SS25 control slurry in US9499721B2 (patent does not state them)."
+  - "colloidal_silica: concentration exponent for poly_si, sin, si (single-loading studies only)."
+  - "colloidal_silica: size exponent for cu, poly_si, sin, si."
+  - "colloidal_silica: particle density (g/cm3) from a primary source."
+  - "colloidal_silica: nanoparticle-specific hardness — the 7.3 GPa value is bulk fused silica from a paywalled paper read only in abstract."
+  - "colloidal_silica: Young's modulus lacks a primary citation."
+  - "All Cu anchors from US20080090500A1: silica d50 and morphology unstated; classification as colloidal is an assumption."
+  - "W concentration exponent (cube root) comes from ECS Trans. 41(43) 103-111 whose abrasive chemistry is not stated and whose raw (wt%, rate) pairs are graph-only; r2 unknown."
+  - "Li 2021 MRR-vs-d50 numbers (the 80 nm peak) are graph-only — the peak position is sourced, the rate values are not."
+  - "Poly-Si full pH curve (Penta 2011 Fig.3) is graph-only; only the direction plus the pH-10 point are sourced."
+  - "Relative velocity in m/s is reported by NONE of these sources. Every velocity_m_s here is derived from platen rpm with an ASSUMED R_cc = 0.13 m; for the coupon polishers (Basim's Struers Rotopol 31, PPG's Struers LabPol-VT) that assumption is probably wrong by a large factor."
+  - "No silica anchor in this dataset varies velocity at fixed pressure, so the Preston velocity exponent b is untested for silica here."
+  - "Pad type is missing for the US20080090500A1 wafer-level Cu anchor (Example 7)."

@@ -23,6 +23,19 @@ base: sti_ceria
 description: "STI / ceria: chemical-tooth evidence, selectivity, pattern and thermal terms"
 
 params:
+  reference_abrasive:
+    value: ceria
+    unit: abrasive database key
+    note: >
+      This pack is the CERIA pack: its Kp anchor, its +0.87 size exponent (3
+      ceria sweeps, 3-211 nm) and its Dandu 2009 loading terms are all ceria
+      measurements. Declared so that running a silica or alumina slurry through
+      it is detected as an abrasive swap rather than silently predicted with
+      ceria's exponents - ceria and silica size exponents differ in SIGN
+      (+0.87 vs -0.05), so the swap changes the direction of the prediction.
+    source: "this pack's own Kp anchor and abrasive_size_exponent notes (ceria sweeps)"
+    confidence: literature
+
   # ── block the inherited SILICA saturation constant ─────────────────────
   # sti_ceria inherits from oxide_silica, so C_half = 4.4 wt% -- which I
   # fitted on colloidal-silica loading sweeps spanning 0.5-25 wt% -- arrived

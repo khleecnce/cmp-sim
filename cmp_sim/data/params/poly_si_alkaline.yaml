@@ -98,6 +98,18 @@ base: base
 description: "Poly-Si CMP: alkaline colloidal silica (KOH/TMAH/NH4OH), OH- backbond attack, oxide/nitride stop layer"
 
 params:
+  reference_abrasive:
+    value: colloidal_silica
+    unit: abrasive database key
+    note: >
+      Alkaline COLLOIDAL SILICA (Fuso PL-3/PL-7 class) is the abrasive in every
+      source behind this pack, including [PIR14] Table 3-1, from which
+      kp_m_per_pa was unit-converted. Poly-Si is also polished with calcined
+      ceria + amino acids at very different selectivity, which is precisely the
+      swap this declaration makes visible.
+    source: "doi:10.7939/r3zp3w76c ([PIR14]) Table 3-1 - this pack's Kp source, colloidal silica"
+    confidence: literature
+
 
   film:
     value: poly_si

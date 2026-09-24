@@ -43,6 +43,20 @@ base: cu_h2o2_bta
 description: "Cu/H2O2/BTA: softened-surface hardness, damascene pattern terms and Arrhenius Ea, each sourced"
 
 params:
+  reference_abrasive:
+    value: alumina
+    unit: abrasive database key
+    note: >
+      The Cu/H2O2/BTA chemistry this pack models was measured with EKC
+      Technology ALUMINA, nominal 100 nm (Gopal & Talbot 2007, JES 154(6) H507,
+      doi:10.1149/1.2718474; nominal size confirmed in Ihnfeldt & Talbot 2006,
+      JES 153(11) G948, doi:10.1149/1.2335982), which is also the source of this
+      pack's abrasive_size_nm. Declared so that a silica-abrasive Cu recipe is
+      flagged as a swap: the alumina size exponent (+0.29) and the silica one
+      (-0.05) do not share a sign.
+    source: "doi:10.1149/1.2718474 + doi:10.1149/1.2335982 (this pack's abrasive_size_nm source)"
+    confidence: literature
+
   ph_acid_mechanical_floor:
     value: 0.010
     unit: fraction of peak rate
