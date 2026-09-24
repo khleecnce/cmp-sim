@@ -29,12 +29,43 @@ def scores():
 
 # ── the headline numbers ─────────────────────────────────────────────
 def test_most_datasets_can_actually_be_run(scores):
-    """A dataset the engine cannot run is not evidence of anything."""
+    """A dataset the engine cannot run is not evidence of anything.
+
+    A dataset the engine DECLINES to run is a different thing, and is counted
+    separately below: a regime gate means the pack states its constants were
+    never measured in that regime, so predicting there would be extrapolation
+    with a sign the data contradict. That is a data gap, not a broken engine,
+    and it must not be laundered into either bucket — hence two assertions.
+    """
     ran = [s for s in scores.values() if s.shape_mape is not None]
-    assert len(ran) >= 37, (
-        f"only {len(ran)}/{len(scores)} datasets ran: "
-        + "; ".join(f"{s.dataset}: {s.error}"
-                    for s in scores.values() if s.error)[:600])
+    declined = [s for s in scores.values() if s.gated_reason and s.error]
+    broken = [s for s in scores.values()
+              if s.error and not s.gated_reason]
+    assert len(ran) + len(declined) >= 37, (
+        f"only {len(ran)}/{len(scores)} datasets ran and {len(declined)} were "
+        "declined for a declared reason: "
+        + "; ".join(f"{s.dataset}: {s.error}" for s in broken)[:600])
+    # The gate must stay narrow. If it ever silences a large share of the
+    # corpus, it has stopped being a statement about one pH branch and become
+    # a way of not being scored.
+    assert len(declined) <= 3, (
+        "too many datasets are being declined rather than predicted: "
+        + ", ".join(s.dataset for s in declined))
+
+
+def test_every_declined_dataset_names_the_missing_measurement(scores):
+    """Silence is only acceptable if it is specific.
+
+    A gated dataset must say which regime is unmeasured and why the sign
+    cannot be extrapolated, so the gap is actionable as an experiment rather
+    than a permanent excuse.
+    """
+    declined = [s for s in scores.values() if s.gated_reason]
+    assert declined, "the regime gate is wired but nothing exercises it"
+    for s in declined:
+        assert "GATED" in s.gated_reason
+        assert "measured between pH" in s.gated_reason, s.dataset
+        assert s.gated > 0, s.dataset
 
 
 def test_the_median_shape_error_does_not_regress(scores):

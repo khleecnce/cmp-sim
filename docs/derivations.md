@@ -1248,3 +1248,69 @@ formulation, not merged into the film's pack.
 The dataset stays `rank_only`. Its absolute-rate bias — the pack's Kp sits
 1.8–3.4× above three independent Preston back-calculations — is a separate,
 still-open finding that this change does not touch.
+
+## The oxidizer term's sign belongs to the pH branch — a regime gate
+
+### The measurement that no refit can satisfy
+Miranda 2004 ran a 2×2 factorial on electroplated copper. Same Cabot 5001
+base, same EPAD-A100 pad, same 4 psi / 60 rpm / 200 mL min⁻¹, three replicates
+per cell. Only pH and H₂O₂ moved:
+
+| | H₂O₂ 1.5 wt% | H₂O₂ 3.5 wt% | change |
+|---|---:|---:|---:|
+| pH 4 | 1953 Å/min | 2908 Å/min | **+49 %** |
+| pH 8 | 1743 Å/min | 243 Å/min | **−86 %** |
+
+ANOVA: pH main effect *p*=0.0021, pH×H₂O₂ interaction *p*=0.0207, H₂O₂ alone
+*p*=0.588 — not significant on its own. The paper reads this through Pourbaix:
+acidic H₂O₂ produces soluble Cu²⁺ and removal rises; alkaline H₂O₂ above
+~2.5 % grows a hard CuO film the abrasive cannot cut (Wei et al.: Cu₂O at
+0.06 % H₂O₂, CuO at 2.5 %, both at pH 8).
+
+Our oxidizer term multiplies the rate by a factor of concentration alone, so
+within one pack the ratio between two concentrations is identical at every pH.
+The data demand 1.49 on one leg and 0.14 on the other. **One constant cannot be
+both**, for any value of it — a functional-form limit, not a tuning error.
+
+### What was done instead of fitting
+`cu_h2o2_bta` now declares `oxidizer_ph_window: [2.0, 6.25]`, the range its
+oxidizer constants were actually measured in. The bounds are read off the
+provenance of the constants being gated — 6.25 is the acidic/alkaline branch
+split the pH term already used (`cu_ph_acid_k` fitted on US2008/0090500A1
+Table 4, 12 points, R²=0.954, all below it); 2.0 is the lowest pH in that same
+set — **not** chosen to make a dataset score well.
+
+Outside the window the oxidizer term is switched off, both the peaked branch
+and the inherited monotonic one, and the caller is told:
+
+> oxidizer term GATED at pH 8: this pack's oxidizer constants were measured
+> between pH 2 and 6.25, and the SIGN of the oxidizer response is known to flip
+> across the copper Pourbaix boundary … This is a declared gap in the data, not
+> a claim that oxidizer is unimportant.
+
+pH itself keeps predicting across the boundary; only the one unsupported term
+goes quiet.
+
+### Making silence scoreable without making it free
+A declined row is neither a prediction nor a failure, so `score_dataset` now
+separates them. Two rules keep the gate from becoming a way of dodging a bad
+score:
+
+1. **A gate only invalidates a score if the dataset varies the gated axis.**
+   `lai2001` runs at pH 7 but never moves H₂O₂; the switched-off term is then a
+   constant that cancels out of a shape comparison, so the dataset is still
+   scored on the size axis it does probe. Without this rule the gate silently
+   removed three sound datasets.
+2. **Gated rows are always counted and reported**, in `gated_points` and in the
+   accuracy table, even where they change nothing.
+
+`test_oxidizer_ph_regime_gate.py` pins all of it, including the anti-laundering
+rule and an explicit assertion that exactly two datasets are declined.
+
+### The honest ledger
+Corpus median went 20.2 % → 19.5 % (LOO 22.6 % → 21.7 %), but **not** because
+the physics improved: two datasets the model was answering wrongly are now
+declining to answer. That is a real gain in usability — a 107 % prediction that
+looks confident is worse than a refusal that names the missing experiment —
+and it is not a gain in accuracy. Closing it needs an alkaline-branch Cu/H₂O₂
+sweep with an inhibitor present, which is recorded as `TODO(owner)` in the pack.

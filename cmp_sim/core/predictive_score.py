@@ -85,6 +85,13 @@ class Score:
     loo_mape: Optional[float] = None
     flat_mape: Optional[float] = None       # baseline: predict the mean
     error: Optional[str] = None
+    #: rows the model DECLINED to predict because a regime gate fired, i.e.
+    #: the pack states its constants were not measured in that regime. These
+    #: are excluded from the score: grading a declared silence as a wrong
+    #: answer punishes the model for the honesty that makes it usable, and
+    #: rewards a future edit that removes the gate and guesses instead.
+    gated: int = 0
+    gated_reason: Optional[str] = None
 
     @property
     def beats_flat(self) -> Optional[bool]:
@@ -107,6 +114,8 @@ class Score:
             "predict_the_mean_mape_percent": (None if self.flat_mape is None
                                               else round(self.flat_mape, 1)),
             "beats_predicting_the_mean": self.beats_flat,
+            "gated_points": self.gated,
+            "gated_reason": self.gated_reason,
             "error": self.error,
         }
 
@@ -205,14 +214,30 @@ def _recipe_for(doc: Dict[str, Any], row: Dict[str, Any]) -> Dict[str, Any]:
 
 def _predict(doc: Dict[str, Any], row: Dict[str, Any]) -> Optional[float]:
     """Model rate in A/min at Kp = pack default, or None if it cannot run."""
+    value, _ = _predict_with_gate(doc, row)
+    return value
+
+
+def _predict_with_gate(doc: Dict[str, Any],
+                       row: Dict[str, Any]) -> Tuple[Optional[float], Optional[str]]:
+    """Rate in A/min, plus the reason if the model DECLINED to predict.
+
+    A regime gate is not a failure and not a prediction: the pack is stating
+    that its constants were never measured in this regime, so the returned
+    rate does not respond to the gated axis at all. Scoring such a row as a
+    wrong answer would make silence look like error and would reward removing
+    the gate in favour of an extrapolation with a known-wrong sign.
+    """
     from cmp_sim.api import run_recipe
 
     try:
         result = run_recipe(_recipe_for(doc, row))
     except Exception:
-        return None
+        return None, None
     value = result.get("removal_rate_A_per_min")
-    return None if value in (None, 0) else float(value)
+    value = None if value in (None, 0) else float(value)
+    gate = next((w for w in (result.get("warnings") or []) if "GATED" in w), None)
+    return value, gate
 
 
 def _why_unscorable(doc: Dict[str, Any], rows: List[Dict[str, Any]]) -> str:
@@ -245,13 +270,39 @@ def score_dataset(path: Path) -> Score:
         return score
 
     measured, predicted = [], []
+    gated_rows = 0
+    # A gate only invalidates a SCORE if the gated axis is one the dataset
+    # varies. When oxidizer is held constant across every row, the switched-off
+    # term is a constant factor that cancels out of a shape comparison — the
+    # dataset is still a fair test of the axes it does vary (size, pressure).
+    # Declining those would silence three good datasets to say something about
+    # an axis they never probe.
+    gate_matters = any(a in score.axes for a in
+                       ("oxidizer_wt_pct", "h2o2_vol_pct"))
     for row in rows:
-        value = _predict(doc, row)
+        value, gate = _predict_with_gate(doc, row)
         if value is None:
             score.error = _why_unscorable(doc, rows)
             return score
+        if gate:
+            gated_rows += 1
+            score.gated_reason = score.gated_reason or gate
+            if gate_matters:
+                # Declared silence, not a prediction. Excluded and counted, so
+                # a gate can never quietly drop the rows a model does badly on.
+                continue
         measured.append(_measured(row))
         predicted.append(value)
+    score.gated = gated_rows
+
+    if gate_matters and len(measured) < 3:
+        score.error = (
+            f"{gated_rows} of {len(rows)} rows are in a regime this pack "
+            f"declares it has no constants for, leaving {len(measured)} "
+            "scorable rows on an axis this dataset actually varies. The model "
+            "is declining to predict them rather than extrapolating: "
+            + (score.gated_reason or ""))
+        return score
 
     # SHAPE: one free scale, fitted by least squares through the origin in the
     # ratio sense, so the number reflects trend rather than calibration.

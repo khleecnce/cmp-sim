@@ -557,6 +557,53 @@ params:
     source: "doi:10.1149/1.2718474 (Gopal & Talbot, JES 154(6) H507, 2007), abstract and Figs. 1-2"
     confidence: literature
 
+  # ── 8. the pH window the oxidiser constants were measured in ──────────
+  oxidizer_ph_window:
+    value: [2.0, 6.25]
+    unit: pH
+    note: >
+      The pH range in which this pack's oxidiser constants are valid. Outside
+      it the oxidiser term is GATED OFF rather than extrapolated
+      (cmp_sim/models/chemical_rate.py, "regime gate on the oxidizer term").
+
+      WHY A WINDOW AND NOT A BETTER CONSTANT. The oxidiser term has one sign
+      per pack, and Miranda 2004's 2x2 factorial shows the sign is a property
+      of the pH branch, not of the film. Same copper, same Cabot 5001 base,
+      same tool, 3 replicates:
+
+        pH 4:  H2O2 1.5 -> 3.5 wt%   1953 -> 2908 A/min   (+49%)
+        pH 8:  H2O2 1.5 -> 3.5 wt%   1743 ->  243 A/min   (-86%)
+
+      ANOVA: pH main effect p=0.0021, pH x H2O2 interaction p=0.0207, H2O2
+      alone p=0.588 (not significant on its own). A single-signed term is
+      monotonic in the constant for every value of it, so no refit reaches
+      both legs — this is a functional-form limit, not a tuning error.
+
+      MECHANISM (the paper's own Pourbaix reading). Acidic H2O2 drives soluble
+      Cu2+ and removal rises with concentration. Alkaline H2O2 grows a hard
+      CuO passivation film that the abrasive cannot cut: Wei et al., cited
+      there, report Cu2O at 0.06% H2O2 and CuO at 2.5% H2O2 at pH 8.
+
+      WHERE THE BOUNDS COME FROM. The upper bound 6.25 is the acidic/alkaline
+      branch split the inherited pH term already uses (`_ph_cu_acidic_term`,
+      the coefficient cu_ph_acid_k=0.1428 fitted on US20080090500A1 Table 4,
+      12 points, R^2=0.954, entirely below it). The lower bound 2.0 is the
+      lowest pH in that same fitting set. Both are read off the provenance of
+      the constants being gated, not chosen to make a dataset score well.
+
+      ⚠ WHAT THIS DOES NOT DO. It does not model the alkaline branch. A run at
+      pH 8 now returns a rate that does not respond to H2O2 at all, and says
+      so. Closing the gap needs an alkaline-branch oxidiser constant measured
+      WITH an inhibitor present — the regime this pack runs in, and one for
+      which no sweep has been located. TODO(owner): an alkaline Cu/H2O2/BTA
+      H2O2 sweep (3+ points) would replace this gate with a prediction.
+    source: >
+      P. A. Miranda, J. A. Imonigie, A. J. Moll, "Interaction Effects of Slurry
+      Chemistry on Chemical Mechanical Planarization of Electroplated Copper",
+      2004 IEEE WMED, doi:10.1109/WMED.2004.1297359, TABLE 3 and the ANOVA in
+      the text; branch split from legacy/knowledge/cmp/cu-cmp-ph-mechanism.md.
+    confidence: literature
+
   film_youngs_modulus_pa:
     value: 128.0e9
     unit: Pa

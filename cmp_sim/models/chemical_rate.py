@@ -87,6 +87,9 @@ TERM_MEANING = {
     "inhibitor": "inhibitor/passivator surface coverage blocking removal sites",
     "ceria_tooth": "ceria Si-O-Ce chemical-tooth activity (ceria only)",
     "ph_softening": "pH-driven surface softening (linear, unverified)",
+    "oxidizer_gated": ("oxidizer term switched OFF: this pH is outside the "
+                       "window the pack's oxidizer constants were measured in, "
+                       "and the sign of the response flips across it"),
 }
 
 
@@ -368,7 +371,62 @@ def chemical_factor(resolved, temp_c: Optional[float] = None) -> ChemicalEffect:
     # one-parameter curve (see peaked_oxidizer_response), so when the pack
     # states one it is USED rather than merely declared and ignored.
     peak_k = resolved.p_or("oxidizer_peak_shape_K", None)
+
+    # ── regime gate on the oxidizer term ────────────────────────────────
+    # The oxidizer term carries ONE sign per pack, and that sign is a property
+    # of the pH branch it was measured on, not of the film. Miranda 2004's 2x2
+    # measures the same copper, same slurry base, same tool, with H2O2 moving
+    # in OPPOSITE directions on the two pH legs:
+    #
+    #     pH 4:  1.5 -> 3.5 wt% H2O2   1953 -> 2908 A/min   (+49%)
+    #     pH 8:  1.5 -> 3.5 wt% H2O2   1743 ->  243 A/min   (-86%)
+    #
+    # with the interaction significant (p = 0.0207) and H2O2 alone not
+    # (p = 0.588). The mechanism is Pourbaix: acidic H2O2 makes soluble Cu2+,
+    # alkaline H2O2 above ~2.5% grows hard passivating CuO. No value of a
+    # single-signed constant reproduces both legs, so refitting cannot fix it.
+    #
+    # A pack may therefore declare the pH window its oxidizer constant was
+    # measured in. Outside that window the term is GATED: it is not silently
+    # extrapolated with the wrong sign, the caller is told the model is
+    # declining to predict that axis, and the reason is the measurement's
+    # provenance rather than a guess. This is the inherited "declared regime
+    # gap" idea — a flat response that means "no coefficient here", which must
+    # never be read as "this factor does not matter".
+    ox_ph_window = resolved.p_or("oxidizer_ph_window", None)
+    ph_now = resolved.p_or("slurry_ph", None)
+    ox_gated = False
+    if ox_ph_window and ph_now is not None and len(ox_ph_window) == 2:
+        lo, hi = float(ox_ph_window[0]), float(ox_ph_window[1])
+        ph_now = float(ph_now)
+        if not (lo <= ph_now <= hi):
+            ox_gated = True
+            warnings.append(
+                f"oxidizer term GATED at pH {ph_now:g}: this pack's oxidizer "
+                f"constants were measured between pH {lo:g} and {hi:g}, and the "
+                "SIGN of the oxidizer response is known to flip across the "
+                "copper Pourbaix boundary (Miranda 2004, 2x2 factorial: H2O2 "
+                "1.5->3.5 wt% raises the rate 49% at pH 4 and drops it 86% at "
+                "pH 8, interaction p=0.0207). The term is switched off rather "
+                "than extrapolated with a sign the data contradict, so the "
+                "predicted rate does NOT respond to oxidizer concentration "
+                "here. This is a declared gap in the data, not a claim that "
+                "oxidizer is unimportant")
     used_peaked = False
+    if ox_gated:
+        # Divide out the inherited monotonic oxidizer term too: leaving it in
+        # would gate only the peaked branch and still apply the wrong-signed
+        # Langmuir penalty, which is the failure this gate exists to stop.
+        legacy_ox = terms.get("oxidizer")
+        if legacy_ox and abs(float(legacy_ox)) > 1e-9:
+            factor /= float(legacy_ox)
+            terms.pop("oxidizer", None)
+            notes.append(
+                f"removed the inherited oxidizer term ({float(legacy_ox):.4f}) "
+                "because the regime gate above is active: an unmeasured sign is "
+                "worse than no term")
+        terms["oxidizer_gated"] = 1.0
+        peak_k = None
     # Zero oxidizer is a MEASURED condition, not a missing input: Du 2004's
     # first point is 0 vol%, and the inherited Langmuir returns 3.10 there --
     # i.e. "copper polishes 3x faster with no oxidizer at all", which inverts

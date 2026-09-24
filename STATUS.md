@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **625 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **638 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -17,6 +17,15 @@
 - **Abrasive TYPE reaches the rate** (`slurry/abrasive_effects.py`): a swap
   rescales only by a published matched-condition ratio, withdraws the pack's
   measured exponents, says `ranking_only` when unanchored.
+- **The oxidizer term's SIGN belongs to the pH branch — regime gate.**
+  Miranda's 2x2 moves H2O2 1.5->3.5 wt% and gets +49% at pH 4, -86% at pH 8
+  (interaction p=0.0207, Pourbaix: soluble Cu2+ vs hard CuO). One constant
+  cannot be both, so `cu_h2o2_bta` declares `oxidizer_ph_window: [2.0, 6.25]`
+  — bounds read off the gated constants' own provenance — and OUTSIDE it the
+  term is switched off and says so, instead of extrapolating a wrong sign.
+  Scoring now separates "declined" from "wrong"; a gate on an axis a dataset
+  holds CONSTANT must not silence it (that rule saved 3 good datasets).
+  ⚠ Corpus 20.2% -> 19.5% is NOT a physics gain: 2 datasets stopped answering.
 - **The oxidizer floor is MECHANICAL, not chemical** — US8070843B2 is a
   fixed-abrasive pad with no free abrasive, so the pack's free-abrasive 0.14
   background is wrong for it; its own table prints 0.040. 51.7% -> 8.7%, but
@@ -39,13 +48,15 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-`miranda2004_cu_ph_h2o2_2x2` (107.8%) and `ihnfeldt2008` (84.0%) are the two
-worst remaining datasets and both vary pH AND oxidizer together on Cu. Isolate
-as before: Miranda's 2x2 holds pH fixed in each leg, and its two legs move in
-OPPOSITE directions with H2O2 (1953->2908 at one pH, 1743->243 at the other) —
-a sign flip the multiplicative pH x oxidizer form cannot produce. Determine
-whether that is a pH-dependent oxidizer regime (needs a coupling term) or two
-different formulations mis-pooled, before touching any constant.
+pH is now the worst axis (39.3%) and is no longer explained away: the slurry-
+system split fixed oxide, so what remains is Cu. `cu_h2o2_bta` carries
+ph_peak=4.0 at `confidence: low` — it is the pack's OPERATING pH, not a
+measured optimum, because the only Cu sweep in the corpus (US9200180B2,
+pH 6.2-9.9) is monotone and cannot locate a maximum. ph_response_width=4.1 is
+fitted to that same alkaline-only leg, so peak and width trade off freely.
+Find an ACIDIC Cu pH sweep (3+ points below pH 6) in the patent literature
+before touching either number; if none exists, say so and mark the pair
+jointly unidentifiable rather than refitting.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp
@@ -73,8 +84,11 @@ different formulations mis-pooled, before touching any constant.
 
 Gate: 4 in-scope datasets within ±15% (need 3) → **PASS**
 
-All axes (388 pts, 41/49 datasets): median **20.2%** trend, **22.6%** LOO.
-By axis — size 11.2%, loading 22.9%, pressure 25.3%, oxidizer 39.3%,
-pH 39.3%, velocity 44.1%. ⚠ The axis medians pool datasets that vary several
-things at once; velocity's 44.1% is 11.7% once isolated (see DONE).
+All axes (377 pts, 39/49 scored + 2 DECLINED): median **19.5%** trend,
+**21.7%** LOO. By axis — size 11.2%, oxidizer 20.2%, loading 22.9%,
+pressure 25.3%, pH 39.3%, velocity 44.1%. ⚠ Two caveats, both against us:
+the axis medians pool datasets that vary several things at once (velocity's
+44.1% is 11.7% once isolated), and the corpus median improved partly because
+2 Cu datasets are now DECLINED rather than answered wrongly — honesty, not
+accuracy.
 Resume handover: `~/CMP-SIM-FOR-RESUME.md`
