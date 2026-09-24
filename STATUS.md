@@ -3,7 +3,7 @@
 ## DONE (phase, module, tests)
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
-  · P7 pad glazing & conditioner ageing · P8 defect proxy. **827 tests pass.**
+  · P7 pad glazing & conditioner ageing · P8 defect proxy. **834 tests pass.**
 - Model selection by SITUATION not film (`core/regime.py`, `core/profiles.py`);
   maturity grading (`core/maturity.py`) — a pack may lower its grade, never
   raise it; Kp from first principles (`models/first_principles.py`).
@@ -26,6 +26,15 @@
   _ti 2.7%), and nothing-stated. That separates bouvet2002_w (2.3% vs 1.0% floor,
   finished) from bouvet2002_ti (30.7% vs 2.7%, a real miss) — previously
   indistinguishable. `at_noise_floor` is None, never False, when unmeasured.
+- **DEFINITION OF DONE MET (checked, not assumed).** 9/10 examples run; the 10th
+  (snag_solder) exits 3 BY DESIGN — SnAg is unestablished and the model refuses
+  rather than inventing a pH window (the one primary report eliminated both
+  windows it tried). Its pair snag_solder_screening.yaml supplies that input and
+  runs. Literature gate: 4 in-scope datasets within 15% (need 3) -> PASS, and the
+  gate counts WHOLE datasets — 2 are explicitly excluded for passing only on
+  their best group. Every running example emits 4-5 warnings; none silenced,
+  each is a disclosed gap. Kept as tests/test_definition_of_done.py, not a
+  scrollback.
 - **Calibration for limit 11 ALREADY EXISTED — `cmp-sim fit`.** Checked before
   building: no new command needed. Verified it recovers an injected 2.5x tool
   factor to 0.3%. ⚠ Near-miss: fitted Kp 2.3289e-13 vs pack 1e-13 looks like
@@ -266,14 +275,13 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-Definition-of-done check, then stop. Run `cmp-sim run` on every examples/*.yaml
-(Cu, W, oxide, poly-Si, Si substrate, SnAg, STI, SiC, multizone) and confirm each
-produces a result without ParamMissing or an unhandled warning; run `cmp-sim
-validate` and confirm the ±15% literature gate still passes. Report which
-examples succeed, which warn, and what each warning says — do NOT silence a
-warning to make the list clean, and do NOT add features. If everything passes,
-the P1-P8 gates and the README/validation criteria are met: say so plainly and
-stop rather than starting new work.
+P1-P8 gates, examples and the literature gate all pass (834 tests). The build
+brief is met; there is no required next item. Pick up work only on a new
+instruction from the owner. If continuing anyway, the highest-value remaining
+item is NOT a feature: it is the velocity axis (39.0% median, BLOCKED-1), which
+needs a dataset that sweeps speed at constant pressure on a film with an
+established pack — no corpus dataset does this cleanly, so it requires either
+new literature or an owner experiment.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
 0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp
