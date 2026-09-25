@@ -4,10 +4,14 @@
 
 ### 1차 완성 — 모델링 정확도
 - **목표: 예측 오차 median ≤ 10.0%** (이력서에 쓸 수 있는 수준)
-- **현재: median 19.5% / 21.8%** (코퍼스 46/50, 427점) — re-measured 2026-09-27 00:xx,
-  `python tools/score_report.py` (thin wrapper; run it inside `.venv`).
-  863 tests pass on main. Absolute-scale misses >3x: 13 -> 9 on branch `ph-edge-hold`
-  (see NEXT): the four largest silica misses were ONE extrapolation artefact.
+- **현재: median 19.5% shape / 21.8% LOO** (코퍼스 46/50, 427점) — `ph-edge-hold`
+  MERGED to main 2026-09-27, **863 tests pass**.
+  `python tools/score_report.py` (scores) / `python tools/readme_numbers.py`
+  (every number the README claims) — both inside `.venv`.
+  Absolute-scale misses >3x: **13 -> 9**; the four largest silica misses were ONE
+  extrapolation artefact, not four physics gaps. Shape median deliberately
+  UNMOVED at 19.5% — a pure scale factor divides out of the shape metric, so a
+  moved shape would have meant a bug.
   ⚠ 인터프리터: `source .venv/bin/activate` 먼저. 시스템 python3에는 pint가 없다.
 - **10%가 물리적으로 불가능하다고 판단되면 15%까지 허용**(사용자 승인 2026-09-25).
   단 그 판단은 **근거를 STATUS.md에 적고** 나서만 인정된다 —
@@ -368,65 +372,60 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-**Finish `ph-edge-hold` (branch, NOT merged): update the 13 pinned-number tests
-the fix invalidated, then merge.** Do not re-derive the fix — it is committed
-on that branch and it is correct. This is bookkeeping, and it is one sitting.
+**Attack the pH axis with a DERIVED rate law instead of the fitted Gaussian.**
+The Gaussian is the single largest remaining physics debt: 15 datasets, median
+25.3%, and it carries 2-3 fitted constants per pack (`ph_peak`, `ph_response_
+width`, `ph_acid_floor`) that come from nowhere but the data. The edge-hold just
+proved the form is wrong outside its fitting window — it had to be CLAMPED to
+stop producing 139x artefacts. A form that needs a clamp is a form to replace.
 
-What the branch does (chemical_rate.py, ~40 lines, ZERO new constants)
-----------------------------------------------------------------------
-The pH Gaussian was being EVALUATED far outside the pH window its width was
-fitted in. oxide_silica's width 3.1 comes from Li 2021's three points over
-pH 10-12.5; evaluating that bell at pH 3-4 multiplies the rate by exp(-(7/3.1)^2)
-= 1/61 -- a number produced by the FUNCTION, not by any measurement. Every
-silica slurry in the corpus that runs acidic was being suppressed by it.
+Target form (oxide/silica, where the corpus is thickest), all terms derivable:
+  r = k_OH * a_OH^n  * f_electrostatic(pH; IEP_abrasive, IEP_film)
+  - the OH- catalysed hydrolysis leg is FIRST-ORDER-ish in a_OH^0.5 (Iler 1979
+    ch.1; Brady & Walther 1990 measured n = 0.5 on amorphous silica) — that is a
+    LITERATURE exponent, not a fitted one, so it REMOVES a constant
+  - the electrostatic leg is why the optimum MOVES with abrasive charge, the
+    fact already established in this repo (anionic silica peaks <=2, cationic
+    core-shell at 4.9, plain silica at 11 on the SAME TEOS film). A Gaussian
+    cannot express that; a product of two site-ionisation terms at the two IEPs
+    can, and IEPs are MEASURED quantities per material, not free parameters.
+⚠ Read the falsification note below first: a 2-pKa surface-complexation product
+was ALREADY tried and lost (27.3% vs 17.7% on Dandu). The difference proposed
+here is that the pH-dependence enters through a_OH^0.5 kinetics MULTIPLIED by
+electrostatics, not as a pure site-product — and that the IEPs are fixed from
+literature rather than fitted. If it loses again on held-out data, record the
+second falsification and STOP pursuing this form; do not fit around it.
 
-The fix clamps the pH argument to the pack's own `ph_valid_range` (a field that
-already existed and until now only printed a warning), i.e. holds the chemical
-term at the nearest MEASURED edge instead of extrapolating a tail. Physically
-this is the amorphous-silica hydrolysis plateau: the rate is OH--catalysed
-(~a_OH^0.5) above the neutral point and flattens below it (Iler 1979 ch.1;
-Brady & Walther 1990) -- it does not keep collapsing.
+Scoring rule for this item: count CONSTANTS before and after. A form that hits
+the same median with fewer free constants is the win; a form that needs more is
+a loss even if the median falls.
 
-Measured effect, one change, four datasets, all one-sided:
-  ep3161098b1_teos  139.2x -> ~2x     bouvet2002_w    75.6x -> ~1x
-  bouvet2002_oxide   39.2x -> ~1x     bouvet2002_ti   38.2x -> ~1x
-  absolute-scale misses >3x: 13 -> 9   median LOO 22.6% -> 21.8%
-  median SHAPE unmoved at 19.5%, exactly as predicted: a pure scale factor
-  divides out of the shape metric, so a moved shape would have meant a bug.
-
-Why the 13 failures are expected, not a regression
---------------------------------------------------
-They are tests that PIN numbers this fix was supposed to move. Two of them
-(tests/test_acidic_oxide_datasets_pack_assignment.py) are already updated on
-the branch and their old reasoning is recorded as superseded. The rest:
-  test_inherited_kp_is_not_the_problem (2)  -- asserted the parent pack is the
-      worst-calibrated and that its gap tracks pH distance. Both were TRUE
-      observations of this very artefact; rewrite them to pin the explanation
-      (gap tracked pH distance BECAUSE the bell was extrapolated) rather than
-      the symptom. Their conclusion "the problem is not Kp" is CONFIRMED.
-  test_readme_numbers_are_computed (4)      -- README headline/axis/scale/badge
-      numbers. Regenerate from tools/score_report.py.
-  test_replicate_column_is_reporting_only (2), test_scale_column_is_reporting_only (3)
-      -- these assert medians equal hard-coded values to prove THEIR OWN change
-      was reporting-only. Re-baseline the constants; the reporting-only claim
-      is unaffected.
-  test_ph_validity_range_is_declared::test_a_zero_acid_floor_is_called_a_refusal
-      -- the warning text it greps was reworded (a clamped value is no longer a
-      "refusal"; it is a held edge value). Update the expected wording.
-  test_sic_kmno4_pack_evidence::test_the_prediction_jumps_across_the_unvisited_peak
-      -- CHECK THIS ONE PROPERLY, it is the only one that may be real: the
-      clamp can flatten a jump across a peak that lies outside ph_valid_range.
-      If the sic pack's range excludes its own peak, the RANGE is wrong, not
-      the clamp.
-
-Then: `python -m pytest -q -p no:randomly` (takes ~4 min; the default random
-order plugin makes it exceed a 180 s tool timeout -- use -p no:randomly) and
-merge to main with `tests: N pass`.
-
-Afterwards, the remaining >3x misses are Cu/SiC, a different family:
-lai2001_cu (0.1x), gong2024_4hsic (0.1x), us6918821b2_cu (0.1x),
-us8501625b2_cu (12.7x) -- note three of them are UNDER 1, i.e. over-prediction,
-so they are not the same bug.
+### Closed 2026-09-27 (was the previous NEXT): `ph-edge-hold` MERGED
+The pH Gaussian was being evaluated far outside the pH window its width was
+fitted in — oxide_silica's width 3.1 comes from Li 2021's three points over
+pH 10-12.5, and evaluating that bell at pH 3-4 multiplies the rate by
+exp(-(7/3.1)^2) = 1/61, a number produced by the FUNCTION rather than by any
+measurement. `chemical_rate.py` now holds the pH argument at the pack's own
+`ph_valid_range` edge (a field that already existed and only printed a warning).
+Physically: the amorphous-silica hydrolysis plateau — the rate is OH--catalysed
+above the neutral point and flattens below it (Iler 1979 ch.1; Brady & Walther
+1990). ZERO new constants.
+  ep3161098b1_teos 139.2x -> 2.5x    bouvet2002_w    75.6x -> ~1x
+  bouvet2002_oxide  39.2x -> ~1x     bouvet2002_ti   38.2x -> ~1x
+  >3x absolute misses 13 -> 9;  LOO 22.6 -> 21.8;  beats-the-mean 34 -> 35
+  shape median UNMOVED 19.5% (predicted, and the check that it was a pure scale)
+13 pinned-number tests re-baselined, each with the superseded reasoning recorded
+rather than deleted. Two were checked properly rather than re-pinned:
+  - test_sic_kmno4's "jump across the unvisited peak" — the worry was that the
+    clamp hides a peak OUTSIDE the declared range. It does not: sic_alumina_
+    kmno4's peak 10.5 is INTERIOR to its range 9.0-11.0, now asserted. The test
+    was rewritten to state the sharper fact — both its datasets (pH 2-6) sit
+    entirely ON the clamp, so the pH term is one constant factor for every row
+    they contain and cannot be evidence for or against it.
+  - test_readme's "139" assertion was a HARDCODED headline case, so removing the
+    artefact broke the test guarding the README. Now recomputes the current
+    worst case from the scorer (lai2001_cu 8.7% shape / 17.5x scale).
+New: `tools/readme_numbers.py` regenerates every number the README claims.
 
 ### Closed 2026-09-26 (was the previous NEXT): BLOCKED #2, the ceria scale
 See BLOCKED #2. The pack's Kp was an unreproduced estimate; four measured ceria
@@ -561,8 +560,8 @@ abrasive_effects.py refuses that on purpose.
 Gate: 4 in-scope datasets within ±15% (need 3) → **PASS**
 
 All axes (427 pts, 46/50 scored + 4 DECLINED): median **19.5%** trend,
-**22.6%** LOO. By axis — size 11.2%, oxidizer 22.6%, loading 22.9%,
-pressure 24.1%, pH 26.8%, velocity 39.0%. 34/46 beat predict-the-mean.
+**21.8%** LOO. By axis — size 11.2%, oxidizer 21.3%, loading 22.4%,
+pressure 24.1%, pH 25.3%, velocity 39.0%. 35/46 beat predict-the-mean.
 ⚠ Caveats, all against us: the axis
 medians pool datasets that vary several things at once — velocity's 39.0% is
 11.7% once isolated (thin axis, 29 pts), while pH's holds up under isolation

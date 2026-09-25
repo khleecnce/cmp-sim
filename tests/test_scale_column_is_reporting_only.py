@@ -28,8 +28,13 @@ from cmp_sim.core.predictive_score import report, score_all
 #: pinned corpus figures — these must survive a reporting-only change
 #: (46/427 since bae2022_si_wafer_alkali_ph entered the corpus; the MEDIANS
 #: are what this file exists to pin, and they did not move)
+#: ⚠ RE-BASELINED 2026-09-27: the pH edge-hold fix moved LOO 22.6 -> 21.8 and
+#: cut the >3x absolute-scale misses from 13 to 9. That fix is a MODEL change,
+#: not a reporting one; the contract this file pins (a *column* must not move a
+#: score) is untouched, and the shape median staying at 19.5 across it is the
+#: evidence that the fix was the pure scale factor it claimed to be.
 MEDIAN_SHAPE = 19.5
-MEDIAN_LOO = 22.6
+MEDIAN_LOO = 21.8
 SCORED = 46
 POINTS = 427
 
@@ -82,8 +87,14 @@ def test_shape_and_scale_fail_independently():
         "no dataset scores well on shape while being badly mis-scaled; if that "
         "is genuinely fixed, this column's justification has changed")
 
+    # ⚠ The original headline case was ep3161098b1 at 139x. The pH edge-hold
+    # fix removed that one — it was an extrapolated-Gaussian artefact, not a
+    # physics gap — and the surviving worst case is smaller (wei2026 at ~9.7x).
+    # The COLUMN's justification is unchanged: a dataset can still score in
+    # single-digit shape while being an order of magnitude off in rate, which
+    # the shape median alone would never show.
     worst = max(good_shape_bad_scale, key=lambda s: s.scale_ratio or 0)
-    assert worst.scale_ratio is not None and worst.scale_ratio > 50, (
+    assert worst.scale_ratio is not None and worst.scale_ratio > 5, (
         f"the headline case is now {worst.dataset} at {worst.scale_ratio:.1f}x")
 
 
@@ -103,10 +114,14 @@ def test_the_json_carries_scale_for_machine_readers():
         capture_output=True, text=True, check=True).stdout
     payload = json.loads(out)
     rows = {d["dataset"]: d for d in payload["datasets"]}
-    ep = rows["ep3161098b1_teos_silica_pressure_sweep"]
-    assert ep["scale_ratio_measured_over_predicted"] > 50
-    assert ep["scale_is_calibrated"] is False
-    assert ep["shape_mape_percent"] < 15, (
+    # ⚠ This assertion used to name ep3161098b1 (7.1% shape, 139x scale). The
+    # pH edge-hold fix brought that row to ~2.5x, so it no longer demonstrates
+    # the split. wei2026 does, and the claim being tested is the same one:
+    # a single-digit shape error carrying an order-of-magnitude scale error.
+    row = rows["wei2026_sic_silica_size_sweep"]
+    assert row["scale_ratio_measured_over_predicted"] > 5
+    assert row["scale_is_calibrated"] is False
+    assert row["shape_mape_percent"] < 15, (
         "the whole point of this row: excellent shape, terrible scale")
 
 
