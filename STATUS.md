@@ -4,7 +4,10 @@
 
 ### 1차 완성 — 모델링 정확도
 - **목표: 예측 오차 median ≤ 10.0%** (이력서에 쓸 수 있는 수준)
-- **현재: median 19.5% shape / 21.8% LOO** (코퍼스 46/50, 427점) — **866 tests**.
+- **현재: median 19.5% shape / 21.8% LOO** (코퍼스 46/50, 427점) — **871 tests**.
+  2026-09-27(2회차): abrasive-size 축 측정 완료. 단일 유도 지수는 **반증**(세 번째),
+  그러나 산포가 **연마입자 재질로 정리된다**(재질간 0.51 vs 재질내 0.16) — 피팅
+  상수를 재질 상수로 재귀속할 근거. 코퍼스 median은 의도대로 불변(측정만 함).
   2026-09-27: pH 유도식 **반증됨**(두 번째). 법칙 기반 kinetic leg를 빼면 오히려
   좋아진다(60.4%→35.3%) — 튜닝 부족이 아니라 항 자체가 틀렸다. 부수효과가 더
   중요: 현행 Gaussian의 11.0%는 **in-sample 보간**이고, leave-one-pH-level-out은
@@ -59,6 +62,28 @@
   실수치 예측으로 바뀐다 — **median을 내리는 가장 큰 레버**.
 
 ## DONE (phase, module, tests)
+- **The abrasive-size exponent is a MATERIAL property, not a per-pack handle.**
+  `tools/size_derived_probe.py` + `tests/test_size_exponent_is_material_property.py`
+  (5 tests). Two findings, opposite directions, both recorded: a SINGLE derived
+  exponent is FALSIFIED (11 groups span n = -0.45..+1.00, 48% of the -1..+2
+  Luo-Dornfeld branch range — the branch would be picked by the data, same
+  verdict as pH), but the scatter is ORGANISED BY ABRASIVE: silica -0.13 <
+  alumina +0.28 < ceria/silica +0.80 < ceria +1.00, between-material stdev 0.51
+  vs within-material 0.16 (3.2x), holding across three different films for
+  silica and across 15 years / 20x in size for alumina. Corpus UNMOVED (19.5%
+  shape / 21.8% LOO) — this run measured, it changed no pack. **871 tests.**
+  ⚠ Two traps found and pinned by tests: (1) grouping conditions by a BLACKLIST
+  of axes split every group into singletons, because provenance fields
+  (`read_method`, `digitization_uncertainty_*`, `source_detail`) differ row by
+  row — only 2 groups survived instead of 11; a whitelist of process axes is
+  correct. (2) Taking the abrasive from the PACK name labels wei2026 (silica)
+  and su2011 (alumina) as ceria, because both borrow `sic_ceria_h2o2` and say
+  PLACEHOLDER in their own headers — that manufactures a fake within-ceria
+  spread of 0.10..1.00 and would have destroyed the finding. Filename is
+  authoritative. The ordering is NOT explained by hardness (alumina 20 > silica
+  8 > ceria 6 GPa is the wrong order), so it is recorded as a re-attribution
+  with a chemical-tooth hypothesis, not as derived physics.
+
 - **`si` finally has a validation dataset — BLOCKED #0 measured, not closed.**
   The si pack was the ONLY film scored against nothing: its Kp came from one
   back-calculated point ([ZHU25], 0.62 psi on a 125 mm single-side lapper) and
@@ -376,21 +401,35 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-**Attack the ABRASIVE-SIZE axis with a derived indentation law.**
-The pH item below is CLOSED — falsified, see "Closed 2026-09-27 (pH derived
-law)". Size is now the thickest untried physics axis: 8 size-sweep datasets
-(bouvet2002 x3, lai2001, son2021, su2011 x2, wei2026, us20190127607a1 x2) and
-every pack carries a FITTED `abrasive_size_exponent`. Luo-Dornfeld derives that
-exponent instead of fitting it: with the load shared over N active particles
-and each indenting Hertzian-plastically, the removed volume per particle and
-the particle count both scale with d, and the exponent that survives depends on
-which of the two dominates. Count constants before and after — a derived
-exponent REMOVES one fitted constant per pack.
-⚠ Before writing any model, run the equivalent of `tools/ph_derived_probe.py`
-for size: fit each sweep's own exponent, look at the SPREAD across packs. If
-the measured exponents scatter across the range a single derivation would have
-to cover, the derivation is already falsified and this item closes the same way
-the pH one did — record it and move on rather than fitting around it.
+**Make `abrasive_size_exponent` a MATERIAL constant shared across packs
+instead of a fitted per-pack constant.** The probe demanded by the previous
+NEXT has been run (`tools/size_derived_probe.py`, 5 tests) and its verdict is
+split — record both halves before touching a pack:
+
+- a SINGLE derived exponent is FALSIFIED. 11 groups / 9 datasets give
+  n = -0.45 .. +1.00 (median +0.16, stdev 0.43) = 48% of the -1..+2 span a
+  Luo-Dornfeld branch choice covers. Picking a branch would BE fitting.
+- but the scatter is ORGANISED BY ABRASIVE, not by pack or film:
+  silica -0.13 (k=3) < alumina +0.28 (k=2) < ceria/silica +0.80 (k=2)
+  < ceria +1.00 (k=1); between-material stdev 0.51 vs within-material 0.16
+  (3.2x). bouvet2002's silica sits near zero on THREE different films; two
+  alumina sweeps 15 years and 20x in size apart agree to 0.09.
+
+So the move is NOT a derivation — it is a re-attribution. Concretely:
+1. add `size_exponent_by_abrasive` to `slurry/abrasive_effects.py` with the
+   four measured material values + provenance, each carrying the k and the
+   spread so a k=1 value can never read as well-supported;
+2. have packs that declare a fitted `abrasive_size_exponent` DEFER to it when
+   the declared abrasive matches, keeping the pack value only where the pack
+   has its own sweep (maturity rule: a pack may lower its grade, never raise);
+3. re-score. Expected: corpus median roughly unmoved (the fitted values were
+   already near their material means) but packs with NO size sweep gain a real
+   size response instead of `ranking_only` — that is the point.
+⚠ Do NOT report the ordering as derived physics. It does not track abrasive
+hardness (alumina 20 > silica 8 > ceria 6 GPa is not the measured order). The
+chemical-tooth reading (ceria removal ∝ contact area ∝ d; inert silica removal
+d-independent at fixed solids loading) is a HYPOTHESIS with k=1 pure-ceria
+support. Say so in the pack headers.
 
 ### Closed 2026-09-27 (was the previous NEXT): the pH derived law is FALSIFIED
 `tools/ph_derived_probe.py` + `tests/test_ph_derived_law_falsified.py`
