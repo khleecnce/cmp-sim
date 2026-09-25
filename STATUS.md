@@ -1,6 +1,36 @@
 # CMP-Sim — STATUS
 
 ## DONE (phase, module, tests)
+- **`si` finally has a validation dataset — BLOCKED #0 measured, not closed.**
+  The si pack was the ONLY film scored against nothing: its Kp came from one
+  back-calculated point ([ZHU25], 0.62 psi on a 125 mm single-side lapper) and
+  nothing independent ever tested it. Added bae2022_si_wafer_alkali_ph
+  (doi:10.3390/nano12213893, rates printed in the body text, not digitised):
+  a different tool, a 9x higher down force (5.7 psi), a SUBA 600 pad.
+  Shape 12.6% vs its own 4.3% replicate floor. ⚠ It does NOT beat
+  predict-the-mean (12.6% both ways) and that is the honest reading — the pack
+  has no pH term, so it predicts one number for a ladder that moves 1.27-1.38x.
+  Absolute comparison is switched OFF: the paper never states the carrier-
+  platen centre distance, so relative velocity — and therefore the Preston
+  rate — cannot be formed from it. What the absolute numbers DO buy is the
+  first INDEPENDENT confirmation of sanity.py's 100-3,000 A/min Si envelope,
+  which until now rested on the same source as the Kp it was checking.
+  Deliberately NOT fitted: two pH levels cannot determine a unimodal peak+width
+  (two free constants → exact interpolation). Recorded as a THIRD audit state,
+  `DECLARED_UNFITTABLE`, distinct from a null result — the effect is REAL but
+  under-determined — and the test re-derives the level count and the 1.1-2.0x
+  gain from the file rather than trusting the table.
+  Also declined: the same figure's three AMINE rows (EDA 552.8, DETA 617.2,
+  TETA 499.1 nm/min at pH 10.8-10.9 vs NaOH's 177.1 at pH 10.90). 3x the rate
+  at the SAME pH is the paper's own evidence that pH does not set the Si rate;
+  scoring them on a pH term would manufacture a failure out of chemistry the
+  pack never claimed. That gain already lives in additives.yaml.
+  Corpus 46/50 scored, 427 points; medians UNMOVED (19.5%/22.6%). pH axis
+  14 → 15 datasets and 29.1% → 26.8%. 849 tests.
+  ⚠ Fixed a latent hole while here: test_readme_numbers_are_computed hardcoded
+  the denominator ("of 49 datasets"), so adding a dataset made the README's own
+  total wrong while the test that guards the README still passed. Now computed.
+
 - P1 Preston · P2 GW contact · P3 Luo-Dornfeld · P4 chemistry (pH/oxidizer/
   inhibitor + Arrhenius) · P5 radial uniformity · P6 pattern dishing/erosion
   · P7 pad glazing & conditioner ageing · P8 defect proxy. **846 tests pass.**
@@ -288,6 +318,15 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
+`sti_ceria` predicts 7,235 Å/min against a 200-6,000 envelope (BLOCKED #2).
+Both the pack and the envelope cite sources, so one of them is wrong FOR THIS
+RECIPE and the disagreement has never been diagnosed — unlike the si case just
+closed, sti_ceria has SIX registered datasets (dandu2009, netzband2020,
+son2021, mariscal2020, us20190127607a1 x2), so the evidence to decide it is
+already in the repo. Back out what scale each implies (the method that
+falsified the inherited-Kp hypothesis) before touching any constant.
+
+### Standing context carried forward (was the previous NEXT)
 ⚠ CORRECTION. A previous session reported the project "complete" against the
 P1-P8 engine gates alone. That was the WRONG bar: the owner's actual brief
 (desktop, 09-24 10:49) is (1) a simulator that turns inputs into predictions,
@@ -317,8 +356,20 @@ predict CMP rate (ceria is softer than alumina and removes oxide faster), and
 abrasive_effects.py refuses that on purpose.
 
 ## BLOCKED  (numbers + sources: `docs/open-questions.md`)
-0. `si` over-predicts at bare defaults (10,776 vs a 100–3,000 envelope); Kp
-   rests on one Seidel 1990 point. Needs a second Si-substrate point.
+0. `si` — HALVED, not closed. The film now has one independent dataset
+   (bae2022, 12.6% shape) so it is no longer unscored, and its 5.7 psi rates
+   confirm the 100-3,000 A/min envelope independently of the Kp source. What
+   is STILL missing is the thing the entry originally asked for: a second
+   ABSOLUTE point. bae2022 cannot supply one — it never states the carrier-
+   platen centre distance, so no relative velocity and no Kp can be recovered
+   from it. The 10,776 A/min over-prediction at bare defaults therefore stands
+   unexplained, and Kp still rests on one Seidel-era point.
+   NEEDED: a bare-Si rate measured at a stated pressure AND a recoverable
+   relative velocity (rpm plus carrier-platen geometry, or m/s directly).
+   Secondary gap now named: the pack has NO pH term at all
+   (tests/test_pack_axis_blindness_audit.py::DECLARED_UNFITTABLE), because two
+   pH levels cannot fit a peak and a width. A three-level pH sweep on bare Si
+   with colloidal silica would lift that.
 1. Velocity inversion is NOT a lubrication effect — no dataset will fix it.
    λ = 0.001401·(rpm/P) exactly, i.e. λ IS the pseudo-Sommerfeld number V/p
    (Wu & Liao 2016, doi:10.5772/64484) up to one constant, so calibrating it
@@ -360,12 +411,14 @@ abrasive_effects.py refuses that on purpose.
 
 Gate: 4 in-scope datasets within ±15% (need 3) → **PASS**
 
-All axes (394 pts, 43/49 scored + 2 DECLINED): median **19.5%** trend,
-**21.7%** LOO. By axis — size 11.2%, oxidizer 20.2%, loading 22.9%,
-pressure 25.3%, pH 31.5%, velocity 44.1%. 33/43 beat predict-the-mean. ⚠ Caveats, all against us: the axis
-medians pool datasets that vary several things at once — velocity's 44.1% is
+All axes (427 pts, 46/50 scored + 4 DECLINED): median **19.5%** trend,
+**22.6%** LOO. By axis — size 11.2%, oxidizer 22.6%, loading 22.9%,
+pressure 24.1%, pH 26.8%, velocity 39.0%. 34/46 beat predict-the-mean.
+⚠ Caveats, all against us: the axis
+medians pool datasets that vary several things at once — velocity's 39.0% is
 11.7% once isolated (thin axis, 29 pts), while pH's holds up under isolation
-(12 groups / 66 pts, ~30%) so it IS the weakest term. 2 Cu datasets are
-DECLINED rather than answered wrongly (honesty, not accuracy), and the median
-ticked 19.5 -> 20.2% because 4 newly-scorable datasets entered the pool.
+(12 groups / 66 pts, ~30%) so it IS the weakest term. Cu datasets are
+DECLINED rather than answered wrongly (honesty, not accuracy). The pH axis
+moved 29.1 -> 26.8% only because a NEW dataset entered below the median, not
+because any prediction improved.
 Resume handover: `~/CMP-SIM-FOR-RESUME.md`

@@ -67,6 +67,30 @@ DECLARED_NULL_RESULTS = {
     ("w_fe_oxidizer", "slurry_ph"): "us20110186542a1_w_diamond_h2o2_ph",
 }
 
+#: pack -> axes whose response is REAL but cannot be fitted from the data that
+#: sweeps it, because the sweep has too few distinct levels to determine the
+#: model's functional form. This is a THIRD state, distinct from both "missing
+#: physics" and "the measurement says no effect":
+#:
+#:   null result  -> the effect is absent and a matched-pair control shows it
+#:   unfittable   -> the effect is PRESENT but n_levels < n_free_constants, so
+#:                   any fit would interpolate exactly and prove nothing
+#:
+#: Conflating the two would be the more dangerous error, because an unfittable
+#: axis leaves a real term silent and its work gets absorbed elsewhere — which
+#: is precisely the cu_alkaline_benzenesulfonic failure this file exists for.
+#: The entry therefore names the free constants the axis would need, and the
+#: test below re-derives the level count from the dataset instead of trusting
+#: this table.
+DECLARED_UNFITTABLE = {
+    ("si_substrate_alkaline", "slurry_ph"): {
+        "dataset": "bae2022_si_wafer_alkali_ph",
+        # ph_peak + ph_response_width: a unimodal response has two free
+        # constants, so it needs at least three levels to be over-determined.
+        "free_constants": 2,
+    },
+}
+
 
 def _swept_axes():
     """pack -> {axis keys its registered datasets actually vary}."""
@@ -105,6 +129,8 @@ def test_no_pack_is_silently_blind_to_an_axis_its_data_sweeps():
             if _declares(pack, axis):
                 continue
             if (pack, axis) in DECLARED_NULL_RESULTS:
+                continue
+            if (pack, axis) in DECLARED_UNFITTABLE:
                 continue
             blind.append((pack, axis))
 
@@ -151,3 +177,79 @@ def test_a_declared_null_result_still_names_a_dataset():
         assert not _declares(pack, axis), (
             f"{pack} now declares a response for {axis}; remove the null-result "
             "entry, it is no longer true")
+
+
+def test_an_unfittable_axis_really_has_too_few_levels_to_fit():
+    """Re-derive the 'cannot be fitted' claim from the dataset itself.
+
+    The exemption is only legitimate while the data stays thin. If someone
+    later adds a third pH level to the Si dataset, the axis becomes fittable
+    and this test fails, forcing the blindness to be resolved rather than
+    quietly inherited.
+    """
+    for (pack, axis), claim in DECLARED_UNFITTABLE.items():
+        stem = claim["dataset"]
+        path = next((p for p in dataset_paths() if p.stem == stem), None)
+        assert path is not None, (
+            f"{pack}/{axis} claims {stem} is unfittable, but {stem} is not "
+            "registered")
+        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+
+        levels = {(row.get("overrides") or {}).get(axis)
+                  for row in doc["conditions"]}
+        levels.discard(None)
+        needed = claim["free_constants"] + 1
+        assert len(levels) < needed, (
+            f"{stem} now sweeps {axis} over {sorted(levels)} — "
+            f"{len(levels)} levels, enough to over-determine "
+            f"{claim['free_constants']} free constants. The axis is no longer "
+            f"unfittable: either fit it in {pack} or record a new reason.")
+
+        # ... and the axis must still be one the dataset genuinely varies,
+        # otherwise the exemption is answering a question nobody asked.
+        assert len(levels) > 1, (
+            f"{stem} holds {axis} constant, so it never triggers the audit; "
+            "the exemption is dead code")
+
+
+def test_an_unfittable_axis_is_not_quietly_also_a_null_result():
+    """The two exemptions mean opposite things and must not overlap.
+
+    'Null result' asserts the effect is absent; 'unfittable' asserts it is
+    PRESENT but under-determined. A pack listed in both would be claiming both
+    at once, which is how a real effect gets written off as noise.
+    """
+    overlap = set(DECLARED_NULL_RESULTS) & set(DECLARED_UNFITTABLE)
+    assert not overlap, (
+        f"{sorted(overlap)} is declared both a null result and unfittable — "
+        "decide which, they are contradictory claims")
+
+
+def test_the_unfittable_si_pH_axis_does_show_a_real_effect():
+    """An 'unfittable' claim is only honest if the effect is actually there.
+
+    If the rate did not move with pH, this would be a null result and belong
+    in the other table. Bae 2022 measures 139.5 -> 177.1/193.2 nm/min as pH
+    goes 9.70 -> 10.90, so the effect is real (and weak: a 15.8x rise in OH-
+    buys only ~1.3x rate, which is why a steep pH term would be wrong).
+    """
+    stem = DECLARED_UNFITTABLE[("si_substrate_alkaline", "slurry_ph")]["dataset"]
+    doc = yaml.safe_load(next(p for p in dataset_paths() if p.stem == stem)
+                         .read_text(encoding="utf-8"))
+
+    by_ph = defaultdict(list)
+    for row in doc["conditions"]:
+        by_ph[row["overrides"]["slurry_ph"]].append(_measured(row))
+
+    low, high = min(by_ph), max(by_ph)
+    lo_mean = sum(by_ph[low]) / len(by_ph[low])
+    hi_mean = sum(by_ph[high]) / len(by_ph[high])
+
+    gain = hi_mean / lo_mean
+    assert gain > 1.1, (
+        f"pH {low} -> {high} moves the rate only {gain:.2f}x; if the effect is "
+        "this small it is a NULL RESULT, not an unfittable one")
+    assert gain < 2.0, (
+        f"pH {low} -> {high} moves the rate {gain:.2f}x — a strong pH lever "
+        "the pack now ignores entirely. Re-open the decision not to fit it.")
+

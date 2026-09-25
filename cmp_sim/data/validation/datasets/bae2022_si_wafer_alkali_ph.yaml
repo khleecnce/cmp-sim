@@ -1,0 +1,127 @@
+# Bare Si wafer (100) CMP — alkaline colloidal silica, INORGANIC base only.
+#
+# WHY THIS FILE EXISTS
+# --------------------
+# STATUS.md BLOCKED #0: the `si` film had NO validation dataset at all. Its Kp
+# rests on a single back-calculated point ([ZHU25], doi:10.3390/mi16040450,
+# 125 mm wafers on a single-side lapper at 0.62 psi), so the si pack was the
+# only film in the corpus whose prediction was never scored against anything.
+# This adds a SECOND, independent Si-substrate measurement — a different tool,
+# a 9x higher down force, a different pad, and a printed-in-text rate ladder.
+#
+# It is deliberately NOT used to refit anything (see `notes`).
+source: >
+  J. Bae, H. Kim, S. Kim, S. Kang, J.-G. Park,
+  "Silicon Wafer CMP Slurry Using a Hydrolysis Reaction Accelerator with an
+  Amine Functional Group Remarkably Enhances Polishing Rate",
+  Nanomaterials 12(21) 3893 (2022). doi:10.3390/nano12213893 — open access
+  (MDPI, CC BY). Local copy: ~/fab-sim/papers/bae2022-nano-amine-si-cmp-hydrolysis.pdf
+  Numbers are PRINTED IN THE BODY TEXT of section 3.1, not read off Figure 1a:
+  "The Si wafer polishing rate increased linearly from 139.5 to 177.1 nm/min
+  and 139.5 to 193.2 nm/min, respectively, when increasing the NaOH
+  concentration from 0 to 0.125 wt% and increasing the KOH concentration from
+  0 to 0.069 wt%"; and section 3.1 for the pH ladder: "the pH increased from
+  9.7 to 10.90 for NaOH, from 9.7 to 10.90 for KOH".
+  CMP conditions from section 2.2: POLI-300 (G&P Tech.), SUBA 600 pad
+  (rectangular groove), 5.7 psi head pressure, platen 69 rpm, carrier 71 rpm,
+  100 mL/min slurry, 5 min per stage, 8-inch (100) Si cut into 4x4 cm coupons.
+  Slurry (section 2.1): 1 wt% colloidal silica, 60 nm primary / 83.3 nm
+  secondary, in DI water.
+
+film: si            # source: section 2.1, "commercially available (1 0 0) silicon wafers"
+pack: si_substrate_alkaline
+in_scope: true
+used_for_calibration: false
+
+# 4x4 cm coupon, not a wafer. Declared as an equivalent radius so the radial
+# mesh spans the coupon rather than a 300 mm wafer:
+#   a 40x40 mm square has area 1.6e-3 m^2 -> equivalent disc radius 0.0226 m.
+wafer_radius_m: 0.0226
+# ⚠ ASSUMED, NOT PUBLISHED. The paper never states the carrier-to-platen
+# centre distance. A POLI-300 has a 300 mm platen (radius 0.150 m), so r_cc
+# must be smaller than that; 0.075 m = mid-radius is used. This affects ONLY
+# the absolute rate — every row here runs at the same 69/71 rpm, so the
+# relative velocity is identical across the whole dataset and the shape score
+# is untouched by the choice. See `notes` for why absolute comparison is
+# switched off here.
+center_offset_m: 0.075
+
+conditions:
+  - label: "no accelerator (colloidal silica only), pH 9.70"
+    pressure_psi: 5.7
+    rpm_platen: 69.0
+    rpm_wafer: 71.0
+    mrr_nm_per_min: 139.5
+    read_method: table      # printed in the body text, not digitized
+    overrides:
+      slurry_ph: 9.70
+      abrasive_wt_pct: 1.0
+      abrasive_size_nm: 60.0
+
+  - label: "NaOH 0.125 wt%, pH 10.90"
+    pressure_psi: 5.7
+    rpm_platen: 69.0
+    rpm_wafer: 71.0
+    mrr_nm_per_min: 177.1
+    read_method: table
+    overrides:
+      slurry_ph: 10.90
+      abrasive_wt_pct: 1.0
+      abrasive_size_nm: 60.0
+
+  - label: "KOH 0.069 wt%, pH 10.90"
+    pressure_psi: 5.7
+    rpm_platen: 69.0
+    rpm_wafer: 71.0
+    mrr_nm_per_min: 193.2
+    read_method: table
+    overrides:
+      slurry_ph: 10.90
+      abrasive_wt_pct: 1.0
+      abrasive_size_nm: 60.0
+
+notes: >
+  절대값 비교 금지 — the carrier-to-platen centre distance is NOT published, so
+  the relative velocity, and therefore the absolute Preston rate, cannot be
+  formed from the paper alone. Only the SHAPE (rate ordering across the
+  chemistry ladder) is scored. What the absolute numbers DO establish is
+  recorded here as a range rather than a score: at 5.7 psi with r_cc anywhere
+  from 0.050 to 0.140 m the measured 139.5-193.2 nm/min sits inside the
+  100-3,000 A/min envelope in cmp_sim/core/sanity.py, which is the first
+  INDEPENDENT confirmation of that envelope's lower half — until now it was
+  bounded by [ZHU25] alone, the same source the pack's Kp came from.
+
+  WHY ONLY THE INORGANIC BASES ARE SCORED. The same figure reports three amine
+  accelerators at essentially the SAME pH: EDA 552.8 nm/min (pH 10.90),
+  DETA 617.2 (pH 10.81), TETA 499.1/saturating (pH 10.85), versus NaOH 177.1
+  at pH 10.90. Three times the rate at the same pH and the same OH-
+  concentration — the paper's own conclusion is that "the Si wafer polishing
+  rate is not simply determined by the OH- concentration". Scoring those rows
+  against a pH term would demand that one unimodal pH constant explain a 3x
+  step that the authors show is NOT a pH effect, i.e. it would manufacture a
+  model failure out of a chemistry the pack does not claim to contain. The
+  amine gain is already recorded where it belongs, as an additive:
+  cmp_sim/data/params/additives.yaml, ethylenediamine, gain_vs_naoh 3.12x,
+  same DOI.
+
+  WHY NOTHING IS FITTED FROM THIS. The dataset holds only TWO distinct pH
+  levels (9.70 and 10.90). A unimodal pH response needs a peak AND a width —
+  two free constants — so two levels determine them exactly, with zero
+  residual, and would be an interpolation dressed as a fit. The pack's own
+  slurry_ph note already refuses a pH factor built from one curve, and this
+  file does not overturn that. tests/test_pack_axis_blindness_audit.py records
+  the resulting blindness explicitly (DECLARED_UNFITTABLE) and re-derives the
+  "fewer than 3 levels" claim from this file rather than trusting it.
+
+  A THIRD FACT THE TWO pH POINTS DO CARRY, and it is a weak one: raising pH
+  9.70 -> 10.90 (a 15.8x rise in OH-) raises the rate only 1.27x (NaOH) or
+  1.38x (KOH). So on bare Si with colloidal silica the alkali level is a WEAK
+  lever compared with the accelerator chemistry. That is consistent with
+  [SEI90]'s fourth-root dependence on alkali (R ~ [H2O]^4 [KOH]^(1/4)) quoted
+  in the pack header, and it is why a steep pH term would be wrong here.
+
+  CONDITION MISMATCH vs THE PACK'S Kp SOURCE, stated up front: [ZHU25] is
+  0.62 psi on a single-side lapper with a hard MH-S15S pad and an unstated
+  Fujimi AJ-7120 loading; this is 5.7 psi on a rotary polisher with a SUBA 600
+  pad and 1 wt% 60 nm silica. Preston-linearity over that 9x pressure gap is
+  exactly what the pack header flags as undemonstrated.

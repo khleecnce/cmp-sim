@@ -1,8 +1,8 @@
 # CMP-Sim
 
-[![tests](https://img.shields.io/badge/tests-816%20passing-brightgreen)](#)
+[![tests](https://img.shields.io/badge/tests-849%20passing-brightgreen)](#)
 [![validation](https://img.shields.io/badge/literature%20gate-4%20datasets%20within%20%C2%B115%25-brightgreen)](#validation)
-[![accuracy](https://img.shields.io/badge/trend-19.5%25%20median%2C%20424%20points-blue)](#2-how-accurate-is-it-on-every-axis-cmp-sim-accuracy)
+[![accuracy](https://img.shields.io/badge/trend-19.5%25%20median%2C%20427%20points-blue)](#2-how-accurate-is-it-on-every-axis-cmp-sim-accuracy)
 [![scale](https://img.shields.io/badge/absolute%20rate-21%2F34%20within%203x-yellow)](#2-how-accurate-is-it-on-every-axis-cmp-sim-accuracy)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -227,7 +227,7 @@ entirely. A mechanical `P·V` law cannot explain it, whatever `Kp` you choose.
 The gate above only admits datasets that sweep pressure or speed — 6 of 49
 files here, about 40% of the measured points. That left the slurry axes this
 simulator exists to predict (pH, oxidizer, loading, particle size) **never
-scored against a measurement at all**. `cmp-sim accuracy` scores all 394
+scored against a measurement at all**. `cmp-sim accuracy` scores all 427
 points on whichever axis each dataset varies:
 
 | axis | datasets | median error |
@@ -236,11 +236,11 @@ points on whichever axis each dataset varies:
 | oxidizer | 12 | 22.6% |
 | abrasive loading | 11 | 22.9% |
 | pressure | 14 | 24.1% |
-| pH | 14 | 29.1% |
+| pH | 15 | 26.8% |
 | velocity | 6 | 39.0% |
 
-**Overall: median 19.5% shape error, 22.6% leave-one-out**, over 45 of 49
-datasets and 424 measured points. 34 of 45 beat "predict this dataset's
+**Overall: median 19.5% shape error, 22.6% leave-one-out**, over 46 of 50
+datasets and 427 measured points. 34 of 46 beat "predict this dataset's
 average" — the baseline that says whether the physics contributed anything.
 
 > **⚠ Read the 19.5% as a ranking claim, not a rate claim.** It says the model

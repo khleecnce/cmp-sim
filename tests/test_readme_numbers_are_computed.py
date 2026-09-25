@@ -18,6 +18,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from cmp_sim.core.predictive_score import score_all
+from cmp_sim.core.validation import dataset_paths
 
 README = Path(__file__).resolve().parent.parent / "README.md"
 
@@ -53,9 +54,14 @@ def test_the_headline_totals_are_current():
              f"{median_loo:.1f}% leave-one-out**")
     flat = " ".join(text.split())
     assert claim in flat, f"README no longer states: {claim}"
-    assert (f"{len(scores)} of 49 datasets and {points} measured points"
+    # the corpus SIZE is computed too — it used to be hardcoded as 49 here,
+    # which meant adding a dataset silently made the README's own denominator
+    # wrong while this test still passed on it.
+    total = len(dataset_paths())
+    assert (f"{len(scores)} of {total} datasets and {points} measured points"
             in flat), (
-        f"README must say {len(scores)} of 49 datasets and {points} points")
+        f"README must say {len(scores)} of {total} datasets and {points} "
+        "points")
 
 
 def test_the_axis_table_matches_the_computed_medians():

@@ -26,10 +26,12 @@ import sys
 from cmp_sim.core.predictive_score import report, score_all
 
 #: pinned corpus figures — these must survive a reporting-only change
+#: (46/427 since bae2022_si_wafer_alkali_ph entered the corpus; the MEDIANS
+#: are what this file exists to pin, and they did not move)
 MEDIAN_SHAPE = 19.5
 MEDIAN_LOO = 22.6
-SCORED = 45
-POINTS = 424
+SCORED = 46
+POINTS = 427
 
 
 def _scores():

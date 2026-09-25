@@ -381,3 +381,57 @@ and a user factor that leaked into scoring would make the validation circular.
 `tests/test_inherited_kp_is_not_the_problem.py`,
 `tests/test_readme_numbers_are_computed.py`,
 `tests/test_calibration_recovers_a_known_factor.py`.
+
+---
+
+## 12. Two levels cannot fit a peak: the silicon pH term is unfittable, not absent
+
+**The measurement.** Bae 2022 (doi:10.3390/nano12213893) polishes bare (100) Si
+with 1 wt% colloidal silica at 5.7 psi and raises pH from 9.70 to 10.90:
+
+| condition | pH | rate (nm/min) |
+|---|---:|---:|
+| colloidal silica only | 9.70 | 139.5 |
+| + NaOH 0.125 wt% | 10.90 | 177.1 |
+| + KOH 0.069 wt% | 10.90 | 193.2 |
+
+The effect is **real but weak**: a 15.8× rise in OH⁻ buys only 1.27–1.38× rate,
+consistent with Seidel 1990's fourth-root alkali dependence
+(R ∝ [H₂O]⁴·[KOH]^(1/4)).
+
+**The fit that was rejected.** Giving `si_substrate_alkaline` a `ph_peak` and a
+`ph_response_width`. Those are **two free constants** and the dataset holds
+**two distinct pH levels**, so the fit is exactly determined — zero residual by
+construction, an interpolation wearing a fit's clothes. It would also look like
+validation on the accuracy report, because the dataset it was fitted to is the
+only Si dataset in the corpus.
+
+**Why this is a THIRD state, not one of the two we already had.** The blindness
+audit previously knew only "missing physics" and "sourced null result". Silicon
+is neither: the effect is present (unlike W's pH null, where six matched pairs
+give a mean ratio of 0.958 with an inconsistent sign) but under-determined. The
+distinction matters because the two demand opposite follow-ups — a null result
+is finished, an unfittable axis is waiting for data.
+
+**The cost, stated.** With no pH term the pack predicts one number for a ladder
+that moves 1.38×, so `bae2022_si_wafer_alkali_ph` scores 12.6% and **does not
+beat predicting the dataset's own mean** (also 12.6%). That is the honest
+reading and it is left visible rather than repaired by a two-point fit.
+
+**Also declined: the amine rows.** The same figure reports EDA 552.8, DETA
+617.2 and TETA 499.1 nm/min at pH 10.81–10.90 — up to 3.5× the NaOH rate at the
+*same* pH and the *same* OH⁻ concentration. The authors' own conclusion is that
+the Si rate is not a function of pH alone. Scoring those rows on a pH term
+would manufacture a model failure out of chemistry the pack never claimed to
+contain; the amine gain is recorded where it belongs, in
+`data/params/additives.yaml` (`ethylenediamine`, `gain_vs_naoh` 3.12×).
+
+**What would resolve it.** A bare-Si pH sweep with **three or more** levels at
+fixed colloidal-silica loading and fixed alkali source. Three levels
+over-determine peak and width and make the fit testable.
+
+**Enforced by** `tests/test_pack_axis_blindness_audit.py` —
+`DECLARED_UNFITTABLE`, whose tests re-derive the level count and the 1.1–2.0×
+gain from the dataset, fail if the two exemption tables ever overlap, and fail
+if a third pH level is added (at which point the axis must be fitted or a new
+reason recorded).

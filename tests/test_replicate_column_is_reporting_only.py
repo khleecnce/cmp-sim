@@ -32,7 +32,7 @@ from cmp_sim.core.validation import dataset_paths
 MEDIAN_SHAPE = 19.5
 MEDIAN_LOO = 22.6
 BEATS_MEAN = 34
-SCORED = 45
+SCORED = 46
 
 
 def _accuracy_json():

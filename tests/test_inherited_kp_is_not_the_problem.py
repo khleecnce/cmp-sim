@@ -80,6 +80,7 @@ from cmp_sim.core.validation import dataset_paths
 
 #: datasets whose own notes forbid absolute-value comparison
 EXCLUDED = {
+    "bae2022_si_wafer_alkali_ph": "절대값 비교 금지 (r_cc not published)",
     "carbide2023_slurry_composition_L9": "in_scope: false",
     "dandu2009_sio2_ceria_ph_sweep": "절대값 대조에는 당연히 부적합",
     "du2004_cu_h2o2_concentration_sweep": "in_scope: false",
