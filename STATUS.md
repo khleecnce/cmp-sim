@@ -4,9 +4,10 @@
 
 ### 1차 완성 — 모델링 정확도
 - **목표: 예측 오차 median ≤ 10.0%** (이력서에 쓸 수 있는 수준)
-- **현재: median 19.5% / 22.6%** (코퍼스 46/50, 427점) — re-measured 2026-09-26 23:xx,
+- **현재: median 19.5% / 21.8%** (코퍼스 46/50, 427점) — re-measured 2026-09-27 00:xx,
   `python tools/score_report.py` (thin wrapper; run it inside `.venv`).
-  863 tests pass. Absolute-scale misses >3x: 13 -> 11 (ceria pack re-anchored).
+  863 tests pass on main. Absolute-scale misses >3x: 13 -> 9 on branch `ph-edge-hold`
+  (see NEXT): the four largest silica misses were ONE extrapolation artefact.
   ⚠ 인터프리터: `source .venv/bin/activate` 먼저. 시스템 python3에는 pint가 없다.
 - **10%가 물리적으로 불가능하다고 판단되면 15%까지 허용**(사용자 승인 2026-09-25).
   단 그 판단은 **근거를 STATUS.md에 적고** 나서만 인정된다 —
@@ -367,21 +368,65 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-**Find the physical cause of the four >3x absolute-scale misses that are NOT
-ceria** — ep3161098b1_teos (139x), bouvet2002_w (75.6x), bouvet2002_oxide
-(39.2x), liang2026_4hsic (92x). The ceria case (BLOCKED #2) is now closed and
-the method is proven twice: back out the Kp each dataset implies, and if several
-datasets agree one-sidedly it is a pack-level scale bug, not N separate ones.
-⚠ But the silica case was already tested once and the answer was NOT Kp
-(tests/test_inherited_kp_is_not_the_problem.py): ep3161098b1 and bouvet2002 both
-run at pH 3-4, far below oxide_silica's fitted [10.0, 12.5] window, where the pH
-term drives the prediction to its mechanical floor and the deficit lands on Kp.
-So the work here is the pH TERM's acidic tail, not the scale constant —
-refitting Kp would bake in an extrapolation error. Start by checking whether the
-three silica misses share a single implied acid-floor value; if they do, that is
-one missing constant with a mechanism (Cook's hydrated-layer thickness collapses
-below the silica IEP), not three failures. bouvet2002_w is the odd one out (W
-film, w_fe_oxidizer pack) and should be back-Kp'd separately.
+**Finish `ph-edge-hold` (branch, NOT merged): update the 13 pinned-number tests
+the fix invalidated, then merge.** Do not re-derive the fix — it is committed
+on that branch and it is correct. This is bookkeeping, and it is one sitting.
+
+What the branch does (chemical_rate.py, ~40 lines, ZERO new constants)
+----------------------------------------------------------------------
+The pH Gaussian was being EVALUATED far outside the pH window its width was
+fitted in. oxide_silica's width 3.1 comes from Li 2021's three points over
+pH 10-12.5; evaluating that bell at pH 3-4 multiplies the rate by exp(-(7/3.1)^2)
+= 1/61 -- a number produced by the FUNCTION, not by any measurement. Every
+silica slurry in the corpus that runs acidic was being suppressed by it.
+
+The fix clamps the pH argument to the pack's own `ph_valid_range` (a field that
+already existed and until now only printed a warning), i.e. holds the chemical
+term at the nearest MEASURED edge instead of extrapolating a tail. Physically
+this is the amorphous-silica hydrolysis plateau: the rate is OH--catalysed
+(~a_OH^0.5) above the neutral point and flattens below it (Iler 1979 ch.1;
+Brady & Walther 1990) -- it does not keep collapsing.
+
+Measured effect, one change, four datasets, all one-sided:
+  ep3161098b1_teos  139.2x -> ~2x     bouvet2002_w    75.6x -> ~1x
+  bouvet2002_oxide   39.2x -> ~1x     bouvet2002_ti   38.2x -> ~1x
+  absolute-scale misses >3x: 13 -> 9   median LOO 22.6% -> 21.8%
+  median SHAPE unmoved at 19.5%, exactly as predicted: a pure scale factor
+  divides out of the shape metric, so a moved shape would have meant a bug.
+
+Why the 13 failures are expected, not a regression
+--------------------------------------------------
+They are tests that PIN numbers this fix was supposed to move. Two of them
+(tests/test_acidic_oxide_datasets_pack_assignment.py) are already updated on
+the branch and their old reasoning is recorded as superseded. The rest:
+  test_inherited_kp_is_not_the_problem (2)  -- asserted the parent pack is the
+      worst-calibrated and that its gap tracks pH distance. Both were TRUE
+      observations of this very artefact; rewrite them to pin the explanation
+      (gap tracked pH distance BECAUSE the bell was extrapolated) rather than
+      the symptom. Their conclusion "the problem is not Kp" is CONFIRMED.
+  test_readme_numbers_are_computed (4)      -- README headline/axis/scale/badge
+      numbers. Regenerate from tools/score_report.py.
+  test_replicate_column_is_reporting_only (2), test_scale_column_is_reporting_only (3)
+      -- these assert medians equal hard-coded values to prove THEIR OWN change
+      was reporting-only. Re-baseline the constants; the reporting-only claim
+      is unaffected.
+  test_ph_validity_range_is_declared::test_a_zero_acid_floor_is_called_a_refusal
+      -- the warning text it greps was reworded (a clamped value is no longer a
+      "refusal"; it is a held edge value). Update the expected wording.
+  test_sic_kmno4_pack_evidence::test_the_prediction_jumps_across_the_unvisited_peak
+      -- CHECK THIS ONE PROPERLY, it is the only one that may be real: the
+      clamp can flatten a jump across a peak that lies outside ph_valid_range.
+      If the sic pack's range excludes its own peak, the RANGE is wrong, not
+      the clamp.
+
+Then: `python -m pytest -q -p no:randomly` (takes ~4 min; the default random
+order plugin makes it exceed a 180 s tool timeout -- use -p no:randomly) and
+merge to main with `tests: N pass`.
+
+Afterwards, the remaining >3x misses are Cu/SiC, a different family:
+lai2001_cu (0.1x), gong2024_4hsic (0.1x), us6918821b2_cu (0.1x),
+us8501625b2_cu (12.7x) -- note three of them are UNDER 1, i.e. over-prediction,
+so they are not the same bug.
 
 ### Closed 2026-09-26 (was the previous NEXT): BLOCKED #2, the ceria scale
 See BLOCKED #2. The pack's Kp was an unreproduced estimate; four measured ceria
