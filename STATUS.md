@@ -7,6 +7,15 @@
 - 문헌에 데이터가 없어 못 푸는 BLOCKED(나노인덴테이션·SnAg Preston 등)는
   **완성의 조건이 아니다.** 기록만 하고 넘어간다.
 
+## 🔬 방법론 (사용자 확정 2026-09-25) — 물리화학 법칙 중심
+- **실측 데이터를 늘려 맞추는 것보다, 물리화학 법칙에서 유도한 모델식을 세운다.**
+- 데이터 수집은 **모델식을 검증·반증하는 용도**로만. 그 자체는 목표가 아니다.
+- 피팅 상수를 늘려 오차를 낮추지 마라. **상수를 줄이면서 오차를 낮춰야 진짜다.**
+- 모든 항은 유도 과정을 주석에 남긴다(어느 법칙, 어떤 가정).
+  `cmp_sim/models/first_principles.py`(Archard↔Preston, Kp=k/H)가 모범이다.
+- 자유 파라미터 1개를 물리 유도로 대체할 때마다 `ranking_only` 조합이
+  실수치 예측으로 바뀐다 — **median을 내리는 가장 큰 레버**.
+
 ## DONE (phase, module, tests)
 - **`si` finally has a validation dataset — BLOCKED #0 measured, not closed.**
   The si pack was the ONLY film scored against nothing: its Kp came from one
