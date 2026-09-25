@@ -4,7 +4,11 @@
 
 ### 1차 완성 — 모델링 정확도
 - **목표: 예측 오차 median ≤ 10.0%** (이력서에 쓸 수 있는 수준)
-- **현재: median 19.5% shape / 21.8% LOO** (코퍼스 46/50, 427점) — `ph-edge-hold`
+- **현재: median 19.5% shape / 21.8% LOO** (코퍼스 46/50, 427점) — **866 tests**.
+  2026-09-27: pH 유도식 **반증됨**(두 번째). 법칙 기반 kinetic leg를 빼면 오히려
+  좋아진다(60.4%→35.3%) — 튜닝 부족이 아니라 항 자체가 틀렸다. 부수효과가 더
+  중요: 현행 Gaussian의 11.0%는 **in-sample 보간**이고, leave-one-pH-level-out은
+  **52.9%**다. pH축의 공식 25%는 그만큼 뒷받침되지 않는다. 자세한 내용은 NEXT.
   MERGED to main 2026-09-27, **863 tests pass**.
   `python tools/score_report.py` (scores) / `python tools/readme_numbers.py`
   (every number the README claims) — both inside `.venv`.
@@ -372,6 +376,54 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
+**Attack the ABRASIVE-SIZE axis with a derived indentation law.**
+The pH item below is CLOSED — falsified, see "Closed 2026-09-27 (pH derived
+law)". Size is now the thickest untried physics axis: 8 size-sweep datasets
+(bouvet2002 x3, lai2001, son2021, su2011 x2, wei2026, us20190127607a1 x2) and
+every pack carries a FITTED `abrasive_size_exponent`. Luo-Dornfeld derives that
+exponent instead of fitting it: with the load shared over N active particles
+and each indenting Hertzian-plastically, the removed volume per particle and
+the particle count both scale with d, and the exponent that survives depends on
+which of the two dominates. Count constants before and after — a derived
+exponent REMOVES one fitted constant per pack.
+⚠ Before writing any model, run the equivalent of `tools/ph_derived_probe.py`
+for size: fit each sweep's own exponent, look at the SPREAD across packs. If
+the measured exponents scatter across the range a single derivation would have
+to cover, the derivation is already falsified and this item closes the same way
+the pH one did — record it and move on rather than fitting around it.
+
+### Closed 2026-09-27 (was the previous NEXT): the pH derived law is FALSIFIED
+`tools/ph_derived_probe.py` + `tests/test_ph_derived_law_falsified.py`
+(3 tests). In-sample shape medians over the 6 pH sweeps with >=3 levels:
+  Gaussian, 4 constants fitted PER GROUP (24 total)      11.0 %
+  derived (kinetic x electrostatic), 2 GLOBAL constants  60.4 %
+  electrostatic leg ALONE, 2 GLOBAL constants            35.3 %
+  kinetic leg ALONE (S**0.5), ZERO constants             93.6 %
+The ablation is the result: **removing the law-backed kinetic leg IMPROVES the
+fit**, so the half-order hydroxide leg (Brady & Walther 1990) is the half that
+is wrong — not under-tuned. Reason: S(pH)**0.5 is monotone rising by
+construction, but 4 of 6 measured sweeps PEAK IN ACID. Dissolution kinetics set
+the hydrated layer's THICKNESS (which saturates), not the removal rate; the
+Cook-1990 softening term already carries that mechanism, so importing it again
+double-counts. Forcing it makes the electrostatic constant B flip SIGN per pack
+(oxide_silica -5.0 vs +2.25..+6.75 elsewhere) — a fitting handle, not an energy.
+**Second falsification of a derived pH form** (the first: 2-pKa surface
+complexation, 27.3% vs 17.7% on Dandu). Per the rule written into that item,
+the pH axis is CLOSED to further closed-form attempts until the corpus has more
+sweeps: 6 usable sweeps with 4 distinct peak positions cannot determine a form
+whose peak is free.
+⚠ The by-product matters more than the verdict: **the incumbent Gaussian's
+11.0% is in-sample interpolation.** Two of the six groups have constants >= pH
+levels (li2021 n=3 scores 0.0%). Under leave-one-pH-LEVEL-out it scores
+**52.9%** on 42 held-out points, while the 2-constant electrostatic form fitted
+on the OTHER FIVE GROUPS scores 66.6% — a harsher protocol, 14 points behind.
+So the pH axis's reported 25-26% is not a well-supported 25%; the honest
+out-of-sample pH error is ~50%, and that is a real contributor to the corpus
+median that no amount of re-deriving the same 4-constant form will remove.
+Corpus UNMOVED as predicted (19.5% shape / 21.8% LOO, 46/50, 427 points) — this
+run changed no pack, only measured. **866 tests pass.**
+
+### Superseded 2026-09-27 (kept for the reasoning): the pH-law proposal
 **Attack the pH axis with a DERIVED rate law instead of the fitted Gaussian.**
 The Gaussian is the single largest remaining physics debt: 15 datasets, median
 25.3%, and it carries 2-3 fitted constants per pack (`ph_peak`, `ph_response_
