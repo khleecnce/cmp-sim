@@ -24,6 +24,11 @@
 | **polishing unit** | Pad, conditioning disk 선택 |
 
 입력 → **1차에서 만든 물리 모델이 계산** → MRR·불균일도·결함 출력.
+
+**UI 언어 = 영어**(사용자 확정 2026-09-25). 라벨·버튼·단위·툴팁·에러메시지·
+축 이름 전부 영어. 한글 금지. 실제 팹 장비 UI가 영어이고 포트폴리오 대상도
+영어권이다. 현재 `cmp_sim/web/` 한글 0건 — 이 상태를 유지한다.
+
 현 상태: `cmp_sim/web/tool.html`(633줄) + `vendor/tool3d.js`(669줄),
 클릭 대상 8종(wafer/pad/disk/slurry/head/platen/carousel/loadcup) 존재.
 **뼈대는 있으니 갈아엎지 말고 정교화하라.**
