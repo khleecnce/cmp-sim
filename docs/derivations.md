@@ -2730,3 +2730,31 @@ hardness, so P0 can only be shared WITHIN a film, and no film in this corpus
 yet has enough matched-condition pressure datasets (Cu has 2, oxide 4, W 1) to
 fit one without it becoming a per-dataset constant again. Recorded as the
 specific data that would settle it, not as a failure of the mechanism.
+
+#### Follow-up (2026-09-26): the per-FILM version is FALSIFIED on oxide
+
+`tools/p0_per_film_probe.py` carried out exactly the test the paragraph above
+asked for. Oxide is the only film with 4 matched-condition pressure datasets
+(ep3161098b1 TEOS, mariscal2020 PETEOS, us6564116b2 L25, us9499721b2 TEOS), so
+it is the only film where one shared constant is more than interpolation. Each
+dataset was held out, P0 refitted on the other three, then applied unseen with
+the scale still free:
+
+    in-sample shared P0              0.00 psi   (mean MAPE 15.5%)
+    out of sample, Preston           15.5%  (median 11.4%)
+    out of sample, P0-form           16.0%  (median 12.5%)
+
+The in-sample optimum is P0 = 0.00 psi EXACTLY. That is a stronger negative
+than "the held-out error is worse": the offset does not want to exist even when
+it is allowed to fit the same data it is scored on. Three of the four held-out
+folds return P0 = 0 and are therefore Preston bit-for-bit; the fourth
+(us9499721b2) picks 0.15 psi and loses 2.2 points on the held-out set.
+
+Physical reading: hydrated-silica removal shows no breakthrough stress anywhere
+in 0.6-8 psi, the range this corpus covers. The Cook mechanism does not require
+one — the gel layer is soft and continuously re-formed, so there is no yield
+stress to exceed. The mechanism remains plausible for Cu-BTA and WO3, which are
+genuinely hard passivating layers, but Cu has 2 matched-condition datasets and W
+has 1, so that stays UNTESTABLE on present data rather than supported.
+Pinned by `tests/test_pv_exponent_confound.py::
+test_a_per_film_threshold_pressure_does_not_earn_its_constant_either`.

@@ -147,6 +147,57 @@ def test_free_exponents_are_only_shown_as_an_interpolation_floor():
         "impossible unless the grid or the scale-free fit is broken")
 
 
+def test_a_per_film_threshold_pressure_does_not_earn_its_constant_either():
+    """Claim 3 (2026-09-26): P0 shared WITHIN a film is falsified on oxide.
+
+    The follow-on hypothesis to claim 2 was that one GLOBAL P0 bought nothing
+    because a breakthrough stress belongs to the passivating layer, not the
+    tool: Cu-BTA, WO3 and hydrated silica gel have different yield stresses, so
+    averaging them washes the offset out. That predicts a positive P0 shared by
+    the datasets of ONE film.
+
+    Oxide is the only film with enough matched-condition pressure datasets
+    (4) to test one shared constant out of sample. The measured answer is that
+    the in-sample optimum is P0 = 0.00 psi exactly — the offset does not want
+    to exist even before any held-out penalty, so hydrated silica removal shows
+    NO breakthrough stress anywhere in this corpus' pressure range. Cu (2
+    datasets) and W (1) cannot test it at all and are recorded as data-limited,
+    not as support.
+
+    Pinned so no later session re-adopts the form on per-dataset numbers, where
+    a free offset added to a free scale can only ever look like a win.
+    """
+    by_film: dict[str, list] = {}
+    for path in dataset_paths():
+        doc = yaml.safe_load(path.read_text()) or {}
+        rows = pv_rows(doc)
+        if len(rows) >= 3 and len({r[0] for r in rows}) >= 2:
+            by_film.setdefault(doc.get("film") or "?", []).append(rows)
+
+    oxide = by_film.get("oxide", [])
+    assert len(oxide) >= 4, (
+        f"only {len(oxide)} matched-condition oxide pressure datasets; the "
+        "per-film test needs at least 4 for one shared constant to be more "
+        "than interpolation")
+
+    base = statistics.fmean([e for e in (preston_err(r) for r in oxide)
+                             if e is not None])
+    best = (base, 0.0)
+    for i in range(1, 61):
+        p0 = i * 0.05
+        errs = [threshold_err(r, p0) for r in oxide]
+        if any(e is None for e in errs):
+            continue
+        m = statistics.fmean(errs)
+        if m < best[0]:
+            best = (m, p0)
+    assert best[1] == 0.0 and base - best[0] < 1.0, (
+        f"a per-film P0 now wants {best[1]:.2f} psi on oxide, buying "
+        f"{base - best[0]:.2f} points ({base:.1f}% -> {best[0]:.1f}%). The "
+        "breakthrough form was recorded as falsified for oxide — re-run "
+        "tools/p0_per_film_probe.py before changing the model")
+
+
 @pytest.mark.parametrize("p0", [0.0, 0.2, 1.0])
 def test_threshold_form_never_predicts_negative_removal(p0):
     for stem, rows in MATCHED:

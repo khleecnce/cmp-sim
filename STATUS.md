@@ -4,7 +4,7 @@
 
 ### 1차 완성 — 모델링 정확도
 - **목표: 예측 오차 median ≤ 10.0%** (이력서에 쓸 수 있는 수준)
-- **현재: median 19.5% / 22.6%** (코퍼스 46/50, 427점) — re-measured 2026-09-25 22:xx,
+- **현재: median 19.5% / 22.6%** (코퍼스 46/50, 427점) — re-measured 2026-09-26 21:xx,
   `python tools/score_report.py` (thin wrapper; run it inside `.venv`).
   ⚠ 인터프리터: `source .venv/bin/activate` 먼저. 시스템 python3에는 pint가 없다.
 - **10%가 물리적으로 불가능하다고 판단되면 15%까지 허용**(사용자 승인 2026-09-25).
@@ -366,44 +366,35 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-**Fit a per-FILM breakthrough pressure P0, not a global one** — this is the
-concrete follow-on from the 2026-09-25 probe (`tools/pv_regime_probe.py`,
-locked by `tests/test_pv_exponent_confound.py`). Two results changed the
-picture:
+**Diagnose the `sti_ceria` absolute-scale disagreement (BLOCKED #2)** — the pack
+predicts 7,235 A/min against a 200-6,000 A/min envelope. Both the pack and the
+envelope cite sources, so one of them is wrong FOR THIS RECIPE and the
+disagreement has never been diagnosed. Unlike the `si` case, sti_ceria has SIX
+registered datasets (dandu2009, netzband2020, son2021, mariscal2020,
+us20190127607a1 x2), so the evidence to decide it is already in the repo. Method
+that worked before (it falsified the inherited-Kp hypothesis): back out what
+absolute scale each dataset implies, compare the six, and only then touch a
+constant. Note `score_report.py` already flags 13 datasets with >3x absolute
+error, four of them oxide/ceria (ep3161098b1_teos 139x, liang2026 92x,
+bouvet2002 x2) — if a single scale error explains several of those at once it is
+a pack-level bug, not six separate ones.
 
-1. The "exponent scatter proves regime split" conclusion was largely a
-   CONFOUND. Fitting RR ~ k·P^a·V^b only on rows that are otherwise identical
-   (group by every override except P and V, keep the largest group) collapses
-   the scatter and cuts Preston's paired error 31.9% → 23.3% on the 5 datasets
-   where the control removes rows. sic2026's a went 1.85 → 0.75, tw202115224a
-   19.0% → 7.2%. Preston is a better law here than the earlier note claimed.
-2. Passivation breakthrough RR = Kp·(P − P0)·V has the RIGHT SIGN:
-   ρ(a, P_mean) = −0.696 under the control (−0.148 without it), i.e. the
-   super-linear datasets really are the ones polished near their threshold.
-   But ONE global P0 buys only 0.3 points (25.3% → 25.0% at P0 = 0.20 psi), so
-   it was NOT adopted.
+### Closed 2026-09-26 (was the previous NEXT): per-film P0 is FALSIFIED
+The "fit a per-FILM breakthrough pressure P0" item is DONE and the answer is NO.
+`tools/p0_per_film_probe.py` ran the leave-one-dataset-out test on oxide, the
+only film with 4 matched-condition pressure datasets. The in-sample optimum is
+**P0 = 0.00 psi exactly** — the offset does not want to exist even on the data
+it is scored on — and out of sample it LOSES (15.5% -> 16.0% mean, 11.4% ->
+12.5% median). Hydrated-silica removal has no breakthrough stress in 0.6-8 psi;
+the Cook gel layer is soft and continuously re-formed, so there is no yield
+stress to exceed. Cu (2 matched datasets) and W (1) cannot test it at all and
+are recorded as data-limited, NOT as support. Pinned by
+`tests/test_pv_exponent_confound.py::test_a_per_film_threshold_pressure_does_
+not_earn_its_constant_either`; derivation in docs/derivations.md.
 
-The unresolved step: a breakthrough stress should scale with the passivating
-layer's own hardness, so P0 can only be shared WITHIN a film. Right now oxide
-has 4 matched-condition pressure datasets, Cu has 2, W has 1 — one constant per
-film across 4 datasets is a law; across 1 it is interpolation. So: fit P0 on
-OXIDE only (4 datasets, one shared constant, scale free per tool), score it
-leave-one-dataset-out, and adopt only if it beats Preston out of sample. If it
-does, the same constant must then be predicted from the film's hardness rather
-than refitted for Cu.
-
-Still genuinely unexplained after the control, and NOT caused by the confound:
+Still genuinely unexplained, and NOT caused by the exponent confound:
 ep3161098b1_w (a = 2.00 on 3 matched rows), sic2023 (62% at every form tried),
 us6918821b2 (the Cu low-pressure velocity inversion, BLOCKED #1).
-
-### Carried forward (was the previous NEXT, still unaddressed)
-`sti_ceria` predicts 7,235 Å/min against a 200-6,000 envelope (BLOCKED #2).
-Both the pack and the envelope cite sources, so one of them is wrong FOR THIS
-RECIPE and the disagreement has never been diagnosed — unlike the si case just
-closed, sti_ceria has SIX registered datasets (dandu2009, netzband2020,
-son2021, mariscal2020, us20190127607a1 x2), so the evidence to decide it is
-already in the repo. Back out what scale each implies (the method that
-falsified the inherited-Kp hypothesis) before touching any constant.
 
 ### Do NOT re-attempt (measured and falsified 2026-09-25, see docs/derivations.md)
 - pH term as a 2-pKa surface-complexation site product (Cook Si-O-Ce bond):
