@@ -398,12 +398,16 @@ def _abrasive_type_hook(rr: ResolvedRecipe) -> Dict[str, Any]:
     # exponents scoped to the abrasive ACTUALLY used, not the pack's own.
     from sim.params import Param
     for key, value in res.overrides.items():
+        mat_why = res.material_scoped.get(key)
         rr.pack.params[key] = Param(
             key=key, value=value, unit="dimensionless",
-            source=f"abrasives.yaml: {res.kind} on {rr.recipe.wafer.film}",
+            source=(f"abrasive_effects.SIZE_EXPONENT_BY_ABRASIVE: {res.kind} "
+                    f"(material-scoped, film-independent)" if mat_why
+                    else f"abrasives.yaml: {res.kind} on {rr.recipe.wafer.film}"),
             confidence="literature",
-            note="scoped to the abrasive in this recipe, replacing the pack's "
-                 f"value for '{res.reference_kind}'",
+            note=(mat_why if mat_why else
+                  "scoped to the abrasive in this recipe, replacing the pack's "
+                  f"value for '{res.reference_kind}'"),
             owner="abrasive_effects")
     for key, why in res.withdrawn.items():
         rr.pack.params[key] = Param(

@@ -57,8 +57,87 @@ _DB_TO_ENGINE = {
 }
 
 
+#: MRR ~ d**n, grouped by ABRASIVE MATERIAL rather than by film or by pack.
+#:
+#: Provenance: ``tools/size_derived_probe.py`` regressed every size sweep in the
+#: corpus with >=3 distinct diameters at otherwise matched conditions and kept
+#: the groups with r2 >= 0.5. The measured exponents span -0.45..+1.00, so a
+#: SINGLE exponent (derived or fitted) is falsified — that verdict is pinned by
+#: ``tests/test_size_exponent_is_material_property.py``. What the same probe
+#: shows is that the scatter is ORGANISED BY ABRASIVE: the stdev of the material
+#: means is 0.51 while the stdev of residuals WITHIN a material is 0.16 (3.2x).
+#: Two alumina sweeps 15 years and 20x in diameter apart agree to 0.09; one
+#: silica slurry set sits near zero on THREE different films in the same runs.
+#:
+#: So this table is a RE-ATTRIBUTION, not a derivation. It moves a constant from
+#: per-pack scope (where each pack fitted its own) to per-material scope (where
+#: several independent sweeps share one), which is fewer constants for the same
+#: data — the project's scoring rule for progress. It is NOT derived physics: the
+#: ordering does not track abrasive hardness (alumina 20 > silica 8 > ceria 6 GPa
+#: is not the measured order silica < alumina < ceria/silica < ceria). The
+#: chemical-tooth reading — a chemically active abrasive removes in proportion to
+#: its reacted contact footprint, which grows with d, while an inert abrasive at
+#: fixed solids loading trades particle count against contact area and cancels —
+#: is a HYPOTHESIS consistent with the ordering, with only k=1 pure-ceria support.
+#:
+#: ``k`` is the number of independent sweeps and ``spread`` their range. A k=1
+#: row must never be read as well-supported, which is why both are carried here
+#: and surfaced in the note the solver attaches.
+SIZE_EXPONENT_BY_ABRASIVE: Dict[str, Dict[str, Any]] = {
+    "colloidal_silica": {
+        "value": -0.13, "k": 3, "spread": (-0.45, 0.10),
+        "sweeps": ("bouvet2002_ti_silica_size_sweep (-0.45)",
+                   "bouvet2002_w_silica_size_sweep (-0.05)",
+                   "wei2026_sic_silica_size_sweep (+0.10)"),
+        "confidence": "low",
+    },
+    "alumina": {
+        "value": 0.28, "k": 2, "spread": (0.24, 0.33),
+        "sweeps": ("su2011_sic_alumina_size_sweep (+0.24, 1000-3500 nm)",
+                   "lai2001_cu_alumina_size_sweep (+0.33, 50-1000 nm)"),
+        "confidence": "low",
+    },
+    "ceria": {
+        "value": 1.00, "k": 1, "spread": (1.00, 1.00),
+        "sweeps": ("son2021_oxide_ceria_size_sweep (+1.00, 3-100 nm, r2 0.98)",),
+        "confidence": "low",
+    },
+}
+
+#: Mixed ceria-on-silica ("core-shell") particles measure +0.80 (k=2,
+#: us20190127607a1 HDP-oxide +0.75 and TEOS +0.85). They are kept OUT of the
+#: table above because the DB has no canonical key for the composite and
+#: resolving them onto either parent material would assert a composition the
+#: patent does not give.
+SIZE_EXPONENT_COMPOSITE_NOTE = (
+    "ceria/silica composite particles measure +0.80 (k=2, US20190127607A1), "
+    "between the inert-silica and pure-ceria ends, but are not in this table "
+    "because they resolve to neither parent material")
+
+
 def _db() -> Dict[str, Any]:
     return _load_db(ABRASIVE_DB_PATH) or {}
+
+
+def material_size_exponent(kind: str) -> Tuple[Optional[float], Optional[str]]:
+    """Material-scoped ``MRR ~ d**n`` exponent for ``kind``, with provenance.
+
+    Returns ``(None, None)`` for an abrasive with no measured sweep — deliberately
+    NOT a derived fallback. A null here is read downstream as "the size axis is
+    unknown for this abrasive"; the one time a derived exponent was substituted
+    it carried the wrong SIGN on 8 of 10 measured sweeps.
+    """
+    row = SIZE_EXPONENT_BY_ABRASIVE.get(str(kind or ""))
+    if not row:
+        return (None, None)
+    lo, hi = row["spread"]
+    return (float(row["value"]),
+            f"material-scoped size exponent for {kind}: n = {row['value']:+.2f} "
+            f"from k={row['k']} independent sweep(s) spanning {lo:+.2f}..{hi:+.2f} "
+            f"[{'; '.join(row['sweeps'])}]. Re-attribution of a per-pack fitted "
+            f"constant to the material that the sweeps show actually carries it "
+            f"(between-material stdev 0.51 vs within-material 0.16); NOT derived "
+            f"from hardness, which predicts a different order")
 
 
 def abrasive_entry(kind: str) -> Tuple[Optional[str], Dict[str, Any]]:
@@ -96,6 +175,9 @@ class AbrasiveResolution:
     overrides: Dict[str, Any] = field(default_factory=dict)
     #: engine key -> why the pack's value was dropped without a replacement
     withdrawn: Dict[str, str] = field(default_factory=dict)
+    #: engine key -> provenance, for values borrowed from the MATERIAL-scoped
+    #: table rather than from a film-scoped sweep of this exact pairing
+    material_scoped: Dict[str, str] = field(default_factory=dict)
     relative_rate: Optional[float] = None
     relative_rate_source: Optional[str] = None
     notes: List[str] = field(default_factory=list)
@@ -110,6 +192,7 @@ class AbrasiveResolution:
             "matches_reference": self.matches_reference,
             "overrides": dict(self.overrides),
             "withdrawn": dict(self.withdrawn),
+            "material_scoped": dict(self.material_scoped),
             "relative_rate": self.relative_rate,
             "relative_rate_source": self.relative_rate_source,
             "ranking_only": self.ranking_only,
@@ -208,7 +291,26 @@ def resolve(kind: Optional[str], film: str, reference_kind: Optional[str],
                 f"{engine_key} = {value:g} taken from the {canon}-on-{film} "
                 f"entry, replacing the value this pack states for "
                 f"'{ref_canon}' (source: {source})")
-        elif pack_declares.get(engine_key):
+            continue
+        # No film-scoped sweep for this abrasive. For the SIZE exponent only,
+        # fall back to the MATERIAL-scoped value: the corpus shows the exponent
+        # is organised by abrasive material and transfers ACROSS films within one
+        # material (bouvet2002's silica sits near zero on Ti, W and oxide in the
+        # same runs; the two alumina sweeps agree to 0.09 on SiC and Cu), whereas
+        # it does not transfer across materials at all. This is not licensed for
+        # the CONCENTRATION keys: no equivalent cross-film check has been run on
+        # them, so they still withdraw rather than borrow.
+        if engine_key == "abrasive_size_exponent":
+            mat_value, mat_why = material_size_exponent(canon)
+            if mat_value is not None:
+                out.overrides[engine_key] = mat_value
+                out.material_scoped[engine_key] = mat_why or ""
+                out.notes.append(
+                    f"{engine_key} = {mat_value:+g} for '{canon}' — {mat_why}. "
+                    f"This pack's own value was fitted for '{ref_canon}' and is "
+                    f"not transferable across abrasive materials")
+                continue
+        if pack_declares.get(engine_key):
             out.withdrawn[engine_key] = (
                 f"the pack's {engine_key} was fitted for '{ref_canon}' and the "
                 f"measured exponents split by ABRASIVE rather than by film — "

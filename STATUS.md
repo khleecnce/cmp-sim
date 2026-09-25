@@ -4,7 +4,14 @@
 
 ### 1차 완성 — 모델링 정확도
 - **목표: 예측 오차 median ≤ 10.0%** (이력서에 쓸 수 있는 수준)
-- **현재: median 19.5% shape / 21.8% LOO** (코퍼스 46/50, 427점) — **871 tests**.
+- **현재: median 19.5% shape / 21.8% LOO** (코퍼스 46/50, 427점) — **873 tests**.
+  2026-09-27(3회차): abrasive-size 지수를 **팩별 피팅 상수에서 재질 상수로 재귀속**
+  (`SIZE_EXPONENT_BY_ABRASIVE`, silica -0.13 k=3 / alumina +0.28 k=2 / ceria +1.00 k=1).
+  상수 개수가 줄었다(팩 6개가 각자 피팅 → 재질 3개 공유). 코퍼스 median은 불변이
+  **정상** — 이 경로는 팩의 reference abrasive와 다른 연마재를 넣었을 때만 타므로
+  코퍼스 행(모두 reference)에는 닿지 않는다. 얻은 것: alumina·ceria로 swap하면
+  이전엔 size축이 `withdrawn`(무반응)이었는데 이제 자기 재질의 측정 지수로 움직인다.
+  conc축은 여전히 withdraw — 재질간 전이 검증을 안 했으므로 빌려오지 않는다.
   2026-09-27(2회차): abrasive-size 축 측정 완료. 단일 유도 지수는 **반증**(세 번째),
   그러나 산포가 **연마입자 재질로 정리된다**(재질간 0.51 vs 재질내 0.16) — 피팅
   상수를 재질 상수로 재귀속할 근거. 코퍼스 median은 의도대로 불변(측정만 함).
@@ -401,35 +408,50 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-**Make `abrasive_size_exponent` a MATERIAL constant shared across packs
-instead of a fitted per-pack constant.** The probe demanded by the previous
-NEXT has been run (`tools/size_derived_probe.py`, 5 tests) and its verdict is
-split — record both halves before touching a pack:
+**Run the same material-scope probe on `abrasive_conc_exponent` that was just
+run on the size exponent, and re-attribute it only if the same test passes.**
+The size half is DONE (see DONE, 873 tests): `SIZE_EXPONENT_BY_ABRASIVE` in
+`slurry/abrasive_effects.py` now carries silica -0.13 (k=3), alumina +0.28
+(k=2), ceria +1.00 (k=1) with k and spread attached, and a swapped abrasive
+takes its own material's exponent instead of withdrawing the axis. The
+concentration keys (`abrasive_conc_exponent`, `abrasive_conc_half_wt_pct`)
+deliberately still WITHDRAW, because nothing has checked whether they transfer
+across films within one material.
 
-- a SINGLE derived exponent is FALSIFIED. 11 groups / 9 datasets give
-  n = -0.45 .. +1.00 (median +0.16, stdev 0.43) = 48% of the -1..+2 span a
-  Luo-Dornfeld branch choice covers. Picking a branch would BE fitting.
-- but the scatter is ORGANISED BY ABRASIVE, not by pack or film:
-  silica -0.13 (k=3) < alumina +0.28 (k=2) < ceria/silica +0.80 (k=2)
-  < ceria +1.00 (k=1); between-material stdev 0.51 vs within-material 0.16
-  (3.2x). bouvet2002's silica sits near zero on THREE different films; two
-  alumina sweeps 15 years and 20x in size apart agree to 0.09.
+Protocol — copy `tools/size_derived_probe.py`, do not invent a new one:
+1. collect every corpus sweep with >=3 distinct `abrasive_wt_pct` at otherwise
+   matched conditions; regress log(MRR) on log(wt%), keep r2 >= 0.5;
+2. compute between-material stdev of means vs within-material stdev of
+   residuals. The size axis gave 0.51 vs 0.16 (3.2x). **If the ratio is not
+   clearly > 2, STOP and record that concentration is NOT a material property** —
+   do not re-attribute it anyway for symmetry. A negative result here is as
+   publishable as the size positive and costs nothing;
+3. if it passes, add `CONC_EXPONENT_BY_ABRASIVE` alongside the size table and
+   extend the `engine_key == "abrasive_size_exponent"` branch in `resolve()` to
+   cover it, same k/spread honesty.
+⚠ The saturation constant `abrasive_conc_half_wt_pct` is a DIFFERENT kind of
+number (a wt% with units, not an exponent) and Langmuir-type saturation plausibly
+depends on the pad and the film, not only on the particle. Do not fold it into
+the same table without its own evidence.
 
-So the move is NOT a derivation — it is a re-attribution. Concretely:
-1. add `size_exponent_by_abrasive` to `slurry/abrasive_effects.py` with the
-   four measured material values + provenance, each carrying the k and the
-   spread so a k=1 value can never read as well-supported;
-2. have packs that declare a fitted `abrasive_size_exponent` DEFER to it when
-   the declared abrasive matches, keeping the pack value only where the pack
-   has its own sweep (maturity rule: a pack may lower its grade, never raise);
-3. re-score. Expected: corpus median roughly unmoved (the fitted values were
-   already near their material means) but packs with NO size sweep gain a real
-   size response instead of `ranking_only` — that is the point.
-⚠ Do NOT report the ordering as derived physics. It does not track abrasive
-hardness (alumina 20 > silica 8 > ceria 6 GPa is not the measured order). The
-chemical-tooth reading (ceria removal ∝ contact area ∝ d; inert silica removal
-d-independent at fixed solids loading) is a HYPOTHESIS with k=1 pure-ceria
-support. Say so in the pack headers.
+Expected corpus effect: none, for the reason the size move had none — the
+scored rows all run their pack's reference abrasive. The payoff is that the
+`ranking_only` combinations gain a real concentration response.
+
+### Closed 2026-09-27 (was the previous NEXT): the size exponent is now a MATERIAL constant
+Implemented exactly as the item specified, with one deviation recorded: the
+ceria/silica composite (+0.80, k=2, US20190127607A1) was left OUT of the table
+(`SIZE_EXPONENT_COMPOSITE_NOTE`) because it resolves to neither parent material
+and asserting a composition the patent does not state would be inventing a
+number. Four tests pin the behaviour in `tests/test_abrasive_type.py`:
+alumina/ceria now move the rate with their own measured log-slope (+0.28 /
++1.00, asserted by regressing the simulator itself over a 4x size step), an
+abrasive with NO sweep anywhere (diamond) still reports the axis as unapplied
+rather than filling it from the falsified derived -0.84, and the table cannot
+carry a value whose k or spread contradicts its own sweep list. Three existing
+tests changed premise and were rewritten with the superseded reasoning kept in
+the docstring rather than deleted.
+Corpus UNMOVED at 19.5% / 21.8% (46/50, 427 points), as predicted.
 
 ### Closed 2026-09-27 (was the previous NEXT): the pH derived law is FALSIFIED
 `tools/ph_derived_probe.py` + `tests/test_ph_derived_law_falsified.py`

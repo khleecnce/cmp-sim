@@ -17,6 +17,8 @@ different abrasive. It has to say the axis is unevaluated.
 """
 from __future__ import annotations
 
+import math
+
 import pytest
 
 from cmp_sim.core.solver import simulate
@@ -96,23 +98,38 @@ def test_hardness_order_is_never_used_as_a_rate_order():
 
 # ── exponents are scoped to the abrasive, not the film ───────────────
 def test_the_packs_exponents_are_withdrawn_not_reused_on_a_swap():
-    """Silica's -0.05 must not be applied to a ceria or alumina run."""
+    """Silica's -0.05 must not be applied to a ceria or alumina run.
+
+    Updated 2026-09-27: the SIZE exponent no longer withdraws for an abrasive
+    that HAS measured sweeps of its own — it is now re-attributed to the
+    material (``abrasive_effects.SIZE_EXPONENT_BY_ABRASIVE``), because the
+    corpus shows the exponent transfers across films within one material
+    (bouvet2002's silica near zero on Ti/W/oxide in the same runs) but never
+    across materials (between-material stdev 0.51 vs within 0.16). The
+    CONCENTRATION keys still withdraw: no equivalent cross-film check exists
+    for them, so borrowing them would be an untested assumption.
+    """
     info = _abr(_run("alumina"))
-    assert set(info["withdrawn"]) >= {"abrasive_size_exponent",
-                                      "abrasive_conc_exponent"}, info
+    assert set(info["withdrawn"]) >= {"abrasive_conc_exponent"}, info
+    assert "abrasive_size_exponent" not in info["withdrawn"], info
     why = " ".join(info["withdrawn"].values())
     assert "split by ABRASIVE" in why and "colloidal_silica" in why
+    # and the size exponent that replaced it is alumina's own, with its k
+    assert info["overrides"]["abrasive_size_exponent"] == pytest.approx(0.28)
+    assert "k=2" in info["material_scoped"]["abrasive_size_exponent"]
 
 
 def test_a_withdrawn_axis_is_unevaluated_rather_than_silently_derived():
     """The trap: null was not neutral.
 
     A null ``abrasive_size_exponent`` used to select the DERIVED -0.84, whose
-    sign was wrong for 8 of 10 measured sweeps. After a swap the composition
-    axis must be reported as not applied, not quietly filled from the
-    derivation.
+    sign was wrong for 8 of 10 measured sweeps. An abrasive with NO measured
+    sweep anywhere must still report the composition axis as not applied rather
+    than quietly filling it from the derivation. ``diamond`` is that case —
+    ``alumina`` used to be, before its two sweeps were re-attributed to the
+    material (see the test above).
     """
-    r = _run("alumina")
+    r = _run("diamond")
     assert "chi_abrasive" not in r.factors
     joined = " ".join(r.warnings)
     assert "were NOT applied" in joined
@@ -120,11 +137,52 @@ def test_a_withdrawn_axis_is_unevaluated_rather_than_silently_derived():
 
 
 def test_size_has_no_effect_once_the_axis_is_withdrawn():
-    """And it must be inert, not half-applied."""
-    small = _run("alumina", d50=30.0).mean_rr_angstrom_per_min
-    large = _run("alumina", d50=300.0).mean_rr_angstrom_per_min
+    """And it must be inert, not half-applied — for an unmeasured abrasive."""
+    small = _run("diamond", d50=30.0).mean_rr_angstrom_per_min
+    large = _run("diamond", d50=300.0).mean_rr_angstrom_per_min
     assert small == pytest.approx(large), (
         "the size axis was withdrawn, so it must not move the rate at all")
+
+
+def test_a_measured_abrasive_carries_its_own_size_exponent_across_films():
+    """The re-attribution, stated as behaviour rather than as a table.
+
+    Swapping the oxide/silica pack's abrasive for alumina or ceria must move
+    the rate with THAT material's measured exponent, not with silica's -0.13
+    and not with a single shared constant. Ceria's +1.00 (son2021, r2 0.98) is
+    ~3.6x steeper in log-slope than alumina's +0.28, so a 4x size step must
+    separate them by much more than measurement noise.
+    """
+    def slope(kind):
+        lo = _run(kind, d50=30.0).mean_rr_angstrom_per_min
+        hi = _run(kind, d50=120.0).mean_rr_angstrom_per_min
+        return math.log(hi / lo) / math.log(4.0)
+
+    n_alumina, n_ceria = slope("alumina"), slope("ceria")
+    assert n_alumina == pytest.approx(0.28, abs=0.03), n_alumina
+    assert n_ceria == pytest.approx(1.00, abs=0.05), n_ceria
+    assert n_ceria > 3 * n_alumina
+
+
+def test_the_material_table_never_hides_how_thin_its_support_is():
+    """A k=1 value must not read as well-supported.
+
+    Ceria's +1.00 rests on ONE sweep. The provenance string must say so, and
+    the table must carry k and the spread for every material so a future reader
+    cannot mistake a single regression for a consensus.
+    """
+    from cmp_sim.slurry import abrasive_effects as ae
+
+    for kind, row in ae.SIZE_EXPONENT_BY_ABRASIVE.items():
+        assert row["k"] == len(row["sweeps"]), kind
+        lo, hi = row["spread"]
+        assert lo <= row["value"] <= hi, kind
+        _, why = ae.material_size_exponent(kind)
+        assert f"k={row['k']}" in why
+        assert "NOT derived" in why, "the note must not claim this is physics"
+    assert ae.material_size_exponent("zirconia") == (None, None), (
+        "an abrasive with no measured sweep must return no exponent, not a "
+        "derived fallback")
 
 
 def test_the_matching_abrasive_still_responds_to_size_and_loading():
