@@ -106,13 +106,24 @@ def test_the_scale_claim_is_current():
 def test_the_ranking_not_rate_caveat_survives():
     """The caveat must travel with the number it qualifies."""
     text = _text()
+    scores = _scored()
+    scaled = [s for s in scores if s.scale_ratio is not None]
+    off = [s for s in scaled if not s.scale_is_calibrated]
     assert "ranking claim, not a rate claim" in text, (
         "the README's central caveat is gone: without it, '19.5% median' reads "
         "as a promise to predict absolute removal rate to 20%, which the scale "
-        "column shows is false on 13 of 34 datasets")
-    assert "139" in text, (
-        "the concrete case (7.1% shape, 139x scale error) must stay — an "
-        "abstract caveat is easy to skim past")
+        f"column shows is false on {len(off)} of {len(scaled)} datasets")
+
+    # The concrete case must be CURRENT, not a remembered one. It was
+    # ep3161098b1 at 139x until the pH edge-hold removed that artefact; naming
+    # a stale case is exactly the staleness this file exists to prevent, so the
+    # worst live case is recomputed and its magnitude looked up in the text.
+    worst = max(off, key=lambda s: max(s.scale_ratio, 1 / s.scale_ratio))
+    magnitude = max(worst.scale_ratio, 1 / worst.scale_ratio)
+    assert f"{magnitude:.1f}×" in text, (
+        f"the concrete case must be the current worst one "
+        f"({worst.dataset}, {worst.shape_mape:.1f}% shape, {magnitude:.1f}x "
+        "scale); an abstract caveat is easy to skim past")
     assert "re-anchor" in text.lower(), (
         "the README must tell the reader what to do about it: one calibration "
         "wafer re-anchors Kp for their tool")

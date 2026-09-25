@@ -151,16 +151,41 @@ def test_the_packs_that_inherit_kp_are_well_calibrated():
             "that inherited Kp is the problem does not hold")
 
 
-def test_the_parent_pack_is_the_worst_calibrated():
+def test_the_parents_deficit_was_the_extrapolated_bell_and_is_now_gone():
+    """SUPERSEDED SYMPTOM, CONFIRMED CONCLUSION (2026-09-27).
+
+    This test used to assert that `oxide_silica` is the worst-calibrated pack
+    in the corpus (38.7x). That was a true observation of a real defect — and
+    the defect was named correctly here: the pH Gaussian evaluated far outside
+    the pH window its width was fitted in. Now that `chemical_rate.py` holds
+    the pH term at the nearest MEASURED edge instead of extrapolating the tail,
+    the 38.7x is gone and the pack sits inside a factor of ~2.
+
+    The file's conclusion — the deficit was never Kp, and refitting Kp would
+    have baked an extrapolation error into a constant that was already right —
+    is therefore CONFIRMED by the fix, not invalidated by it. What is pinned
+    now is the outcome rather than the symptom.
+    """
     ratios = _scale_ratios()
     by_pack = {p: st.median([r for _, r in v]) for p, v in ratios.items()}
-    worst = max(by_pack, key=lambda p: by_pack[p])
-    assert worst == "oxide_silica", (worst, by_pack)
-    assert by_pack["oxide_silica"] > 10, by_pack["oxide_silica"]
+    assert 0.3 < by_pack["oxide_silica"] < 3.0, (
+        "the parent pack's 38.7x deficit was the extrapolated pH bell; with the "
+        f"edge-hold in place it must be within a small factor, got {by_pack}")
+    assert max(by_pack.values()) < 10.0, (
+        "no pack should still carry an order-of-magnitude scale deficit that "
+        f"this finding attributed to out-of-range pH: {by_pack}")
 
 
-def test_the_parents_gap_tracks_ph_distance_not_kp():
-    """The decisive test: in-range datasets are fine, acidic ones are not."""
+def test_the_parents_gap_tracked_ph_distance_not_kp():
+    """The decisive test, re-read after the fix.
+
+    Before the edge-hold, the three acidic `oxide_silica` datasets missed by
+    39x / 98x / 139x while the in-range ones were inside a factor of two — the
+    measurement that identified the cause. The clamp changed ONE thing (how far
+    outside its fitted range the pH bell may be evaluated) and every one of
+    those three collapsed to within ~2.5x, which is what makes the attribution
+    causal rather than correlational: nothing about Kp moved.
+    """
     in_range, out_of_range = [], []
     low, high = load_pack("oxide_silica").param("ph_valid_range").value
     for path in dataset_paths():
@@ -193,9 +218,10 @@ def test_the_parents_gap_tracks_ph_distance_not_kp():
     assert max(in_range) < 3.0, (
         f"datasets inside the pack's fitted pH range should be calibrated to "
         f"within a small factor; got {in_range}")
-    assert min(out_of_range) > 10.0, (
-        f"datasets far below the fitted pH peak should show the large deficit "
-        f"this finding is about; got {out_of_range}")
+    assert max(out_of_range) < 3.0 and min(out_of_range) > 0.3, (
+        f"the acidic datasets missed by 39-139x purely because the pH bell was "
+        f"extrapolated; held at the measured edge they must fall in line with "
+        f"the in-range ones; got {out_of_range}")
 
 
 def test_no_kp_was_refitted():

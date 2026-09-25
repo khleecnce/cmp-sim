@@ -29,9 +29,16 @@ from cmp_sim.core.validation import dataset_paths
 #: the corpus medians. They survived the film transcription unchanged, which is
 #: the strongest evidence that labelling data does not model it: the corpus grew
 #: from 43 to 45 scored datasets (394 -> 424 points) and the medians did not move.
+#: ⚠ RE-BASELINED 2026-09-27 by the pH edge-hold fix (chemical_rate.py), which
+#: is NOT a reporting change and was never claimed to be one. Holding the pH
+#: Gaussian at the nearest MEASURED edge instead of extrapolating its tail moved
+#: LOO 22.6 -> 21.8 and beats-the-mean 34 -> 35. The SHAPE median is unmoved at
+#: 19.5 because the change is a pure per-dataset scale factor, which divides out
+#: of the shape metric — that invariant is the reason this file still guards
+#: something after the re-baseline.
 MEDIAN_SHAPE = 19.5
-MEDIAN_LOO = 22.6
-BEATS_MEAN = 34
+MEDIAN_LOO = 21.8
+BEATS_MEAN = 35
 SCORED = 46
 
 

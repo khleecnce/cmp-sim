@@ -119,12 +119,36 @@ def test_both_datasets_lie_entirely_outside_the_packs_ph_range():
             "be real evidence for the pH term and this test's premise changes")
 
 
-def test_the_prediction_jumps_across_the_unvisited_peak():
-    """Why 'scored' must not be read as 'pH validated'."""
-    predictions = _sweep(GONG, "slurry_ph", [3, 7, 10.5, 13])
-    assert max(predictions) / min(predictions) > 10, (
-        "the pH term's shape is dominated by a peak at 10.5 that neither "
-        "dataset visits")
+def test_the_datasets_all_sit_on_the_clamped_edge_of_the_ph_term():
+    """Why 'scored' must not be read as 'pH validated' — restated after the fix.
+
+    CHECKED, not re-baselined blindly. The concern flagged in STATUS was that
+    the pH edge-hold might flatten a jump across a peak that lies OUTSIDE the
+    pack's declared range, which would mean the RANGE is wrong rather than the
+    clamp. It does not: this pack's peak (10.5) is interior to its declared
+    range (9.0-11.0), asserted below, so the clamp never touches the peak.
+
+    What the clamp DID remove is the extrapolated acidic tail. The sweep used
+    to span >10x only because pH 3 and pH 7 were evaluated on a Gaussian tail
+    fitted over pH 9-11 — a number produced by the function, not by any
+    measurement. Both now return the SAME held edge value, and that is a
+    sharper statement of this file's finding than the old one: both datasets
+    (pH 2-6) sit entirely on the clamp, so the pH term contributes one constant
+    factor to every row they contain and cannot be evidence for or against it.
+    """
+    low, high = _value("ph_valid_range")
+    peak = _value("ph_peak")
+    assert low < peak < high, (
+        "if the peak were outside the declared range, the clamp would be "
+        "hiding the pack's own optimum and the RANGE would be the bug")
+
+    below_low, inside_low, at_peak = _sweep(GONG, "slurry_ph", [3, 7, 10.5])
+    assert below_low == inside_low, (
+        "every pH below the fitted range must return the same held edge value; "
+        f"got {below_low} and {inside_low}")
+    assert at_peak / below_low > 3, (
+        "the pH term still carries a large unvisited peak inside its fitted "
+        "range; the datasets simply never reach it")
 
 
 def test_entegris_is_genuine_evidence_for_the_loading_term():

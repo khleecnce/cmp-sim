@@ -137,15 +137,32 @@ def test_a_pH_below_the_measured_range_is_warned_about():
     assert "below it" in hits[0]
 
 
-def test_a_zero_acid_floor_is_called_a_refusal_not_a_number():
-    """The specific trap: 0.00 A/min returned with confidence."""
+def test_the_zero_acid_floor_trap_is_now_closed_by_holding_the_edge():
+    """The trap this guarded (0.00 A/min returned with confidence) is GONE.
+
+    It was created by evaluating the fitted pH Gaussian far below the pH window
+    its width came from, so the bell's tail drove the chemical term to an acid
+    floor of exactly zero. `chemical_rate.py` now HOLDS the term at the nearest
+    measured edge instead, which is both the honest statement (outside the data
+    the chemistry is no better known than at the edge) and the physically
+    defensible one for silica (OH--catalysed hydrolysis plateaus below the
+    neutral point; Iler 1979 ch.1, Brady & Walther 1990).
+
+    So the assertion flips: the warning must no longer say ZERO/refusal — it
+    must name the held edge and the factor held — and the rate must NOT be the
+    pathological zero.
+    """
     result, warnings = _warnings_at(
         BOUNDED_PEAK_PACKS["oxide_silica_anionic"], 0.5)
     hits = [w for w in warnings if "OUTSIDE the range" in w]
     assert hits, warnings
-    assert "ZERO" in hits[0] and "refusal" in hits[0], hits[0]
-    # and the rate really is the pathological one this guards
-    assert result["removal_rate_A_per_min"] < 1.0
+    assert "HELD at its value at the nearest measured edge" in hits[0], hits[0]
+    assert "floor-of-knowledge, not a measurement" in hits[0], hits[0]
+    assert "ZERO" not in hits[0], (
+        "a held edge value is not a refusal; the old wording would now be "
+        "describing a behaviour the engine no longer has")
+    assert result["removal_rate_A_per_min"] > 1.0, (
+        "the pathological 0.00 A/min was the artefact being removed")
 
 
 def test_inside_the_range_there_is_no_range_warning():
