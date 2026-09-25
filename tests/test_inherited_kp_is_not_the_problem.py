@@ -199,12 +199,22 @@ def test_the_parents_gap_tracks_ph_distance_not_kp():
 
 
 def test_no_kp_was_refitted():
-    """The declared constants must be exactly what they were."""
+    """The declared constants must be exactly what they were.
+
+    ⚠ `sti_ceria` is the ONE exception, and deliberately so. This file's
+    finding was that inheriting a Kp is not what makes a pack miss — and that
+    still holds for every silica pack here. sti_ceria was different: its
+    2.2e-13 was not inherited-but-fitted, it was self-declared an unreproduced
+    representative estimate, and all four of its absolute-comparable datasets
+    implied a LOWER value (one-sided, geometric mean 1.09e-13). Re-anchored
+    2026-09-26; see cmp_sim/data/params/sti_ceria.yaml. No shape score moved,
+    which is the point: Kp is a pure scale and cannot rescue a trend.
+    """
     declared = {
         "oxide_silica": 1.00e-13,
         "oxide_silica_anionic": 1.00e-13,
         "oxide_silica_aminosilane": 1.00e-13,
-        "sti_ceria": 2.20e-13,
+        "sti_ceria": 1.09e-13,
         "cu_h2o2_bta": 3.50e-13,
     }
     for pack, expected in declared.items():

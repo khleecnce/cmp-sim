@@ -4,8 +4,9 @@
 
 ### 1차 완성 — 모델링 정확도
 - **목표: 예측 오차 median ≤ 10.0%** (이력서에 쓸 수 있는 수준)
-- **현재: median 19.5% / 22.6%** (코퍼스 46/50, 427점) — re-measured 2026-09-26 21:xx,
+- **현재: median 19.5% / 22.6%** (코퍼스 46/50, 427점) — re-measured 2026-09-26 23:xx,
   `python tools/score_report.py` (thin wrapper; run it inside `.venv`).
+  863 tests pass. Absolute-scale misses >3x: 13 -> 11 (ceria pack re-anchored).
   ⚠ 인터프리터: `source .venv/bin/activate` 먼저. 시스템 python3에는 pint가 없다.
 - **10%가 물리적으로 불가능하다고 판단되면 15%까지 허용**(사용자 승인 2026-09-25).
   단 그 판단은 **근거를 STATUS.md에 적고** 나서만 인정된다 —
@@ -366,18 +367,32 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-**Diagnose the `sti_ceria` absolute-scale disagreement (BLOCKED #2)** — the pack
-predicts 7,235 A/min against a 200-6,000 A/min envelope. Both the pack and the
-envelope cite sources, so one of them is wrong FOR THIS RECIPE and the
-disagreement has never been diagnosed. Unlike the `si` case, sti_ceria has SIX
-registered datasets (dandu2009, netzband2020, son2021, mariscal2020,
-us20190127607a1 x2), so the evidence to decide it is already in the repo. Method
-that worked before (it falsified the inherited-Kp hypothesis): back out what
-absolute scale each dataset implies, compare the six, and only then touch a
-constant. Note `score_report.py` already flags 13 datasets with >3x absolute
-error, four of them oxide/ceria (ep3161098b1_teos 139x, liang2026 92x,
-bouvet2002 x2) — if a single scale error explains several of those at once it is
-a pack-level bug, not six separate ones.
+**Find the physical cause of the four >3x absolute-scale misses that are NOT
+ceria** — ep3161098b1_teos (139x), bouvet2002_w (75.6x), bouvet2002_oxide
+(39.2x), liang2026_4hsic (92x). The ceria case (BLOCKED #2) is now closed and
+the method is proven twice: back out the Kp each dataset implies, and if several
+datasets agree one-sidedly it is a pack-level scale bug, not N separate ones.
+⚠ But the silica case was already tested once and the answer was NOT Kp
+(tests/test_inherited_kp_is_not_the_problem.py): ep3161098b1 and bouvet2002 both
+run at pH 3-4, far below oxide_silica's fitted [10.0, 12.5] window, where the pH
+term drives the prediction to its mechanical floor and the deficit lands on Kp.
+So the work here is the pH TERM's acidic tail, not the scale constant —
+refitting Kp would bake in an extrapolation error. Start by checking whether the
+three silica misses share a single implied acid-floor value; if they do, that is
+one missing constant with a mechanism (Cook's hydrated-layer thickness collapses
+below the silica IEP), not three failures. bouvet2002_w is the odd one out (W
+film, w_fe_oxidizer pack) and should be back-Kp'd separately.
+
+### Closed 2026-09-26 (was the previous NEXT): BLOCKED #2, the ceria scale
+See BLOCKED #2. The pack's Kp was an unreproduced estimate; four measured ceria
+datasets agreed one-sidedly on 1.09e-13 m/Pa (was 2.2e-13). STI example
+7,235 -> 1,559 A/min, inside the published envelope. Corpus medians UNMOVED
+(19.5%/22.6%) exactly as predicted — Kp is a pure scale and the shape metric
+divides it out; a moved shape score would have meant something else changed.
+first_principles.py's k = Kp*H correlation was recomputed as a consequence
+(WEAR_COEFFICIENT 9.50e-4 -> 8.25e-4, spread 1.8x -> 1.5x) and the module now
+states that this tightening is bookkeeping, not evidence for the 1/H form.
+863 tests.
 
 ### Closed 2026-09-26 (was the previous NEXT): per-film P0 is FALSIFIED
 The "fit a per-FILM breakthrough pressure P0" item is DONE and the answer is NO.
@@ -466,8 +481,21 @@ abrasive_effects.py refuses that on purpose.
    NEEDED: pad surface stats (asperity density/radius by confocal or AFM, or
    glazing state) measured beside a rate-vs-speed sweep. Nothing in the corpus
    reports them.
-2. `sti_ceria` 7,235 Å/min vs a 200–6,000 envelope; pack and envelope both
-   cited, one is wrong for this recipe. 1 parked.
+2. `sti_ceria` absolute scale — **CLOSED 2026-09-26.** Diagnosed: the pack's
+   Kp was the wrong one of the two cited sources. The inherited 2.2e-13 m/Pa
+   was `confidence: estimated`, self-described as a representative,
+   unreproduced value, and never back-calculated from any measured run. All
+   FOUR absolute-comparable ceria datasets implied a LOWER Kp (one-sided, not
+   scatter): kenchappa2021 8.4e-14, netzband2020 7.6e-14, mariscal2020
+   1.34e-13, son2021 1.64e-13 → geometric mean **1.09e-13 m/Pa**, LOO range
+   9.5e-14–1.23e-13. Re-anchored. examples/sti_ceria.yaml now returns
+   **1,559 Å/min**, inside the 200–6,000 envelope. Residual scales moved to
+   0.70–1.51x (were 0.35–0.75x). The two ceria-COATED-silica composite
+   datasets imply ~2.3e-14 and were EXCLUDED, not averaged in — a ceria shell
+   on a silica core is a different abrasive; that disagreement stays open and
+   visible (their scale is now 0.19x/0.24x). Guarded by
+   tests/test_ceria_kp_backed_out_of_four_datasets.py, which re-derives the
+   number from the scorer and asserts no shape score moved.
 3. Size exponent splits by ABRASIVE, not film; packs must scope and cite it.
 4. P3 exponents still `unverified` — no nanoindentation of a CMP-polished
    surface exists in the corpus.

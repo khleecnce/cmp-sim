@@ -124,9 +124,15 @@ def test_the_reported_error_is_already_scale_free():
     scale_free = 100 * statistics.mean(
         [abs(scale * p - m) / m for m, p in zip(measured, predicted)])
 
-    assert scale < 0.2, (
-        f"common scale {scale:.3f}: absolute rates are off ~8x, as expected for "
-        "a 2.25 cm2 benchtop coupon scored with 300 mm wafer kinematics")
+    assert scale < 0.45, (
+        f"common scale {scale:.3f}: absolute rates are off ~4x, as expected for "
+        "a 2.25 cm2 benchtop coupon scored with 300 mm wafer kinematics. "
+        "(Was ~8x / scale 0.13 until the sti_ceria Kp was re-anchored from the "
+        "inherited 2.2e-13 estimate to 1.09e-13; netzband2020 is one of the four "
+        "datasets that anchor it, so this residual is now partly a fit residual "
+        "and NOT an independent measure of the tool mismatch. What the test still "
+        "guards is the point below: the reported error is the scale-free one, so "
+        "whatever the common scale is, it is not what makes this dataset miss.)")
     assert abs(scale_free - score_dataset(
         next(p for p in dataset_paths() if p.stem == NETZBAND)
     ).shape_mape) < 1.0, (

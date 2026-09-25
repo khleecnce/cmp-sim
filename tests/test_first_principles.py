@@ -51,10 +51,18 @@ def test_dividing_by_hardness_helps_within_one_tool_class():
 
 
 def test_the_improvement_is_modest_and_the_module_says_so():
-    """Guards against the correlation being oversold in the docs or warnings."""
+    """Guards against the correlation being oversold in the docs or warnings.
+
+    Band lowered 1.5-2.5 -> 1.3-2.5 on 2026-09-26. sti_ceria's Kp was
+    re-anchored from an unreproduced 2.2e-13 estimate to 1.09e-13 backed out of
+    four measured datasets, and ceria had been the largest k outlier, so the
+    spread necessarily shrank (1.8x -> 1.5x). That is bookkeeping, NOT new
+    evidence for 1/H — removing an over-estimate cannot confirm a correlation.
+    The upper bound is what actually guards against overselling and is unchanged.
+    """
     ks = [load_pack(p).params["kp_m_per_pa"].value * h
           for p, h in CALIBRATION_FILMS.items()]
-    assert 1.5 < 10 ** _sd_log10(ks) < 2.5, (
+    assert 1.3 < 10 ** _sd_log10(ks) < 2.5, (
         "the spread moved; the advertised uncertainty factor needs revisiting")
     assert fp.WEAR_COEFFICIENT_SPREAD == pytest.approx(
         10 ** _sd_log10(ks), abs=0.2)

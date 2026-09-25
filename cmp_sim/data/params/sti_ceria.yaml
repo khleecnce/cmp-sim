@@ -23,6 +23,65 @@ base: sti_ceria
 description: "STI / ceria: chemical-tooth evidence, selectivity, pattern and thermal terms"
 
 params:
+  # ── BLOCKED #2 diagnosed: the ceria Kp was a REPRESENTATIVE GUESS ──────
+  # The inherited legacy pack carries kp_m_per_pa = 2.2e-13 m/Pa marked
+  # `confidence: estimated`, with its own note admitting it is "a
+  # representative value, unreproduced" ("단일 상수로 뭉뚱그린 이 값은
+  # 대표값일 뿐이다. 미재현."). Nothing was ever back-calculated from a
+  # measured run. That is what produced the 7,235 A/min prediction against
+  # the 200-6,000 A/min STI envelope in sanity.py.
+  #
+  # Method (the same back-out that FALSIFIED the inherited-Kp hypothesis for
+  # the silica packs, tests/test_inherited_kp_is_not_the_problem.py): every
+  # dataset this pack scores reports `scale = measured/predicted absolute
+  # rate`. Since the rate is linear in Kp, each dataset implies
+  # Kp_implied = 2.2e-13 * scale. Four datasets are absolute-comparable:
+  #     kenchappa2021_softpad_hdp_oxide      0.383x -> 8.43e-14
+  #     mariscal2020_peteos_ceria_P-V        0.609x -> 1.34e-13
+  #     netzband2020_thermal_oxide_ceria_ph  0.347x -> 7.63e-14
+  #     son2021_oxide_ceria_size_sweep       0.746x -> 1.64e-13
+  # They agree within a factor of 2.2 end to end (log-sd = 1.44x) and ALL
+  # FOUR sit BELOW the inherited value — a one-sided disagreement, which is
+  # what a wrong scale looks like as opposed to scatter. Geometric mean =
+  # 1.09e-13 m/Pa. Leave-one-out over the four gives 9.5e-14 - 1.23e-13, so
+  # no single dataset carries the number.
+  #
+  # ⚠ HONESTY LIMITS, stated because this constant is now FITTED, not derived:
+  #  1. The `scale` column for these four datasets is no longer an independent
+  #     test of Kp — it is the residual of the fit. Their SHAPE errors (12.9%,
+  #     25.5%, 42.8%, 49.2%) are untouched and remain the real test; Kp is one
+  #     multiplicative scale and cannot change any shape score.
+  #  2. The two ceria-COATED-silica composite datasets (us20190127607a1, 0.12x
+  #     and 0.09x -> ~2.3e-14) were DELIBERATELY EXCLUDED. They imply a Kp ~5x
+  #     lower, but a ceria shell on a silica core is a different abrasive at
+  #     the same D50, and folding them in would silently average two abrasives
+  #     into one constant. They stay as an open disagreement (see below).
+  #  3. dandu2009 and yang2023 state no comparable absolute basis and were not
+  #     used; this is not a selection for a better number, it is the same
+  #     'absolute values incomparable' flag the scorer already applies.
+  #  4. Residual spread of 1.44x is NOT model error alone: these are four
+  #     different tools, pads and oxide depositions. A single Kp cannot absorb
+  #     tool-to-tool variation, which is the floor on any absolute claim here.
+  kp_m_per_pa:
+    value: 1.09e-13
+    unit: m/Pa
+    note: >
+      Geometric mean of the Kp implied by the four absolute-comparable ceria
+      datasets in this repo (kenchappa2021 8.43e-14, mariscal2020 1.34e-13,
+      netzband2020 7.63e-14, son2021 1.64e-13). Replaces the inherited
+      2.2e-13, which was self-declared a representative estimate and had never
+      been back-calculated from any measured run; all four datasets fall below
+      it. Leave-one-out range 9.5e-14 - 1.23e-13. Applies to bare ceria only:
+      the two ceria-coated-silica composite datasets imply ~2.3e-14 and are
+      excluded as a different abrasive, not averaged in.
+    source: >
+      Back-calculated in-repo from doi:10.1149/2162-8777/abdc40 (Kenchappa
+      2021), doi:10.1149/2162-8777/ab89bc (Mariscal 2020),
+      doi:10.1149/2162-8777/ab8393 (Netzband 2020) and doi:10.1038/s41598-021-
+      97122-9 (Son 2021); procedure in
+      tests/test_ceria_kp_backed_out_of_four_datasets.py
+    confidence: literature
+
   reference_abrasive:
     value: ceria
     unit: abrasive database key

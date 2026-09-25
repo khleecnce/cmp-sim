@@ -30,7 +30,7 @@ cu_h2o2_bta                   3.50e-13      1.2   4.2e-04   device, 1-6 psi
 w_fe_oxidizer                 7.00e-14     12.0   8.4e-04   device, 1-6 psi
 oxide_silica                  1.00e-13      9.0   9.0e-04   device, 1-6 psi
 poly_si_alkaline              1.07e-13     11.5   1.2e-03   device, 1-6 psi
-sti_ceria                     2.20e-13      9.0   2.0e-03   device, 1-6 psi
+sti_ceria                     1.09e-13      9.0   9.8e-04   device, 1-6 psi
 si_substrate_alkaline         6.91e-13     10.0   6.9e-03   wafer-maker, 0.6 psi
 sic_ceria_h2o2                1.71e-15     26.0   4.5e-05   chemically limited
 ===========================  =========  ========  ========  ==============
@@ -46,10 +46,17 @@ exclusions were forced by the data rather than chosen for convenience:
   is 5.2x above the geometric mean of the others — the largest single outlier.
 
 Over the five remaining device-CMP films the improvement is real but **modest**:
-the log-10 standard deviation falls from 0.284 (Kp alone) to 0.247 (k), i.e.
-from a typical factor of 1.9x to 1.8x. Including the wafer-maker point, the
+the log-10 standard deviation falls from 0.265 (Kp alone) to 0.176 (k), i.e.
+from a typical factor of 1.84x to 1.50x. Including the wafer-maker point, the
 correlation is actively *worse* than not dividing by hardness at all
-(0.378 -> 0.415).
+(0.387 -> 0.408).
+
+⚠ Those two numbers tightened (0.284/0.247 -> 0.265/0.176) when `sti_ceria`'s Kp
+was re-anchored from the inherited 2.2e-13 estimate to 1.09e-13 backed out of
+four measured ceria datasets. That is NOT independent evidence for the 1/H form:
+ceria was the largest k outlier before, so removing an over-estimated Kp had to
+shrink the spread. It is recorded because the correlation must be recomputed
+whenever a member pack's Kp moves, not because five points became convincing.
 
 So the honest summary is: dividing by hardness helps a little **within one tool
 class**, and the physical argument for the 1/H form is far stronger than the
@@ -75,12 +82,12 @@ from typing import Any, Dict, List, Optional
 #: k = Kp*H over the five device-CMP films above (1-6 psi rotary tools),
 #: geometric mean. SiC (chemically limited) and the Si substrate wafer-maker
 #: process are excluded; see the module docstring for why.
-WEAR_COEFFICIENT = 9.50e-4
+WEAR_COEFFICIENT = 8.25e-4
 #: 10**(log-10 standard deviation) of those five: the typical factor of error.
-WEAR_COEFFICIENT_SPREAD = 1.8
+WEAR_COEFFICIENT_SPREAD = 1.5
 #: The observed extremes, used for the reported band.
 WEAR_COEFFICIENT_MIN = 4.2e-4
-WEAR_COEFFICIENT_MAX = 1.98e-3
+WEAR_COEFFICIENT_MAX = 1.23e-3
 #: Pressure range the correlation was built in. Outside it, the tool class
 #: itself differs and the constant is not transferable.
 CALIBRATED_PRESSURE_PSI = (1.0, 6.0)
