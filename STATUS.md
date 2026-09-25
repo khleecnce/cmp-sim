@@ -4,8 +4,9 @@
 
 ### 1차 완성 — 모델링 정확도
 - **목표: 예측 오차 median ≤ 10.0%** (이력서에 쓸 수 있는 수준)
-- **현재: median 19.5% / 22.6%** (코퍼스 46/50, 427점) — re-measured 2026-09-25 21:xx,
-  `python tools/score_report.py` (new thin wrapper; use it instead of retyping a snippet)
+- **현재: median 19.5% / 22.6%** (코퍼스 46/50, 427점) — re-measured 2026-09-25 22:xx,
+  `python tools/score_report.py` (thin wrapper; run it inside `.venv`).
+  ⚠ 인터프리터: `source .venv/bin/activate` 먼저. 시스템 python3에는 pint가 없다.
 - **10%가 물리적으로 불가능하다고 판단되면 15%까지 허용**(사용자 승인 2026-09-25).
   단 그 판단은 **근거를 STATUS.md에 적고** 나서만 인정된다 —
   "어렵다"가 아니라 "무엇이 남은 오차의 하한을 만드는가"를 써라.
@@ -365,19 +366,35 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-**Diagnose the contact-regime split in the P-V core** — this is where the
-remaining P-V error lives, and 2026-09-25 measured it rather than guessed.
-Refitting RR = k·P^a·V^b per dataset (scale free, only rows where P/V vary at
-otherwise identical conditions) gives per-dataset optima scattered from
-(a=0.05, b=0.80) to (a=2.00, b=0.05) — NOT noise around any single pair.
-Preston (1,1) is never worst; the Hertzian (5/6, 1/2) wins only 2 of 8
-(`docs/derivations.md`, "Two first-principles replacements TESTED and
-FALSIFIED"). So the error is **which contact branch a tool is in**, not the
-exponent pair. Find an OBSERVABLE that separates the low-a datasets
-(us6564116b2 a=0.05, us9499721b2 a=0.85) from the high-a ones (us6918821b2
-a=1.90, ep3161098b1_w a=2.00) — candidates already in the configs: pad hardness,
-λ (the pseudo-Sommerfeld V/p of BLOCKED #1), absolute pressure level relative to
-pad yield. Do NOT make a and b free: two constants per dataset is interpolation.
+**Fit a per-FILM breakthrough pressure P0, not a global one** — this is the
+concrete follow-on from the 2026-09-25 probe (`tools/pv_regime_probe.py`,
+locked by `tests/test_pv_exponent_confound.py`). Two results changed the
+picture:
+
+1. The "exponent scatter proves regime split" conclusion was largely a
+   CONFOUND. Fitting RR ~ k·P^a·V^b only on rows that are otherwise identical
+   (group by every override except P and V, keep the largest group) collapses
+   the scatter and cuts Preston's paired error 31.9% → 23.3% on the 5 datasets
+   where the control removes rows. sic2026's a went 1.85 → 0.75, tw202115224a
+   19.0% → 7.2%. Preston is a better law here than the earlier note claimed.
+2. Passivation breakthrough RR = Kp·(P − P0)·V has the RIGHT SIGN:
+   ρ(a, P_mean) = −0.696 under the control (−0.148 without it), i.e. the
+   super-linear datasets really are the ones polished near their threshold.
+   But ONE global P0 buys only 0.3 points (25.3% → 25.0% at P0 = 0.20 psi), so
+   it was NOT adopted.
+
+The unresolved step: a breakthrough stress should scale with the passivating
+layer's own hardness, so P0 can only be shared WITHIN a film. Right now oxide
+has 4 matched-condition pressure datasets, Cu has 2, W has 1 — one constant per
+film across 4 datasets is a law; across 1 it is interpolation. So: fit P0 on
+OXIDE only (4 datasets, one shared constant, scale free per tool), score it
+leave-one-dataset-out, and adopt only if it beats Preston out of sample. If it
+does, the same constant must then be predicted from the film's hardness rather
+than refitted for Cu.
+
+Still genuinely unexplained after the control, and NOT caused by the confound:
+ep3161098b1_w (a = 2.00 on 3 matched rows), sic2023 (62% at every form tried),
+us6918821b2 (the Cu low-pressure velocity inversion, BLOCKED #1).
 
 ### Carried forward (was the previous NEXT, still unaddressed)
 `sti_ceria` predicts 7,235 Å/min against a 200-6,000 envelope (BLOCKED #2).

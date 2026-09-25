@@ -2658,3 +2658,75 @@ constant is shared.
 Conclusion for the methodology: on this corpus the remaining error in the P-V
 core is regime selection (which contact branch a tool is in), not the exponent
 pair. That is a contact-mechanics gating question, not a law-substitution one.
+
+## The P-V exponent scatter was mostly a CONFOUND, not regime scatter (2026-09-25)
+
+The previous entry concluded that the per-dataset optima of `RR ~ k P^a V^b`
+scatter from (0.05, 0.80) to (2.00, 0.05) and that this proves different
+contact regimes. That conclusion was measured on rows that differ in MORE than
+P and V. On an L25 array the fitted pressure exponent absorbs the pH, oxidizer
+and concentration response of whatever else the row changed.
+
+`tools/pv_regime_probe.py` repeats the fit under a control: rows are grouped by
+every override EXCEPT pressure and velocity, and only the largest
+otherwise-identical group is fitted. The scatter collapses and so does the
+error:
+
+    mean Preston MAPE, uncontrolled rows      47.1%   (14 datasets)
+    mean Preston MAPE, matched conditions     25.3%   (10 datasets)
+    mean free-(a,b) MAPE, matched conditions  17.6%   (2 constants/dataset)
+
+Those three averages are over different dataset sets, so the honest version is
+the PAIRED one, over the 5 datasets where the control actually removes rows
+(the other 5 vary nothing but P and V, so the control is a no-op):
+
+    paired mean Preston MAPE, uncontrolled    31.9%
+    paired mean Preston MAPE, matched         23.3%     4 of 5 improve
+
+The one that gets worse, us6564116b2, is an L25 array cut to 5 matched rows:
+refitting the free scale on fewer points can cost more than the confound it
+removes. That is a property of the measurement, not a counter-example, and
+tests/test_pv_exponent_confound.py encodes it rather than hiding it.
+
+Per-dataset, the datasets that looked like evidence for exotic exponents mostly
+stop being so once the other axes are held fixed:
+
+    dataset                          a_uncontrolled  a_matched   Preston%
+    tw202115224a_cu_abrasive_size          0.75        1.10     19.0 -> 7.2
+    us9499721b2_teos_silica_pressure       0.90        0.80     16.3 -> 9.8
+    sic2026_ceria_h2o2_ph_DOE50            1.85        0.75     48.8 -> 27.3
+    ep3161098b1_w_silica_pressure          2.00        2.00     41.7 -> 40.7
+
+So Preston's own P^1 V^1 is a much better description of this corpus than the
+uncontrolled numbers suggested, and the previously reported "regime scatter"
+is, for at least three datasets, chemistry leaking into the pressure exponent.
+What survives as a genuine departure is a short list: the Cu low-pressure
+inversion (us6918821b2, a known lubrication counter-example), the tungsten
+sweep (a = 2.00 at 3 matched rows), and sic2023 (62% at every form tried).
+
+### Threshold pressure RR = Kp (P - P0) V: TESTED, not adopted
+
+A passivation-breakthrough offset is the only super-linear mechanism in this
+corpus with a derivation behind it: below P0 the asperity stress cannot rupture
+the Cu-BTA / WO3 / hydrated-silica layer, so removal is chemical-only, and the
+LOCAL exponent `d ln RR / d ln P = P/(P - P0)` then exceeds 1 near threshold and
+decays to 1 far above it. That predicts a NEGATIVE correlation between the
+fitted `a` and the dataset's absolute pressure level, and the matched-condition
+fits show exactly that sign:
+
+    Spearman rho(a, P_mean) = -0.696   (uncontrolled: -0.148)
+
+But the decisive test is a single P0 SHARED by all ten datasets (one new global
+constant, scale still free per tool, so it cannot interpolate):
+
+    Preston, P0 = 0                25.3%
+    best shared P0 = 0.20 psi      25.0%
+
+0.3 points for a new constant is not a law, so it is NOT adopted. The honest
+reading of the two results together: the sign predicted by the mechanism is
+present, but a single material-independent P0 in psi is the wrong shared
+quantity — a breakthrough stress should scale with the passivating film's own
+hardness, so P0 can only be shared WITHIN a film, and no film in this corpus
+yet has enough matched-condition pressure datasets (Cu has 2, oxide 4, W 1) to
+fit one without it becoming a per-dataset constant again. Recorded as the
+specific data that would settle it, not as a failure of the mechanism.
