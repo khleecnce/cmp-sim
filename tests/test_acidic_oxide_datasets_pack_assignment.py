@@ -57,6 +57,8 @@ from __future__ import annotations
 
 import statistics as st
 
+import pytest
+
 import yaml
 
 from cmp_sim.core.params import load_pack
@@ -115,7 +117,25 @@ def test_the_source_actually_says_cationic_aminosilane():
 
 
 def test_the_pack_swap_changes_scale_but_not_shape():
-    """Why 'it fits better' could not decide this: shape is untouched."""
+    """Why 'it fits better' could not decide this: shape is untouched.
+
+    UPDATED 2026-09-26. The scale ARGUMENT in this file is now obsolete and
+    that is the finding, not a regression. It used to read: under the parent
+    pack this acidic dataset was mis-scaled >10x, so it must belong to a pack
+    with its own acidic pH constants. The real cause was the parent's pH
+    Gaussian being EXTRAPOLATED from its alkaline fit down to pH 4.7 — an
+    artefact of the function, not of any measurement. chemical_rate.py now
+    holds the pH term at the edge of each pack's ph_valid_range, and the
+    parent's scale collapses from >10x to ~2.8x, i.e. within the same factor
+    as the dataset's own pack.
+
+    The reassignment still STANDS, because it never rested on the scale: the
+    source states a cationic aminosilane-modified abrasive (pinned by
+    test_the_source_actually_says_cationic_aminosilane) and the aminosilane
+    pack carries a MEASURED pH peak of 4.9 from that patent's own 11-level
+    sweep. What this test now pins is the weaker, true statement: a pack swap
+    on pressure/concentration axes moves scale only, never shape.
+    """
     own = score_dataset(_path(REASSIGNED))
     parent_score, parent_scale = _with_pack(REASSIGNED, "oxide_silica")
 
@@ -123,20 +143,34 @@ def test_the_pack_swap_changes_scale_but_not_shape():
     assert abs(own.shape_mape - parent_score.shape_mape) < 0.1, (
         "shape moved under a pack swap on pressure/concentration axes — the "
         "reasoning in this file assumed no pH constant touches them")
-    assert parent_scale > 10 * _scale(_doc(REASSIGNED)), (
-        f"the scale improvement that motivated the check is gone: "
-        f"{parent_scale:.2f}x vs {_scale(_doc(REASSIGNED)):.2f}x")
+    assert parent_scale != pytest.approx(_scale(_doc(REASSIGNED)), rel=1e-6), (
+        "the two packs now give an IDENTICAL absolute scale, which would mean "
+        "the aminosilane pack's own pH constants have stopped doing anything")
 
 
-def test_the_unstated_ones_were_left_mis_scaled_on_purpose():
+def test_the_unstated_ones_are_no_longer_mis_scaled_and_stay_put():
+    """These were left on the parent pack ON PURPOSE, and the wait paid off.
+
+    UPDATED 2026-09-26. These datasets are acidic but their sources never state
+    the abrasive's surface charge, so reassigning them would have been fitting
+    by outcome. They were knowingly left mis-scaled (39x, 75x, 139x) with the
+    reasoning that a real cause would eventually explain all of them at once.
+
+    It did: every one of them sits BELOW the parent pack's measured pH window,
+    where the fitted Gaussian was being extrapolated into a tail no measurement
+    supports. Holding the pH term at the measured edge (chemical_rate.py) fixed
+    all of them with ONE change and ZERO new constants — which is exactly the
+    evidence that would have been destroyed by reassigning them one by one.
+    """
     for stem in LEFT_ALONE:
         doc = _doc(stem)
         assert doc["pack"] == "oxide_silica", (
             f"{stem} was reassigned, but its source does not state the "
             "abrasive's surface charge — that is fitting by outcome")
-        assert _scale(doc) > 10, (
-            f"{stem} is no longer strongly mis-scaled; if a model change fixed "
-            "it, this file's reasoning needs revisiting")
+        assert _scale(doc) < 10, (
+            f"{stem} is still mis-scaled by {_scale(doc):.1f}x: the pH "
+            "edge-hold was supposed to explain this family in one move, so a "
+            "survivor means the shared cause was not the whole story")
 
 
 def test_the_tungsten_arm_of_the_same_patent_is_a_separate_dataset():

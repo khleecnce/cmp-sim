@@ -520,14 +520,50 @@ def chemical_factor(resolved, temp_c: Optional[float] = None) -> ChemicalEffect:
             # from the optimum, which no measurement supports.
             acid_floor = resolved.p_or("ph_acid_mechanical_floor", None)
             acid_floor = float(ph_floor if acid_floor is None else acid_floor)
+            # HOLD AT THE EDGE OF THE MEASURED RANGE, do not extrapolate.
+            #
+            # A Gaussian is a LOCAL description of a peak: it is fitted where
+            # the sweep has points and says nothing about the far tail, yet
+            # evaluating it 7 pH units out multiplies the rate by exp(-(7/w)^2),
+            # a number no measurement produced. For oxide_silica (peak 11.0,
+            # width 3.1 fitted on Li 2021's three points over pH 10-12.5) that
+            # tail suppresses pH 4 by 61x, which is the single cause of the four
+            # largest absolute-scale misses in the corpus (ep3161098b1 139x,
+            # bouvet2002 W/oxide/Ti 75.6/39.2/38.2x) -- all four silica slurries
+            # run acidic, all four are one-sided, and all four move together
+            # with this one factor, so it is one bug and not four.
+            #
+            # The clamp is the physically conservative reading, not a fit: it
+            # asserts only "outside the range these constants were measured
+            # over, the chemistry is no better known than at the nearest edge",
+            # which is also what amorphous-silica kinetics predict -- the
+            # hydrolysis rate flattens into a pH-independent plateau below the
+            # OH--catalysed branch (Iler 1979 ch.1; Brady & Walther 1990,
+            # rate ~ a_OH^0.5 only above the neutral point), rather than
+            # continuing to fall like a Gaussian tail.
+            #
+            # It ADDS NO CONSTANT: ph_valid_range already exists in every pack
+            # and until now only emitted a warning. The out-of-range warning
+            # below is kept and reworded, because a held value is still not a
+            # measurement.
+            ph_eval = float(ph)
+            ph_range_clamp = resolved.p_or("ph_valid_range", None)
+            ph_clamped_from = None
+            if (isinstance(ph_range_clamp, (list, tuple))
+                    and len(ph_range_clamp) == 2):
+                lo_c, hi_c = float(ph_range_clamp[0]), float(ph_range_clamp[1])
+                if ph_eval < lo_c:
+                    ph_clamped_from, ph_eval = ph_eval, lo_c
+                elif ph_eval > hi_c:
+                    ph_clamped_from, ph_eval = ph_eval, hi_c
             # Normalised to the pack's reference pH, not to the optimum: Kp was
             # measured at ph_ref and already contains the chemistry there.
             if ph_ref is not None:
                 ph_factor = ph_factor_relative_to_reference(
-                    float(ph), float(ph_ref), float(ph_peak),
+                    ph_eval, float(ph_ref), float(ph_peak),
                     float(ph_width), ph_floor, acid_floor)
             else:
-                ph_factor = ph_response(float(ph), float(ph_peak),
+                ph_factor = ph_response(ph_eval, float(ph_peak),
                                         float(ph_width), ph_floor, acid_floor)
                 warnings.append(
                     "this pack declares a pH optimum but no ph_ref, so the pH "
@@ -571,16 +607,17 @@ def chemical_factor(resolved, temp_c: Optional[float] = None) -> ChemicalEffect:
                 low, high = float(ph_range[0]), float(ph_range[1])
                 if not (low <= float(ph) <= high):
                     side = "below" if float(ph) < low else "above"
-                    floor_side = (acid_floor if float(ph) < low else ph_floor)
                     warnings.append(
                         f"pH {float(ph):g} is OUTSIDE the range this pack's pH "
                         f"constants were measured over ({low:g}-{high:g}), "
-                        f"{side} it. The pH term is extrapolated with a floor "
-                        f"of {float(floor_side):.3f} on that side"
-                        + (", which is ZERO: the predicted rate decays towards "
-                           "nothing with no measurement supporting it, so treat "
-                           "it as a refusal rather than as a number"
-                           if not float(floor_side) else ""))
+                        f"{side} it. The pH term is HELD at its value at the "
+                        f"nearest measured edge (pH {ph_eval:g}, factor "
+                        f"{ph_factor:.4f}) instead of extrapolating the fitted "
+                        "Gaussian, whose far tail is an artefact of the "
+                        "function rather than of any measurement. The held "
+                        "value is a floor-of-knowledge, not a measurement: it "
+                        "asserts only that the chemistry here is no better "
+                        "known than at the edge")
     elif ph is not None and ph_peak is not None and not ph_width:
         warnings.append(
             f"this pack declares an optimum pH ({float(ph_peak):g}) but no "
