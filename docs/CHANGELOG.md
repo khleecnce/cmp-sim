@@ -31,6 +31,15 @@ All notable changes to CMP-Sim. Newest first.
   mechanisms.
 
 ### Validation
+- **The `si` film is scored against a measurement for the first time.**
+  `bae2022_si_wafer_alkali_ph` (doi:10.3390/nano12213893) is an independent
+  bare-Si polish at 5.7 psi — 9× the down force of the pack's Kp source — and
+  its rates confirm the 100–3,000 Å/min envelope independently of the source
+  that set it. Absolute comparison is disabled (the paper never states the
+  carrier-platen centre distance, so no relative velocity can be recovered) and
+  the pH term is left **unfitted**: two pH levels cannot determine a peak and a
+  width. See `docs/limits.md` §12. The dataset does not beat predict-the-mean,
+  which is reported rather than repaired.
 - **Four published datasets within ±15%**, all three patent sources re-verified
   against the official USPTO PDFs rather than trusted from a report.
 - Two datasets are kept **failing on purpose**, each with a test that fails if
