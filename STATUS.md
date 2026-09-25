@@ -1,5 +1,12 @@
 # CMP-Sim — STATUS
 
+## 🎯 완성 기준 (사용자 확정 2026-09-25) — 이 줄을 매 실행 갱신하라
+- **목표: 예측 오차 median ≤ 10.0%** (이력서에 쓸 수 있는 수준)
+- **현재: median 19.5% / 22.6%** (코퍼스 46/50, 427점)
+- 이 숫자에 도달하기 전에는 "완성"이라고 선언하지 않는다.
+- 문헌에 데이터가 없어 못 푸는 BLOCKED(나노인덴테이션·SnAg Preston 등)는
+  **완성의 조건이 아니다.** 기록만 하고 넘어간다.
+
 ## DONE (phase, module, tests)
 - **`si` finally has a validation dataset — BLOCKED #0 measured, not closed.**
   The si pack was the ONLY film scored against nothing: its Kp came from one
