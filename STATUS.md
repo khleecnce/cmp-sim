@@ -4,7 +4,8 @@
 
 ### 1차 완성 — 모델링 정확도
 - **목표: 예측 오차 median ≤ 10.0%** (이력서에 쓸 수 있는 수준)
-- **현재: median 19.5% / 22.6%** (코퍼스 46/50, 427점)
+- **현재: median 19.5% / 22.6%** (코퍼스 46/50, 427점) — re-measured 2026-09-25 21:xx,
+  `python tools/score_report.py` (new thin wrapper; use it instead of retyping a snippet)
 - **10%가 물리적으로 불가능하다고 판단되면 15%까지 허용**(사용자 승인 2026-09-25).
   단 그 판단은 **근거를 STATUS.md에 적고** 나서만 인정된다 —
   "어렵다"가 아니라 "무엇이 남은 오차의 하한을 만드는가"를 써라.
@@ -364,6 +365,21 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
+**Diagnose the contact-regime split in the P-V core** — this is where the
+remaining P-V error lives, and 2026-09-25 measured it rather than guessed.
+Refitting RR = k·P^a·V^b per dataset (scale free, only rows where P/V vary at
+otherwise identical conditions) gives per-dataset optima scattered from
+(a=0.05, b=0.80) to (a=2.00, b=0.05) — NOT noise around any single pair.
+Preston (1,1) is never worst; the Hertzian (5/6, 1/2) wins only 2 of 8
+(`docs/derivations.md`, "Two first-principles replacements TESTED and
+FALSIFIED"). So the error is **which contact branch a tool is in**, not the
+exponent pair. Find an OBSERVABLE that separates the low-a datasets
+(us6564116b2 a=0.05, us9499721b2 a=0.85) from the high-a ones (us6918821b2
+a=1.90, ep3161098b1_w a=2.00) — candidates already in the configs: pad hardness,
+λ (the pseudo-Sommerfeld V/p of BLOCKED #1), absolute pressure level relative to
+pad yield. Do NOT make a and b free: two constants per dataset is interpolation.
+
+### Carried forward (was the previous NEXT, still unaddressed)
 `sti_ceria` predicts 7,235 Å/min against a 200-6,000 envelope (BLOCKED #2).
 Both the pack and the envelope cite sources, so one of them is wrong FOR THIS
 RECIPE and the disagreement has never been diagnosed — unlike the si case just
@@ -371,6 +387,12 @@ closed, sti_ceria has SIX registered datasets (dandu2009, netzband2020,
 son2021, mariscal2020, us20190127607a1 x2), so the evidence to decide it is
 already in the repo. Back out what scale each implies (the method that
 falsified the inherited-Kp hypothesis) before touching any constant.
+
+### Do NOT re-attempt (measured and falsified 2026-09-25, see docs/derivations.md)
+- pH term as a 2-pKa surface-complexation site product (Cook Si-O-Ce bond):
+  27.3% vs the current bell's 17.7% on Dandu 2009; the best fit inverts the
+  pKa order, and Dandu's 15x tail asymmetry is outside the form's reach.
+- Preston -> Tseng-Wang P^(5/6)V^(1/2): loses on 6 of 8 P/V datasets.
 
 ### Standing context carried forward (was the previous NEXT)
 ⚠ CORRECTION. A previous session reported the project "complete" against the

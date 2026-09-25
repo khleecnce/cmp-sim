@@ -2588,3 +2588,73 @@ corpus, or the validation measures itself. A test asserts that running a
 calibration leaves every dataset score unchanged.
 
 Enforced by `tests/test_calibration_recovers_a_known_factor.py` (5).
+
+## Two first-principles replacements TESTED and FALSIFIED (2026-09-25)
+
+The methodology is to replace fitted constants with derived law. Two candidate
+replacements were tried against the corpus itself and both LOST to the form
+already in the code. Recorded here with the numbers so no later session spends
+budget re-deriving them.
+
+### 1. pH term: surface-complexation (2-pKa site product) does NOT beat the bell
+
+Derivation attempted. Ceria removes silica through a Si-O-Ce bond (Cook 1990,
+doi:10.1016/0022-3093(90)90200-6), which needs a deprotonated silanol on the
+film AND a protonated/positive Ce site on the abrasive. Site-occupancy from
+acid-base equilibrium then gives, with no free peak position:
+
+    f(pH) = [1/(1+10^(n_S(pKa_SiOH - pH)))] * [1/(1+10^(n_C(pH - pKa_CeOH)))]
+
+The peak emerges at (pKa_SiOH + pKa_CeOH)/2 instead of being supplied — exactly
+the "one free parameter replaced by a law" move the brief asks for.
+
+Result on Dandu 2009 (9 pH levels, 81x span, doi:10.1149/1.3230624), scale free:
+
+    product of sigmoids, n = 1           48.1%
+    product of sigmoids, Hill n free     27.3%   (pKa 5.75 / 3.25 -- INVERTED)
+    current asymmetric Gaussian          17.7%
+
+FALSIFIED, and the fitted constants say why: the best fit puts pKa_CeOH (3.25)
+BELOW pKa_SiOH (5.75), i.e. it wants the windows to barely overlap, which the
+site model forbids (the product is then near zero everywhere and only the free
+scale rescues it). A joint fit sharing pKa across Dandu and Netzband 2020 is
+worse still (43.6% / 20.9%). The physical reason the product form cannot work
+here: Dandu's high-pH tail sits at 18% of peak and her low-pH tail at 1.2%, a
+15x asymmetry, while a product of two sigmoids with a single additive floor is
+forced toward symmetry about its own peak. The measured asymmetry has a
+mechanism (electrostatic detachment below, alkaline hydrolysis above) that site
+occupancy alone does not contain. The supplied peak stays supplied.
+
+### 2. Preston's P^1 V^1 is NOT improved by the Hertzian P^(5/6) V^(1/2)
+
+Derivation attempted. Single-asperity Hertz contact with a fixed asperity
+population predicts RR ~ P^(5/6) V^(1/2) (the Tseng-Wang form), which would
+remove Preston's implicit assumption that real contact area is exactly linear
+in nominal pressure.
+
+Result: refitted on every corpus dataset that varies P and/or V at otherwise
+identical conditions (scale free per dataset, MAPE):
+
+    dataset                                   n   Preston  P^5/6 V^1/2
+    ep3161098b1_teos_silica_pressure           18     6.6%      7.7%
+    mariscal2020_peteos_ceria_3x3               9    13.1%     15.8%
+    us8142675b2_pt_alumina_pressure             4     8.3%     15.7%
+    us9499721b2_teos_silica_pressure_conc       4    10.1%      5.0%
+    us6564116b2_oxide_taguchi_L25               5    29.3%     10.4%
+    us6918821b2_cu_ic1000_pressure_speed        6    46.3%     42.1%
+    sic2026_ceria_h2o2_ph_DOE50                 6    25.8%     29.3%
+    ep3161098b1_w_silica_pressure               3    41.5%     46.1%
+
+Tseng-Wang wins on 2 of 8 and loses on 6. FALSIFIED as a global replacement.
+
+The free-exponent fits explain why no fixed pair can win: the per-dataset
+optimum (a, b) scatters from (0.05, 0.80) to (2.00, 0.05). Those are not noise
+around 5/6 and 1/2 -- they are different regimes (one dataset's rate is nearly
+pressure-independent, another's is quadratic). Making a and b free would fit
+each dataset's regime with two constants per dataset, which is interpolation,
+not derivation. Preston stays: it is the form that is never WORST, and its one
+constant is shared.
+
+Conclusion for the methodology: on this corpus the remaining error in the P-V
+core is regime selection (which contact branch a tool is in), not the exponent
+pair. That is a contact-mechanics gating question, not a law-substitution one.
