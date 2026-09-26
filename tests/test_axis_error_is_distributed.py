@@ -133,26 +133,31 @@ def test_the_dispersed_axes_disagree_in_sign_not_merely_in_magnitude(axis):
         "section 14 rather than relaxing this test")
 
 
-def test_the_oxidizer_axis_survives_sharing_and_stays_a_derivation_target():
-    """One axis is NOT closed, and the distributed verdict must not hide it.
+def test_the_oxidizer_axis_survives_sharing_but_its_gain_is_inadmissible():
+    """The measurement that motivated limit 15, kept separate from its verdict.
 
-    ``oxidizer_wt_pct`` keeps most of its oracle gain when the exponent is
-    shared, and its exponents are all positive. A +1/2 order is what a radical
-    chain fed by the oxidant and terminated by radical-radical recombination
-    predicts, so this is a derivation target. This test exists so that a future
-    run cannot cite section 14 as permission to stop.
+    ``oxidizer_wt_pct`` genuinely does keep most of its oracle gain when the
+    exponent is shared, with all-positive exponents — that is a real property of
+    the census and this test pins it so the follow-up cannot be forgotten. What
+    it does NOT mean is that a term should be added: the follow-up probe
+    (``tools/oxidizer_order_probe.py``, limit 15) found the measured order is
+    negative in two admissible blocks, and that this +9.5 pp comes entirely from
+    one calibration set plus one promoter-confounded body. Admissibility is
+    asserted in ``tests/test_oxidizer_order_is_not_half.py``; here only the
+    census number is pinned.
     """
     bound = _bound("oxidizer_wt_pct")
     assert bound is not None, "the oxidizer axis lost its sweeping datasets"
     assert bound["shared_gain_pp"] > 5.0, (
-        "the oxidizer axis no longer survives sharing; if that is real, "
-        "section 14's open target must be replaced, not deleted")
+        "the oxidizer axis no longer survives sharing; limit 15 explains why "
+        "that gain was inadmissible anyway, but the number it audits is this "
+        "one and the limit must be re-argued if it moves")
     assert all(b >= 0.0 for b in bound["exponents"]), (
-        f"oxidizer exponents must agree in sign for the axis to stay open "
-        f"({bound['exponents']})")
+        f"oxidizer exponents were all positive when limit 15 was written "
+        f"({bound['exponents']}); that shared sign is why the axis looked open")
     assert 0.2 < bound["db"] < 0.8, (
         f"the shared oxidizer exponent moved to {bound['db']:+.2f}; the "
-        "radical-chain half-order rationale in docs/limits.md section 14 is "
+        "radical-chain half-order rationale examined in docs/limits.md §15 is "
         "pinned to a value near +1/2 and must be re-argued if it moves")
 
 

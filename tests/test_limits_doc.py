@@ -66,6 +66,10 @@ LIMIT_ENFORCING_TESTS = {
     # bound from a per-dataset oracle to a shared exponent collapses four of
     # six axes because their exponents disagree in sign
     "test_axis_error_is_distributed.py",
+    # limit 15: the oxidiser half order is refuted (two admissible blocks
+    # measure a NEGATIVE order) and the census gain that motivated it is
+    # inadmissible (one calibration set, one promoter-confounded body)
+    "test_oxidizer_order_is_not_half.py",
 }
 
 

@@ -581,13 +581,15 @@ the evidence above.
 **What licenses this, and what it does not.** It licenses the ≤ 15 % completion
 criterion: the sum of every *law-attainable* gain above is ≈ 6 pp spread over
 axes that overlap, against a 42.4 % block no axis reaches, so ≤ 10 % is not
-reachable by adding closed-form laws one axis at a time. It does **not** license
-stopping. One axis survives the tightening — `oxidizer_wt_pct`, where the shared
-exponent is **+0.48 and the gain survives sharing (9.5 of 13.4 pp)** — and +1/2
-is the order a radical-chain mechanism predicts when the oxidant feeds a
-steady-state radical population terminated by radical–radical recombination
-(Fenton-type H₂O₂ on Cu and W), so that axis is a derivation target, not a fit.
-It is pursued in STATUS.md's NEXT with the falsification stated in advance.
+reachable by adding closed-form laws one axis at a time. One axis appeared to
+survive the tightening — `oxidizer_wt_pct`, shared exponent **+0.48**, 9.5 of
+13.4 pp — and was pursued immediately as a derivation target, because +1/2 is
+what a radical chain with bimolecular termination predicts with zero free
+constants. **§15 records the outcome: the half order is refuted (two admissible
+blocks measure a *negative* order) and the +9.5 pp itself is inadmissible — it
+comes from one dataset the pack was calibrated on and one whose oxidant
+co-varies with an axis the model does not implement. Admissible gain on this
+axis: 0.0 pp.** With §15 the last open axis is closed and this limit is final.
 
 **What would resolve it.** Not more datasets on the same axes: the dispersion is
 *between* datasets that each sweep one axis cleanly, so adding a tenth such
@@ -597,3 +599,85 @@ full factorial with consumable properties measured rather than inferred — whic
 is precisely the measurement the earlier limits (§1, §4, §13) also name.
 
 **Enforced by** `tests/test_axis_error_is_distributed.py`.
+
+---
+
+## 15. The oxidiser axis is closed too: the half order is refuted and the gain that motivated it is inadmissible
+
+**Why this entry exists.** §14 left exactly one axis open. `oxidizer_wt_pct` was
+the only axis whose oracle gain survived being tightened to a single shared
+exponent (+9.5 of 13.4 pp, shared exponent **+0.48**, all per-dataset exponents
+positive), and +0.48 sat on a mechanism that could be *derived* rather than
+fitted: an oxidant feeding a steady-state radical population terminated by
+radical–radical recombination gives `[R] ∝ [ox]^(1/2)`, so a surface reaction
+first order in the carrier inherits a **half order with zero free constants**.
+`tools/oxidizer_order_probe.py` ran the three tests STATUS.md pre-registered
+before any pack was touched. The axis closed on all of them.
+
+**Test 1 — the order, measured from the rates themselves (not the residual).**
+Eleven clean oxidiser blocks exist (same pressure, same rpm, same every other
+override; only the oxidant moving). Seven are excluded because the pack's
+oxidiser constant was fitted on them — scoring a mechanism on its own
+calibration set is self-scoring. Of the four admissible blocks, the measured
+log–log orders are
+
+| block | [ox] range | order | ±2σ verdict |
+|---|---|---|---|
+| du2004_cu_h2o2 | 1–10 wt% | **−0.33 ± 0.04** | neither +1/2 nor +1 |
+| us8070843b2_w_h2o2 | 2.0–6.1 wt% | **+0.62 ± 0.03** | neither |
+| us8501625b2_cu (low-P block) | 3–15 wt% | **−0.16 ± 0.03** | neither |
+| us8501625b2_cu (high-P block) | 3–15 wt% | +0.39 ± 0.24 | ~ +1/2 |
+
+The pre-registered condition was "indistinguishable from +1/2 in **each** block,
+not merely on average". One of four passes, and two of the four are **negative**
+— the rate *falls* as oxidant rises. A negative order is not a noisy half order;
+it is a different mechanism (over-passivation: the oxide/inhibitor film thickens
+faster than it is sheared off). No radical-chain order can be negative, so the
+derivation is refuted rather than unresolved.
+
+**Test 2 — the termination order is untestable on this corpus, and is therefore
+not claimed.** First-order termination gives +1, bimolecular gives +1/2, and the
+two are distinguished by whether the apparent order *falls* as `[ox]` rises. That
+needs ≥ 3 oxidant levels in each half of one sweep. No dataset in the corpus has
+them (the widest, `us20110186542a1_w`, spreads its 15 points over other axes).
+Recorded as unmeasurable, not as support.
+
+**Test 3 — a purely multiplicative oxidiser term is forbidden, independently.**
+Six datasets measure a *non-zero* rate at exactly zero oxidant: 203 (11 % of the
+block maximum), 150 (4 %), 610 (47 %), 500 (19 %), 96 (3 %), and 208 nm/min —
+the last being **176 %** of that block's best oxidised rate, i.e. copper polishes
+*faster* with no oxidiser at all. Any `[ox]^n` factor multiplying the whole rate
+predicts zero there. The existing additive mechanical floor
+(`cmp_sim/models/chemical_rate.py`) stays, and this is why.
+
+**The refit that was rejected, and why it was never admissible evidence.** The
++9.5 pp that made this axis look open comes from exactly two datasets, and the
+audit in the same tool disqualifies both:
+
+- `us20110165777a1_cu_h2o2_series` (b = +0.48, gain +32.3 pp) — `used_for_calibration:
+  true`. The pack's `oxidizer_passivation_K` was least-squares fitted on this
+  patent's own table. Its gain is the fit recognising itself.
+- `jani2025_cu_rsm_composition_heldout` (b = +0.92, gain +21.9 pp) — its oxidant
+  sweep **co-varies with `promoter_M` at r = +0.53**, and `promoter_M` is measured
+  INERT in the model (0 % end-to-end response). A free exponent on the oxidant is
+  therefore paid for by an axis the model does not implement: the residual it
+  removes is the promoter's effect wearing the oxidant's label.
+
+**Admissible oxidiser gain across the whole corpus: 0.0 pp.** The apparently
+surviving axis was an artefact of one self-scored dataset and one confounded
+one. Note that the exponent each one wanted also disagrees (+0.48 vs +0.92),
+which is the same sign-dispersion signature §14 documents — it was hidden only
+because both happened to be positive.
+
+**The decision.** No oxidiser exponent is added. §14's single open axis is
+closed, which makes §14 final: every axis carrying improvable error is now
+either dispersed, thin, or evidentially empty, and the **≤ 15 % completion
+criterion stands** on measurement rather than on effort.
+
+**What would resolve it.** One oxidant sweep of ≥ 6 levels spanning a decade,
+on a fixed formulation whose promoter/chelator loadings are held constant and
+printed, on a film whose measured order is positive (the W systems are the
+candidates). That single body would decide +1/2 versus +1 versus the
+over-passivation branch, which the present corpus cannot.
+
+**Enforced by** `tests/test_oxidizer_order_is_not_half.py`.

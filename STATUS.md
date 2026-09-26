@@ -211,7 +211,18 @@ https://cmp-sim.vercel.app --token …` 가 배포본을 상대로 전 항목 �
 
 ### 1차 완성 — 모델링 정확도 (2차 완료, 이제 여기로 복귀)
 - **목표: 예측 오차 median ≤ 10.0%** (이력서에 쓸 수 있는 수준)
-- **현재: median 18.9% shape / 21.3% LOO** (코퍼스 46/50, 427점) — **976 tests**.
+- **현재: median 18.9% shape / 21.3% LOO** (코퍼스 46/50, 427점) — **989 tests**.
+  2026-09-26(13회차): **산화제 축까지 닫혔다 — 반감차수(+1/2) 반증, 그리고 그 축을
+  열어보이게 만든 12회차 이득 자체가 증거 부적격**(`tools/oxidizer_order_probe.py`,
+  `docs/limits.md` §15, 피팅 0). ① 캘리브레이션에 안 쓰인 4개 블록의 **실측** 차수는
+  −0.33±0.04 / +0.62±0.03 / −0.16±0.03 / +0.39±0.24 — 4개 중 1개만 +1/2과 양립하고
+  **2개는 유의하게 음수**다. 라디칼 연쇄 차수는 어떤 속도상수로도 음수가 못 되므로
+  이건 과잉부동태(다른 메커니즘)다. ② +9.5 pp를 만든 데이터셋 2개가 **둘 다 증언
+  불가**였다: 하나는 팩의 산화제 상수를 그 표에 피팅한 것(`used_for_calibration: true`
+  = 자기채점), 다른 하나는 산화제가 `promoter_M`과 r=+0.53으로 동행하는데 그 축이
+  모델에서 **비활성(0% 반응)**이다 → 자유지수가 모델에 없는 축의 효과를 가져간다.
+  **적격 이득 0.0 pp.** ③ [ox]=0에서 0이 아닌 제거율이 6개(한 건은 그 블록 최대의
+  176% — 산화제 없이 더 빨리 연마) → 순수 곱셈형 산화제항 금지, 가산 기계항 유지.
   2026-09-26(12회차): **개선 가능한 오차가 어느 축에 있는지 측정했고, 답은 "한 축이
   아니다"였다** (`tools/axis_error_census.py`, 피팅 0, 팩 수정 0). 개선 가능 342점 중
   **145점(42.4%)이 어느 축에도 속하지 않는다** — 그 데이터셋이 스윕한 축에
@@ -904,36 +915,62 @@ per dataset) to a LAW (one exponent shared by all datasets on that axis):
 Four of six axes collapse because their exponents **disagree in sign** — that is
 between-dataset dispersion, not a missing law. This is the evidence for ≤15%.
 
-### ⬅ THE ONE NEXT ITEM (13th run): derive the oxidiser HALF ORDER, or falsify it
-`oxidizer_wt_pct` is the only axis that survives sharing, and its shared
-exponent **+0.48** sits on top of a mechanism: if the oxidant feeds a
-steady-state radical population that terminates by radical–radical
-recombination (Fenton-type H₂O₂ on Cu/W), the chain-carrier concentration goes
-as `[ox]^(1/2)` and the surface reaction rate inherits it. **+1/2 is a
-prediction with zero free constants**, so it is testable, not tunable.
+### ✅ CLOSED 2026-09-26 (13th run): the oxidiser axis too — half order REFUTED and its gain INADMISSIBLE
+`tools/oxidizer_order_probe.py` + `tests/test_oxidizer_order_is_not_half.py`
+(13) + `docs/limits.md` §15. Median unmoved at 18.9% (nothing fitted).
+All three pre-registered tests ran and the axis closed on every one:
+1. **ORDER — refuted, not under-determined.** Orders measured from the MEASURED
+   rates (not the residual) on the 4 calibration-free blocks: **−0.33±0.04,
+   +0.62±0.03, −0.16±0.03, +0.39±0.24**. One of four is consistent with +1/2 and
+   **two are significantly NEGATIVE.** A radical-chain order cannot be negative
+   for any rate constants, so this is over-passivation, a different mechanism.
+2. **TERMINATION — unmeasurable, so not claimed.** No dataset has 3+ oxidant
+   levels in *both* halves of its own sweep, so +1/2 (bimolecular) vs +1
+   (surface quenching) cannot be distinguished on this corpus.
+3. **ZERO-OXIDANT — a multiplicative term is forbidden independently.** 6
+   datasets measure non-zero rate at [ox]=0; one is **176% of that block's best
+   oxidised rate** (Cu polishes *faster* with no oxidiser). The additive
+   mechanical floor in `chemical_rate.py` stays, and now has a cited reason.
 
-Pre-register the falsification BEFORE touching a pack:
-1. **Order test.** Fit the oxidiser order per dataset on the 4 sweeping
-   datasets. It must be statistically indistinguishable from +1/2 in **each**,
-   not merely in the mean. `jani2025` is +0.92 — if that is real and not a
-   co-varying artefact, the chain hypothesis is already dead (first order =
-   rate-limiting oxidant adsorption, a different mechanism).
-2. **Termination test.** A radical chain with *first-order* termination (surface
-   quenching) gives order +1, not +1/2. The two are distinguished by whether the
-   order DROPS as `[ox]` rises (bimolecular termination dominates at high
-   radical density). Check the order at low vs high concentration inside
-   `us20110186542a1_w` (15 points, H₂O₂ swept widely) — that single dataset can
-   decide it.
-3. **Sign guard.** Du 2004 measures Cu polishing *faster with no oxidiser at
-   all*. Any half-order term must keep the existing additive mechanical floor
-   and must not resurrect a purely multiplicative oxidiser factor.
-4. If either test fails, the axis is CLOSED, §14 becomes final, the ≤15%
-   allowance stands as the completion criterion, and the run writes limit §15
-   rather than fitting a compromise exponent.
+**⚠ The decisive finding is about the 12th run's own number.** The +9.5 pp that
+made this axis look open comes from exactly 2 datasets and **neither can testify**:
+- `us20110165777a1_cu_h2o2` (b=+0.48, +32.3 pp) — `used_for_calibration: true`.
+  The pack's `oxidizer_passivation_K` was least-squares fitted on that table.
+  **The gain is the fit recognising itself.**
+- `jani2025_cu_rsm_heldout` (b=+0.92, +21.9 pp) — its oxidant **co-varies with
+  `promoter_M` at r=+0.53**, and `promoter_M` is measured INERT (0% response).
+  A free oxidant exponent is paid for by an axis the model does not implement.
+→ **Admissible oxidiser gain: 0.0 pp.** Lesson for future runs: a residual
+exponent fitted to measured/PREDICTED is not evidence until the datasets
+producing it are checked for calibration reuse and for co-variation with an
+INERT axis. The census now has that audit built in.
 
-Do NOT introduce a fitted oxidiser exponent under any outcome. Either the
-derived +1/2 survives all three tests and enters the pack **with its
-derivation**, or the axis closes.
+### ⬅ THE ONE NEXT ITEM (14th run): stop looking for laws; measure the FLOOR
+Every axis is now closed (pH, velocity, pressure saturation, P–V, and with §14/§15
+the whole axis-by-axis programme). §14's ≤15% allowance is argued and enforced.
+The remaining question is no longer "which law" but **"what is the floor, and is
+the model already at it?"** — which is the only honest way to declare 1차 done.
+
+Measure, do not fit:
+1. **Replicate scatter is known for only 6 of 46 datasets.** That column is the
+   physical floor on any model's error, and 40 blanks mean the floor is unknown
+   for most of the corpus. Go through the sources for **stated** reproducibility
+   (±σ, "n=3", error bars, WIWNU) and record what each paper actually says. Blank
+   stays blank — do not impute. Then re-run `score_report.py`: how many datasets
+   are already AT their own floor?
+2. **The 42.4% unowned block (§14) needs a positive diagnosis, not just "no
+   axis".** For each unowned dataset ask whether its error is (a) at the
+   replicate floor once (1) is done, (b) an absolute-scale failure that the
+   shape metric cannot see (9 datasets are off by >3×), or (c) genuinely
+   unexplained. That partition decides whether ≤15% is the floor or merely the
+   current state.
+3. If (1)+(2) show the median is within the measured floor band, **1차 is done**
+   at the ≤15% criterion — write it up in `docs/predictive-accuracy.md` with the
+   floor evidence and report to the owner. If not, the residual after the floor
+   is the honest remaining target.
+
+Do NOT add a constant in that run either. Four consecutive measurement runs
+have each produced a closure; the programme is working.
 
 Secondary, unchanged from the 7th run:
 
