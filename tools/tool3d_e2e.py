@@ -235,25 +235,25 @@ def _drive(base: str, shot: str) -> int:
               return {cover: hit / n, w: x1 - x0, h: y1 - y0, edge};
             }""")
             page.evaluate("() => window.__freeze && window.__freeze(false)")
-            # Thresholds. The machine is wide and flat, so on a tall phone it
-            # can never fill much of the HEIGHT and on a wide desktop it cannot
-            # fill the WIDTH -- judging both at once fails a correctly framed
-            # view. What must be true is that the BINDING dimension nearly
-            # fills the frame, plus a floor on area to catch a distant blob.
-            # These numbers are calibrated against the bug they exist to catch:
-            # the previous bounding-sphere fit scored span 0.38-0.40 / cover
-            # 7-10% at every viewport, so this bar fails it everywhere.
+            # Thresholds, mirroring tests/test_tool_ui_3d.py. Judge the LARGER
+            # span, not both dimensions: the machine is wide and flat, so on a
+            # tall phone it can never fill the height and on a wide desktop it
+            # cannot fill the width. And judge silhouette DENSITY, not share of
+            # the whole frame -- a frame-share floor punishes the aspect ratio
+            # rather than the framing. Calibrated against the bug: the previous
+            # bounding-sphere fit scored span 0.38-0.40 everywhere.
             span = max(g["w"], g["h"])
-            ok = g["cover"] >= 0.10 and span >= 0.60 and g["edge"] == 0
+            density = g["cover"] / max(1e-6, g["w"] * g["h"])
+            ok = span >= 0.60 and density >= 0.30 and g["edge"] == 0
             print(f"{'OK  ' if ok else 'FAIL'}  framing {name:15s} "
-                  f"{w}x{h}: cover={g['cover']:.1%} "
+                  f"{w}x{h}: cover={g['cover']:.1%} density={density:.0%} "
                   f"span={g['w']:.2f}x{g['h']:.2f} edge_hits={g['edge']}")
             if g["edge"]:
                 failures.append(f"framing {name}: machine touches the viewport "
                                 f"edge ({g['edge']} grid hits) -- cropped")
             elif not ok:
-                failures.append(f"framing {name}: machine too small "
-                                f"(cover {g['cover']:.1%}, span {span:.2f})")
+                failures.append(f"framing {name}: span {span:.2f}, "
+                                f"density {density:.0%}")
         page.set_viewport_size({"width": 1440, "height": 900})
         page.wait_for_timeout(400)
 
