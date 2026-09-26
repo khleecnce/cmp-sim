@@ -641,3 +641,70 @@ def test_freezing_stops_every_moving_part(page):
     page.evaluate("() => window.__freeze(false)")
     page.wait_for_timeout(900)
     assert pixels() != bp, "nothing moves after unfreezing — the tool looks dead"
+
+
+def test_the_polisher_is_darker_than_its_factory_interface(page):
+    """The sourced contrast, measured off the render rather than off the source.
+
+    The owner's verdict on the previous build was blunt: the UI looked bad, and
+    he named a real tool to copy. The asset listing for a real Reflexion LK
+    (Macquarie / wotol, "AMAT Reflexion LK Copper, 13759") states the shell
+    plainly -- "Polisher Skins : Dark" -- and the build had them light grey,
+    which flattened the machine into one pale mass and is a large part of why it
+    read as a plastic toy. The polisher body is dark; the FACTORY INTERFACE
+    bolted to it is the light end.
+
+    This is asserted as a RENDERED contrast, not by grepping the material colours
+    out of tool3d.js. A colour constant test would pass while tone mapping, the
+    environment map or a light change washed the contrast away on screen, which
+    is the thing actually being claimed. The measurement classifies each sampled
+    pixel by asking the scene's own raycaster which part is there -- 'frame' is
+    the polisher body, 'loadcup' is the factory interface and its FOUPs -- so it
+    survives any amount of re-modelling as long as the claim stays true.
+    """
+    page.evaluate("() => window.__freeze(true)")
+    page.wait_for_timeout(250)
+    lum = page.evaluate("""() => {
+      const c = document.querySelector('canvas');
+      const r = c.getBoundingClientRect();
+      const gl = c.getContext('webgl2') || c.getContext('webgl');
+      const px = new Uint8Array(4 * c.width * c.height);
+      gl.readPixels(0, 0, c.width, c.height, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      const sx = c.width / r.width, sy = c.height / r.height;
+      const acc = {};
+      for (let gy = 0.04; gy < 0.97; gy += 0.004)
+        for (let gx = 0.04; gx < 0.97; gx += 0.004) {
+          const cx = r.left + r.width * gx, cy = r.top + r.height * gy;
+          const part = window.__probe(cx, cy);
+          if (part !== 'frame' && part !== 'loadcup') continue;
+          // readPixels' origin is bottom-left; the DOM's is top-left.
+          const ix = Math.round((cx - r.left) * sx);
+          const iy = c.height - 1 - Math.round((cy - r.top) * sy);
+          if (ix < 0 || iy < 0 || ix >= c.width || iy >= c.height) continue;
+          const o = 4 * (iy * c.width + ix);
+          const l = 0.2126*px[o] + 0.7152*px[o+1] + 0.0722*px[o+2];
+          (acc[part] = acc[part] || []).push(l);
+        }
+      const med = a => { a.sort((x, y) => x - y); return a[a.length >> 1]; };
+      const out = {};
+      for (const k of Object.keys(acc)) out[k] = {n: acc[k].length, med: med(acc[k])};
+      return out;
+    }""")
+    page.evaluate("() => window.__freeze(false)")
+
+    # Both surfaces must be on screen at all, or the comparison is vacuous --
+    # a test that silently compares nothing to nothing is worse than no test.
+    for part in ("frame", "loadcup"):
+        assert lum.get(part, {}).get("n", 0) >= 40, (
+            f"only {lum.get(part, {}).get('n', 0)} sampled pixels are on "
+            f"'{part}' — the contrast claim was not actually measured")
+
+    polisher, fi = lum["frame"]["med"], lum["loadcup"]["med"]
+    # 1.4x, not 1.01x: the claim is that these read as two different colours of
+    # machine across a bay, not that a float comparison happens to fall the
+    # right way. The pre-fix build had them within a few percent of each other.
+    assert fi > polisher * 1.4, (
+        f"the factory interface (median luminance {fi:.0f}) is not clearly "
+        f"lighter than the polisher body ({polisher:.0f}) — the source says "
+        f"the polisher skins are dark and the light end is the factory "
+        f"interface; with both the same the tool reads as one flat grey mass")

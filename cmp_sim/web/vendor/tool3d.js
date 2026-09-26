@@ -29,6 +29,30 @@
  * (three platens, four carriers on a carousel transfer mechanism, multi-zone
  * heads in the Titan 3-zone .. Horizon 12-zone families).
  *
+ * Source for the SHELL (what the machine looks like from across the bay) is an
+ * asset listing of a real Reflexion LK, which spells the configuration out as
+ * plain text rather than as a photo we would have to guess from --
+ * Macquarie / wotol, "AMAT Reflexion LK Copper, 13759" (300 mm, 2006):
+ *
+ *     "Reflexion LK: 4 head, 3 platen polishing system. Dry in Dry out.
+ *      Polisher Skins : Dark ... Load Cup Wafer Exchanger ...
+ *      Monitor 2 Location : Ergo Arm type
+ *      Light Tower: Factory Interface and Polisher Sides"
+ *
+ * Four concrete, checkable claims come out of that, and each is built here:
+ *   - the polisher skins are DARK. The first build painted them light grey and
+ *     the tool read as a white plastic toy; the real machine is a dark cabinet
+ *     with a bright factory interface bolted to it.
+ *   - DRY IN / DRY OUT means the platform is not just a polisher: wafers come
+ *     back wet and leave dry, so a cleaner/dryer module sits between the
+ *     factory interface and the polish bay. Leaving it out is why the tool
+ *     looked like a turntable with a box next to it.
+ *   - TWO light towers, one on the factory-interface side and one on the
+ *     polisher side, not one.
+ *   - the operator monitor hangs on an ERGO ARM, not on a plinth.
+ * These are cosmetic-only: no part of the shell touches the physics, and the
+ * clickable parts are unchanged.
+ *
  * The SIMULATION is still single-platen: the solver predicts one polish step.
  * Platen 1 is therefore the "active" platen — it is the one carrying the wafer
  * whose profile is painted, and the one whose pad the recipe describes. The
@@ -178,8 +202,18 @@ export function createScene(canvas, onPick) {
     // the empty sheet metal instead of the platens. Reference photos of the
     // tool look bright because the bay lighting is bright, not because the
     // paint is the brightest thing in frame.
-    skin:   new THREE.MeshStandardMaterial({ color: 0x8b929d, metalness: 0.30, roughness: 0.52 }),
-    skinLo: new THREE.MeshStandardMaterial({ color: 0x6e757f, metalness: 0.34, roughness: 0.55 }),
+    // POLISHER SKINS ARE DARK. Sourced, not styled: the asset listing for the
+    // real tool says "Polisher Skins : Dark" in so many words. The previous
+    // light-grey shell is why the machine read as a plastic toy -- a fab bay is
+    // bright, but the polisher standing in it is a dark cabinet, and the
+    // FACTORY INTERFACE (M.fi below) is the light part. Getting that contrast
+    // backwards flattened the whole tool into one grey mass.
+    skin:   new THREE.MeshStandardMaterial({ color: 0x353a44, metalness: 0.38, roughness: 0.46 }),
+    skinLo: new THREE.MeshStandardMaterial({ color: 0x252932, metalness: 0.42, roughness: 0.50 }),
+    // factory interface / EFEM: light painted sheet metal, the bright end of
+    // the platform, which is what makes the dark polisher read as dark.
+    fi:     new THREE.MeshStandardMaterial({ color: 0xb9c0ca, metalness: 0.24, roughness: 0.50 }),
+    fiLo:   new THREE.MeshStandardMaterial({ color: 0x8d949e, metalness: 0.28, roughness: 0.54 }),
     window: new THREE.MeshPhysicalMaterial({ color: 0x9fc4e8, metalness: 0.0, roughness: 0.06,
                                              transmission: 0.82, thickness: 0.03,
                                              transparent: true, opacity: 0.30,
@@ -306,11 +340,22 @@ export function createScene(canvas, onPick) {
   // FOUP -> EFEM -> load cup -> carousel -> platen.
   const efemSt = STATIONS[LOADCUP_STATION];
   const outEf = new THREE.Vector3(efemSt.x, 0, efemSt.z).normalize();
+
+  /* The platform is a TRAIN, and its pieces must not occupy the same metres.
+   * Laid out as explicit depths along the outward axis rather than as three
+   * independently hand-picked radii -- the first attempt put the cleaner at a
+   * radius that was still INSIDE the polish bay drum, where it was invisible.
+   * A spacing chosen by eye in one screenshot is not a layout. */
+  const EFEM_D = 1.05, CLEAN_D = 0.86;
+  const CLEAN_MID = BAY_R + CLEAN_D / 2;          // hard against the bay wall
+  const EFEM_MID  = BAY_R + CLEAN_D + EFEM_D / 2; // then the factory interface
+  const FRONT     = EFEM_MID + EFEM_D / 2;        // the operator's side of it
+
   const efem = new THREE.Group();
-  efem.position.set(outEf.x * (BAY_R + 0.62), 0, outEf.z * (BAY_R + 0.62));
+  efem.position.set(outEf.x * EFEM_MID, 0, outEf.z * EFEM_MID);
   efem.rotation.y = -Math.atan2(outEf.z, outEf.x);
 
-  const efemBody = new THREE.Mesh(new THREE.BoxGeometry(1.05, 1.95, 2.05), M.skin);
+  const efemBody = new THREE.Mesh(new THREE.BoxGeometry(EFEM_D, 1.95, 2.05), M.fi);
   efemBody.position.y = BAY_Y + 0.98;
   efemBody.castShadow = efemBody.receiveShadow = true;
   efem.add(tag(efemBody, 'loadcup'));
@@ -321,7 +366,7 @@ export function createScene(canvas, onPick) {
 
   // three FOUPs on the load ports -- the clearest "this is a fab tool" cue
   for (const z of [-0.66, 0, 0.66]) {
-    const port = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.30, 0.52), M.skinLo);
+    const port = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.30, 0.52), M.fiLo);
     port.position.set(0.55, BAY_Y + 0.62, z);
     efem.add(tag(port, 'loadcup'));
 
@@ -330,7 +375,7 @@ export function createScene(canvas, onPick) {
     foup.castShadow = true;
     efem.add(tag(foup, 'loadcup'));
 
-    const lid = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.36, 0.40), M.skinLo);
+    const lid = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.36, 0.40), M.fiLo);
     lid.position.set(0.58, BAY_Y + 0.96, z);
     efem.add(tag(lid, 'loadcup'));
 
@@ -340,44 +385,110 @@ export function createScene(canvas, onPick) {
   }
   shell.add(efem);
 
-  // operator console: an angled screen on the EFEM face
+  /* CLEANER / DRYER MODULE — the "Dry in Dry out" half of the platform.
+   *
+   * This is the piece whose absence made the tool read as a turntable with a
+   * box beside it. On the real platform the wafer comes off the last platen
+   * WET and must leave the machine DRY, so a brush/megasonic cleaner and a
+   * spin-rinse dryer sit between the polish bay and the factory interface.
+   * It is drawn as a low dark housing with lid ports, bridging exactly that
+   * gap, so the wafer path reads FOUP -> FI -> cleaner -> bay and back.
+   *
+   * It carries no data and no physics: the solver models ONE polish step, so
+   * tagging this as a clickable input would promise a cleaning model that does
+   * not exist. It is tagged 'frame' (operation) like the rest of the body. */
+  const clean = new THREE.Group();
+  clean.position.set(outEf.x * CLEAN_MID, 0, outEf.z * CLEAN_MID);
+  clean.rotation.y = -Math.atan2(outEf.z, outEf.x);
+  const cleanBody = new THREE.Mesh(new THREE.BoxGeometry(CLEAN_D, 1.34, 1.86), M.skin);
+  cleanBody.position.y = BAY_Y + 0.67;
+  cleanBody.castShadow = cleanBody.receiveShadow = true;
+  clean.add(tag(cleanBody, 'frame'));
+  // service lids over the cleaning stations: brush box, brush box, dryer
+  for (const [z, lit] of [[-0.58, false], [0, false], [0.58, true]]) {
+    const lid = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.05, 0.52), M.skinLo);
+    lid.position.set(0, BAY_Y + 1.36, z);
+    clean.add(tag(lid, 'frame'));
+    const eye = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.035, 0.035, 0.02, 16),
+      new THREE.MeshStandardMaterial({
+        color: lit ? 0x1fdc6a : 0x2b90d9, emissive: lit ? 0x1fdc6a : 0x2b90d9,
+        emissiveIntensity: 0.9, roughness: 0.35 }));
+    eye.position.set(0.22, BAY_Y + 1.39, z);
+    clean.add(tag(eye, 'frame'));
+  }
+  shell.add(clean);
+
+  /* OPERATOR MONITOR ON AN ERGO ARM. The listing is specific -- "Monitor 2
+   * Location : Ergo Arm type" -- and it is a strong silhouette cue: the screen
+   * floats out from the factory interface on a jointed arm at standing height,
+   * it does not sit on a plinth. Built as post -> upper arm -> forearm ->
+   * screen so the joints read at a glance. */
   const console_ = new THREE.Group();
-  console_.position.set(outEf.x * (BAY_R + 1.30), BAY_Y + 1.42,
-                        outEf.z * (BAY_R + 1.30));
+  console_.position.set(outEf.x * (FRONT + 0.05), 0, outEf.z * (FRONT + 0.05));
   console_.rotation.y = -Math.atan2(outEf.z, outEf.x);
-  const scr = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.40, 0.62), M.dark);
-  scr.rotation.z = -0.22;
+  const ergoPost = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.032, 0.032, 0.95, 16), M.steel);
+  ergoPost.position.set(-0.02, BAY_Y + 1.30, -0.88);
+  console_.add(tag(ergoPost, 'carousel'));
+  const ergoUpper = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.05, 0.05), M.steel);
+  ergoUpper.position.set(0.10, BAY_Y + 1.76, -0.68);
+  ergoUpper.rotation.y = -0.85;
+  console_.add(tag(ergoUpper, 'carousel'));
+  const ergoFore = new THREE.Mesh(new THREE.BoxGeometry(0.40, 0.045, 0.045), M.steel);
+  ergoFore.position.set(0.30, BAY_Y + 1.74, -0.36);
+  ergoFore.rotation.y = -0.30;
+  console_.add(tag(ergoFore, 'carousel'));
+
+  const scr = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.42, 0.66), M.dark);
+  scr.position.set(0.42, BAY_Y + 1.66, -0.18);
+  scr.rotation.set(0, 0.24, -0.16);
   console_.add(tag(scr, 'carousel'));
-  const scrFace = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.34, 0.56),
+  const scrFace = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.36, 0.60),
     new THREE.MeshStandardMaterial({ color: 0x0e2a45, emissive: 0x1d6fb8,
                                      emissiveIntensity: 0.85, roughness: 0.3 }));
-  scrFace.position.x = 0.035;
-  scrFace.rotation.z = -0.22;
+  scrFace.position.set(0.45, BAY_Y + 1.665, -0.175);
+  scrFace.rotation.set(0, 0.24, -0.16);
   console_.add(tag(scrFace, 'carousel'));
+  // keyboard shelf under the screen -- what makes it read as a workstation
+  const shelf = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.025, 0.56), M.fiLo);
+  shelf.position.set(0.36, BAY_Y + 1.36, -0.20);
+  console_.add(tag(shelf, 'carousel'));
   shell.add(console_);
 
-  // signal tower: red / amber / green stack light on the roof
-  const tower = new THREE.Group();
-  tower.position.set(BAY_R * 0.52, BAY_Y + BAY_H + 0.10, -BAY_R * 0.52);
-  const towerPost = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.035, 0.035, 0.22, 16), M.dark);
-  towerPost.position.y = 0.11;
-  tower.add(tag(towerPost, 'frame'));
-  const LAMPS = [[0x1fdc6a, 1.30], [0xffb020, 0.10], [0xff3b30, 0.10]];
-  LAMPS.forEach(([c, e], i) => {
-    const lamp = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.062, 0.062, 0.10, 20),
-      new THREE.MeshStandardMaterial({ color: c, emissive: c,
-                                       emissiveIntensity: e, roughness: 0.35,
-                                       transparent: true, opacity: 0.92 }));
-    lamp.position.y = 0.27 + i * 0.105;
-    tower.add(tag(lamp, 'frame'));
-  });
-  const towerCap = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.066, 0.066, 0.03, 20), M.dark);
-  towerCap.position.y = 0.27 + LAMPS.length * 0.105;
-  tower.add(tag(towerCap, 'frame'));
-  shell.add(tower);
+  /* TWO SIGNAL TOWERS, not one: "Light Tower: Factory Interface and Polisher
+   * Sides". A single tower was a guess; the source states both ends carry one,
+   * which is also how an operator reads tool state from either aisle. Each is
+   * an identical stack (green lit = running, amber and red dark). */
+  const buildTower = (pos) => {
+    const tower = new THREE.Group();
+    tower.position.copy(pos);
+    const towerPost = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.035, 0.035, 0.22, 16), M.dark);
+    towerPost.position.y = 0.11;
+    tower.add(tag(towerPost, 'frame'));
+    const LAMPS = [[0x1fdc6a, 1.30], [0xffb020, 0.10], [0xff3b30, 0.10]];
+    LAMPS.forEach(([c, e], i) => {
+      const lamp = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.062, 0.062, 0.10, 20),
+        new THREE.MeshStandardMaterial({ color: c, emissive: c,
+                                         emissiveIntensity: e, roughness: 0.35,
+                                         transparent: true, opacity: 0.92 }));
+      lamp.position.y = 0.27 + i * 0.105;
+      tower.add(tag(lamp, 'frame'));
+    });
+    const towerCap = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.066, 0.066, 0.03, 20), M.dark);
+    towerCap.position.y = 0.27 + LAMPS.length * 0.105;
+    tower.add(tag(towerCap, 'frame'));
+    shell.add(tower);
+  };
+  // polisher side: on the bay roof, away from the factory interface
+  buildTower(new THREE.Vector3(-outEf.x * BAY_R * 0.74, BAY_Y + BAY_H + 0.10,
+                              -outEf.z * BAY_R * 0.74));
+  // factory-interface side: on the EFEM roof
+  buildTower(new THREE.Vector3(outEf.x * EFEM_MID, BAY_Y + 1.96,
+                               outEf.z * EFEM_MID));
 
   scene.add(shell);
 
