@@ -99,6 +99,10 @@ LIMIT_ENFORCING_TESTS = {
     # only through D50, which the size term already reads, so no block varies
     # Ce3+ at fixed size and the three that vary it disagree in sign
     "test_ce3_axis_is_closed.py",
+    # limit 22: the absolute-rate failure is NOT a mis-anchored constant. The
+    # miss population is centred (no global missing factor) and four of five
+    # failing packs disagree with themselves by 8-222x under one shared Kp
+    "test_absolute_scale_is_not_one_constant.py",
 }
 
 

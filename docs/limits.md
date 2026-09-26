@@ -986,3 +986,40 @@ Five ceria blocks sit in the corpus's worst tail (netzband2020 49.2 %, dandu2009
 **What would resolve it.** One ceria dataset that reports **its own XPS Ce3+ fraction** alongside its rates, at fixed particle size — for example a calcination-temperature or dopant series, where theta is varied by synthesis rather than by diameter. That single measurement makes theta identifiable and reopens the axis. The exit is asserted, not merely described: `blocks_with_own_xps_theta` is counted, and the moment it becomes non-zero the closure test **fails on purpose** so the refusal cannot become permanent by accident.
 
 **Enforced by** `tests/test_ce3_axis_is_closed.py` (10 tests).
+
+## 22. The absolute-rate failure is not a mis-anchored constant: four of five failing packs disagree with THEMSELVES
+
+Every closure in §14–§21 was measured against the **shape** score — MAPE after one free multiplicative scale per dataset. That free scale is what makes shape a fair test of a trend, and it is also what makes the corpus median **structurally blind** to being wrong about the rate itself. This entry is the first measurement of that blind spot, and it matters more than any remaining shape point: "the trend is right but the rate is 10× out" is not a usable process prediction.
+
+**What was measured.** `tools/absolute_scale_audit.py`, on four questions pre-registered in STATUS.md before it ran. Of **37 blocks with a comparable absolute scale, 11 miss by ≥3×**, spanning **0.06× to 12.7×**.
+
+> ⚠ The README quotes **9 of 34** for the same bar and both are right. The audit also counts blocks whose SHAPE is unscorable but whose SCALE is still comparable — `ihnfeldt2008` (3.19×) and `miranda2004` (0.31×) are declined on shape because their oxidiser rows fall in a regime the pack gates, yet their absolute rates can still be compared. A dataset the model refuses to rank can still be measured against, and dropping it from the scale count would quietly flatter the harder half of the corpus.
+
+*S1 — there is no missing global factor, and that is knowable immediately.* The miss population is **centred**: median **1.11×**, with **20 blocks under-predicting and 17 over-predicting**. A term absent from every pack would push the whole population one way; this one straddles 1.0. The search for a single universal correction is therefore closed before it starts.
+
+*S2 — THE FINDING. The packs disagree with themselves.* If Kp were merely mis-anchored, every block under a pack would miss the **same** way, and the fix would be one traceable constant per pack. Measured instead, under one shared Kp:
+
+| pack | blocks | internal spread | verdict |
+|---|---|---|---|
+| `cu_h2o2_bta` | 8 | **222×** (0.06× … 12.7×) | INCOHERENT |
+| `oxide_silica` | 7 | 25.5× | INCOHERENT |
+| `sic_alumina_kmno4` | 2 | 16.1× | INCOHERENT |
+| `sti_ceria` | 6 | 8.0× | INCOHERENT |
+| `sic_ceria_h2o2` | 5 | 8.7× | INCOHERENT |
+| `w_fe_oxidizer` | 3 | 1.8× | coherent |
+| `cu_alkaline_benzenesulfonic` | 3 | 1.6× | coherent |
+| `oxide_silica_aminosilane` | 2 | 1.3× | coherent |
+
+No single value of `kp_m_per_pa` can satisfy both ends of a 222× spread. The three coherent packs are the ones where a re-anchoring would even be *meaningful*, and none of them carries a ≥3× failure — so the blocks that need fixing are precisely the blocks a constant cannot fix.
+
+*S3 — and it does not track Kp's provenance either.* The `cu_h2o2_bta` misses all share one `estimated` Kp yet disagree by 222×, while `us8142675b2` misses 0.10× under a **`verified`** Kp. Confidence in the anchor does not predict the miss.
+
+*S4 — one failure may not vote on its own pack.* `gong2024` (0.07×) is `used_for_calibration` for `sic_alumina_kmno4`; its miss is evidence about that pack's *other* blocks, not permission to move the constant to suit it. That is the 13th-run rule applied to scale rather than to shape.
+
+**The refit that was rejected.** Re-anchoring `kp_m_per_pa` per pack to the median observed ratio was available and is **rejected**: on the five incoherent packs it would trade one failure for another (moving `cu_h2o2_bta` to fit `us8501625b2` at 12.7× makes `lai2001` at 0.06× worse by the same factor), and on the coherent packs there is no ≥3× failure to justify touching anything. A constant is the wrong shape of answer to a disagreement *within* a constant's own scope.
+
+**Corpus effect: none, by design.** Zero constants changed, median shape **18.9 %**, leave-one-out 21.3 %.
+
+**What would resolve it.** Blocks under one pack that disagree by 8–222× are not describing one material system, so the question is **what the pack is silently conflating** — different pads, polishers, film variants or abrasive materials sharing one Kp. The next step is a per-block provenance table: for each failing block, the condition its pack's Kp was back-calculated from and the distance between the two. Where the conflated variable is identifiable and sourced, the answer is a pack **split** (the precedent is `oxide_silica_aminosilane` earning its own split, which is why it is coherent today); where it is not, the answer is to declare the block out of the pack's scope rather than to average over it. **Deliberately *not* a gate**: these blocks still score, because hiding them would restore exactly the blindness this entry exists to remove.
+
+**Enforced by** `tests/test_absolute_scale_is_not_one_constant.py` (7 tests).
