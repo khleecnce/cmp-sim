@@ -188,14 +188,11 @@ def test_no_swept_axis_is_inert_without_saying_so():
 
     result = scan()
     offenders = result.by_kind("wiring") + result.by_kind("silent")
-    # The four SILENT axes are known and separately explained below; they are
-    # listed explicitly so that a FIFTH one fails.
-    known_silent = {
-        ("kenchappa2021_softpad_hdp_oxide", "pad_hardness_shore_d"),
-        ("us20110186542a1_w_diamond_h2o2_ph", "slurry_ph"),
-        ("us20190127607a1_hdpoxide_ceriasilica_size_sweep", "abrasive_d99_nm"),
-        ("us20190127607a1_teos_ceriasilica_size_sweep", "abrasive_d99_nm"),
-    }
+    # 18th run: the four SILENT axes each gained a declaration naming the
+    # reason (wrong path / defect-proxy-only / sourced null result), so the
+    # allowlist is now EMPTY and any newly disconnected input fails here.
+    # See tests/test_silent_axes_now_declare_themselves.py.
+    known_silent: set = set()
     unexpected = [(a.dataset, a.axis) for a in offenders
                   if (a.dataset, a.axis) not in known_silent]
     assert not unexpected, (

@@ -940,3 +940,25 @@ Shipping the one-sided version cost `hong2007` its noise-floor status (shape 14.
 **The four remaining SILENT axes**, pinned by name so that a fifth fails the build: `kenchappa2021 / pad_hardness_shore_d`, `us20110186542a1 / slurry_ph`, and `abrasive_d99_nm` on both `us20190127607a1` blocks. None needs a new constant — D99 legitimately reaches only the defect model, and `w_fe_oxidizer` already declares `ph_response_is_null_over_3_to_6` internally without publishing it. They are silent, not wrong, and that is the next item.
 
 **Enforced by** `tests/test_every_swept_axis_is_connected.py` (10 tests): the unit must be declared and must agree with the key's suffix; a millimolar sweep must arrive as `conc_mM`; the refusal must fire on **both** sides of the reference, must divide its term back out of the factor, and must contain `3283`, the refuting DOI, `1.21`, `18.4`, the declined `183`, the `1.53` overstatement and the unblocking pH range; the corpus median must stay where it was; the refutation arithmetic is **recomputed from the pack's own constants** so it cannot go stale silently; and the scan itself must report no undeclared inert axis. The classifier's failure path is calibrated against the pre-fix situation: a warning about a *different* species must not excuse an axis, and an alias is only an excuse when its partner actually responds.
+
+## 20. The last four SILENT axes now say why they do not move the rate — and one of them is a measured null, not a gap
+
+§19 left four axes inert with **nothing in the output to say so**. That is the dangerous state: from outside, a model that weighed an input and found it unimportant is indistinguishable from a model that never received the input at all, and only one of those is an answer. Silence gets read as a physical claim the model never made.
+
+They had three genuinely different causes, and merging them would have produced one vague apology instead of three usable statements:
+
+| axis | dataset | cause | what the run now says |
+|---|---|---|---|
+| `pad_hardness_shore_d` | kenchappa2021 | **wrong path** — the key was set on the *pack*, while the GW contact layer reads pad stiffness from the `Pad` object | names the path that works (`pad: {shore_d: …}` or `youngs_modulus_pa`, Qi correlation) |
+| `abrasive_d99_nm` | us20190127607a1 ×2 | **correct by design** — the tail feeds the defect proxy, not the rate | states that D50 carries removal while the tail makes scratches, and names `defect_risk` as where D99 does go |
+| `slurry_ph` | us20110186542a1 | **a sourced NULL RESULT** — `w_fe_oxidizer` holds `ph_response_is_null_over_3_to_6`, derived from the patent's own matched pH 3 / pH 6 table, and never published it | prints the key, the window and the source, and says whether the queried pH is **inside** it |
+
+**Zero constants were added and no term changed.** The corpus median is therefore required to stay at 18.9 %; a declaration that moves a score is a fit wearing a warning's clothes, and a test asserts the median directly.
+
+**The scope clause is the part that can go wrong silently.** The tungsten pH null covers pH 3–6 only. Outside that window this repository holds no W measurement, so the identical flat response stops being a measured answer and becomes an extrapolation of one — and the warning must change accordingly, or the scope disappears into a reassuring sentence. The window is parsed from the key's own NAME (`…_over_3_to_6`) rather than carried alongside it, so a pack cannot declare one range and be checked against another; an unparseable name falls to the cautious side and reports extrapolation.
+
+**Half a claim is not a claim.** Saying "D99 goes to the defect proxy" is an excuse rather than a description unless the value demonstrably arrives there, so the declaration is tested from both ends: a 4× larger tail must leave the rate bit-identical **and** must raise `defect_risk` (200 → 800 nm gives tail term 1.212 on a 700 nm reference). The same discipline applies to the pad: the recommended route must not be equally inert, so the test requires the Shore D given on the `Pad` object to reach the GW layer and be converted, and — for `sti_ceria`, whose reference pad is inherited rather than measured — requires the contact factor's withholding to be **stated**, which is a separate and already-tested policy.
+
+**Corpus effect.** 91 swept axes, **25 still inert, 0 silent, 0 wiring** (16 declared, 9 aliased). Median shape unmoved at **18.9 %**, leave-one-out 21.3 %. The inert *count* is also pinned: turning silence into a declaration connects nothing, so any change in that count means something else moved.
+
+**Enforced by** `tests/test_silent_axes_now_declare_themselves.py` (9 tests) plus the now-**empty** known-silent allowlist in `tests/test_every_swept_axis_is_connected.py`, so the next disconnected input fails the build instead of being absorbed into the residual and read as missing physics three runs later.

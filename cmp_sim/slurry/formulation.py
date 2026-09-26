@@ -216,6 +216,34 @@ CONSUMED_BY_THE_ENGINE = frozenset({
 })
 
 
+#: Keys a pack legitimately DECLARES but which no removal-rate term reads, with
+#: the reason. Being declared is exactly why these were the hard case: the
+#: "not declared by pack" warning above never fires for them, so setting one
+#: changed nothing and the run said nothing about it -- indistinguishable, to a
+#: reader, from a model that weighed the input and found it unimportant.
+#: Found by ``tools/inert_axis_scan.py`` (3 of its 4 ``silent`` axes).
+#:
+#: Each entry costs ZERO constants: nothing here is a claim about physics, only
+#: a statement of which path the value has to travel to reach a term.
+UNREAD_BY_THE_RATE: Dict[str, str] = {
+    "pad_hardness_shore_d": (
+        "'pad_hardness_shore_d' was set on the PACK, and no physics term reads "
+        "it there: pad stiffness reaches the model only through the GW "
+        "contact layer, which takes the hardness from the Pad OBJECT "
+        "(pad: {shore_d: ...}, or youngs_modulus_pa) and converts it with the "
+        "Qi correlation. Setting the pack key instead leaves the contact "
+        "factor at the pack's reference pad, so the predicted rate does not "
+        "move with pad hardness. Put the value on the pad to reach the term."),
+    "abrasive_d99_nm": (
+        "'abrasive_d99_nm' does not enter the removal rate and no physics term "
+        "reads it for the rate, by design: the large-particle tail is read only "
+        "by the defect-risk proxy (scratch width and depth). Removal is carried "
+        "by the D50 population, while the tail makes scratches, so changing D99 "
+        "alone moves defect_risk and leaves the rate unchanged. Vary "
+        "abrasive_size_nm / abrasive_d50_nm to move the rate."),
+}
+
+
 def apply_overrides(pack: ParamPack, overrides: Dict[str, Any],
                     source: str = "user recipe") -> Tuple[ParamPack, List[str]]:
     """Return a copy of ``pack`` with overrides applied.
@@ -235,6 +263,11 @@ def apply_overrides(pack: ParamPack, overrides: Dict[str, Any],
             notes.append(
                 f"'{key}' is not declared by pack '{pack.name}', so no physics term "
                 "may read it — the input is recorded but may not affect the result")
+        elif known and key in UNREAD_BY_THE_RATE:
+            # Declared by the pack AND accepted, yet no rate term consumes it.
+            # Without this the run was inert and mute, which reads as "the
+            # model considered your pad hardness and it did not matter".
+            notes.append(UNREAD_BY_THE_RATE[key])
     return (ParamPack(name=pack.name, description=pack.description, params=params,
                       lineage=list(pack.lineage) + ["recipe"]),
             notes)

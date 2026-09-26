@@ -98,6 +98,10 @@ BLANKET_DECLARATIONS = (
     # distance from the optimum.
     "rests on the mechanical floor",
     "outside the range this pack",
+    # A sourced NULL RESULT is an answer, not a gap: the pack measured the
+    # axis, found no response, and says so with its source. Added in the 18th
+    # run together with the pack-key-not-read-by-the-rate declarations.
+    "declared null result",
 )
 
 #: Substrings that mark a warning as a WIRING fault: the term is present and

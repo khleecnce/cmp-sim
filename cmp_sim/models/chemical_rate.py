@@ -365,6 +365,21 @@ def _translate(note: str) -> str:
     return f"{prefix}[inherited chemistry layer, untranslated] {body}"
 
 
+def _ph_is_inside(window: str, ph: float) -> bool:
+    """Is ``ph`` inside a window written as "3 to 6" in a declared-null key?
+
+    The window is parsed from the key NAME rather than carried separately, so
+    a pack cannot declare one range and be tested against another. An
+    unparseable name is treated as "outside", i.e. the cautious answer: the
+    warning then says the flat response is an extrapolation.
+    """
+    try:
+        lo_s, hi_s = window.lower().split(" to ")
+        return float(lo_s) <= ph <= float(hi_s)
+    except (ValueError, AttributeError):
+        return False
+
+
 def chemical_factor(resolved, temp_c: Optional[float] = None) -> ChemicalEffect:
     """Compute the chemistry multiplier for a resolved recipe.
 
@@ -864,6 +879,30 @@ def chemical_factor(resolved, temp_c: Optional[float] = None) -> ChemicalEffect:
             f"this pack declares an optimum pH ({float(ph_peak):g}) but no "
             "ph_response_width, so pH is INERT: changing it will not change "
             "the predicted rate. Supply ph_response_width to activate the term")
+    elif ph is not None and ph_peak is None:
+        # A pack with no pH term at all is inert on the pH axis. When the pack
+        # has MEASURED that null and said so in a key, publish the declaration
+        # instead of staying mute: a sourced null result and a forgotten wire
+        # are indistinguishable from the outside, and only one of them is an
+        # answer. Costs zero constants -- it re-states what the pack holds.
+        null_key = next((k for k in resolved.pack.params
+                         if k.startswith("ph_response_is_null_over_")
+                         and resolved.p_or(k, None)), None)
+        if null_key:
+            window = null_key[len("ph_response_is_null_over_"):].replace("_", " ")
+            param = resolved.pack.params[null_key]
+            in_window = _ph_is_inside(window, float(ph))
+            warnings.append(
+                f"pH is INERT here and that is a DECLARED NULL RESULT, not a "
+                f"missing term: pack '{resolved.pack.name}' states "
+                f"{null_key} = true over pH {window}, so no bell was fitted. "
+                f"Source: {param.source}. "
+                + (f"pH {float(ph):g} is inside that window, so the flat "
+                   "response is the measured answer."
+                   if in_window else
+                   f"⚠ pH {float(ph):g} is OUTSIDE that window, where this "
+                   "repository holds no measurement — the flat response is an "
+                   "extrapolation of the null result, not a measurement of it."))
 
     if has_langmuir and peak and not used_peaked:
         warnings.append(
