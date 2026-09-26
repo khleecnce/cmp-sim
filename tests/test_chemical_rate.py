@@ -142,12 +142,28 @@ def _cu(model="full", **kw):
         tool=Tool(pressure_psi=3.0, rpm_platen=60, rpm_head=60, time_s=60)))
 
 
-def test_more_inhibitor_lowers_the_copper_rate():
-    """BTA passivates copper — the first thing a formulator would check."""
-    low = _cu(bta=0.1)
-    high = _cu(bta=10.0)
-    assert high.mean_rr_nm_per_min < low.mean_rr_nm_per_min
-    assert high.factors["psi_chemistry"] < low.factors["psi_chemistry"]
+def test_more_inhibitor_is_REFUSED_rather_than_answered_on_this_pack():
+    """This once asserted "more BTA -> less Cu removal". It no longer can.
+
+    The direction is right — BTA passivates copper, no one disputes it. What
+    this pack cannot do is put a NUMBER on it. The only adsorption constant
+    reachable is an EQUILIBRIUM one (K = 3283 L/mol, BTA x Cu pair table),
+    and under polishing the Cu-BTA layer is continuously abraded away, so
+    steady-state coverage is not equilibrium coverage. Hong 2007
+    (doi:10.1149/1.2717410) measures a 0/10 mM rate ratio of 1.21 where the
+    term asserts 18.4.
+
+    So the correct behaviour is a refusal that SAYS all of that, not a
+    confidently wrong ordering. Asserting the ordering here would reward
+    switching a refuted constant back on. See docs/limits.md §19 and
+    tests/test_every_swept_axis_is_connected.py.
+    """
+    low, high = _cu(bta=0.1), _cu(bta=10.0)
+    assert high.mean_rr_nm_per_min == pytest.approx(low.mean_rr_nm_per_min,
+                                                    rel=1e-6)
+    for res in (low, high):
+        assert any("inhibitor term REFUSED" in w for w in res.warnings), (
+            "a term that declines to answer must say so in the result")
 
 
 def test_excess_oxidizer_lowers_the_copper_rate_through_thicker_passivation():
@@ -183,8 +199,14 @@ def test_too_little_oxidizer_also_lowers_the_rate():
 
 def test_a_formulation_change_actually_moves_the_answer():
     """Regression guard for the failure mode where the recipe is accepted but
-    never reaches the pack, so every composition returns the same rate."""
-    assert _cu(bta=0.1).mean_rr_nm_per_min != _cu(bta=10.0).mean_rr_nm_per_min
+    never reaches the pack, so every composition returns the same rate.
+
+    The probe used to be BTA, whose term is now refused on this pack
+    (docs/limits.md §19) — an axis the model deliberately declines is the
+    wrong instrument for detecting an axis it accidentally drops. Oxidiser is
+    the right probe: live, sourced, and normalised to the same reference.
+    """
+    assert _cu(h2o2=1.0).mean_rr_nm_per_min != _cu(h2o2=6.0).mean_rr_nm_per_min
 
 
 def test_the_reference_composition_reproduces_the_plain_preston_rate():
@@ -206,6 +228,15 @@ def test_unmapped_additive_is_reported_instead_of_silently_dropped():
 
 
 def test_chemistry_terms_are_exposed_in_the_output():
+    """The terms that DID fire must be visible, named, and countable.
+
+    This asked for `inhibitor` before that term was refused on this pack
+    (docs/limits.md §19). A refused term must be ABSENT from the term map and
+    PRESENT in the warnings — showing it as a term would report a factor the
+    model declined to apply.
+    """
     r = _cu(bta=5.0)
     assert "chemistry_terms" in r.extras
-    assert "inhibitor" in r.extras["chemistry_terms"]
+    assert "oxidizer_peaked" in r.extras["chemistry_terms"]
+    assert "inhibitor" not in r.extras["chemistry_terms"]
+    assert any("inhibitor term REFUSED" in w for w in r.warnings)

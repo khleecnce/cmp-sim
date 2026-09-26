@@ -120,10 +120,23 @@ def test_the_borrowed_curvature_is_disclosed_as_borrowed():
     assert "glycine" in note.lower(), "the chemistry difference is not recorded"
 
 
-def test_an_inhibitor_suppresses_the_rate():
-    """BTA is the other half of the copper chemistry and must bite."""
+def test_an_inhibitor_is_refused_rather_than_guessed():
+    """BTA is the other half of the copper chemistry — and this pack cannot
+    quantify it, so it must REFUSE rather than bite by the wrong amount.
+
+    This test used to assert `with_bta < without`. That direction is real
+    physics (BTA passivates copper), but asserting it here rewarded a
+    refuted constant. The only adsorption constant this pack can reach is
+    the EQUILIBRIUM (BTA x Cu) K = 3283 L/mol, and under polishing the
+    Cu-BTA layer is continuously abraded, so steady-state coverage is not
+    equilibrium coverage: the term asserts a 0/10 mM ratio of 18.4 where
+    Hong 2007 (doi:10.1149/1.2717410) measures 1.21.
+
+    See docs/limits.md §19. The direction returns the moment someone runs a
+    BTA sweep at this pack's own pH 3-4 with H2O2.
+    """
     without = _run(3.0).mean_rr_angstrom_per_min
-    with_bta = simulate(Recipe(
+    res = simulate(Recipe(
         model="auto",
         wafer=Wafer(film="cu", n_radial=11),
         slurry=Slurry(pack="cu_h2o2_bta", additives=[
@@ -132,5 +145,7 @@ def test_an_inhibitor_suppresses_the_rate():
         pad=Pad(groove_width_mm=0.5, groove_pitch_mm=2.0, groove_depth_mm=0.75),
         disk=Disk(),
         tool=Tool(pressure_psi=2.0, rpm_platen=60.0, rpm_head=60.0,
-                  time_s=60.0))).mean_rr_angstrom_per_min
-    assert with_bta < without
+                  time_s=60.0)))
+    assert res.mean_rr_angstrom_per_min == pytest.approx(without, rel=1e-6)
+    assert any("inhibitor term REFUSED" in w for w in res.warnings), (
+        "silently ignoring BTA would be the failure this refusal replaces")

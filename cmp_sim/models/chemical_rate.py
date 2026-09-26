@@ -637,6 +637,110 @@ def chemical_factor(resolved, temp_c: Optional[float] = None) -> ChemicalEffect:
         factor *= float(_v)
         terms[_term_name] = float(_v)
 
+    # ── the inhibitor term: REFUSED, with the measurement that refutes it ──
+    #
+    # `tools/inert_axis_scan.py` found that the inhibitor axis did not reach
+    # the rate AT ALL anywhere in the corpus: the scoring harness had been
+    # handing a millimolar figure to `Additive.conc_wt_pct`, so the term
+    # declined the value and said so in a warning nobody was reading (fixed in
+    # predictive_score.ADDITIVE_OVERRIDES). Wiring it correctly is what made
+    # the following measurable, and it is not good news.
+    #
+    # WHAT THE TERM CLAIMS. r(C) = exp(-k[theta(C) - theta(C_ref)]) with the
+    # (BTA x Cu) pair constant K = 3283 L/mol (dG = -30.02 kJ/mol,
+    # doi:10.2320/matertrans.m2016310, electrochemical + quantum-chemical,
+    # literature-grade) and the pack's k = 3.0, which the pack itself grades
+    # `unverified` with the note "no closed form in the literature -- first
+    # calibration target". Relative to this pack's 1 mM reference that gives
+    #     0 mM -> 9.97x,   0.5 mM -> 1.55x,   10 mM -> 0.54x.
+    #
+    # WHAT IS MEASURED. Hong 2007 (doi:10.1149/1.2717410, Fig. 1) polishes Cu
+    # at pH 4 with 5 wt% H2O2 + glycine, BTA 0 vs 10 mM, everything else held:
+    # 265 -> 220 nm/min. The measured 0/10 mM ratio is 1.21 where the term
+    # asserts 18.4 -- a factor of 15 on the two-point comparison the term
+    # exists to predict. A quantitative refutation, not a scatter complaint.
+    #
+    # WHICH CONSTANT IS WRONG IS ALREADY ON RECORD, and it is not k. The
+    # pack's own note (EVIDENCE-RULES ruling #17) reports that holding k = 3.0
+    # and lowering K alone to 183 L/mol reproduces [LEN00]'s 0.1 wt% point
+    # exactly and its 0.25 wt% point to -11.9%. So an EQUILIBRIUM adsorption
+    # constant is being used where a STEADY-STATE one is needed: under
+    # polishing the Cu-BTA layer is continuously abraded away, so its coverage
+    # cannot be the equilibrium coverage of a quiescent corrosion experiment.
+    # That is a mechanism, and it is why re-fitting k cannot rescue the term.
+    #
+    # THE FIRST ATTEMPT AT THIS GATE WAS ONE-SIDED, AND THAT WAS WRONG.
+    # Recorded because it is the instructive part. The argument was that with
+    # theta_ref = 0.767 the factor is bounded below by exp(-k[1-theta_ref]) =
+    # 0.50 above the reference, so the term "makes almost no claim" there and
+    # could stay, while below the reference it climbs to exp(+k*theta_ref) =
+    # 9.97 and fabricates a rate. The bound is arithmetically correct and the
+    # conclusion drawn from it is not: a factor of 2 is not "no claim". On the
+    # ONLY above-reference point in the entire corpus the term asserts a 1.84x
+    # rate drop from 0 to 10 mM where Hong measures 1.21x -- it OVERSTATES by
+    # 1.53x on the one datum available to test it. Keeping the above-reference
+    # half also broke hong2007's noise-floor status (shape 14.8% -> 24.0%
+    # against its own 13.0% replicate scatter) and moved the corpus median
+    # 18.9% -> 19.5%, i.e. a refuted constant was being paid for in score.
+    #
+    # The lesson generalises: a BOUND on a term's magnitude is not evidence
+    # that the term is harmless inside that bound. Only a measurement is, and
+    # the single measurement available refutes the term on both sides of the
+    # reference. So the whole term is refused.
+    #
+    # NOT FITTED, and deliberately so: substituting K = 183 L/mol would import
+    # an ALKALINE NH4OH/alumina constant into an acidic H2O2/glycine pack
+    # across the pH at which BTA protonates and the Cu(I)-BTA complex changes
+    # stability. The unblocking datum is a BTA sweep of Cu removal at this
+    # pack's own pH 3-4 with H2O2.
+    #
+    # Scope: this gates a pack whose `inhibitor_K_ads_L_per_mol` is DECLARED
+    # null (i.e. the pack states it has no defensible steady-state constant).
+    # w_fe_oxidizer, which carries a directly measured 1108 L/mol, is
+    # untouched -- this refuses a specific constant, not the inhibitor
+    # mechanism.
+    _inhib_mM = resolved.p_or("inhibitor_mM", None)
+    _inhib_ref_mM = resolved.p_or("inhibitor_ref_mM", None)
+    _k_param = resolved.pack.params.get("inhibitor_K_ads_L_per_mol")
+    _k_declared_null = (_k_param is not None
+                        and getattr(_k_param, "value", None) is None)
+    _has_direct_k = resolved.p_or("inhibitor_K_L_per_mol", None) is not None
+    if (_k_declared_null and not _has_direct_k
+            and _inhib_mM is not None and _inhib_ref_mM is not None
+            and float(_inhib_mM) != float(_inhib_ref_mM)):
+        _applied = terms.pop("inhibitor", None)
+        if _applied and abs(float(_applied)) > 1e-12:
+            # The inherited chemistry_factor has ALREADY multiplied this in,
+            # so removing the bookkeeping entry without dividing the factor
+            # would leave a refused term silently acting on the rate -- the
+            # exact failure mode this gate exists to prevent.
+            factor /= float(_applied)
+        warnings.append(
+            f"inhibitor term REFUSED at {float(_inhib_mM):g} mM (reference "
+            f"{float(_inhib_ref_mM):g} mM). This pack declares "
+            "inhibitor_K_ads_L_per_mol null, so the only constant reachable "
+            "is the EQUILIBRIUM (BTA x Cu) adsorption constant K = 3283 L/mol "
+            "(doi:10.2320/matertrans.m2016310) -- and under polishing the "
+            "Cu-BTA layer is continuously abraded, so its steady-state "
+            "coverage is not the equilibrium coverage. Refuted "
+            "quantitatively by the only dataset that holds everything else "
+            "fixed: Hong 2007 (doi:10.1149/1.2717410 Fig. 1, pH 4, 5 wt% "
+            "H2O2) measures a 0/10 mM rate ratio of 1.21 where this term "
+            "asserts 18.4. The refusal is TWO-SIDED because the refutation "
+            "is: below the reference the factor reaches 9.97x at zero and "
+            "fabricates a rate (hong2007's zero-BTA rows come out 16.9-24.3x "
+            "high, absolute scale 0.49x -> 0.059x), and above it the factor "
+            "is bounded by 0.50 but still overstates the one measured point "
+            "by 1.53x -- a bound on a term's size is not evidence that it is "
+            "harmless inside that bound. Applying the above-reference half "
+            "alone cost hong2007 its noise floor (14.8% -> 24.0% shape "
+            "against 13.0% replicate scatter) and moved the corpus median "
+            "18.9% -> 19.5%. Substituting the pack's back-solved K = 183 "
+            "L/mol is declined: it was measured in an ALKALINE NH4OH/alumina "
+            "system and BTA protonation is pH-dependent. Unblock with a "
+            "BTA-concentration sweep of Cu removal at this pack's own "
+            "pH 3-4 with H2O2, which yields a steady-state effective K")
+
     # ── pH ──────────────────────────────────────────────────────────────
     # Before this, pH was inert: the packs carried ph_ref and ph_peak but no
     # coefficient, so scanning pH 2 to 10 returned ONE number. Against Dandu's

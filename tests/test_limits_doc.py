@@ -83,6 +83,13 @@ LIMIT_ENFORCING_TESTS = {
     # wired; the promoter term is held off because its pack reference is 0 M,
     # so the shape gain would cost a 13x absolute-scale error
     "test_chelator_promoter_axes_are_wired.py",
+    # limit 19: the EXHAUSTIVE inert-axis scan (91 swept axes / 46 datasets).
+    # Every inhibitor sweep in the corpus was dead on a unit mismatch, and
+    # connecting it exposed that the only reachable BTA constant is an
+    # EQUILIBRIUM one, refuted 18.4x vs a measured 1.21x. Refused below the
+    # reference, where the error fabricates a rate, and left above it, where
+    # it is bounded and merely quiet
+    "test_every_swept_axis_is_connected.py",
 }
 
 

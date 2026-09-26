@@ -895,3 +895,48 @@ The cause is structural and knowable without any fit. The pack declares `promote
 **Enforced by** `tests/test_chelator_promoter_axes_are_wired.py` (7 tests): the chelator axis must respond and must respond *downwards*; the term must be exactly 1.0 at the pack reference; the promoter axis must be inert **and** must carry a warning containing its own evidence (`0 M`, `12.8`, `0.075`, `29.9`) plus the unblocking measurement; the gate must be about the **zero denominator**, verified by giving the same recipe a non-zero promoter reference and requiring the term to come back; and the corpus median must not move. Reverse-calibrated: **6 of the 7 fail against the pre-fix code.**
 
 **An honest regression that came with the fix.** The jani block's flat-mean baseline is 49.2 %, and wiring the chelator term moved the model from 51.2 % to **50.1 %** — so this dataset now appears in the report's "does NOT beat predicting the mean" list, which it did not before (9 datasets → 10). That is recorded rather than smoothed over, because it is informative in a specific way: the improvement is real and directional (absolute scale 0.91× → 1.11×, and the chelator residual slope falls from −0.18 to +0.09), yet the block remains dominated by an axis the model still does not carry. Losing to the mean here is not evidence that the chelator term is wrong; it is evidence that **one correct term is not enough on a 4-axis RSM block where a second swept axis is declared inert**. The exit condition is the same single measurement named above.
+
+## 19. Every swept axis in the corpus is now CONNECTED — the exhaustive scan, and the refuted constant it uncovered
+
+§18 found two inert axes by accident, while investigating a single dataset. That is the wrong way to find them, and it left an unasked question: the other 45 datasets had never been checked the same way. An inert axis is an input the engine accepts, stores and then ignores while still printing a number that looks like a prediction about it — and it is the **only error class in this project fixable with zero new constants**, because the missing piece is a wire rather than a law. It is therefore both the cheapest thing to check and the easiest to mistake for missing physics.
+
+It also bears directly on §14. That section read 145 points as "owned by no axis" and concluded this was the shape of a healthy model on a clean sweep. A **disconnected input looks exactly the same** from the census's point of view, because an input that never reaches the rate cannot own any of the residual either. Until now that reading was unverified.
+
+**The scan.** `tools/inert_axis_scan.py` perturbs all **91 swept axes across 46 datasets** end to end over the range each paper actually ran, and classifies every inert result into one of four kinds. The classification, not the count, is the product.
+
+| kind | axes | meaning |
+|---|---|---|
+| **wiring** | **2 → 0** | the term exists and was handed the value in a form it cannot read. **A bug; free to fix** |
+| **silent** | 4 | inert, and nothing in the output says why. The worst kind |
+| declared | 10 | the pack announces the gap (`chemistry layer inactive`, `not declared by pack`, a reasoned refusal) |
+| aliased | 9 | the key restates another axis the same dataset varies (`abrasive_d50_nm` beside `abrasive_size_nm`), so perturbing it alone is not a perturbation of the physics |
+
+**The wiring bug: every inhibitor sweep in the corpus was dead.** `Additive` carries `conc_wt_pct` and `conc_mM` as *separate* optional fields; the inhibitor role reads the molar one; the scoring harness was writing the millimolar figure into the weight-percent slot. Nothing raised, because both fields are `Optional[float]`. The term declined the value and emitted a warning saying exactly that — and nothing was reading the warning. `ADDITIVE_OVERRIDES` now declares the **unit** alongside the species and role, and a test requires the key's own suffix (`_mM`, `_wt_pct`) to agree with the field it routes to.
+
+**Fixing the wire did not improve anything. It exposed a refuted constant — that is the result.** Connecting the axis drove `hong2007`'s absolute scale from 0.49× to **0.059×**, a 17× over-prediction. The reason is mechanistic: the only adsorption constant reachable for `cu_h2o2_bta` is the **equilibrium** (BTA × Cu) value K = 3283 L/mol (ΔG = −30.02 kJ/mol, doi:10.2320/matertrans.m2016310, electrochemical + quantum-chemical). Under polishing the Cu–BTA layer is continuously abraded away, so its **steady-state coverage cannot be the equilibrium coverage of a quiescent corrosion experiment**.
+
+| | 0 / 10 mM BTA rate ratio |
+|---|---|
+| the term as parameterised | **18.4** |
+| Hong 2007 measured (doi:10.1149/1.2717410 Fig. 1, pH 4, 5 wt% H2O2) | **1.21** |
+
+Which constant is wrong was already on record and it is **not** the shape parameter `k`: the pack's own note (ruling #17) reports that holding k = 3.0 and lowering K alone to 183 L/mol reproduces [LEN00]'s 0.1 wt% point exactly and its 0.25 wt% point to −11.9 %.
+
+**What was rejected.** Substituting K = 183 L/mol. It was measured in an **alkaline** NH4OH/alumina system, and BTA protonation and Cu(I)–BTA stability are both pH-dependent, so carrying it into an acidic H2O2/glycine pack is a transfer across the very variable that governs it — a free constant bought with a plausible story.
+
+**Why the refusal is TWO-SIDED, and why the first attempt at this gate was wrong.** The first version kept the above-reference half on the argument that coverage is already θ_ref = 0.767 at the 1 mM reference, so the factor is bounded below by exp(−k[1−θ_ref]) = 0.50 there and "makes almost no claim". The bound is arithmetically correct; the inference drawn from it is not.
+
+| | bound on the factor | what the one measurement says |
+|---|---|---|
+| C < C_ref | rises to exp(+k·θ_ref) = **9.97** at zero | hong2007's three zero-BTA rows come out **16.9×, 18.7×, 24.3×** high; absolute scale 0.49× → 0.059× |
+| C > C_ref | bounded below by **0.50** | on the **only** above-reference point in the corpus the term asserts a 1.84× drop from 0 to 10 mM where Hong measures 1.21× — it **overstates by 1.53×** |
+
+Shipping the one-sided version cost `hong2007` its noise-floor status (shape 14.8 % → 24.0 % against its own 13.0 % replicate scatter) and moved the corpus median 18.9 % → 19.5 %: a refuted constant being paid for in score. **A bound on a term's magnitude is not evidence that the term is harmless inside that bound — only a measurement is**, and the single measurement available refutes the term on both sides. The whole term is therefore refused, and the refusal warning states the 1.53× overstatement explicitly so that a later run cannot read the bound as a licence to switch the half back on.
+
+**What would resolve it.** One experiment: a **BTA-concentration sweep of Cu removal at this pack's own pH 3–4 with H2O2**, at three or more loadings spanning the 1 mM reference. That yields a *steady-state* effective K — measured under abrasion rather than at equilibrium — which is the quantity the term actually needs, and it is the same measurement the pack's deliberately-null `inhibitor_K_ads_L_per_mol` has been asking for.
+
+**Corpus effect.** Median shape **unmoved at 18.9 %**, by design: nothing was fitted, and one axis was reconnected while the constant behind it was refused. `hong2007` keeps its noise-floor status (14.8 % shape against 13.0 % replicate scatter). A median move here would have meant a refuted term was acting on the rate — which is exactly how the one-sided first attempt was caught.
+
+**The four remaining SILENT axes**, pinned by name so that a fifth fails the build: `kenchappa2021 / pad_hardness_shore_d`, `us20110186542a1 / slurry_ph`, and `abrasive_d99_nm` on both `us20190127607a1` blocks. None needs a new constant — D99 legitimately reaches only the defect model, and `w_fe_oxidizer` already declares `ph_response_is_null_over_3_to_6` internally without publishing it. They are silent, not wrong, and that is the next item.
+
+**Enforced by** `tests/test_every_swept_axis_is_connected.py` (10 tests): the unit must be declared and must agree with the key's suffix; a millimolar sweep must arrive as `conc_mM`; the refusal must fire on **both** sides of the reference, must divide its term back out of the factor, and must contain `3283`, the refuting DOI, `1.21`, `18.4`, the declined `183`, the `1.53` overstatement and the unblocking pH range; the corpus median must stay where it was; the refutation arithmetic is **recomputed from the pack's own constants** so it cannot go stale silently; and the scan itself must report no undeclared inert axis. The classifier's failure path is calibrated against the pre-fix situation: a warning about a *different* species must not excuse an axis, and an alias is only an excuse when its partner actually responds.

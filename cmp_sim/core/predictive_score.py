@@ -66,15 +66,22 @@ OVERRIDE_TO_RECIPE: Dict[str, Tuple[str, str]] = {
     "abrasive_d50_nm": ("abrasive", "d50_nm"),
 }
 
-#: Overrides that are additives rather than scalar fields.
-ADDITIVE_OVERRIDES = {
-    "oxidizer_wt_pct": ("hydrogen_peroxide", "oxidizer"),
+#: Overrides that are additives rather than scalar fields, with the UNIT the
+#: dataset states them in. The unit is not decoration: ``Additive`` carries
+#: ``conc_wt_pct`` and ``conc_mM`` as separate fields and the formulation layer
+#: reads whichever one the role needs, so writing a millimolar figure into the
+#: weight-percent slot makes the inhibitor term decline the value and the whole
+#: axis goes INERT -- silently, because the harness never looked at the
+#: warning. Found by ``tools/inert_axis_scan.py``; it had been true for every
+#: inhibitor sweep in the corpus.
+ADDITIVE_OVERRIDES: Dict[str, Tuple[str, str, str]] = {
+    "oxidizer_wt_pct": ("hydrogen_peroxide", "oxidizer", "conc_wt_pct"),
     # Du 2004 reports vol% rather than wt%. For dilute aqueous H2O2 the two are
     # within a few percent, which is well inside the scatter of a digitized
     # figure, so the series is usable -- but the alias must be declared or the
     # whole oxidizer axis is silently dropped.
-    "h2o2_vol_pct": ("hydrogen_peroxide", "oxidizer"),
-    "inhibitor_mM": ("benzotriazole", "inhibitor"),
+    "h2o2_vol_pct": ("hydrogen_peroxide", "oxidizer", "conc_wt_pct"),
+    "inhibitor_mM": ("benzotriazole", "inhibitor", "conc_mM"),
 }
 
 
@@ -287,9 +294,9 @@ def _recipe_for(doc: Dict[str, Any], row: Dict[str, Any]) -> Dict[str, Any]:
 
     for key, value in overrides.items():
         if key in ADDITIVE_OVERRIDES and value is not None:
-            name, role = ADDITIVE_OVERRIDES[key]
+            name, role, unit_field = ADDITIVE_OVERRIDES[key]
             additives.append({"name": name, "role": role,
-                              "conc_wt_pct": float(value)})
+                              unit_field: float(value)})
         elif key in OVERRIDE_TO_RECIPE:
             section, field_name = OVERRIDE_TO_RECIPE[key]
             (abrasive if section == "abrasive" else slurry)[field_name] = value
