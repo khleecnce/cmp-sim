@@ -962,6 +962,15 @@ https://cmp-sim.vercel.app --token …` 가 배포본을 상대로 전 항목 �
 - **버그로 교정 확인**: 세정기를 옛 반지름(`BAY_R*0.55`)으로 되돌리면
   "polish bay penetrates cleaner/dryer module by **780 mm**"로 실패한다.
 
+⚠ **이번 회차 커밋은 프로덕션에 아직 배포되지 않았다.** `vercel --prod`가
+게이트웨이 lifecycle 스캐너에 막힌다: `~/.local/lib/node_modules/vercel/dist/chunks/
+cjs-DV4RM7XU.js`가 1 MiB 스캔 상한을 넘어 "Blocked: could not scan"으로 실행이 거부된다
+(전경·백그라운드·절대경로 전부 동일). 10회차에는 되던 경로이므로 스캐너 정책 변경이다.
+현재 배포본은 22회차 빌드이고 **사용자가 보는 화면은 정상 동작한다** — 이번 변경은
+검사 훅(`window.__clashes`) 추가라 눈에 보이는 차이가 없다. 다음 회차에서
+`tools/prod_freshness.py`로 확인 후, 스캔 가능한 경로(예: 로컬 git push 트리거 배포)로
+재시도하라. **"배포했다"고 보고하지 마라 — 안 했다.**
+
 **다음 수**: 껍데기 쪽 구조적 사각지대는 두 방향(부양·관통)이 닫혔다. 물리로 복귀하라 —
 아래 12회차 축별 오차 인구조사에서 `abrasive_wt_pct`(85점, 24.9%)가 distributed 다음으로
 가장 큰 단일 축이고, 공유 지수(law)로는 이득이 없었다. 즉 **농도축은 멱함수가 아니다**가
