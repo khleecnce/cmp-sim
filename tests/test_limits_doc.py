@@ -90,6 +90,10 @@ LIMIT_ENFORCING_TESTS = {
     # reference, where the error fabricates a rate, and left above it, where
     # it is bounded and merely quiet
     "test_every_swept_axis_is_connected.py",
+    # limit 20: the last four SILENT axes now declare themselves. Three
+    # different causes (wrong path, correct-by-design, sourced null result),
+    # zero constants added, and the known-silent allowlist is now empty
+    "test_silent_axes_now_declare_themselves.py",
 }
 
 
