@@ -822,6 +822,12 @@ $('dgo').onclick = run;
     // and then click it with a real mouse, instead of guessing pixel boxes that
     // break as soon as the camera moves.
     window.__probe = (x, y) => SCENE.probeAt(x, y);
+    // Companion hooks for the same test: freezing the machine makes a probe
+    // result stay true long enough to click it (everything on this tool spins),
+    // and re-fitting after a viewport change is how the framing is checked at
+    // several window shapes without reloading.
+    window.__freeze = (on) => SCENE.freeze(on);
+    window.__fit = () => SCENE.fitView();
   } catch (e) {
     // WebGL can be unavailable (VM, remote desktop, old driver). The simulator
     // must stay usable: the legend buttons already open every drawer.

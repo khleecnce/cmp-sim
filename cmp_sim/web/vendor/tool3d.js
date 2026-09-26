@@ -62,6 +62,11 @@ const PARTS = {
 // Platen centres on the Reflexion deck. Three platens sit on a circle around
 // the carousel axis; the fourth carousel station is the load cup.
 const R_DECK = 1.02;                       // carousel arm reach
+// Platen radius lives at module scope because the ENCLOSURE is sized from it:
+// the roof opening must clear (R_DECK + PLATEN_R) or it crops the platens.
+// Declared inside createScene it was in the temporal dead zone at that point
+// and the whole scene threw before a single mesh was built.
+const PLATEN_R = 0.62;
 const STATIONS = [0, 1, 2, 3].map(i => {
   const a = -Math.PI / 2 + i * (Math.PI / 2);    // 4 stations, 90 deg apart
   return { i, a, x: Math.cos(a) * R_DECK, z: Math.sin(a) * R_DECK };
@@ -79,22 +84,31 @@ export function createScene(canvas, onPick) {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  // Filmic tone mapping. Without it the bright metal highlights clip to flat
+  // white and everything else crushes to the same dark grey, which is what
+  // made the first build read as matte plastic rather than a machine.
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.15;
+  if ('outputColorSpace' in renderer) renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x0b0d12);
   scene.fog = new THREE.Fog(0x0b0d12, 7.0, 20.0);
 
   const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 120);
-  // Framed to hold the WHOLE machine: a 1.8-unit-radius deck, the carousel mast
-  // standing 1.3 above it, and the slurry cabinet out at (-2.05, 1.55). The
-  // first attempt at this camera sat at 3.0 units and the deck overflowed the
-  // frame with the cabinet entirely off-screen — verified by screenshot, not by
-  // eye-balling the numbers.
-  camera.position.set(4.9, 3.5, 5.4);
+  // Viewing DIRECTION only. The distance and the target are computed from the
+  // machine's own bounding sphere in fitView() once the geometry exists, so the
+  // tool fills the frame at any window shape. A hard-coded camera position was
+  // tuned on one 1440x900 desktop screenshot and left the machine a small dark
+  // blob off to one side on other viewports (reported from a phone: "the 3D
+  // model doesn't display properly"). A number chosen for one aspect ratio is
+  // not a framing rule.
+  // Elevation ~40 deg, not ~27. With the enclosure in place a low camera
+  // shows the drum's flank and hides the platens inside it; the viewer needs
+  // to look INTO the bay the way an operator leaning over the tool does.
+  camera.position.set(4.6, 5.2, 5.0);
 
   const controls = new OrbitControls(camera, renderer.domElement);
-  // Aimed slightly toward the cabinet side so the supply unit stays in frame.
-  controls.target.set(-0.35, 0.25, 0.25);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.minDistance = 1.6;
@@ -122,12 +136,55 @@ export function createScene(canvas, onPick) {
   rim.position.set(-1.6, 2.8, -3.0);
   scene.add(rim);
 
+  // ── environment map: what makes metal look like metal ───────────
+  // Brushed stainless reads as grey plastic unless it has something to
+  // REFLECT. Three point lights give one specular dot each; a real fab bay
+  // wraps the tool in a bright ceiling and dim walls. Built procedurally from
+  // emissive boxes and baked with PMREMGenerator, because the owner's fab PCs
+  // are offline -- loading an HDRI from a CDN is not an option here.
+  (function buildEnvironment() {
+    const envScene = new THREE.Scene();
+    const panel = (w, h, d, colour, intensity, pos) => {
+      const m = new THREE.Mesh(
+        new THREE.BoxGeometry(w, h, d),
+        new THREE.MeshBasicMaterial({ color: new THREE.Color(colour)
+                                       .multiplyScalar(intensity) }));
+      m.position.set(...pos);
+      envScene.add(m);
+    };
+    panel(30, 0.1, 30, 0x0a0c11, 1.0, [0, -8, 0]);      // dark floor
+    panel(30, 0.1, 30, 0xdce6f5, 2.4, [0, 9, 0]);       // bright ceiling
+    panel(0.1, 18, 30, 0x5b6b82, 0.55, [-12, 0, 0]);    // walls
+    panel(0.1, 18, 30, 0x5b6b82, 0.55, [12, 0, 0]);
+    panel(30, 18, 0.1, 0x4a5568, 0.45, [0, 0, -12]);
+    // ceiling light banks: the streaked highlights along the deck rim
+    for (const z of [-5, 0, 5]) panel(16, 0.1, 1.1, 0xffffff, 6.0, [0, 8.4, z]);
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(envScene, 0.04).texture;
+    pmrem.dispose();
+  })();
+
   // ── materials ───────────────────────────────────────────────────
   const M = {
     steel:  new THREE.MeshStandardMaterial({ color: 0x9aa4b2, metalness: 0.92, roughness: 0.34 }),
     dark:   new THREE.MeshStandardMaterial({ color: 0x2b303a, metalness: 0.65, roughness: 0.55 }),
     panel:  new THREE.MeshStandardMaterial({ color: 0x3a4150, metalness: 0.35, roughness: 0.62 }),
     deck:   new THREE.MeshStandardMaterial({ color: 0x323845, metalness: 0.45, roughness: 0.58 }),
+    // Fab tools are painted off-white sheet metal, not black. This is the
+    // single biggest reason the first build read as a toy: a real CMP bay is
+    // bright, and only the machinery inside the enclosure is dark.
+    // Mid-grey, not white. Fab panels ARE near-white, but at this exposure a
+    // pure white shell out-shouted the machine inside it -- the eye went to
+    // the empty sheet metal instead of the platens. Reference photos of the
+    // tool look bright because the bay lighting is bright, not because the
+    // paint is the brightest thing in frame.
+    skin:   new THREE.MeshStandardMaterial({ color: 0x8b929d, metalness: 0.30, roughness: 0.52 }),
+    skinLo: new THREE.MeshStandardMaterial({ color: 0x6e757f, metalness: 0.34, roughness: 0.55 }),
+    window: new THREE.MeshPhysicalMaterial({ color: 0x9fc4e8, metalness: 0.0, roughness: 0.06,
+                                             transmission: 0.82, thickness: 0.03,
+                                             transparent: true, opacity: 0.30,
+                                             clearcoat: 1.0, side: THREE.DoubleSide }),
+    foup:   new THREE.MeshStandardMaterial({ color: 0x9aa7b4, metalness: 0.05, roughness: 0.42 }),
     pad:    new THREE.MeshStandardMaterial({ color: 0xd9dbe0, metalness: 0.02, roughness: 0.95 }),
     padOff: new THREE.MeshStandardMaterial({ color: 0x8e939c, metalness: 0.02, roughness: 0.95 }),
     wafer:  new THREE.MeshStandardMaterial({ color: 0x8899aa, metalness: 0.55, roughness: 0.22,
@@ -169,6 +226,161 @@ export function createScene(canvas, onPick) {
   deckRim.position.y = -0.02;
   frame.add(tag(deckRim, 'frame'));
 
+  // ── enclosure, EFEM, FOUPs, signal tower ────────────────────────
+  // A real polisher is a closed cabinet: the polish bay is behind viewing
+  // windows, wafers arrive through an EFEM with FOUPs on the load ports, and
+  // a stack light shows tool state. Without this the scene is a bare
+  // turntable floating in a void, which is what "the UI is rubbish" meant.
+  // It is built as ONE group so the machinery underneath is untouched, and
+  // every piece is tagged to a part that already exists -- no new form
+  // section, no new physics, purely the shell the tool actually has.
+  const shell = new THREE.Group();
+  // Bay height is set just above the carousel mast, NOT at a round number.
+  // A taller drum looked more like a tool in isolation but buried the platens
+  // at the bottom of a well -- from any normal viewing angle you saw sheet
+  // metal and no machine. The enclosure has to end where the machinery ends.
+  const BAY_R = 1.95, BAY_H = 0.96, BAY_Y = -0.62;
+
+  // polish bay: a 12-sided drum, opaque below the belt line, glazed above,
+  // so the platens stay visible the way they are through a real window.
+  const bayLower = new THREE.Mesh(
+    new THREE.CylinderGeometry(BAY_R, BAY_R * 1.02, 0.78, 12, 1, true), M.skin);
+  bayLower.position.y = BAY_Y + 0.39;
+  bayLower.castShadow = bayLower.receiveShadow = true;
+  shell.add(tag(bayLower, 'frame'));
+
+  const bayGlass = new THREE.Mesh(
+    new THREE.CylinderGeometry(BAY_R, BAY_R, BAY_H - 0.78, 12, 1, true), M.window);
+  bayGlass.position.y = BAY_Y + 0.78 + (BAY_H - 0.78) / 2;
+  shell.add(bayGlass);            // not pickable: clicks pass through to parts
+
+  // mullions between the glazed facets, and the belt line / top capping rings
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    const post = new THREE.Mesh(
+      new THREE.BoxGeometry(0.055, BAY_H - 0.78, 0.055), M.skinLo);
+    post.position.set(Math.cos(a) * BAY_R, BAY_Y + 0.78 + (BAY_H - 0.78) / 2,
+                      Math.sin(a) * BAY_R);
+    post.rotation.y = -a;
+    shell.add(tag(post, 'frame'));
+  }
+  for (const [y, r, t] of [[BAY_Y + 0.78, BAY_R + 0.012, 0.045],
+                           [BAY_Y + BAY_H, BAY_R + 0.012, 0.055]]) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(r, t, 10, 72), M.skinLo);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = y;
+    shell.add(tag(ring, 'frame'));
+  }
+  // Roof: an ANNULUS of service panels, not a closed lid. A solid disc is what
+  // the real tool has, but it hides every part the user is here to click --
+  // the first attempt rendered as a white drum with the machine sealed inside.
+  // An open centre keeps the fab silhouette and the top-down view of the
+  // platens at the same time, which is the tradeoff a cutaway drawing makes.
+  const roof = new THREE.Mesh(
+    // Inner radius clears the platens: they sit at R_DECK with radius
+    // PLATEN_R, so anything tighter than (R_DECK + PLATEN_R) crops the very
+    // parts the user clicks. Derived, not eyeballed -- a hand-picked 0.74
+    // looked fine in one screenshot and hid a platen edge in every other.
+    new THREE.RingGeometry(R_DECK + PLATEN_R + 0.10, BAY_R + 0.02, 12, 1),
+    M.skin);
+  roof.rotation.x = -Math.PI / 2;
+  roof.position.y = BAY_Y + BAY_H + 0.05;
+  roof.castShadow = true;
+  shell.add(tag(roof, 'frame'));
+
+  // panel seams on the roof ring, so it reads as bolted sheet metal
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2 + Math.PI / 12;
+    const seam = new THREE.Mesh(
+      new THREE.BoxGeometry(BAY_R - (R_DECK + PLATEN_R + 0.10), 0.012, 0.030),
+      M.skinLo);
+    const rMid = ((R_DECK + PLATEN_R + 0.10) + BAY_R) / 2;
+    seam.position.set(Math.cos(a) * rMid, BAY_Y + BAY_H + 0.058,
+                      Math.sin(a) * rMid);
+    seam.rotation.y = -a;
+    shell.add(tag(seam, 'frame'));
+  }
+
+  // EFEM: the front-end box wafers pass through, with FOUP load ports.
+  // Placed on the load-cup side so the wafer path reads correctly:
+  // FOUP -> EFEM -> load cup -> carousel -> platen.
+  const efemSt = STATIONS[LOADCUP_STATION];
+  const outEf = new THREE.Vector3(efemSt.x, 0, efemSt.z).normalize();
+  const efem = new THREE.Group();
+  efem.position.set(outEf.x * (BAY_R + 0.62), 0, outEf.z * (BAY_R + 0.62));
+  efem.rotation.y = -Math.atan2(outEf.z, outEf.x);
+
+  const efemBody = new THREE.Mesh(new THREE.BoxGeometry(1.05, 1.95, 2.05), M.skin);
+  efemBody.position.y = BAY_Y + 0.98;
+  efemBody.castShadow = efemBody.receiveShadow = true;
+  efem.add(tag(efemBody, 'loadcup'));
+
+  const efemWin = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.62, 1.70), M.window);
+  efemWin.position.set(0.53, BAY_Y + 1.45, 0);
+  efem.add(efemWin);
+
+  // three FOUPs on the load ports -- the clearest "this is a fab tool" cue
+  for (const z of [-0.66, 0, 0.66]) {
+    const port = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.30, 0.52), M.skinLo);
+    port.position.set(0.55, BAY_Y + 0.62, z);
+    efem.add(tag(port, 'loadcup'));
+
+    const foup = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.44, 0.48), M.foup);
+    foup.position.set(0.80, BAY_Y + 0.96, z);
+    foup.castShadow = true;
+    efem.add(tag(foup, 'loadcup'));
+
+    const lid = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.36, 0.40), M.skinLo);
+    lid.position.set(0.58, BAY_Y + 0.96, z);
+    efem.add(tag(lid, 'loadcup'));
+
+    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.05, 0.05), M.dark);
+    handle.position.set(0.80, BAY_Y + 1.21, z);
+    efem.add(tag(handle, 'loadcup'));
+  }
+  shell.add(efem);
+
+  // operator console: an angled screen on the EFEM face
+  const console_ = new THREE.Group();
+  console_.position.set(outEf.x * (BAY_R + 1.30), BAY_Y + 1.42,
+                        outEf.z * (BAY_R + 1.30));
+  console_.rotation.y = -Math.atan2(outEf.z, outEf.x);
+  const scr = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.40, 0.62), M.dark);
+  scr.rotation.z = -0.22;
+  console_.add(tag(scr, 'carousel'));
+  const scrFace = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.34, 0.56),
+    new THREE.MeshStandardMaterial({ color: 0x0e2a45, emissive: 0x1d6fb8,
+                                     emissiveIntensity: 0.85, roughness: 0.3 }));
+  scrFace.position.x = 0.035;
+  scrFace.rotation.z = -0.22;
+  console_.add(tag(scrFace, 'carousel'));
+  shell.add(console_);
+
+  // signal tower: red / amber / green stack light on the roof
+  const tower = new THREE.Group();
+  tower.position.set(BAY_R * 0.52, BAY_Y + BAY_H + 0.10, -BAY_R * 0.52);
+  const towerPost = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.035, 0.035, 0.22, 16), M.dark);
+  towerPost.position.y = 0.11;
+  tower.add(tag(towerPost, 'frame'));
+  const LAMPS = [[0x1fdc6a, 1.30], [0xffb020, 0.10], [0xff3b30, 0.10]];
+  LAMPS.forEach(([c, e], i) => {
+    const lamp = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.062, 0.062, 0.10, 20),
+      new THREE.MeshStandardMaterial({ color: c, emissive: c,
+                                       emissiveIntensity: e, roughness: 0.35,
+                                       transparent: true, opacity: 0.92 }));
+    lamp.position.y = 0.27 + i * 0.105;
+    tower.add(tag(lamp, 'frame'));
+  });
+  const towerCap = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.066, 0.066, 0.03, 20), M.dark);
+  towerCap.position.y = 0.27 + LAMPS.length * 0.105;
+  tower.add(tag(towerCap, 'frame'));
+  shell.add(tower);
+
+  scene.add(shell);
+
   // base cabinets under the deck — the tool is a floor machine, and without a
   // body the platens look like they are floating on a table.
   for (let i = 0; i < 4; i++) {
@@ -184,7 +396,6 @@ export function createScene(canvas, onPick) {
   // ── the three platens ───────────────────────────────────────────
   // Platen 1 (station 0) is the ACTIVE one: the solver simulates a single
   // polish step, so exactly one platen may claim to be the simulated one.
-  const PLATEN_R = 0.62;
   const platens = [];
   let grooveTex = null;
 
@@ -578,9 +789,34 @@ export function createScene(canvas, onPick) {
   const clock = new THREE.Clock();
   let raf = 0;
 
+  /* Motion can be stopped without stopping rendering.
+   *
+   * The tool is always turning: platens, heads and the conditioner arm all
+   * move. That makes any "where is this part on screen" answer perishable —
+   * an end-to-end test that asks where the pad is and then clicks there hits
+   * whatever rotated into that spot in the meantime, and reports a clickable
+   * part as broken. It is also what a user wants when they are trying to
+   * click a specific mesh on a moving machine.
+   * Rendering continues while frozen, so the view still responds to orbiting.
+   */
+  let frozen = false;
+  function freeze(on) { frozen = !!on; }
+
+  // Simulated time, advanced by dt. NOT clock.elapsedTime: the conditioner
+  // sweep is an absolute function of time, so reading the wall clock made the
+  // arm keep sweeping while "frozen" and a probed disk position still expired
+  // between the probe and the click. Anything periodic must be driven from
+  // this accumulator, or freeze() is a half-measure.
+  let simT = 0;
+
   function frame_() {
-    const dt = Math.min(0.05, clock.getDelta());
-    const t = clock.elapsedTime;
+    // getDelta() is called unconditionally: it RESETS the clock's internal
+    // mark, so skipping it while frozen would make the first unfrozen frame
+    // advance by the whole frozen duration and the machine would jump.
+    const raw = Math.min(0.05, clock.getDelta());
+    const dt = frozen ? 0 : raw;
+    simT += dt;
+    const t = simT;
 
     // Only the ACTIVE platen and head turn at the recipe's rpm. The idle
     // stations turn slowly, so the tool looks alive without implying that
@@ -639,6 +875,88 @@ export function createScene(canvas, onPick) {
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
+    fitView();
+  }
+
+  /** Frame the whole machine, whatever the window shape.
+   *
+   * Fitting to a bounding SPHERE, or to the global axis-aligned bounding BOX,
+   * is the textbook move and both are badly wrong here. This tool is a round,
+   * flat deck: its AABB is a square prism whose corners contain a lot of empty
+   * air, and viewed from a diagonal that phantom air is what gets framed —
+   * leaving the machine at roughly a third of the frame, which is exactly the
+   * "the 3D model doesn't display properly" report.
+   *
+   * So fit to the real silhouette: a sub-sampled world-space point cloud of the
+   * pickable geometry, projected to NDC. Perspective makes the right distance a
+   * fixed point rather than a closed form, so iterate; it converges in 2-3
+   * passes. Sub-sampling keeps this a few thousand points, cheap enough to run
+   * on every resize.
+   *
+   * Points come from the pickable machine parts only. The floor disc is 7 units
+   * across, and including it would push the camera back far enough to shrink
+   * the tool to a speck.
+   *
+   * The user's viewing DIRECTION is preserved and only the distance re-derived,
+   * so a window resize never throws away an orbit.
+   */
+  let fitPoints = null;
+  function collectFitPoints() {
+    const pts = [];
+    const v = new THREE.Vector3();
+    for (const m of pickable) {
+      const pos = m.geometry && m.geometry.attributes && m.geometry.attributes.position;
+      if (!pos) continue;
+      // ~24 samples per mesh: enough to catch the extremes of a 72-segment
+      // cylinder without turning a resize into a full vertex walk.
+      const stride = Math.max(1, Math.floor(pos.count / 24));
+      for (let i = 0; i < pos.count; i += stride) {
+        v.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld);
+        pts.push(v.clone());
+      }
+    }
+    return pts;
+  }
+
+  function fitView() {
+    scene.updateMatrixWorld(true);
+    if (!fitPoints || !fitPoints.length) fitPoints = collectFitPoints();
+    if (!fitPoints.length) return;
+    const box = new THREE.Box3().setFromPoints(fitPoints);
+    const centre = box.getCenter(new THREE.Vector3());
+    const radius = box.getBoundingSphere(new THREE.Sphere()).radius;
+    const dir = camera.position.clone().sub(controls.target);
+    if (dir.lengthSq() < 1e-6) dir.set(4.6, 5.2, 5.0);
+    dir.normalize();
+
+    const FILL = 0.92;            // leave a little air around the tool
+    let dist = radius * 2.2;      // a safe starting point; refined below
+    const p = new THREE.Vector3();
+    for (let pass = 0; pass < 8; pass++) {
+      camera.position.copy(centre).addScaledVector(dir, dist);
+      camera.near = Math.max(0.05, dist - radius * 2.0);
+      camera.far = dist + radius * 4.0;
+      camera.lookAt(centre);
+      camera.updateMatrixWorld(true);
+      camera.updateProjectionMatrix();
+      let extent = 0;
+      for (const q of fitPoints) {
+        p.copy(q).project(camera);
+        extent = Math.max(extent, Math.abs(p.x), Math.abs(p.y));
+      }
+      if (!isFinite(extent) || extent <= 1e-4) break;
+      const next = dist * (extent / FILL);
+      if (Math.abs(next - dist) < dist * 0.004) { dist = next; break; }
+      dist = next;
+    }
+    controls.target.copy(centre);
+    camera.position.copy(centre).addScaledVector(dir, dist);
+    camera.near = Math.max(0.05, dist - radius * 2.0);
+    camera.far = dist + radius * 4.0;
+    controls.minDistance = Math.min(controls.minDistance, dist * 0.25);
+    controls.maxDistance = Math.max(controls.maxDistance, dist * 2.5);
+    camera.updateProjectionMatrix();
+    controls.update();
   }
   window.addEventListener('resize', resize);
   resize();
@@ -662,7 +980,7 @@ export function createScene(canvas, onPick) {
   }
 
   return {
-    setState, paintWafer, resize, probeAt,
+    setState, paintWafer, resize, probeAt, fitView, freeze,
     parts: PARTS,
     dispose() { cancelAnimationFrame(raf); renderer.dispose(); },
   };

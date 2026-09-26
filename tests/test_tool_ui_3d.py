@@ -104,23 +104,47 @@ def _rate(pg) -> float:
 
 
 def _find(pg, part):
-    """Screen point that actually hits `part`, via the scene's own raycaster."""
+    """Screen point that actually hits `part`, via the scene's own raycaster.
+
+    Two conditions, not one. The raycast knows nothing about the DOM: the
+    drawer and the TOOL PARTS list float OVER the canvas, so a point can be on
+    the wafer in 3D while a panel covers it on screen, and a real mouse click
+    there never reaches the canvas at all. `elementFromPoint` is the arbiter of
+    what the user can actually click.
+    """
     return pg.evaluate(
         """(part) => {
              const c = document.querySelector('canvas');
              const r = c.getBoundingClientRect();
-             for (let y = 0; y < r.height; y += 6)
-               for (let x = 0; x < r.width; x += 6)
-                 if (window.__probe(r.left + x, r.top + y) === part)
-                   return {x: r.left + x, y: r.top + y};
+             // Stride 3: the camera frames the whole machine, so the wafer is a
+             // small target. A coarse grid can miss it and claim it is not on
+             // screen at all.
+             for (let y = 0; y < r.height; y += 3)
+               for (let x = 0; x < r.width; x += 3) {
+                 const px = r.left + x, py = r.top + y;
+                 if (window.__probe(px, py) !== part) continue;
+                 if (document.elementFromPoint(px, py) !== c) continue;
+                 return {x: px, y: py};
+               }
              return null;}""", part)
 
 
 def _click(pg, part):
-    point = _find(pg, part)
-    assert point, f"'{part}' is not visible anywhere on the canvas"
-    pg.mouse.click(point["x"], point["y"])
-    pg.wait_for_timeout(600)
+    # Freeze first: the platens, heads and conditioner arm all turn, so the
+    # answer to "where is the pad" expires within a frame and the click lands
+    # on whatever rotated into that spot -- which reads as a wiring bug.
+    # The settle is for the OTHER moving thing: opening or closing a drawer
+    # resizes the stage, and the camera re-frames on a 240 ms timer, so a probe
+    # taken before that lands points at a pixel the machine has left.
+    pg.evaluate("() => window.__freeze && window.__freeze(true)")
+    pg.wait_for_timeout(700)
+    try:
+        point = _find(pg, part)
+        assert point, f"'{part}' is not visible anywhere on the canvas"
+        pg.mouse.click(point["x"], point["y"])
+        pg.wait_for_timeout(600)
+    finally:
+        pg.evaluate("() => window.__freeze && window.__freeze(false)")
 
 
 def _simulate(pg):
@@ -155,11 +179,15 @@ def test_the_page_loads_without_javascript_errors(page):
 
 
 def test_every_data_carrying_part_is_clickable(page):
+    # Stride 4, not 10. The camera now frames the WHOLE machine (deck, carousel,
+    # EFEM and slurry cabinet), so a 300 mm wafer is genuinely small on screen --
+    # that is physically honest, not a regression. A 10 px grid can step straight
+    # over it and report the wafer as unclickable when it is not.
     hits = page.evaluate(
         """(() => {const c = document.querySelector('canvas');
              const r = c.getBoundingClientRect(), found = {};
-             for (let y = 0; y < r.height; y += 10)
-               for (let x = 0; x < r.width; x += 10) {
+             for (let y = 0; y < r.height; y += 4)
+               for (let x = 0; x < r.width; x += 4) {
                  const k = window.__probe(r.left + x, r.top + y);
                  if (k) found[k] = (found[k] || 0) + 1;}
              return found;})()""")
@@ -472,3 +500,144 @@ def test_the_model_inspector_shows_constants_with_sources_and_re_predicts(page):
         f"doubling the Preston coefficient in the model inspector did not "
         f"double the prediction ({before} -> {after}); the edit loop is not "
         f"reaching the engine")
+
+
+# ── framing: the machine must actually be visible, at every window shape ──
+#
+# The owner's report was "the 3D equipment doesn't display properly". Nothing
+# was broken in the usual sense: the scene rendered, the parts were clickable,
+# the tests passed. The camera was simply too far away, so the tool sat as a
+# small dark blob in a corner of a big empty frame. No test could catch that,
+# because every existing check asked "did it render" and none asked "is it
+# actually looking at the machine".
+#
+# Measured with the scene's own raycaster rather than by reading pixels: a
+# raycast answers "is machine geometry at this point", which is the question,
+# while a pixel is dark for two different reasons (background, or an unlit part
+# of the tool) and cannot tell them apart.
+FRAMING_VIEWPORTS = [
+    ("desktop", 1440, 900),
+    ("laptop", 1280, 720),
+    ("phone-portrait", 390, 844),
+]
+
+
+def _framing(pg):
+    return pg.evaluate("""() => {
+      const c = document.querySelector('canvas');
+      const r = c.getBoundingClientRect();
+      let hit = 0, n = 0, x0 = 1, x1 = 0, y0 = 1, y1 = 0, edge = 0;
+      for (let gy = 0.02; gy < 0.99; gy += 0.02)
+        for (let gx = 0.02; gx < 0.99; gx += 0.02) {
+          n++;
+          const p = window.__probe(r.left + r.width * gx, r.top + r.height * gy);
+          if (!p) continue;
+          hit++;
+          x0 = Math.min(x0, gx); x1 = Math.max(x1, gx);
+          y0 = Math.min(y0, gy); y1 = Math.max(y1, gy);
+          if (gx < 0.04 || gx > 0.97 || gy < 0.04 || gy > 0.97) edge++;
+        }
+      return {cover: hit / n, w: x1 - x0, h: y1 - y0, edge};
+    }""")
+
+
+@pytest.mark.parametrize("name,w,h", FRAMING_VIEWPORTS)
+def test_the_machine_fills_the_frame_at_every_window_shape(page, name, w, h):
+    """Two failure modes, two assertions.
+
+    `span` catches a camera that is too far back; `edge` catches one that is too
+    close and crops the tool. Judging the larger span only, not both dimensions:
+    the machine is wide and flat, so on a tall phone it can never fill the
+    height and on a wide desktop it can never fill the width -- demanding both
+    would fail a correctly framed view.
+
+    The thresholds are calibrated against the bug they exist to catch. The old
+    bounding-sphere fit scored span 0.38-0.40 with 7-10% coverage at every
+    viewport; the silhouette fit scores 0.62-0.76 with 11-28%. This bar fails
+    the former everywhere and passes the latter with room to spare.
+    """
+    # Close any drawer a previous test left open: on a narrow viewport the
+    # drawer takes the full width and the stage is not visible at all, so the
+    # measurement would be of a hidden canvas, not of the framing.
+    page.evaluate("() => document.getElementById('drawerclose')?.click()")
+    page.wait_for_timeout(400)
+    page.set_viewport_size({"width": w, "height": h})
+    page.wait_for_timeout(900)
+    page.evaluate("() => window.__freeze(true)")
+    try:
+        g = _framing(page)
+    finally:
+        page.evaluate("() => window.__freeze(false)")
+        page.set_viewport_size({"width": 1280, "height": 860})
+        page.wait_for_timeout(500)
+
+    assert g["edge"] == 0, (
+        f"{name} {w}x{h}: the machine runs off the viewport edge "
+        f"({g['edge']} grid hits) — the camera is too close and it is cropped")
+    span = max(g["w"], g["h"])
+    assert span >= 0.60, (
+        f"{name} {w}x{h}: the machine spans only {span:.2f} of the frame "
+        f"(cover {g['cover']:.1%}) — it reads as a small blob in a big empty "
+        f"view, which is what 'the 3D model doesn't display properly' means")
+    # Density INSIDE the machine's own footprint, not share of the whole frame.
+    # A frame-share floor is not a framing criterion: the tool is wide and flat,
+    # so on a 390x844 phone a perfectly framed machine still covers only ~4% of
+    # a very tall frame, and no camera distance can change that. What a frame
+    # share does catch is a silhouette that is mostly empty air — a few thin
+    # struts spanning the view with nothing between them — and density catches
+    # that without punishing the aspect ratio.
+    foot = max(1e-6, g["w"] * g["h"])
+    density = g["cover"] / foot
+    assert density >= 0.30, (
+        f"{name} {w}x{h}: the machine's silhouette is {density:.1%} solid "
+        f"(cover {g['cover']:.1%} over a {g['w']:.2f}x{g['h']:.2f} footprint) "
+        f"— the view is mostly empty space")
+
+
+def test_freezing_stops_every_moving_part(page):
+    """freeze() must stop ALL motion, not most of it.
+
+    Clicking a specific mesh on a machine whose platens, heads and conditioner
+    arm are all turning needs the probe result to survive until the click lands.
+    The first version of freeze() zeroed dt but left the conditioner sweep
+    reading the wall clock, so the arm kept sweeping and the disk still moved
+    out from under the click — a half-freeze that produced exactly the
+    mysterious wrong-drawer failures it was written to remove.
+    """
+    def snapshot():
+        return page.evaluate("""() => {
+          const c = document.querySelector('canvas');
+          const r = c.getBoundingClientRect(), out = [];
+          for (let gy = 0.1; gy < 0.95; gy += 0.03)
+            for (let gx = 0.1; gx < 0.95; gx += 0.03)
+              out.push(window.__probe(r.left + r.width * gx,
+                                      r.top + r.height * gy) || '');
+          return out.join('|');
+        }""")
+
+    # Pixels, for the liveness half. The raycast snapshot above answers "which
+    # PART is here", and a rotating platen is a disc of revolution: it maps to
+    # the same part at every angle, so the part map is blind to exactly the
+    # motion being checked. A pixel checksum sees the shading turn.
+    def pixels():
+        return page.evaluate("""() => {
+          const c = document.querySelector('canvas');
+          const gl = c.getContext('webgl2') || c.getContext('webgl');
+          const px = new Uint8Array(4 * c.width * c.height);
+          gl.readPixels(0, 0, c.width, c.height, gl.RGBA, gl.UNSIGNED_BYTE, px);
+          let h = 0;
+          for (let i = 0; i < px.length; i += 61) h = (h * 31 + px[i]) | 0;
+          return h;
+        }""")
+
+    page.evaluate("() => window.__freeze(true)")
+    page.wait_for_timeout(300)
+    a, ap = snapshot(), pixels()
+    page.wait_for_timeout(1500)          # > one frame, < one sweep period
+    b, bp = snapshot(), pixels()
+    assert a == b, "a part moved while the scene is frozen"
+    assert ap == bp, "the image changed while the scene is frozen"
+
+    page.evaluate("() => window.__freeze(false)")
+    page.wait_for_timeout(900)
+    assert pixels() != bp, "nothing moves after unfreezing — the tool looks dead"
