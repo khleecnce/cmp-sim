@@ -4,7 +4,17 @@
 
 ### 1차 완성 — 모델링 정확도
 - **목표: 예측 오차 median ≤ 10.0%** (이력서에 쓸 수 있는 수준)
-- **현재: median 18.9% shape / 21.3% LOO** (코퍼스 46/50, 427점) — **898 tests**.
+- **현재: median 18.9% shape / 21.3% LOO** (코퍼스 46/50, 427점) — **904 tests**.
+  2026-09-26(7회차): **Cu 항복 임계 = NULL(음성 결과)**. W에서 통한 전단 임계를
+  Cu/BTA로 옮기라는 예측을 Cu 자체 압력 사다리 12개로 측정했는데, 절편 부호가
+  동전던지기(5/12 양수)이고 중앙값이 −0.094·P_mid로 **부호가 반대**였다. 상수를
+  추가하지 않았으므로 median은 의도대로 18.9% 불변. 얻은 것은 음성 지식 + 가드:
+  테스트가 Cu 팩의 `yield_pressure`류 상수를 금지하고, 새 데이터가 Cu 억제제
+  2수준을 만들면(=Q2가 답할 수 있게 되면) 시끄럽게 실패해 재검토를 강제한다.
+  함정 2개 회피: 2점 사다리는 2-파라미터 임계가 **정의상 정확히 맞으므로**(SSE=0)
+  Q3에서 제외했고(안 했으면 12개 중 9개가 "임계 입증"으로 보였다), 사다리 그룹화가
+  행별 기록 필드(`measured_mrr_angstrom_per_min`)를 무시하게 고쳤다(안 고쳤을 때
+  `us6918821b2` 전 행이 단독 그룹이 되어 데이터셋 하나가 조용히 빠졌다).
   2026-09-26(6회차): **responsive_miss 버킷 공격 1건 성공 — 코퍼스 median이
   19.5% → 18.9%로 내려갔다(정체 이후 첫 이동).** 최악의 반응성 데이터셋
   `ep3161098b1_w`(54.9%)를 **54.9% → 12.9%**로 고쳤다. 원인은 STATUS가 예측한
@@ -469,27 +479,20 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-**Keep attacking `responsive_miss` by CAUSE — the threshold result says the
-remaining misses are MISSING LAWS, not plumbing. Next target: the
-pH-dominated oxide/ceria subset (5 datasets, 25-49% shape).**
+**Keep attacking `responsive_miss` by CAUSE. Next target: the pH-dominated
+oxide/ceria subset (5 datasets, 25-49% shape) — measure whether the residual
+orders by Ce3+ site fraction BEFORE proposing any functional form.**
 
-The 2026-09-26 run proved the method works: the worst responsive dataset went
-54.9% → 12.9% on a derived 2-constant law that BEAT a fitted exponent, and the
-corpus median moved for the first time since the census (19.5% → 18.9%).
+Follow-up 2 is now CLOSED as a null result (see below), so the remaining
+follow-ups from the threshold run are:
 
-Two follow-ups the threshold run opened, in order of expected value:
-
-1. **Does the threshold generalise to the OTHER W dataset?** `bouvet2002_w` is
-   at its own noise floor so it cannot test it, but `us20110186542a1_w` sweeps
-   H2O2 and pH at fixed pressure — it cannot see P0 either. **So the threshold
-   currently rests on ONE patent.** Find a second W pressure sweep with a
-   stated inhibitor loading before promoting P_y past `confidence: fitted`.
-   If none exists, record that as the limit and do not widen the claim.
-2. **The same shear-off logic predicts a threshold on Cu** (BTA passivation is
-   the textbook case, and `us6918821b2_cu` is 44.1% with pressure AND velocity
-   responding). Do NOT copy P_y across films — the layer is different. Probe
-   Cu's own pressure ladders for a non-zero intercept first, and if the
-   intercept comes out at ~0 report the null result.
+1. **Does the W threshold generalise to a SECOND W pressure sweep?** `bouvet2002_w`
+   is at its own noise floor; `us20110186542a1_w` sweeps H2O2/pH at fixed
+   pressure and cannot see P0. **The threshold still rests on ONE patent.**
+   Find a second W pressure sweep with a stated inhibitor loading before
+   promoting P_y past `confidence: fitted`. If none exists, record that as the
+   limit and do not widen the claim.
+2. ~~The same shear-off logic predicts a threshold on Cu~~ → **measured, NULL.**
 3. pH-dominated oxide/ceria (netzband2020 49.2, cn109609035b 32.1, dandu2009
    31.5, us9422456b2 25.3, son2021 25.6): the pH axis is CLOSED to further
    closed-form attempts by the 2026-09-27 two-falsification rule. What is NOT
@@ -498,6 +501,33 @@ Two follow-ups the threshold run opened, in order of expected value:
    the residual orders by Ce3+ fraction before proposing any functional form.**
 
 Still true, and still the rule: do not fit. Measure first, one axis per run.
+
+### Closed 2026-09-26 (7th run): the Cu threshold is a NULL result — do not port P_y across films
+`tools/cu_passivation_threshold_probe.py` + `tests/test_cu_passivation_threshold_null.py`
+(6 tests). Cu/BTA is the textbook passivation system, so the W shear-off law
+PREDICTS a Cu yield offset. Measured on every Cu pressure ladder at frozen
+chemistry (12 ladders, 3 datasets; RR = a·(P − P0) fitted per ladder):
+
+| test | pre-registered bar | measured | verdict |
+|---|---|---|---|
+| Q1 intercept positive | ≥75% of ladders | **5/12 (42%)**, median P0/P_mid **−0.094** | NULL |
+| Q2 orders by inhibitor | ≥2 inhibitor levels | **1 level** in the whole Cu corpus | NOT TESTABLE |
+| Q3 buys SSE on ≥3-pt ladders | decisive win | median SSE2/SSE1 **0.822** | NULL |
+
+The intercept sign is a coin flip and the median is on the WRONG side of zero,
+so the law is not supported on Cu. **Corpus median unchanged at 18.9% — by
+design: nothing was added.** The value is negative knowledge plus a guard: the
+test asserts no Cu pack declares a `yield_pressure`/`p0_psi`-style constant, and
+it fails LOUDLY if a future dataset adds a second Cu inhibitor level (which
+would make Q2 answerable) or if the intercepts turn positive. That converts
+"we chose not to fit Cu" from a memory into an enforced rule.
+Two traps avoided: 2-point ladders are excluded from Q3 because a 2-parameter
+threshold fits them exactly by construction (SSE=0 always — reporting those as
+wins would have "proved" the threshold on 9 of 12 ladders), and the ladder
+grouping ignores per-row bookkeeping keys (`measured_mrr_angstrom_per_min`,
+`read_method`) — leaving them in made every `us6918821b2` row its own singleton
+and silently dropped a whole dataset before the bug was caught.
+
 
 ### Closed 2026-09-26: W passivation shear threshold — DERIVED, and it moved the corpus
 `cmp_sim/models/passivation_threshold.py`, `tools/w_passivation_threshold_probe.py`,
