@@ -344,6 +344,35 @@ export function createScene(canvas, onPick) {
     FIXTURES.push({ name, group, base: base.clone() });
     return group;
   };
+
+  /* VOLUMES: the symmetric half of the same blind spot.
+   *
+   * `standsOn` catches a fixture that floats. The mirror-image error is a
+   * fixture that INTERPENETRATES another one -- two cabinets occupying the
+   * same metres -- and every other check in the suite is just as blind to it:
+   * an EFEM buried half-way inside the polish bay is lit, coloured, clickable
+   * and inside the framing bounds. It has happened here once already (the
+   * cleaner/dryer module was first placed at a radius still inside the bay
+   * drum, where it was simply invisible), and it was found by eye.
+   *
+   * Each free-standing external assembly registers itself as an occupancy
+   * volume. `window.__clashes()` then reports the penetration depth of every
+   * pair. Two things make this survive re-modelling:
+   *   - the volume is measured from the object's OWN geometry and world
+   *     matrix at check time, never from the numbers that positioned it, so
+   *     moving or resizing a part cannot invalidate the check (the floating
+   *     tower was born from exactly such a change);
+   *   - the polish bay is registered as a CYLINDER rather than a box, because
+   *     its box would enclose the platens and report a clash with every part
+   *     the enclosure is supposed to contain.
+   * Only external fixtures are registered: the machinery inside the drum is
+   * meant to be inside it.
+   */
+  const VOLUMES = [];
+  const occupies = (name, obj, cyl) => {
+    VOLUMES.push({ name, obj, cyl: cyl || null });
+    return obj;
+  };
   const frame = new THREE.Group();
   const deck = new THREE.Mesh(new THREE.CylinderGeometry(1.72, 1.80, 0.36, 72), M.deck);
   deck.position.y = -0.20;
@@ -377,6 +406,11 @@ export function createScene(canvas, onPick) {
   bayLower.position.y = BAY_Y + 0.39;
   bayLower.castShadow = bayLower.receiveShadow = true;
   shell.add(tag(bayLower, 'frame'));
+  // Registered as a CYLINDER (see VOLUMES): the drum is the one volume whose
+  // interior is legitimately full of machinery, so a box around it would
+  // clash with everything it contains. Radius and height are read back from
+  // the geometry itself at check time, not restated here.
+  occupies('polish bay', bayLower, true);
 
   const bayGlass = new THREE.Mesh(
     new THREE.CylinderGeometry(BAY_R, BAY_R, BAY_H - 0.78, 12, 1, true), M.window);
@@ -454,6 +488,7 @@ export function createScene(canvas, onPick) {
   efemBody.position.y = BAY_Y + 0.98;
   efemBody.castShadow = efemBody.receiveShadow = true;
   efem.add(tag(efemBody, 'loadcup'));
+  occupies('factory interface', efemBody);
 
   /* PANEL SEAMS AND SERVICE DOORS on the factory interface.
    *
@@ -533,6 +568,7 @@ export function createScene(canvas, onPick) {
   cleanBody.position.y = BAY_Y + 0.67;
   cleanBody.castShadow = cleanBody.receiveShadow = true;
   clean.add(tag(cleanBody, 'frame'));
+  occupies('cleaner/dryer module', cleanBody);
   standsOn('cleaner/dryer module', clean,
            new THREE.Vector3(0, BAY_Y + 0.67 - 1.34 / 2, 0));
   // service lids over the cleaning stations: brush box, brush box, dryer
@@ -562,6 +598,7 @@ export function createScene(canvas, onPick) {
     new THREE.CylinderGeometry(0.032, 0.032, 0.95, 16), M.steel);
   ergoPost.position.set(-0.02, BAY_Y + 1.30, -0.88);
   console_.add(tag(ergoPost, 'carousel'));
+  occupies('ergo arm post', ergoPost);
   // The ergo-arm post is free-standing on the fab floor: its foot is the
   // bottom of the post, and nothing in the scene graph holds it up.
   standsOn('ergo arm post', console_,
@@ -1457,8 +1494,73 @@ export function createScene(canvas, onPick) {
     });
   }
 
+  /* Interpenetration check for the registered occupancy VOLUMES.
+   *
+   * Reports, for every pair, how deeply the two bodies overlap. Boxes are
+   * compared as world-axis-aligned boxes computed from the meshes themselves
+   * (`setFromObject`), so the numbers come from the rendered geometry, not
+   * from the constants that placed it. The polish bay is compared as the
+   * cylinder it is: an overlap counts only when a box corner actually gets
+   * inside the drum radius AND inside its height band, because the drum's
+   * bounding box corners are empty air and would otherwise clash with the
+   * cleaner standing legitimately beside it.
+   *
+   * Depth is returned in metres and signed the intuitive way: positive means
+   * the two occupy the same space.
+   */
+  function clashes() {
+    scene.updateMatrixWorld(true);
+    const V = VOLUMES.map(({ name, obj, cyl }) => {
+      const box = new THREE.Box3().setFromObject(obj);
+      let radius = null;
+      if (cyl) {
+        // radius from the geometry's own parameters, scaled into world
+        const p = obj.geometry.parameters || {};
+        const s = new THREE.Vector3();
+        obj.getWorldScale(s);
+        radius = Math.max(p.radiusTop || 0, p.radiusBottom || 0) *
+                 Math.max(s.x, s.z);
+      }
+      const c = new THREE.Vector3();
+      obj.getWorldPosition(c);
+      return { name, box, cyl: !!cyl, radius, centre: c };
+    });
+    const out = [];
+    for (let i = 0; i < V.length; i++) {
+      for (let j = i + 1; j < V.length; j++) {
+        const a = V[i], b = V[j];
+        const cylV = a.cyl ? a : (b.cyl ? b : null);
+        const boxV = a.cyl ? b : a;
+        let depth;
+        if (cylV && !(a.cyl && b.cyl)) {
+          // vertical overlap of the two boxes, then radial penetration of the
+          // box's nearest point into the drum
+          const dy = Math.min(cylV.box.max.y, boxV.box.max.y) -
+                     Math.max(cylV.box.min.y, boxV.box.min.y);
+          const near = new THREE.Vector3(
+            Math.max(boxV.box.min.x, Math.min(cylV.centre.x, boxV.box.max.x)),
+            0,
+            Math.max(boxV.box.min.z, Math.min(cylV.centre.z, boxV.box.max.z)));
+          const dr = cylV.radius - Math.hypot(near.x - cylV.centre.x,
+                                              near.z - cylV.centre.z);
+          depth = Math.min(dy, dr);
+        } else {
+          const ov = (lo1, hi1, lo2, hi2) =>
+            Math.min(hi1, hi2) - Math.max(lo1, lo2);
+          depth = Math.min(
+            ov(a.box.min.x, a.box.max.x, b.box.min.x, b.box.max.x),
+            ov(a.box.min.y, a.box.max.y, b.box.min.y, b.box.max.y),
+            ov(a.box.min.z, a.box.max.z, b.box.min.z, b.box.max.z));
+        }
+        out.push({ a: a.name, b: b.name, depth });
+      }
+    }
+    return out;
+  }
+
   return {
     setState, paintWafer, resize, probeAt, fitView, freeze, fixtureGaps,
+    clashes,
     parts: PARTS,
     dispose() { cancelAnimationFrame(raf); renderer.dispose(); },
   };

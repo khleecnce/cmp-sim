@@ -939,6 +939,37 @@ https://cmp-sim.vercel.app --token …` 가 배포본을 상대로 전 항목 �
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
+### ✅ CLOSED 2026-09-27 (23회차): 관통(interpenetration) — 떠 있는 것과 대칭인 사각지대
+22회차가 남긴 "다음 수"를 그대로 실행했다. `standsOn`이 **아래가 빈** 부품을 잡는다면,
+거울상 오류는 부품이 **다른 부품 속에 박혀** 있는 것이다. 자동 검사는 여기에도 똑같이
+눈이 멀어 있다 — 드럼 속에 파묻힌 캐비닛도 조명·색·클릭·프레이밍을 전부 통과한다.
+**이 오류는 이미 한 번 발생했다**: 세정/건조 모듈의 첫 배치가 베이 드럼 **안쪽**
+반지름이라 아예 안 보였고, 사람 눈이 잡았다.
+
+`tool3d.js: VOLUMES / occupies() / clashes()` + `window.__clashes()` +
+`tests/test_tool_ui_3d.py::test_no_two_external_assemblies_occupy_the_same_metres`
+(31 → 32, 전체 1071 → 1072). **median 18.9%/21.3% 불변**(껍데기 전용 — 움직였으면 버그).
+
+설계에서 중요한 두 가지:
+- 깊이는 **렌더된 씬 그래프**에서 잰다(`Box3.setFromObject` + 드럼 자신의 geometry
+  파라미터). 배치에 쓴 상수를 다시 읽으면, 바로 그 상수가 어긋나서 생기는 버그를
+  못 잡는다(타워 부양이 정확히 그렇게 태어났다).
+- **폴리시 베이만 원기둥으로 비교한다.** 드럼의 bounding box 모서리는 허공이라
+  박스로 비교하면 드럼 벽에 **정상적으로 붙어 선** 세정기가 clash로 찍힌다.
+  올바른 기하에서 울리는 검사는 곧 꺼지므로, 그렇게 두면 안 된다.
+- 허용 6 cm(그라운드 체크와 동일): 플랜지가 하우징을 몇 mm 겹치는 것은 설계다.
+  잡으려는 것은 데시미터·미터 단위로 파묻힌 모듈이다.
+- **버그로 교정 확인**: 세정기를 옛 반지름(`BAY_R*0.55`)으로 되돌리면
+  "polish bay penetrates cleaner/dryer module by **780 mm**"로 실패한다.
+
+**다음 수**: 껍데기 쪽 구조적 사각지대는 두 방향(부양·관통)이 닫혔다. 물리로 복귀하라 —
+아래 12회차 축별 오차 인구조사에서 `abrasive_wt_pct`(85점, 24.9%)가 distributed 다음으로
+가장 큰 단일 축이고, 공유 지수(law)로는 이득이 없었다. 즉 **농도축은 멱함수가 아니다**가
+데이터의 주장이다. Luo–Dornfeld의 활성입자수 포화(유효입자수가 농도에 선형이 아님)를
+유도식으로 넣어 자유 상수를 **늘리지 않고** 검증할 수 있는지부터 따져라.
+
+---
+
 ### ✅ CLOSED 2026-09-27 (22회차): 시그널 타워가 **공중에 떠 있었다** — 1070개 그린 테스트가 전부 못 본 오류
 `tool3d.js: FIXTURES / standsOn() / fixtureGaps()` + `window.__gaps()` +
 `tests/test_tool_ui_3d.py::test_every_free_standing_fixture_stands_on_something`

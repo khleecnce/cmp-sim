@@ -988,3 +988,38 @@ def test_every_free_standing_fixture_stands_on_something(page):
                if g["gap"] is None
                else f"floats {g['gap']:.2f} above {g['support']}")
             for g in floating))
+
+
+def test_no_two_external_assemblies_occupy_the_same_metres(page):
+    """The mirror image of the floating-fixture bug, and equally invisible.
+
+    `test_every_free_standing_fixture_stands_on_something` catches a part with
+    nothing beneath it. The symmetric error is a part buried INSIDE another
+    one, and every check in this suite is just as blind to it: an interpene-
+    trating cabinet is lit, coloured, clickable and inside the framing bounds.
+    It has already happened here once — the cleaner/dryer module was first
+    placed at a radius still inside the polish-bay drum, where it simply was
+    not visible — and a human eye is what caught it.
+
+    The depths are measured on the RENDERED scene graph (`Box3.setFromObject`
+    plus the drum's own geometry parameters), never on the constants that
+    positioned the parts, because that is precisely the kind of change that
+    creates this bug: one radius moves and its neighbour keeps the old one.
+
+    The polish bay is compared as a cylinder rather than as a box. Its
+    bounding box corners are empty air, and a box comparison would report the
+    cleaner standing legitimately against the drum wall as a clash — a check
+    that fires on correct geometry gets switched off, so it must not.
+
+    Tolerance: 60 mm, matching the ground check. Skins overlap by millimetres
+    by design (a flange laps its housing); what is being caught is a module
+    sunk decimetres or metres into another.
+    """
+    pairs = page.evaluate("() => window.__clashes()")
+    assert pairs, "no occupancy volumes are registered — the check is inert"
+
+    clashing = [p for p in pairs if p["depth"] > 0.06]
+    assert not clashing, (
+        "these assemblies occupy the same space: "
+        + "; ".join(f"{p['a']} penetrates {p['b']} by {p['depth'] * 1000:.0f} mm"
+                    for p in clashing))

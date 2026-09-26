@@ -905,6 +905,7 @@ $('dgo').onclick = run;
     // exactly like one that is bolted down — so this is the hook that makes
     // "it stands on something" testable instead of eyeball-only.
     window.__gaps = () => SCENE.fixtureGaps();
+    window.__clashes = () => SCENE.clashes();
   } catch (e) {
     // WebGL can be unavailable (VM, remote desktop, old driver). The simulator
     // must stay usable: the legend buttons already open every drawer.
