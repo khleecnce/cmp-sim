@@ -43,6 +43,14 @@ lk3.0 모사 3d모델 베이스로 만들라고"). **그 모델을 찾았다**:
   부품이고, 엔지니어가 사진에서 이걸로 헤드를 식별한다. 슬러리 슬롯 36개 추가.
 - **컨디셔너**: 막대+퍽 → 베이스 플랜지·스윕 모터·암 캡·린스 라인·다운포스 실린더.
 - **플래튼**: 샤프 실린더 → 챔퍼 바디 + 베어링 하우징 + 하부 볼트 원.
+- **factory interface(EFEM)**: 매끈한 흰 박스 → **패널 심(seam) + 서비스 도어 + 손잡이**.
+  화면에서 가장 밝은 대면적이라 눈이 여기 먼저 닿는데, 무늬 없는 흰 덩어리는
+  기계 쪽을 아무리 잘 만들어도 **스티로폼 포장재**로 읽힌다. 실제 팹 판금은
+  전부 볼트로 조인 서비스 패널이라 심이 보인다(정비하려면 다 열려야 하므로).
+  심은 텍스처가 아니라 **돌출된 얇은 막대**로 그려 자체 그림자를 만든다 —
+  이것이 "패널로 나뉜 캐비닛"과 "선이 그려진 상자"를 가르는 차이다.
+  ※ 이건 **내가 렌더 결과를 직접 보고** 잡았다. e2e는 전 항목 통과였지만
+  통과가 곧 "잘 보인다"는 아니다.
 
 ⚠ **정직성 1건 — 만들다 지웠다.** 첫 시도에 패드 위에 **클램프 링 + 볼트 24개**를
 넣었다. 플래튼이 "가공된 것처럼" 보이게 하는 디테일인데 **실물에 없다**: 이 등급
@@ -806,18 +814,16 @@ https://cmp-sim.vercel.app --token …` 가 배포본을 상대로 전 항목 �
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-**PHONE LAYOUT (09-26).** The owner opened the deployed tool on a phone over a
-different wifi and could not see the machine. Nothing was wrong with the scene:
-the desktop layout pins a 390px drawer + readout card + parts legend around the
-canvas, and on a 390px viewport those three ARE the viewport. Measured 27% of the
-canvas unobstructed on load. Fixed with a `@media (max-width:720px)` block —
-drawer becomes a 52vh bottom sheet, legend collapses to a horizontal strip,
-readout shrinks to one line while the sheet is up, and the drawer no longer
-auto-opens on load (phone only; on desktop it insets the scene instead of
-covering it). Now 74% visible on load, 20%+ with the sheet up, verified against
-the DEPLOYED instance, not just localhost.
-Guarded by 4 tests using `elementFromPoint` — a canvas can be full-size and
-still fully covered, so measuring the topmost element is the only honest check.
+**PHONE LAYOUT + MACHINED DETAIL (09-26, 10회차) — DONE, 아래 물리 질문으로 복귀.**
+폰 레이아웃: 데스크톱 패널 3개가 390px 뷰포트를 통째로 덮고 있었다. `@media
+(max-width:720px)`로 시트화 → 로드시 27% → **74%** 가시, 시트 올려도 20%+.
+`elementFromPoint`로 검증(전체 크기 캔버스가 완전히 덮여도 통과하는 테스트 방지).
+기하 정교화: 사용자가 UI를 두 번 반려(17:52·19:19)해서 **예전 LK 모델**
+(`~/fab-sim/sim/web/studio3d.html`)에서 챔퍼/볼트/헤드 스택을 이식. 상세는 상단.
+
+⚠ **다음에 UI를 만지면 반드시 렌더 스크린샷을 직접 볼 것.** 10회차에 e2e가
+전 항목 통과인데도 EFEM이 무늬 없는 흰 덩어리였다 — **클릭 테스트는 생김새를
+보지 않는다.** 스크린샷을 보고서야 잡았다.
 
 Deployment note: prod had been running a 6-day-old build with no CMPSIM_TOKEN
 env var. Re-deployed with `--env CMPSIM_TOKEN=...` (cmp-sim.vercel.app, token in

@@ -429,6 +429,40 @@ export function createScene(canvas, onPick) {
   efemBody.castShadow = efemBody.receiveShadow = true;
   efem.add(tag(efemBody, 'loadcup'));
 
+  /* PANEL SEAMS AND SERVICE DOORS on the factory interface.
+   *
+   * The EFEM is the brightest large surface in the scene, and it was a single
+   * smooth box: a featureless white slab reads as polystyrene packaging no
+   * matter how good the machinery beside it is, and at this size it is the
+   * first thing the eye lands on. Real fab sheet metal is panelised — the
+   * cabinet is made of bolted service panels with visible seams, recessed door
+   * frames and handles, because every one of them has to open for maintenance.
+   *
+   * Seams are drawn as thin darker strips proud of the surface rather than as
+   * a texture, so they hold up at any zoom and cast their own micro-shadows,
+   * which is what actually separates "panelled cabinet" from "painted lines".
+   */
+  const seamStrip = (w, h, d, pos) => {
+    const s = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), M.fiLo);
+    s.position.set(...pos);
+    efem.add(tag(s, 'loadcup'));
+  };
+  for (const z of [-0.98, -0.34, 0.34, 0.98]) {        // vertical panel joins
+    seamStrip(EFEM_D + 0.008, 1.90, 0.014, [0, BAY_Y + 0.98, z]);
+  }
+  for (const y of [BAY_Y + 0.16, BAY_Y + 1.80]) {      // horizontal rails
+    seamStrip(EFEM_D + 0.008, 0.030, 2.05, [0, y, 0]);
+  }
+  // recessed service doors on the operator face, each with a handle
+  for (const z of [-0.66, 0.66]) {
+    const frame_ = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.86, 0.54), M.fiLo);
+    frame_.position.set(-EFEM_D / 2 - 0.004, BAY_Y + 1.10, z);
+    efem.add(tag(frame_, 'loadcup'));
+    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.04, 0.16), M.dark);
+    handle.position.set(-EFEM_D / 2 - 0.020, BAY_Y + 1.10, z + 0.20);
+    efem.add(tag(handle, 'loadcup'));
+  }
+
   const efemWin = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.62, 1.70), M.window);
   efemWin.position.set(0.53, BAY_Y + 1.45, 0);
   efem.add(efemWin);
