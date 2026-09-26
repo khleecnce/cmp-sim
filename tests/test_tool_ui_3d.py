@@ -823,3 +823,128 @@ def test_the_parts_strip_is_reachable_without_a_desktop_legend(phone):
     joined = " | ".join(labels).lower()
     for part in ("wafer", "pad", "conditioner", "slurry", "carousel"):
         assert part in joined, f"'{part}' is not reachable on a phone: {labels}"
+
+
+# ── machined detail ─────────────────────────────────────────────────────
+#
+# "UI가 거지같아" / "장비 3d모델이 제대로 안보여" — the owner rejected the look
+# twice and named his own earlier LK-class model as the base to work from
+# (`~/fab-sim/sim/web/studio3d.html`). The detail ported from it is geometric:
+# chamfered lathe profiles instead of sharp cylinders, bolt rings, the carrier
+# head's membrane/flange/gimbal stack with its zone-pressure lines, a PPS
+# retaining ring, and a porous bump-mapped pad.
+#
+# "Looks better" is not testable, so these tests assert the two consequences
+# that ARE measurable off the rendered pixels, and both were calibrated by
+# measuring the build before and after the change rather than by picking a
+# number that passes.
+
+
+def _luminance_by_part(pg) -> dict:
+    """Median and spread of rendered luminance, grouped by clickable part.
+
+    Grouping via the scene's own raycaster rather than by screen region means
+    the measurement follows the parts when the camera or the model changes.
+    """
+    pg.evaluate("() => window.__freeze(true)")
+    pg.wait_for_timeout(250)
+    out = pg.evaluate("""() => {
+      const c = document.querySelector('canvas');
+      const r = c.getBoundingClientRect();
+      const gl = c.getContext('webgl2') || c.getContext('webgl');
+      const px = new Uint8Array(4 * c.width * c.height);
+      gl.readPixels(0, 0, c.width, c.height, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      const sx = c.width / r.width, sy = c.height / r.height;
+      const acc = {};
+      for (let gy = 0.03; gy < 0.98; gy += 0.0025)
+        for (let gx = 0.03; gx < 0.98; gx += 0.0025) {
+          const cx = r.left + r.width * gx, cy = r.top + r.height * gy;
+          const part = window.__probe(cx, cy);
+          if (!part) continue;
+          const ix = Math.round((cx - r.left) * sx);
+          const iy = c.height - 1 - Math.round((cy - r.top) * sy);
+          if (ix < 0 || iy < 0 || ix >= c.width || iy >= c.height) continue;
+          const o = 4 * (iy * c.width + ix);
+          const l = 0.2126*px[o] + 0.7152*px[o+1] + 0.0722*px[o+2];
+          (acc[part] = acc[part] || []).push(l);
+        }
+      const out = {};
+      for (const k of Object.keys(acc)) {
+        const a = acc[k].slice().sort((x, y) => x - y);
+        const q = f => a[Math.min(a.length - 1, Math.floor(f * a.length))];
+        out[k] = {n: a.length, p10: q(0.10), med: q(0.50), p90: q(0.90)};
+      }
+      return out;
+    }""")
+    pg.evaluate("() => window.__freeze(false)")
+    return out
+
+
+def test_the_pad_is_not_the_brightest_thing_on_the_machine(page):
+    """A foam pad must render darker than the mirror it polishes.
+
+    This is a physical claim, not a taste one. The polishing pad is cast
+    polyurethane foam — porous, matte, roughness ~0.95, and in the tool's own
+    khaki-grey. The wafer is a polished film stack: it is the one specular
+    surface in the bay. So the pad cannot be brighter than the wafer.
+
+    The build the owner rejected had it exactly backwards. Measured off the
+    render: pad median luminance 202 against the wafer's 166, making the pad
+    the brightest large surface in frame. A flat near-white fill with grey
+    rings painted on it is a DIAGRAM of a pad, and it pulled the eye off the
+    machine — a large part of why the tool read as white plastic. With the
+    pore/noise base and the bump-mapped grooves the pad now measures 142
+    against the wafer's 166.
+
+    Asserted as a rendered comparison between two parts rather than against an
+    absolute luminance, because an absolute number would have to be re-tuned
+    every time the exposure or the environment map changes, while the ORDERING
+    is the actual claim and is exposure-independent.
+    """
+    lum = _luminance_by_part(page)
+    for part in ("pad", "wafer"):
+        assert lum.get(part, {}).get("n", 0) >= 40, (
+            f"only {lum.get(part, {}).get('n', 0)} sampled pixels are on "
+            f"'{part}' — the comparison was not actually measured")
+
+    pad, wafer = lum["pad"]["med"], lum["wafer"]["med"]
+    assert pad < wafer, (
+        f"the pad (median luminance {pad:.0f}) renders BRIGHTER than the wafer "
+        f"({wafer:.0f}). A polyurethane foam pad cannot out-shine a polished "
+        f"film stack; a pad this bright is the brightest surface in frame and "
+        f"takes the eye off the machine")
+
+
+def test_the_carrier_head_reads_as_machined_metal(page):
+    """The head must show a specular range, which sharp-edged cylinders cannot.
+
+    A raw CylinderGeometry has a mathematically sharp rim: the surface normal
+    jumps discontinuously, so the edge catches no highlight and the part
+    renders as a flat colour patch. Real machined hardware is broken-edged
+    (deburring is a requirement, not a style), and that chamfer is the bright
+    line the eye uses to read "metal". The carrier head is where this matters
+    most — it is the part a process engineer inspects first, and it was one
+    dark cylinder.
+
+    The measurable consequence of the chamfered stack plus the steel sealing
+    flange, bolt ring and PPS retaining ring is DYNAMIC RANGE on the head:
+    p90 − p10 measured 91 before the change and 185 after. The bar is set at
+    130, comfortably above the old build so the test fails if the head is
+    flattened back, and comfortably below the new one so it does not break on
+    a small lighting tweak.
+
+    Range, not brightness: a uniformly paler head would pass a "brighter"
+    assertion while still looking like plastic. What distinguishes metal is
+    having both a dark side and a hot highlight at the same time.
+    """
+    lum = _luminance_by_part(page)
+    assert lum.get("head", {}).get("n", 0) >= 200, (
+        f"only {lum.get('head', {}).get('n', 0)} sampled pixels are on the "
+        f"carrier head — not enough to characterise its shading")
+
+    span = lum["head"]["p90"] - lum["head"]["p10"]
+    assert span > 130, (
+        f"the carrier head's luminance range is only {span:.0f} "
+        f"(p10 {lum['head']['p10']:.0f} .. p90 {lum['head']['p90']:.0f}). It "
+        f"has no highlight to go with its shadow, which is what makes a part "
+        f"read as moulded plastic instead of machined metal")

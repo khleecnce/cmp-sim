@@ -228,6 +228,11 @@ export function createScene(canvas, onPick) {
     fluid:  new THREE.MeshStandardMaterial({ color: 0xbfe6ff, metalness: 0.0, roughness: 0.25,
                                             transparent: true, opacity: 0.75 }),
     diamond:new THREE.MeshStandardMaterial({ color: 0x22262e, metalness: 0.5, roughness: 0.45 }),
+    // PPS retaining ring: the head's one large non-metallic part. Pale cream,
+    // matte, no metalness -- the contrast against the dark housing is how the
+    // ring reads as a separate consumable rather than part of the head casting.
+    pps:    new THREE.MeshStandardMaterial({ color: 0xd8d0bc, metalness: 0.0, roughness: 0.62 }),
+    ppsOff: new THREE.MeshStandardMaterial({ color: 0x9e9a8c, metalness: 0.0, roughness: 0.66 }),
     accent: new THREE.MeshStandardMaterial({ color: 0x4da3ff, metalness: 0.4, roughness: 0.4,
                                             emissive: 0x11304f, emissiveIntensity: 0.6 }),
   };
@@ -237,6 +242,70 @@ export function createScene(canvas, onPick) {
     mesh.userData.part = part;
     pickable.push(mesh);
     return mesh;
+  }
+
+  /* ── machined-geometry helpers ──────────────────────────────────────
+   *
+   * Ported from the owner's earlier LK-class tool model
+   * (`~/fab-sim/sim/web/studio3d.html`, chamferCyl / chamferRing /
+   * boltCircle), which is the build he asked to use as the base rather than
+   * starting a third silhouette from scratch.
+   *
+   * Why chamfers matter more than they sound: a raw CylinderGeometry has a
+   * mathematically sharp 90-degree rim, and a sharp rim catches NO specular
+   * highlight -- the normal jumps discontinuously, so the edge renders as a
+   * hard colour boundary. Every real machined aluminium or stainless part is
+   * broken-edged (a deburring requirement, not a styling choice), and that
+   * chamfer is the thin bright line your eye uses to read "metal". Its
+   * absence on every cylinder in the scene is a large part of why the tool
+   * read as moulded plastic. A lathe profile with the corner cut gives the
+   * extra normal for free at ~6 more vertices per part.
+   */
+  function chamferCyl(r, h, c, seg = 64) {
+    c = Math.min(c, r * 0.45, h * 0.45);
+    const pts = [new THREE.Vector2(0, -h / 2), new THREE.Vector2(r - c, -h / 2),
+                 new THREE.Vector2(r, -h / 2 + c), new THREE.Vector2(r, h / 2 - c),
+                 new THREE.Vector2(r - c, h / 2), new THREE.Vector2(0, h / 2)];
+    const g = new THREE.LatheGeometry(pts, seg);
+    g.computeVertexNormals();
+    return g;
+  }
+
+  /** A chamfered tube (retaining rings, clamp rings, trays). */
+  function chamferRing(ri, ro, h, c, seg = 64) {
+    c = Math.min(c, (ro - ri) * 0.45, h * 0.45);
+    const pts = [new THREE.Vector2(ri, -h / 2), new THREE.Vector2(ro - c, -h / 2),
+                 new THREE.Vector2(ro, -h / 2 + c), new THREE.Vector2(ro, h / 2 - c),
+                 new THREE.Vector2(ro - c, h / 2), new THREE.Vector2(ri + c, h / 2),
+                 new THREE.Vector2(ri, h / 2 - c), new THREE.Vector2(ri, -h / 2)];
+    const g = new THREE.LatheGeometry(pts, seg);
+    g.computeVertexNormals();
+    return g;
+  }
+
+  /* A ring of hex-head bolts. Fasteners are the cheapest possible cue that a
+   * surface is a bolted-down machined plate rather than a solid block, and
+   * they are the detail a process engineer looks for first on a platen.
+   *
+   * Tagged and pickable like everything else: an InstancedMesh left untagged
+   * still occupies its pixels for the raycaster, so bolts sitting on a platen
+   * would silently swallow clicks meant for the platen and report "nothing
+   * here". Giving them the parent's part key makes a click on a bolt open the
+   * same drawer as a click on the plate it holds down. */
+  function boltRing(parent, part, R, y, n, s, mat) {
+    const im = new THREE.InstancedMesh(
+      new THREE.CylinderGeometry(s, s, s * 0.9, 6), mat || M.steel, n);
+    const o = new THREE.Object3D();
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      o.position.set(Math.cos(a) * R, y, Math.sin(a) * R);
+      o.rotation.y = a;
+      o.updateMatrix();
+      im.setMatrixAt(i, o.matrix);
+    }
+    im.castShadow = true;
+    parent.add(tag(im, part));
+    return im;
   }
 
   // ── floor ───────────────────────────────────────────────────────
@@ -509,13 +578,66 @@ export function createScene(canvas, onPick) {
   // polish step, so exactly one platen may claim to be the simulated one.
   const platens = [];
   let grooveTex = null;
+  let bumpTex = null;
 
   /* GROOVES AS A TEXTURE, NOT AS GEOMETRY. Concentric tori at a 2 mm pitch
    * means ~190 rings on a 30-inch pad; at screen scale they alias into a moiré
    * shimmer that reads as a rendering fault rather than as a grooved pad. A
    * canvas texture with mipmaps and anisotropic filtering resolves cleanly at
    * every zoom AND still moves with the pitch, which is the point — the picture
-   * has to be honest about the recipe. */
+   * has to be honest about the recipe.
+   *
+   * A flat fill plus grey rings, which is what this drew before, is a
+   * TECHNICAL DRAWING of a pad, not a pad. Two things are added here, both
+   * carried over from the owner's earlier LK-class model:
+   *
+   *  - a noise base with dark specks. Cast polyurethane pad (IC1000 family) is
+   *    a closed-cell foam: the polishing surface is visibly porous, and those
+   *    pores are where the slurry actually sits. Rendering the pad as a smooth
+   *    plastic sheet hid the single most recognisable feature of the consumable
+   *    this whole simulator is about.
+   *  - a BUMP MAP built from the same rings. Without it the grooves are painted
+   *    stripes that stay flat as the platen turns; with it they catch and lose
+   *    the key light as they rotate, which is what makes them read as cut
+   *    channels with depth rather than as printed lines.
+   *
+   * Colour stays in the pad's own khaki-grey family rather than the previous
+   * near-white: a bright pad was the second-brightest thing in frame after the
+   * wafer and pulled the eye off the machine. */
+  let padBaseCv = null;
+  function padBase(S) {
+    // Built once and reused: the pore field is the expensive part (a full
+    // getImageData/putImageData pass), and re-rolling it on every groove
+    // change would also make the pad's pores JUMP whenever the user edits a
+    // pitch, as if the consumable had been swapped.
+    if (padBaseCv) return padBaseCv;
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = S;
+    const g = cv.getContext('2d');
+    g.fillStyle = '#9a9a72';
+    g.fillRect(0, 0, S, S);
+    const img = g.getImageData(0, 0, S, S), d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const n = (Math.random() - 0.5) * 24;
+      const pore = Math.random() < 0.06 ? -26 : 0;   // ~6% closed-cell pores
+      d[i] = Math.max(0, d[i] + n + pore);
+      d[i + 1] = Math.max(0, d[i + 1] + n + pore);
+      d[i + 2] = Math.max(0, d[i + 2] + n * 0.8 + pore);
+    }
+    g.putImageData(img, 0, 0);
+    // radial scuffing from previous wafers, the marks conditioning leaves
+    g.strokeStyle = 'rgba(255,255,245,0.05)';
+    g.lineWidth = 1;
+    for (let i = 0; i < 220; i++) {
+      const a = Math.random() * Math.PI * 2, r = Math.random() * S / 2;
+      g.beginPath();
+      g.arc(S / 2, S / 2, r, a, a + 0.02 + Math.random() * 0.15);
+      g.stroke();
+    }
+    padBaseCv = cv;
+    return cv;
+  }
+
   function buildGrooves(pitchMm, widthMm) {
     const pitch = Math.max(0.5, Number(pitchMm) || 2.0);       // mm
     const width = Math.max(0.1, Number(widthMm) || 0.5);       // mm
@@ -524,20 +646,44 @@ export function createScene(canvas, onPick) {
     const cv = document.createElement('canvas');
     cv.width = cv.height = S;
     const g = cv.getContext('2d');
-    g.fillStyle = '#d9dbe0';
-    g.fillRect(0, 0, S, S);
+    g.drawImage(padBase(S), 0, 0);
+    const bump = document.createElement('canvas');
+    bump.width = bump.height = S;
+    const b = bump.getContext('2d');
+    b.fillStyle = '#808080';                 // mid-grey = the pad's land area
+    b.fillRect(0, 0, S, S);
+
     const pxPerMm = (S / 2) / (PAD_MM / 2);
-    g.strokeStyle = '#a7abb4';
-    g.lineWidth = Math.max(1, width * pxPerMm);
+    const w = Math.max(1.2, width * pxPerMm);
+    g.strokeStyle = 'rgba(30,32,22,0.62)';   // groove floor, in shadow
+    g.lineWidth = w;
+    b.strokeStyle = '#303030';               // darker = lower, i.e. cut away
+    b.lineWidth = w;
+    for (let rMm = pitch; rMm < PAD_MM / 2; rMm += pitch) {
+      const r = rMm * pxPerMm;
+      g.beginPath(); g.arc(S / 2, S / 2, r, 0, Math.PI * 2); g.stroke();
+      b.beginPath(); b.arc(S / 2, S / 2, r, 0, Math.PI * 2); b.stroke();
+    }
+    // lit edge on the side of each groove that faces the light
+    g.strokeStyle = 'rgba(255,255,240,0.10)';
+    g.lineWidth = Math.max(0.6, w * 0.4);
     for (let rMm = pitch; rMm < PAD_MM / 2; rMm += pitch) {
       g.beginPath();
-      g.arc(S / 2, S / 2, rMm * pxPerMm, 0, Math.PI * 2);
+      g.arc(S / 2, S / 2, rMm * pxPerMm + w * 0.9, 0, Math.PI * 2);
       g.stroke();
     }
+
     if (grooveTex) grooveTex.dispose();
+    if (bumpTex) bumpTex.dispose();
+    bumpTex = new THREE.CanvasTexture(bump);
+    bumpTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
     grooveTex = new THREE.CanvasTexture(cv);
     grooveTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
     grooveTex.colorSpace = THREE.SRGBColorSpace;
+    for (const mat of [M.pad, M.padOff]) {
+      mat.bumpMap = bumpTex;
+      mat.bumpScale = 0.02;
+    }
     M.pad.map = grooveTex;
     M.pad.needsUpdate = true;
     M.padOff.map = grooveTex;
@@ -550,10 +696,22 @@ export function createScene(canvas, onPick) {
     const g = new THREE.Group();
     g.position.set(st.x, 0, st.z);
 
-    const body = new THREE.Mesh(
-      new THREE.CylinderGeometry(PLATEN_R, PLATEN_R, 0.10, 80), M.steel);
+    /* The platen is a machined aluminium table, and on the real deck you see
+     * three separate parts stacked: the platen body, the bolt circle that holds
+     * the pad clamp down, and the clamp ring itself trapping the pad's outer
+     * edge. Previously this was one sharp-edged cylinder with a torus round it,
+     * which is why the largest part of the machine was also its flattest. */
+    const body = new THREE.Mesh(chamferCyl(PLATEN_R, 0.16, 0.014, 96), M.steel);
+    body.position.y = -0.04;
     body.castShadow = body.receiveShadow = true;
     g.add(tag(body, 'platen'));
+
+    // non-rotating bearing housing under the platen: the part that makes it
+    // read as a driven table rather than a disc lying on the deck
+    const hub = new THREE.Mesh(chamferCyl(PLATEN_R * 0.62, 0.12, 0.012, 64), M.dark);
+    hub.position.y = -0.17;
+    hub.receiveShadow = true;
+    g.add(tag(hub, 'platen'));
 
     const pad = new THREE.Mesh(
       new THREE.CylinderGeometry(PLATEN_R - 0.015, PLATEN_R - 0.015, 0.035, 80),
@@ -561,6 +719,17 @@ export function createScene(canvas, onPick) {
     pad.position.y = 0.067;
     pad.castShadow = pad.receiveShadow = true;
     g.add(tag(pad, 'pad'));
+
+    /* NO clamp ring and NO bolt circle over the pad face. A first pass added
+     * both because they make a platen look machined, and both are wrong: a
+     * polishing pad of this class is pressure-sensitive-adhesive mounted to the
+     * platen, so nothing is fastened over the polishing surface. Detail that
+     * makes a picture look more convincing while showing hardware the tool does
+     * not have is the same error as inventing a parameter value.
+     *
+     * The bolts that ARE visible on the real machine are on the bearing housing
+     * flange below the platen, where they hold the drive down. */
+    boltRing(g, 'platen', PLATEN_R * 0.62 - 0.035, -0.110, 12, 0.013, M.steel);
 
     // retaining ring around the platen, as on the real deck
     const ring = new THREE.Mesh(new THREE.TorusGeometry(PLATEN_R + 0.02, 0.028, 10, 72),
@@ -597,15 +766,51 @@ export function createScene(canvas, onPick) {
     const headGroup = new THREE.Group();
     headGroup.position.set(st.x, 0, st.z);
 
-    const spindle = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.052, 0.72, 24), M.steel);
+    const spindle = new THREE.Mesh(chamferCyl(0.052, 0.72, 0.006, 32), M.steel);
     spindle.position.y = 0.80;
     spindle.castShadow = true;
     headGroup.add(tag(spindle, 'head'));
 
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.155, 0.172, 0.16, 48), M.dark);
+    /* CARRIER HEAD STACK. A multi-zone head is not one cylinder: from the pad
+     * upward it is membrane base -> housing -> sealing flange -> upper step ->
+     * gimbal housing -> spindle, with the zone-pressure lines running down the
+     * outside to the pneumatic ports. Those lines are the visible evidence of
+     * the zone pressures the Operation form lets you set, so drawing them is
+     * not decoration — it connects an input the user types to a part they can
+     * see. Proportions follow the owner's earlier LK-class model, scaled to
+     * this deck's 300 mm head. */
+    const body = new THREE.Mesh(chamferCyl(0.172, 0.20, 0.020, 64), M.dark);
     body.position.y = 0.40;
     body.castShadow = body.receiveShadow = true;
     headGroup.add(tag(body, 'head'));
+
+    // sealing flange on top of the housing, with the bolts that hold it
+    const seal = new THREE.Mesh(chamferRing(0.150, 0.178, 0.014, 0.004, 64), M.steel);
+    seal.position.y = 0.505;
+    headGroup.add(tag(seal, 'head'));
+    boltRing(headGroup, 'head', 0.163, 0.516, 12, 0.008, M.steel);
+
+    // gimbal housing: the joint that lets the head follow the pad
+    const gimbal = new THREE.Mesh(chamferCyl(0.085, 0.10, 0.012, 48), M.steel);
+    gimbal.position.y = 0.575;
+    gimbal.castShadow = true;
+    headGroup.add(tag(gimbal, 'head'));
+
+    // three pneumatic ports + the zone-pressure lines climbing to the spindle
+    for (let k = 0; k < 3; k++) {
+      const a = (k / 3) * Math.PI * 2 + 0.4;
+      const port = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.011, 0.011, 0.045, 12), M.steel);
+      port.position.set(Math.cos(a) * 0.150, 0.520, Math.sin(a) * 0.150);
+      headGroup.add(tag(port, 'head'));
+      const hose = new THREE.Mesh(new THREE.TubeGeometry(
+        new THREE.CatmullRomCurve3([
+          new THREE.Vector3(Math.cos(a) * 0.150, 0.540, Math.sin(a) * 0.150),
+          new THREE.Vector3(Math.cos(a) * 0.115, 0.760, Math.sin(a) * 0.115),
+          new THREE.Vector3(Math.cos(a) * 0.052, 1.010, Math.sin(a) * 0.052)]),
+        20, 0.0075, 8, false), M.dark);
+      headGroup.add(tag(hose, 'head'));
+    }
 
     /* CUT-AWAY CARRIER on the active head. A real carrier head covers the wafer
      * completely — the wafer faces down and you never see it. Modelling that
@@ -632,11 +837,31 @@ export function createScene(canvas, onPick) {
       headGroup.add(tag(shell, 'head'));
     }
 
-    const retainer = new THREE.Mesh(new THREE.TorusGeometry(0.315, 0.020, 10, 64),
-                                    isActive ? M.accent : M.steel);
-    retainer.rotation.x = Math.PI / 2;
-    retainer.position.y = isActive ? 0.215 : 0.215;
+    /* RETAINING RING in PPS, not metal. It is the one large non-metallic part
+     * on the head, and its pale cream colour against the dark housing is how a
+     * process engineer picks it out in a photo; drawn in steel it disappeared
+     * into the head. It is also a wear consumable, which is why it is drawn as
+     * a thick chamfered ring rather than a thin torus. */
+    const retainer = new THREE.Mesh(
+      chamferRing(0.295, 0.335, 0.062, 0.006, 80), isActive ? M.pps : M.ppsOff);
+    retainer.position.y = 0.215;
+    retainer.castShadow = true;
     headGroup.add(tag(retainer, 'head'));
+
+    // slurry slots through the ring's base: how slurry reaches the wafer edge
+    if (isActive) {
+      const slots = new THREE.InstancedMesh(
+        new THREE.BoxGeometry(0.044, 0.016, 0.007), M.dark, 36);
+      const o = new THREE.Object3D();
+      for (let k = 0; k < 36; k++) {
+        const a = (k / 36) * Math.PI * 2;
+        o.position.set(Math.cos(a) * 0.315, 0.192, Math.sin(a) * 0.315);
+        o.rotation.y = -a;
+        o.updateMatrix();
+        slots.setMatrixAt(k, o.matrix);
+      }
+      headGroup.add(tag(slots, 'head'));
+    }
 
     carousel.add(headGroup);
     heads.push({ group: headGroup, station: st.i, active: isActive });
@@ -712,15 +937,21 @@ export function createScene(canvas, onPick) {
     pivot.position.set(st.x + outward.x * (PLATEN_R + 0.20), 0,
                        st.z + outward.z * (PLATEN_R + 0.20));
 
-    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.048, 0.058, 0.62, 20), M.steel);
+    const post = new THREE.Mesh(chamferCyl(0.055, 0.62, 0.008, 28), M.steel);
     post.position.y = 0.26;
     post.castShadow = true;
     pivot.add(tag(post, 'disk'));
+    // base flange bolting the sweep column to the deck
+    const baseFlange = new THREE.Mesh(chamferCyl(0.10, 0.03, 0.005, 32), M.dark);
+    baseFlange.position.y = -0.03;
+    pivot.add(tag(baseFlange, 'disk'));
+    boltRing(pivot, 'disk', 0.078, -0.010, 6, 0.010, M.steel);
+    // sweep motor on top of the column: what drives the oscillation
+    const sweepMotor = new THREE.Mesh(chamferCyl(0.062, 0.11, 0.010, 32), M.dark);
+    sweepMotor.position.y = 0.625;
+    sweepMotor.castShadow = true;
+    pivot.add(tag(sweepMotor, 'disk'));
 
-    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.048, 0.095), M.dark);
-    arm.position.set(-0.23, 0.50, 0);
-    arm.rotation.y = Math.atan2(outward.z, outward.x);
-    arm.castShadow = true;
     // rotate the arm group so it reaches back over the platen centre
     const armHolder = new THREE.Group();
     armHolder.rotation.y = Math.atan2(outward.z, outward.x);
@@ -728,13 +959,35 @@ export function createScene(canvas, onPick) {
     armMesh.position.set(-0.25, 0.50, 0);
     armMesh.castShadow = true;
     armHolder.add(tag(armMesh, 'disk'));
+    // stiffening cap plate along the arm's top, and the rinse line feeding the
+    // disk -- a conditioner is rinsed continuously or it loads up with debris
+    const armCap = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.014, 0.060), M.steel);
+    armCap.position.set(-0.25, 0.528, 0);
+    armHolder.add(tag(armCap, 'disk'));
+    const rinse = new THREE.Mesh(new THREE.TubeGeometry(
+      new THREE.CatmullRomCurve3([new THREE.Vector3(-0.04, 0.545, 0.030),
+                                  new THREE.Vector3(-0.26, 0.552, 0.030),
+                                  new THREE.Vector3(-0.44, 0.500, 0.030)]),
+      18, 0.0075, 8, false), M.steel);
+    armHolder.add(tag(rinse, 'disk'));
 
     const diskGroup = new THREE.Group();
     diskGroup.position.set(-0.46, 0.42, 0);
-    const diskBody = new THREE.Mesh(new THREE.CylinderGeometry(0.115, 0.115, 0.05, 36), M.steel);
+    // down-force cylinder, then the shaft, then the disk itself: the load on
+    // the conditioner is an input, so the actuator that applies it is drawn
+    const downForce = new THREE.Mesh(chamferCyl(0.055, 0.10, 0.008, 32), M.dark);
+    downForce.position.y = 0.095;
+    downForce.castShadow = true;
+    diskGroup.add(tag(downForce, 'disk'));
+    const diskShaft = new THREE.Mesh(chamferCyl(0.020, 0.075, 0.003, 20), M.steel);
+    diskShaft.position.y = 0.030;
+    diskGroup.add(tag(diskShaft, 'disk'));
+    const diskBody = new THREE.Mesh(chamferCyl(0.115, 0.05, 0.007, 48), M.steel);
     diskBody.castShadow = true;
     diskGroup.add(tag(diskBody, 'disk'));
-    const diskFace = new THREE.Mesh(new THREE.CylinderGeometry(0.112, 0.112, 0.012, 36), M.diamond);
+    boltRing(diskGroup, 'disk', 0.088, 0.028, 6, 0.008, M.steel);
+    const diskFace = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.112, 0.112, 0.012, 36), M.diamond);
     diskFace.position.y = -0.028;
     diskGroup.add(tag(diskFace, 'disk'));
     // diamond grit specks, so the disk reads as a diamond disk and not a puck
