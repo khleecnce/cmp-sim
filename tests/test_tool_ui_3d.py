@@ -81,18 +81,29 @@ def server():
 
 
 @pytest.fixture(scope="module")
-def page(server):
+def _pw():
+    """One Playwright instance for the module.
+
+    Both `page` (desktop) and `phone` need a browser, and starting a second
+    `sync_playwright()` while the first is open raises "Sync API inside the
+    asyncio loop". Sharing one driver is also just faster.
+    """
     with sync_playwright() as p:
-        browser = p.chromium.launch(args=CHROMIUM_ARGS)
-        pg = browser.new_page(viewport={"width": 1280, "height": 860})
-        errors: list[str] = []
-        pg.on("pageerror", lambda e: errors.append(str(e)))
-        pg.goto(f"{server}/tool", wait_until="networkidle")
-        pg.wait_for_function("() => !!window.__probe", timeout=30_000)
-        pg.wait_for_timeout(3000)
-        pg.__dict__["_errors"] = errors
-        yield pg
-        browser.close()
+        yield p
+
+
+@pytest.fixture(scope="module")
+def page(server, _pw):
+    browser = _pw.chromium.launch(args=CHROMIUM_ARGS)
+    pg = browser.new_page(viewport={"width": 1280, "height": 860})
+    errors: list[str] = []
+    pg.on("pageerror", lambda e: errors.append(str(e)))
+    pg.goto(f"{server}/tool", wait_until="networkidle")
+    pg.wait_for_function("() => !!window.__probe", timeout=30_000)
+    pg.wait_for_timeout(3000)
+    pg.__dict__["_errors"] = errors
+    yield pg
+    browser.close()
 
 
 def _rate(pg) -> float:
@@ -708,3 +719,107 @@ def test_the_polisher_is_darker_than_its_factory_interface(page):
         f"lighter than the polisher body ({polisher:.0f}) — the source says "
         f"the polisher skins are dark and the light end is the factory "
         f"interface; with both the same the tool reads as one flat grey mass")
+
+
+# ── phones ──────────────────────────────────────────────────────────────
+#
+# The owner opened the deployed tool on a phone and could not see the machine.
+# Nothing was broken in the scene: the desktop layout pins a 390px drawer, a
+# readout card and a parts legend around the canvas, and on a 390px viewport
+# those three panels ARE the viewport. The 3D view the brief is built around was
+# invisible on the device most likely to be used to show it to someone.
+#
+# The fix is a `@media (max-width: 720px)` block that turns the panels into
+# sheets over the scene, plus not auto-opening the drawer on load. These tests
+# measure what the owner actually complained about — how much of the tool you
+# can see — rather than asserting CSS text, which would pass on a layout that
+# still hides the machine.
+
+PHONE = {"viewport": {"width": 390, "height": 844},
+         "device_scale_factor": 2, "is_mobile": True, "has_touch": True}
+
+
+def _unobstructed(pg) -> float:
+    """Fraction of the canvas that is actually the topmost element.
+
+    elementFromPoint is the honest measure: a canvas can be full-size and still
+    be completely covered by opaque panels, which is exactly the bug.
+    """
+    return pg.evaluate(
+        """(() => {const c = document.querySelector('canvas');
+             const r = c.getBoundingClientRect();
+             let vis = 0, tot = 0;
+             for (let y = 0; y < r.height; y += 8)
+               for (let x = 0; x < r.width; x += 8) {
+                 tot++;
+                 const el = document.elementFromPoint(r.left + x, r.top + y);
+                 if (el && el.tagName === 'CANVAS') vis++;}
+             return vis / tot;})()""")
+
+
+@pytest.fixture
+def phone(server, _pw):
+    browser = _pw.chromium.launch(args=CHROMIUM_ARGS)
+    pg = browser.new_page(**PHONE)
+    pg.goto(f"{server}/tool", wait_until="networkidle")
+    pg.wait_for_function("() => !!window.__probe", timeout=40_000)
+    pg.wait_for_timeout(6000)
+    yield pg
+    browser.close()
+
+
+def test_the_tool_is_visible_on_a_phone(phone):
+    """The complaint, measured: how much of the machine can you see on load?
+
+    Before the mobile layout this was 27% — the readout card, the parts legend
+    and an auto-opened drawer covered nearly everything, and what showed through
+    was a corner of the frame. 60% is well above the broken build and well below
+    a bare canvas, so it fails the old layout without pinning today's pixels.
+    """
+    visible = _unobstructed(phone)
+    assert visible > 0.60, (
+        f"only {visible:.0%} of the canvas is unobstructed on a 390x844 phone; "
+        f"the panels are covering the tool the brief is built around")
+
+
+def test_the_drawer_does_not_open_over_the_tool_on_load(phone):
+    """On a phone the drawer is a 62vh bottom sheet, so opening it on load means
+    the first thing you see is a form. On desktop it insets the scene instead of
+    covering it, so it still opens there — this is a phone-only rule."""
+    assert not phone.evaluate(
+        "() => document.body.classList.contains('drawer-open')"), (
+        "the input drawer opened on load on a phone, hiding the tool behind a "
+        "form before the user has seen the machine")
+
+
+def test_a_part_is_still_reachable_and_the_tool_stays_visible(phone):
+    """The sheet must not swallow the screen the way the old drawer did."""
+    phone.evaluate(
+        """(() => {const b = [...document.querySelectorAll('#legendbtns button')]
+             .find(b => /slurry/i.test(b.textContent)); if (b) b.click();})()""")
+    phone.wait_for_timeout(1200)
+
+    title = phone.evaluate(
+        """(() => {const h = document.querySelector('#drawer h2');
+             return h ? h.textContent.trim() : '';})()""")
+    assert title == "Slurry supply unit", f"the parts strip opened '{title}'"
+
+    visible = _unobstructed(phone)
+    assert visible > 0.20, (
+        f"with the sheet up only {visible:.0%} of the tool is visible; the "
+        f"sheet is capped at 62vh so the machine stays on screen while typing")
+
+
+def test_the_parts_strip_is_reachable_without_a_desktop_legend(phone):
+    """Every data-carrying part must still be openable on a phone.
+
+    The legend collapses to a horizontal scroller, so the buttons exist but are
+    scrolled out of view — presence in the DOM is the right assertion here, and
+    the click above proves the strip actually works.
+    """
+    labels = phone.evaluate(
+        """(() => [...document.querySelectorAll('#legendbtns button')]
+             .map(b => b.textContent.trim()))()""")
+    joined = " | ".join(labels).lower()
+    for part in ("wafer", "pad", "conditioner", "slurry", "carousel"):
+        assert part in joined, f"'{part}' is not reachable on a phone: {labels}"

@@ -116,6 +116,77 @@
   .badge.rank{background:#221c12;color:#ffc470}
   .nowebgl{position:fixed;inset:52px 0 0 0;display:flex;align-items:center;
            justify-content:center;padding:40px;text-align:center;color:var(--muted)}
+  /* ── narrow screens (phones) ──────────────────────────────────────────
+   * The desktop layout pins three fixed panels around the canvas: a 390px
+   * drawer on the left, the live readout top-right, and the parts legend
+   * bottom-left. On a 390px phone that is the entire viewport — the drawer
+   * covers the tool completely, and with it closed the legend plus readout
+   * still hide most of the machine, so the 3D view the owner asked for is
+   * effectively invisible on a phone.
+   *
+   * Rather than shrink everything, the panels become sheets that sit over the
+   * scene only while in use:
+   *   - drawer: full-width bottom sheet, capped at 62vh so the tool stays
+   *     visible above it while you type, and it never shoves the canvas aside
+   *   - legend: collapsed to a horizontal scrolling strip of part buttons
+   *   - live readout: a compact bar under the header
+   * The canvas itself always keeps the full viewport, so orbiting and
+   * clicking parts work the same as on desktop. */
+  @media (max-width: 720px) {
+    /* the scene must never be pushed off-screen by an open panel */
+    #stage, body.drawer-open #stage, body.sheet-open #stage {
+      top: 44px; left: 0; right: 0; bottom: 0;
+    }
+
+    #live {
+      right: 8px; left: 8px; top: 48px; padding: 8px 12px;
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    }
+    #live .row2 { display: flex; gap: 12px; margin: 0; }
+    #live .v { font-size: 22px; }
+    #live #showsheet { width: auto !important; margin-top: 0 !important;
+                       padding: 6px 10px !important; }
+
+    /* parts become a one-line scroller pinned to the bottom edge */
+    #legend, body.drawer-open #legend {
+      left: 0; right: 0; bottom: 0; padding: 8px 10px; border-radius: 0;
+      max-height: 84px;
+    }
+    #legend h3, #legend .tip { display: none; }
+    #legendbtns {
+      display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+      padding-bottom: 2px;
+    }
+    #legendbtns button { white-space: nowrap; flex: 0 0 auto; }
+
+    /* the input form slides up from the bottom instead of covering everything */
+    #drawer {
+      left: 0; right: 0; top: auto; bottom: 0; width: auto;
+      /* 52vh, not 62: with the sheet up the readout card still occupies the
+       * top ~160px, so 62vh left only 13% of the tool visible between them.
+       * At 52vh the machine keeps a usable band in the middle of the screen
+       * while you type, which is the whole point of a sheet over a full-screen
+       * panel. */
+      max-height: 52vh; overflow-y: auto;
+      border-right: 0; border-top: 1px solid var(--line);
+      border-radius: 14px 14px 0 0;
+      transform: translateY(100%); transition: transform .22s ease;
+      padding-bottom: 24px;
+    }
+    body.drawer-open #drawer { transform: translateY(0); }
+    /* with the drawer up, the parts strip would sit on top of it */
+    body.drawer-open #legend { display: none; }
+    /* and the readout shrinks to one line so it stops competing for the band
+     * of screen where the tool is still visible */
+    body.drawer-open #live .row2,
+    body.drawer-open #live #lflag,
+    body.drawer-open #live #showsheet { display: none; }
+
+    /* the header wrapped to three lines and ate 52px of a 844px screen */
+    header { height: 44px; padding: 0 10px; gap: 8px; }
+    h1 { font-size: 15px; white-space: nowrap; }
+    header .sub { display: none; }
+  }
 </style>
 </head>
 <body>
@@ -840,7 +911,12 @@ $('dgo').onclick = run;
     document.body.appendChild(d);
   }
   syncScene();
-  openDrawer('wafer');
+  /* On a phone the drawer is a bottom sheet covering ~62% of the screen, so
+   * opening it on load means the first thing you see is a form, not the tool
+   * you came to look at. On desktop it is a side panel that insets the scene
+   * rather than covering it, so opening it there still shows the machine and
+   * tells you what the parts are for. */
+  if (!window.matchMedia('(max-width: 720px)').matches) openDrawer('wafer');
   run();
 })();
 </script>

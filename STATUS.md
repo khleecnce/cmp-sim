@@ -747,6 +747,25 @@ https://cmp-sim.vercel.app --token …` 가 배포본을 상대로 전 항목 �
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
+**PHONE LAYOUT (09-26).** The owner opened the deployed tool on a phone over a
+different wifi and could not see the machine. Nothing was wrong with the scene:
+the desktop layout pins a 390px drawer + readout card + parts legend around the
+canvas, and on a 390px viewport those three ARE the viewport. Measured 27% of the
+canvas unobstructed on load. Fixed with a `@media (max-width:720px)` block —
+drawer becomes a 52vh bottom sheet, legend collapses to a horizontal strip,
+readout shrinks to one line while the sheet is up, and the drawer no longer
+auto-opens on load (phone only; on desktop it insets the scene instead of
+covering it). Now 74% visible on load, 20%+ with the sheet up, verified against
+the DEPLOYED instance, not just localhost.
+Guarded by 4 tests using `elementFromPoint` — a canvas can be full-size and
+still fully covered, so measuring the topmost element is the only honest check.
+
+Deployment note: prod had been running a 6-day-old build with no CMPSIM_TOKEN
+env var. Re-deployed with `--env CMPSIM_TOKEN=...` (cmp-sim.vercel.app, token in
+~/.fabsim-demo-token, append `?t=<token>`).
+
+---
+
 **What couples pressure and velocity, given that the coupling INVERTS between
 consumable sets? The 9th run closed the search for a velocity exponent: b_V is
 not a constant (Cu changes its sign across 1.5 → 4 psi, reproducing Borucki
