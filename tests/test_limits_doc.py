@@ -59,6 +59,9 @@ LIMIT_ENFORCING_TESTS = {
     "test_readme_numbers_are_computed.py",
     "test_inherited_kp_is_not_the_problem.py",
     "test_calibration_recovers_a_known_factor.py",
+    # limit 13: the P-V interaction is real and both candidate mechanisms are
+    # rejected with zero fitted constants; the axis is thin and priced
+    "test_pv_interaction_closed.py",
 }
 
 

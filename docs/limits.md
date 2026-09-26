@@ -435,3 +435,71 @@ over-determine peak and width and make the fit testable.
 gain from the dataset, fail if the two exemption tables ever overlap, and fail
 if a third pH level is added (at which point the axis must be fitted or a new
 reason recorded).
+
+---
+
+## 13. The pressure–velocity interaction is real, and both of its candidate mechanisms are rejected
+
+**The measurement.** Three runs searched for a velocity exponent `b_V` in
+`MRR ∝ P·V^b_V`. The ninth measured the shape of the thing being fitted instead
+of proposing a fourth form, at fixed pressure, with no model in the loop
+(`tools/velocity_pressure_interaction_probe.py`):
+
+| body | film / abrasive | pressures | measured `b_V` |
+|---|---|---|---|
+| Sorooshian 2005 | thermal oxide / fumed silica | 2 / 4 / 6 psi | +0.370 +0.687 +0.764 (**up**) |
+| mariscal2020 | PETEOS / ceria | 2 / 3 / 4 psi | +1.105 +0.857 +0.625 (**down**) |
+| us6918821b2 | Cu / IC1000 | 1.5 / 4 psi | −0.416 → +0.863 (**sign change**) |
+| Borucki 2023 (published) | Cu | 1 / 1.5 / 2 psi | −0.810 −0.620 +0.330 (**sign change**) |
+
+So `b_V` is not a constant, and it is not a single function `b_V(P)` either: the
+*direction* of `db_V/dP` inverts between consumable sets. The missing physics is
+therefore a P–V **interaction** whose sign is selected by the film/slurry pair.
+
+**The two mechanisms rejected, with zero fitted constants**
+(`tools/pv_interaction_closure.py`):
+
+1. **Contact-area evolution.** `MRR = c·A_r(P)·V` has `d ln MRR / d ln V = 1`
+   for *every* pressure, because `A_r` is a quasi-static elastic response to the
+   **normal** load and contains no velocity at all. Sub-linearity in `A_r(P)`
+   moves the *pressure* exponent; it cannot move the velocity one. The
+   magnitude check agrees for a second, independent reason: on every pack's own
+   reference pad, at every measured pressure, `d ln A_r / d ln P = 1.0000` — the
+   Greenwood–Williamson analytic result for exponential summit heights — with
+   summit saturation only 1–5%, i.e. deep inside the linear regime.
+2. **Pad-asperity flash heating as a cross term.** With `T = T₀ + c·P·V` and an
+   Arrhenius chemical term,
+   `b_V = 1 + (Ea/R)·c·P·V/(T₀ + c·P·V)²`, which is **> 1 for every positive
+   `(Ea, c)`** and **rises with pressure**. Two of the four bodies measure
+   `b_V < 1` at every pressure, and mariscal2020 *falls* with pressure. Scanned
+   over 10–200 kJ/mol × six decades of heating coefficient: no parameter choice
+   reaches the data. This is a different claim from the eighth run's rejection
+   of heating as a pure *velocity* law (residual slope −0.549) and was tested
+   separately rather than inherited.
+
+**The refit rejected.** A per-pack `b_V(P)`. It replaces a fitted constant with
+a fitted function, and the very measurement that motivates it forbids it: no
+single `f` covers both clean factorials, since one rises with pressure and the
+other falls.
+
+**The cost, priced.** An oracle upper bound — give every (pressure, chemistry)
+group its own *measured* `b_V`, fitted on the rows being scored — moves the
+corpus median 16.72% → 14.54% (+2.18 pp). That number flatters the axis and is
+reported with its own correction: only **3 of 49 datasets and 24 of 440
+measured points (5.5%)** are touched at all, so the median moves largely by
+re-ranking the median dataset, not by explaining anything. The P–V axis is a
+**thin** axis, like velocity itself, and it is not the lever that reaches 10%.
+
+**What would resolve it.** A mechanism that couples P and V with a sign
+selected by a *measurable consumable property*. The corpus cannot supply it: the
+three clean bodies differ simultaneously in abrasive material, film and pressure
+range, so with three bodies the selector can only be narrowed, never decided.
+Concretely: one velocity sweep at three or more down forces, repeated on two
+abrasives (silica and ceria) with everything else held fixed on one tool.
+
+**Enforced by** `tests/test_pv_interaction_closed.py` (12 tests) — the
+flash-heating derivation's sign, the exact linearity of `A_r(P)` with its
+saturation precondition, a ban on any pack declaring a P–V coupling constant,
+the point share rather than the median as the axis's size, and a guard that the
+three packs in the report resolve to **one** inherited base pad so the identical
+slopes cannot be quoted as three independent confirmations.

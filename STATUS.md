@@ -211,7 +211,41 @@ https://cmp-sim.vercel.app --token …` 가 배포본을 상대로 전 항목 �
 
 ### 1차 완성 — 모델링 정확도 (2차 완료, 이제 여기로 복귀)
 - **목표: 예측 오차 median ≤ 10.0%** (이력서에 쓸 수 있는 수준)
-- **현재: median 18.9% shape / 21.3% LOO** (코퍼스 46/50, 427점) — **938 tests**.
+- **현재: median 18.9% shape / 21.3% LOO** (코퍼스 46/50, 427점) — **961 tests**.
+  2026-09-26(11회차): **P–V 상호작용 축을 닫았다 — 후보 메커니즘 2개를 자유상수 0개로 기각.**
+  9회차가 "b_V는 상수도, b_V(P)도 아니다"로 남긴 질문에 STATUS의 NEXT가 지정한
+  두 메커니즘을 **리포지토리에 이미 있는 파라미터만으로 부호 검증**했다
+  (`tools/pv_interaction_closure.py`, 피팅 0, 팩 수정 0):
+  · **(A) 접촉면적 진화 기각 — 구조적으로 불가능하다.** `MRR = c·A_r(P)·V`는
+    모든 압력에서 `dlnMRR/dlnV = 1`이다. A_r은 **법선 하중**에 대한 준정적 탄성
+    응답이라 속도가 **들어 있지 않다** → A_r(P)의 sub-linearity는 *압력* 지수를
+    움직이고 속도 지수는 못 건드린다. 이 논증 하나로 파라미터와 무관하게 끝난다.
+    크기 검증도 같은 방향: 각 팩 **자기 reference 패드**에서 모든 측정 압력에서
+    `dlnA_r/dlnP = 1.0000`(GW 지수분포의 해석적 결과), summit saturation 1~5%로
+    선형영역 한복판이다.
+  · **(B) 패드 asperity flash heating 교차항 기각 — 부호가 반대다.**
+    `T = T0 + c·P·V` + Arrhenius ⇒ `b_V = 1 + (Ea/R)·cPV/(T0+cPV)²`는
+    **모든 양의 (Ea, c)에서 b_V > 1이고 압력과 함께 상승**한다. 그런데 4개 바디 중
+    **2개가 전 압력에서 b_V < 1**이고 mariscal2020은 압력과 함께 **하강**한다.
+    10~200 kJ/mol × 발열계수 6자릿수를 스캔해도 데이터에 닿는 조합이 없다.
+    ⚠ 8회차의 "발열=순수 속도법칙" 기각(잔차 −0.549)과 **다른 주장**이므로
+    물려받지 않고 따로 검증했다(테스트가 이 구분을 고정).
+  ⇒ **축을 pH축처럼 닫고, 닫은 값을 가격으로 매겼다**(사용자 완성기준이 요구하는
+    "무엇이 오차의 하한을 만드는가"):
+    (pressure, chemistry) 그룹마다 **자기 측정 b_V**를 주는 오라클(채점 대상 행에
+    피팅하므로 도달 불가 상한)이 median을 16.72% → 14.54%(+2.18pp) 옮긴다.
+  ⚠ **그 median 이득은 축을 과대표현한다 — 테스트로 고정했다**: 움직이는 것은
+    49개 중 **3개 데이터셋, 440점 중 24점(5.5%)**뿐이다. 49개의 median은 25위
+    데이터셋이 정하므로 3개만 좋아져도 **설명이 아니라 순위 재배치**로 움직인다.
+    그래서 assert 대상은 median이 아니라 **점유율**이다(15% 넘으면 재검토 요구).
+  ⇒ **P–V 축은 velocity축처럼 얇다. 10%로 가는 레버가 아니다.**
+  결정시킬 것: 부호를 고르는 **측정 가능한 소모품 물성**. 현 코퍼스로는 불가 —
+  깨끗한 3개 바디가 연마재·막질·압력대를 **동시에** 달리하므로 좁힐 수만 있다.
+  `docs/limits.md` **한계 13** + `tests/test_pv_interaction_closed.py`(12 tests):
+  발열식 부호, A_r 선형성과 그 saturation 전제, 팩의 P–V 결합상수 금지,
+  그리고 **보고서의 세 팩이 하나의 상속 base 패드로 귀결됨**을 assert해 동일한
+  1.0000이 "독립 3중 확인"으로 인용되는 것을 막는다.
+  **median은 의도대로 18.9% 불변** — 아무것도 채택하지 않았으므로 움직였다면 버그다.
   2026-09-26(9회차): **속도지수 탐색 종결 — b_V는 상수가 아니고, 심지어 b_V(P)도 아니다.**
   8회차까지 세 회차가 전부 `MRR ~ P·V^b_V`의 **단일 상수**를 찾고 있었다. 이번엔 식을
   또 제안하기 전에 **설명 대상의 모양**을 먼저 측정했다. 추정자는 의도적으로 가장 약한
@@ -831,44 +865,33 @@ env var. Re-deployed with `--env CMPSIM_TOKEN=...` (cmp-sim.vercel.app, token in
 
 ---
 
-**What couples pressure and velocity, given that the coupling INVERTS between
-consumable sets? The 9th run closed the search for a velocity exponent: b_V is
-not a constant (Cu changes its sign across 1.5 → 4 psi, reproducing Borucki
-2023) and it is not a single function b_V(P) either (oxide/silica rises with
-pressure, PETEOS/ceria falls). So the missing physics is a P–V INTERACTION whose
-sign depends on the film/slurry pair, and the next run must measure what selects
-that sign — not propose a functional form.**
+**WHERE IS THE ERROR, NOW THAT FOUR AXES ARE CLOSED? The 11th run closed the
+P–V interaction (both named mechanisms rejected with zero constants) and PRICED
+it: an unreachable oracle buys only 2.18 pp of median and touches 24 of 440
+points. pH is closed, velocity is closed, pressure saturation is closed, P–V is
+closed. Four closures in a row means the next run must NOT propose a fifth
+kinematic law — it must go where the POINTS are.**
 
-Do NOT fit b_V(P) per pack. That is a fitted function replacing a fitted
-constant, and `tests/test_velocity_exponent_is_not_constant.py` forbids it for
-the reason the measurement itself supplies: no single f covers the two clean
-factorials we have.
+The 5th run's census says 35 datasets / 342 points sit in `responsive_miss`
+(median 20.2%) — the bucket where a better law helps. Every axis closed since
+then was a THIN axis: velocity 29 points, P–V 24 points. So re-run
+`tools/residual_census.py` AND, this time, cut the improvable bucket by WHICH
+AXIS each dataset actually sweeps, weighted by points. That table has never been
+produced, and without it each run picks its axis by which mechanism sounds
+derivable rather than by which axis carries the error.
 
-Measurement plan (one axis, no fitting, uses data already in the repo):
-1. **Sort the three clean bodies by what differs between them** and ask which
-   property tracks the sign of db_V/dP. Available: abrasive material (fumed
-   silica ↑ vs ceria ↓), film (thermal oxide / PETEOS / Cu), pad, pressure
-   range. With three bodies this cannot be decided — it can only NARROW, so
-   pre-register that the output is a ranked shortlist, not a law.
-2. **The most promising mechanism is contact-area evolution, and it is already
-   half-built here.** `cmp_sim/models/contact_gw.py` gives A_r(P), and the
-   repo's own GW work found the elastic fully-load-sharing regime where
-   particle size cancels exactly. If A_r grows sub-linearly in P while the
-   per-asperity sliding distance grows linearly in V, the EFFECTIVE velocity
-   exponent acquires a P dependence with NO new constant. Derive dln b_V/dln P
-   from the existing GW parameters and check its SIGN against the three bodies
-   before touching any pack. A derivation that gets the sign right in two bodies
-   and wrong in the third is still a result worth recording.
-3. **Second candidate, cheaper to test: pad-asperity flash heating.** Contact
-   temperature rises with P·V, so an Arrhenius chemical term produces a P–V
-   cross term. This was rejected as a pure VELOCITY law in the 8th run (residual
-   slope −0.549, wrong sign), but a cross term was never tested; the rejection
-   does not carry over automatically and the distinction must be stated, not
-   assumed.
-4. If neither derivation produces a sign-correct zero-constant cross term,
-   record the axis as closed the way pH is closed, and state in
-   `docs/limits.md` what the P–V interaction costs the corpus median — that
-   number is part of the honest answer to "is ≤10% reachable?".
+Pre-register the reading before running it:
+1. If one axis holds ≥ 30% of `responsive_miss` POINTS, that axis is the next
+   target regardless of how attractive its physics looks.
+2. If no axis holds ≥ 30%, then the error is DISTRIBUTED, and the honest
+   conclusion is that ≤10% is unreachable by adding laws one axis at a time —
+   which is the evidence STATUS.md's completion criterion demands for invoking
+   the ≤15% allowance. Write that argument in `docs/limits.md`, not "it is hard".
+3. Report points, never dataset counts, for the reason the 11th run pinned by
+   test: a median over 49 datasets moves by re-ranking.
+
+Do NOT fit anything in that run either. It is a measurement, like
+`residual_census`, `conc_derived_probe` and `pv_interaction_closure` were.
 
 Secondary, unchanged from the 7th run:
 
@@ -887,6 +910,23 @@ Secondary, unchanged from the 7th run:
    the residual orders by Ce3+ fraction before proposing any functional form.**
 
 Still true, and still the rule: do not fit. Measure first, one axis per run.
+
+### Closed 2026-09-26 (11th run): the P–V interaction axis — both mechanisms rejected, axis priced
+`tools/pv_interaction_closure.py` + `tests/test_pv_interaction_closed.py`
+(12 tests) + `docs/limits.md` limit 13. Detail in the header block above.
+Two structural points worth carrying forward:
+- **Contact-area evolution could not have worked, and that was knowable without
+  any parameter.** `A_r` is a response to the NORMAL load; it contains no V, so
+  `d ln MRR/d ln V = 1` identically. The repo's own GW numbers then agreed for a
+  second, independent reason (`dlnA_r/dlnP = 1.0000`, saturation 1–5%). When a
+  mechanism can be killed by dimensional/structural reasoning, do that FIRST —
+  three runs of exponent-hunting would have been shortened by this one line.
+- **A median gain is not a size.** The oracle moved the median 2.18 pp while
+  touching 5.5% of points. The test asserts the POINT SHARE, and a second test
+  asserts that the median gain EXCEEDS the point share, so the trap itself is
+  pinned rather than merely noted.
+
+---
 
 ### Closed 2026-09-26 (9th run): there is no velocity exponent to find
 `tools/velocity_pressure_interaction_probe.py` +
