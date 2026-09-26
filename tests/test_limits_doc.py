@@ -66,6 +66,13 @@ LIMIT_ENFORCING_TESTS = {
     # bound from a per-dataset oracle to a shared exponent collapses four of
     # six axes because their exponents disagree in sign
     "test_axis_error_is_distributed.py",
+    # limit 14, amended twice: the second amendment withdraws its own
+    # predecessor's "derivation target with a definite sign" on
+    # abrasive_wt_pct, because withdrawing abrasive_conc_half_wt_pct shrank
+    # the shared gain back below the bar. The constant's replacement is a
+    # CONDITION for restoring it, not an absence, and that is what this file
+    # pins.
+    "test_predictive_accuracy.py",
     # limit 15: the oxidiser half order is refuted (two admissible blocks
     # measure a NEGATIVE order) and the census gain that motivated it is
     # inadmissible (one calibration set, one promoter-confounded body)

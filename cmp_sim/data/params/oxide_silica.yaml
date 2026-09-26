@@ -54,9 +54,45 @@ params:
     confidence: low
 
   abrasive_conc_half_wt_pct:
-    value: 4.4
+    value: null
     unit: wt%
     note: >
+      ** WITHDRAWN 2026-09-27. Was 4.4 wt% (confidence low). ** The constant is
+      gone because ITS OWN JUSTIFICATION was withdrawn, not because a scan
+      preferred a different number. The superseded reasoning is kept below so
+      nobody re-fits it from the same argument.
+
+      WHAT DECIDED IT (tools/conc_half_necessity_probe.py). The probe re-runs
+      the SHIPPING solver at every condition of each iso-condition loading
+      series, once with the pack's C_half and once with it forced to null, and
+      fits a power law to the MODEL's own predictions. The constant is only
+      defensible on a series where removing it pushes the model OUTSIDE the
+      measured band. On this pack's four us9499721b2 series (0.5-3 wt%):
+        measured slope  +0.145 / +0.303 / +0.534 / +0.350
+        model, C_half   +0.285 / +0.285 / +0.290 / +0.270   (all inside)
+        model, none     +0.333 on all four                  (all inside)
+      -> redundant on all four. Over all seven series in the corpus that this
+      constant touches: NEEDED 0, HARMFUL 1, redundant 6. A fitted constant
+      that cannot produce a single series where it is necessary is absorbing
+      residual for a reason no one can state.
+
+      WHY IT LOOKED NECESSARY. The original argument (below) was that without
+      it the model's log-log slope was +1.0 against a measured +0.15..+0.53.
+      That was true, and it was a symptom of a BUG on the same line:
+      models/luo_dornfeld.mechanical_factor applied the active-particle COUNT
+      ratio directly, MRR ~ N^1, asserting chi = 0 (no load sharing) against
+      the chi = 1.0 the same call resolves. With the load-sharing exponent
+      restored on BOTH branches the bare power law's own slope is
+      n_C = p*(1 - alpha*chi) = +0.333, already inside the measured band.
+
+      TODO(owner): saturation at high loading is real PHYSICS -- a finite
+      number of contact sites must saturate eventually. What is missing is a
+      measurement that RESOLVES the knee: one film, one fixed process
+      condition, at least a decade in wt%, reaching the plateau. Until then
+      C_half is unidentifiable here. Do NOT restore any value quoted below:
+      every one of them was fitted against the pre-fix branch.
+
+      ---- superseded reasoning, retained as evidence ----
       Abrasive loading at which the mechanical term reaches half its
       saturated value: factor ~ C/(C_half + C). Without it the model used a
       bare power law and kept rewarding extra abrasive long after the real
@@ -98,9 +134,12 @@ params:
       is the next step, not a second simultaneous edit. Do NOT re-fit this
       number against the old branch.
     source: >
+      WITHDRAWN. The superseded fit was
       us9499721b2_teos_colloidal_silica_pressure_conc.yaml (22 pts) and
       us6564116b2_oxide_taguchi_L25_pressure_platenspeed.yaml (25 pts),
-      jointly; neither alone
+      jointly; neither alone. Necessity measured by
+      tools/conc_half_necessity_probe.py over the corpus's iso-condition
+      loading series
     confidence: low
 
   abrasive_size_exponent:

@@ -2934,6 +2934,129 @@ The companion test (`..._still_saturates_after_the_correction`) exists because
 the obvious over-correction — an exponent that flattens the branch entirely —
 would pass the first test while deleting the physics `C_half` is there for.
 
+## Withdrawing `abrasive_conc_half_wt_pct`: a fitted constant whose ARGUMENT was retracted (2026-09-28, 25th run)
+
+The previous entry ended by naming the next step: re-examine the constant the
+bug had been hiding behind. This entry records that re-examination, and the
+outcome is the one worth having — **a fitted constant was deleted from every
+pack that carried one, and nothing was added in its place.**
+
+### Why the scan in the previous entry was not enough
+
+That scan showed both oxide datasets score at or near their best with the
+constant absent. On its own that is a weak argument, and a dangerous shape of
+one: it is a comparison of ERROR SCORES on the same data the constant was
+fitted to, which is exactly how a constant gets re-tuned under the banner of
+being removed. `w_fe_oxidizer` illustrated the trap in the same scan — its
+fitted 0.01 scored 10.1% while 0.02 and 0.05 scored 7.8%, so a score-driven
+reading says *re-fit it*, not *delete it*.
+
+### The question that decides it instead
+
+A saturating term is only defensible if, **without it, the model leaves the
+band the measurements actually define.** That is a question about the model's
+RESPONSE, not about its error. So `tools/conc_half_necessity_probe.py` asks it
+directly: for every iso-condition loading series in the corpus (>= 3 distinct
+wt% with every other process axis held), it runs the SHIPPING solver at each
+condition twice — with the pack's `C_half` and with it forced to null through
+the ordinary override path — and fits a power law to the MODEL's own
+predictions. Three slopes per series:
+
+    m_data          the measurement's log-log loading slope
+    m_with_chalf    the model's slope, constant present
+    m_without       the model's slope, constant absent
+
+and one verdict: `NEEDED` when removing it pushes the model outside the band
+(|m − m_data| > 0.25, the same window `tools/conc_derived_probe.py` uses for
+the derived +1/3), `HARMFUL` when only the constant-free model is inside,
+`redundant` when both are, `both-miss` when neither is. Slopes are scale-free,
+so the unknown per-dataset Kp drops out — the same shape-only rule used
+everywhere else here.
+
+| dataset | pack | m_data | m with | m without | verdict |
+|---|---|---|---|---|---|
+| us20110186542a1 (series 1) | `w_fe_oxidizer` | +0.512 | +0.106 | +0.333 | **HARMFUL** |
+| us20110186542a1 (series 2) | `w_fe_oxidizer` | +0.232 | +0.106 | +0.333 | redundant |
+| us20110186542a1 (series 3) | `w_fe_oxidizer` | +0.164 | +0.106 | +0.333 | redundant |
+| us9499721b2 (4 series) | `oxide_silica*` | +0.145 … +0.534 | +0.270 … +0.290 | +0.333 | redundant ×4 |
+
+**NEEDED 0, HARMFUL 1, redundant 6.** There is no series in this corpus on
+which the constant does the job its own note claims for it. And on `cu_h2o2_bta`
+the position is worse than redundant: both datasets it was fitted on are
+unscorable here (`us9200180b2_cu_abrasive_series` has 2 usable rows;
+`us20080090500a1` states no down force), so it was never testable at all while
+still acting on every copper prediction.
+
+### Why every pack's note argued for it anyway
+
+All three notes made the same argument: *without it the model's slope is about
++1.0 against a measured +0.15..+0.53*. That was TRUE, and it was a symptom of
+the load-sharing bug described in the previous entry — the saturating branch
+applying the count ratio `N^1`. With `(1 − alpha·chi)` restored on both
+branches, the bare power law's own slope is `n_C = p·(1 − alpha·chi) = +0.333`,
+already inside every measured band above. The saturation was bending down a
+slope the corrected contact regime no longer produces, and on tungsten it kept
+pulling past the band to +0.106.
+
+### What it cost and what it bought
+
+Corpus effect of removing it from all three packs (upper median, the repo
+convention `sorted(errors)[n//2]`):
+
+    median shape error   18.2%  ->  18.2%   (unchanged)
+    mean shape error     22.72% ->  22.53%
+    us6564116b2          23.9   ->  20.6
+    carbide2023_L9       25.4   ->  22.6
+    jani2025_cu_rsm      49.6   ->  47.9
+    us20110186542a1_w    10.1   ->   8.7
+    us9499721b2           7.8   ->   8.2   (the only loss)
+
+The single loss is on the dataset the constant was originally fitted to, which
+is what a removal of an overfit is supposed to look like. The median is
+unchanged because it is set by datasets this axis does not touch; reporting the
+mean alongside it is not a way of finding a better number, it is the only way
+the change is visible at all.
+
+### The retraction this forces elsewhere
+
+`tests/test_axis_error_is_distributed.py` carried a finding from the previous
+run: after the load-sharing fix every per-dataset residual exponent on
+`abrasive_wt_pct` was >= 0, and a shared exponent bought 2.54 pp — over the
+2.0 pp bar this repo uses for "a law may be hiding here". That reading is now
+partly withdrawn. Without the constant:
+
+    with C_half     [ 0.00, 0.02, 0.12, 0.18, 0.26, 0.26, 0.44, 0.49, 1.05]   shared 2.54 pp
+    without         [-0.06,-0.04,-0.02, 0.00, 0.01, 0.26, 0.44, 0.49, 0.84]   shared 1.50 pp
+
+The axis got SMALLER. A substantial part of the residual that looked like a
+missing law was the withdrawn constant's own. Three exponents are negative
+again, but at −0.06, −0.04, −0.02 they are an order of magnitude below the 0.15
+this repo treats as a meaningful exponent elsewhere — indistinguishable from
+zero, not the sign disagreement `docs/limits.md` §14 rested on. The test now
+pins that distinction rather than the convenient half of it.
+
+### The lesson worth keeping
+
+**Re-examine a fitted constant by asking whether it is NECESSARY, not whether
+it scores well.** An error score compares the constant against itself on its
+own fitting data, and will happily recommend re-fitting a constant that should
+be deleted (`w_fe_oxidizer`: 10.1% at its fitted value, 7.8% two grid points
+away, 8.7% with nothing at all — the score ranking and the physics ranking are
+different orders). A necessity test compares the model's RESPONSE against the
+measurement's, and it can return "there is no series where this helps", which
+is the only answer that justifies deletion.
+
+Corollary: **when a constant's note states why it exists, that sentence is
+testable, and it expires.** Every one of these notes said "without it the slope
+is +1.0". Once the +1.0 was traced to a bug, the constant had no argument left
+— independent of how it scored.
+
+TODO(owner): saturation at high abrasive loading remains real physics; a finite
+number of contact sites must saturate. What is missing is a measurement that
+RESOLVES the knee — one film, one fixed process condition, at least a decade in
+wt%, reaching the plateau. Until then the constant is unidentifiable here and
+the packs leave it `null` with that exit condition recorded.
+
 ## Separating the simulator's SHELL from its PHYSICS (2026-09-26)
 
 The owner's instruction is structural rather than physical: *"시뮬레이터에서

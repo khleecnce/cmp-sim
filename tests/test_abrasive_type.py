@@ -117,16 +117,38 @@ def test_the_packs_exponents_are_withdrawn_not_reused_on_a_swap():
     never be confused. Superseded reasoning, kept because it was the right call
     until the check was run: "no equivalent cross-film check exists for the
     concentration keys, so borrowing them would be an untested assumption."
-    ``abrasive_conc_half_wt_pct`` still withdraws — it is a wt% with units, not
-    an exponent, and the law above says nothing about it.
+    ``abrasive_conc_half_wt_pct`` used to withdraw here — it is a wt% with
+    units, not an exponent, and the law above says nothing about it. As of
+    2026-09-28 there is nothing left to withdraw: the constant was removed
+    from every pack that carried a value (``tools/conc_half_necessity_probe.py``
+    found it NEEDED on zero of the seven iso-condition loading series it
+    touched), so the swap machinery has no value to suppress. The assertion
+    below keeps the ORIGINAL claim testable — if a saturation constant is ever
+    restored to a pack, it must withdraw on an abrasive swap rather than being
+    silently carried across materials.
     """
     info = _abr(_run("alumina"))
-    assert set(info["withdrawn"]) == {"abrasive_conc_half_wt_pct"}, info
+    from cmp_sim.core.params import load_pack
+    carried = [p for p in ("oxide_silica", "cu_h2o2_bta", "w_fe_oxidizer")
+               if load_pack(p).get_or("abrasive_conc_half_wt_pct", None) is not None]
+    if carried:
+        assert set(info["withdrawn"]) == {"abrasive_conc_half_wt_pct"}, (
+            f"{carried} carry a saturation constant again, so it must withdraw "
+            f"on an abrasive swap: {info}")
+    else:
+        assert set(info["withdrawn"]) == set(), info
     assert "abrasive_size_exponent" not in info["withdrawn"], info
-    why = " ".join(info["withdrawn"].values())
-    assert "split by ABRASIVE" in why and "colloidal_silica" in why
+    if carried:
+        why = " ".join(info["withdrawn"].values())
+        assert "split by ABRASIVE" in why and "colloidal_silica" in why
     # and the size exponent that replaced it is alumina's own, with its k
     assert info["overrides"]["abrasive_size_exponent"] == pytest.approx(0.28)
+    assert "between-material stdev" in info["material_scoped"]["abrasive_size_exponent"], (
+        "the re-attribution must still SAY why the borrow is legitimate (the "
+        "between- vs within-material spread that justifies scoping the "
+        "exponent to the abrasive); that justification used to be asserted "
+        "via the withdrawal reason, which no longer exists now that the "
+        "saturation constant is gone")
     assert "k=2" in info["material_scoped"]["abrasive_size_exponent"]
     # the concentration exponent is the DERIVED 1/3, declared as derived and
     # NOT as a material-scoped borrow

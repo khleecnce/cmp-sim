@@ -168,28 +168,59 @@ def test_the_concentration_axis_stopped_disagreeing_in_sign_when_the_model_did()
        exponent is now >= 0, so a single shared exponent is at least the right
        direction everywhere. That is why it is no longer parametrized into the
        two tests above.
-    2. It is therefore also no longer closed. A shared exponent now buys
-       2.5 pp, over the 2.0 pp bar those tests use as "a law may be hiding
-       here". **That is a lead, not a licence to fit one**: all nine residual
+    2. It is therefore also no longer closed. A shared exponent bought 2.5 pp,
+       over the 2.0 pp bar those tests use as "a law may be hiding here".
+       **That is a lead, not a licence to fit one**: all nine residual
        exponents being positive means the model still UNDER-responds to
        loading, and the honest next step is to find which term is missing, not
        to add a fitted offset that would reproduce this residual by
        construction. This test exists so the lead cannot be quietly forgotten.
+
+    UPDATED 2026-09-28, and the update is a partial RETRACTION of point 2.
+    ``abrasive_conc_half_wt_pct`` was withdrawn from all three packs that
+    carried a value, because ``tools/conc_half_necessity_probe.py`` found it
+    NEEDED on zero of the seven iso-condition loading series it touches
+    (HARMFUL 1, redundant 6): the corrected load-sharing exponent already puts
+    the bare power law inside every measured band, so the saturation's stated
+    job no longer existed. The census across that removal:
+
+        with C_half     exponents [ 0.00,  0.02,  0.12, 0.18, 0.26, 0.26, 0.44, 0.49, 1.05]
+                        shared gain 2.54 pp,  oracle 6.85 pp
+        without         exponents [-0.06, -0.04, -0.02, 0.00, 0.01, 0.26, 0.44, 0.49, 0.84]
+                        shared gain 1.50 pp,  oracle 5.90 pp
+
+    So the axis got SMALLER, not larger: the residual signal a shared exponent
+    could exploit fell below the 2.0 pp bar, i.e. what point 2 read as "a law
+    may be hiding here" was in substantial part the withdrawn constant's own
+    residual. Three exponents are negative again, but they are the three
+    datasets whose pack lost the constant and they are -0.06, -0.04, -0.02 --
+    an order of magnitude below the 0.15 magnitude this repo treats as a
+    meaningful exponent elsewhere (see the size-inversion check in
+    tests/test_predictive_accuracy.py). That is "indistinguishable from zero",
+    not the sign disagreement section 14 rested on. The assertions below pin
+    exactly that distinction, so a genuine return of sign scatter still fails.
     """
     bound = _bound("abrasive_wt_pct")
     assert bound is not None, "abrasive_wt_pct is no longer swept by 2+ datasets"
     exponents = bound["exponents"]
-    assert min(exponents) >= 0.0, (
-        f"the concentration residual exponents straddle zero again "
-        f"({exponents}). Either a regression re-introduced an over-steep "
-        "concentration term, or a newly added dataset genuinely disagrees in "
-        "sign -- find out which before touching this test.")
-    assert bound["shared_gain_pp"] > 2.0, (
-        f"a shared concentration exponent now buys only "
-        f"{bound['shared_gain_pp']:.2f} pp. If a DERIVED term closed this gap, "
-        "that is the intended outcome: record it in docs/derivations.md and "
-        "retire this test. If it shrank without a derivation, something is "
-        "masking the axis.")
+    negatives = [e for e in exponents if e < 0.0]
+    assert all(abs(e) <= 0.15 for e in negatives), (
+        f"the concentration residual exponents disagree in SIGN again "
+        f"({exponents}); the negatives are no longer within the 0.15 "
+        "magnitude that counts as indistinguishable from zero. Either a "
+        "regression re-introduced an over-steep concentration term, or a "
+        "newly added dataset genuinely disagrees -- find out which before "
+        "touching this test.")
+    assert max(exponents) >= 0.5, (
+        f"the axis lost its positive signal entirely ({exponents}); the "
+        "model under-responding to loading somewhere is the finding this "
+        "test carries forward")
+    assert bound["shared_gain_pp"] < 2.0, (
+        f"a shared concentration exponent now buys "
+        f"{bound['shared_gain_pp']:.2f} pp, back over the 2.0 pp bar. "
+        "Withdrawing abrasive_conc_half_wt_pct put it at 1.50 pp; if it has "
+        "risen again, either the constant came back or a new dataset carries "
+        "residual loading response. Do NOT fit a shared exponent to close it.")
     assert bound["shared_gain_pp"] < bound["oracle_gain_pp"], (
         "sharing a constant cannot beat a per-dataset fit; if it does, the "
         "oracle is mis-measured")

@@ -53,9 +53,40 @@ params:
     confidence: med
 
   abrasive_conc_half_wt_pct:
-    value: 0.01
+    value: null
     unit: wt%
     note: >
+      ** WITHDRAWN 2026-09-27. Was 0.01 wt% (confidence low). ** This is the
+      one pack where the probe called the constant not merely redundant but
+      HARMFUL. Superseded reasoning kept below as evidence.
+
+      MEASURED (tools/conc_half_necessity_probe.py, which re-runs the SHIPPING
+      solver at each condition with and without the constant and fits a power
+      law to the model's own predictions). On the three iso-condition
+      us20110186542a1 loading series (0.01-0.04 wt% diamond):
+        measured slope  +0.512 / +0.232 / +0.164
+        model, C_half   +0.106 on all three
+        model, none     +0.333 on all three
+      The +0.512 series is reached ONLY by the constant-free model -> HARMFUL;
+      the other two are inside the band either way -> redundant. Dataset shape
+      error us20110186542a1_w_diamond_h2o2_ph 10.1% -> 8.7% on removal.
+
+      WHY IT LOOKED NECESSARY. The argument below is that without it the model
+      predicted +1.75 against a measured +0.16..+0.51. That was a symptom of a
+      BUG on the same line: models/luo_dornfeld.mechanical_factor applied the
+      active-particle COUNT ratio directly, MRR ~ N^1, asserting chi = 0 (no
+      load sharing) against the chi = 1.0 the same call resolves. With the
+      load-sharing exponent restored the bare power law gives +0.333, inside
+      the band. The saturation then kept pulling PAST it, to +0.106.
+
+      TODO(owner): as elsewhere, saturation is real physics but this patent's
+      own loading range (0.01-0.04 wt%) is too narrow to resolve a knee, which
+      is why the fitted value sat at the bottom of its own range. Do NOT
+      restore 0.01 or any of the re-scanned values (0.02 and 0.05 score 7.8%
+      against 8.7% for none, a difference smaller than this dataset's own
+      spread and obtained by fitting on the series being scored).
+
+      ---- superseded reasoning, retained as evidence ----
       Abrasive loading at which the mechanical term reaches half its saturated
       value: factor ~ C/(C_half + C). Without it the model used a bare power
       law and predicted a log-log slope of +1.75 against the +0.16 to +0.51 the
@@ -71,7 +102,10 @@ params:
       (0.01-0.04 wt% diamond): the process is already saturated at the
       bottom of its own range, so C_half is pinned near that range and
       should NOT be read as a general tungsten value.
-    source: us20110186542a1_w_diamond_h2o2_ph, 3 iso-(pH, oxidizer) series, 9 points, fit MAPE 9.3%
+    source: >
+      WITHDRAWN. The superseded fit was us20110186542a1_w_diamond_h2o2_ph,
+      3 iso-(pH, oxidizer) series, 9 points, fit MAPE 9.3%. Necessity
+      measured by tools/conc_half_necessity_probe.py
     confidence: low
 
   abrasive_size_exponent:

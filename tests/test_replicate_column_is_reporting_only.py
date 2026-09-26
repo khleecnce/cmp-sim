@@ -38,17 +38,24 @@ from cmp_sim.core.validation import dataset_paths
 #: something after the re-baseline.
 MEDIAN_SHAPE = 18.2  # moved by the saturating-branch load-sharing fix, 2026-09-27
 MEDIAN_LOO = 21.3  # moved by the W passivation threshold (physics), 2026-09-26
-#: 34, not 35, since 2026-09-27 — and the missing dataset is a FLOATING-POINT
-#: TIE, not a regression. `lee2021_cu_nicotinic_inhibitor` predicts its own mean
-#: exactly (it is a 3-point inhibitor sweep the model responds to only through a
-#: scale that the shape metric divides out), so shape == flat analytically.
-#: Before the load-sharing fix the subtraction happened to land at -7.1e-15 and
-#: the strict `<` counted it as a win; afterwards it lands at exactly 0.0 and it
-#: does not. Nothing about that dataset's prediction changed. Recorded rather
-#: than papered over, because "the count went down" would otherwise read as a
-#: model regression forever — and because a comparison decided at 1e-15 is not
-#: a claim anyone should rely on either way.
-BEATS_MEAN = 34
+#: 36 since 2026-09-28, up from 34, and the two additions are a REAL gain, not
+#: a relabelling: withdrawing `abrasive_conc_half_wt_pct` from every pack that
+#: carried a value moved `jani2025_cu_rsm_composition_heldout` (49.6% -> 47.9%)
+#: and `lee2021_cu_nicotinic_inhibitor` from losing to their own mean to
+#: beating it. Both are copper blocks, and `cu_h2o2_bta` is the pack where that
+#: constant was never testable at all (both datasets it was fitted on are
+#: unscorable here), so it was acting unchecked on every copper prediction.
+#: The count is asserted rather than bounded so that a DROP still fails.
+#:
+#: Superseded note, kept because the tie it describes is still live: the count
+#: was 34 rather than 35 from 2026-09-27 because `lee2021_cu_nicotinic_inhibitor`
+#: predicts its own mean exactly (a 3-point inhibitor sweep the model responds
+#: to only through a scale the shape metric divides out), so shape == flat
+#: analytically; before the load-sharing fix the subtraction landed at -7.1e-15
+#: and the strict `<` counted it as a win, afterwards at exactly 0.0 and it did
+#: not. A comparison decided at 1e-15 is not a claim anyone should rely on
+#: either way -- it is back in the count now for a reason unrelated to that tie.
+BEATS_MEAN = 36
 SCORED = 46
 
 

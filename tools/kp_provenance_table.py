@@ -221,6 +221,33 @@ RULINGS: Dict[str, Ruling] = {
             "Not splittable: this is the only dataset on this pack, so any "
             "constant fitted to close it would be fitted to the thing it is "
             "meant to test."),
+    # ---- Became a scale failure on 2026-09-28, with the same shape of cause
+    # as the block above: a suppressing term was withdrawn, not introduced.
+    "ep3161098b1_w_silica_pressure_sweep": Ruling(
+        conflated="abrasive loading: 2.0 wt% silica against the inherited "
+                  "pack's 10 wt% reference (Bielmann 1999), so the "
+                  "concentration term carries a 5x extrapolation",
+        identified=True, splittable=False,
+        quote="2.0 wt% core-shell colloidal silica",
+        why="Quantitatively identified, and it was UNMASKED rather than "
+            "caused. Until 2026-09-28 w_fe_oxidizer carried "
+            "abrasive_conc_half_wt_pct = 0.01 wt%, fitted on a patent whose "
+            "own loading range is 0.01-0.04 wt% diamond. At 0.01 wt% the "
+            "occupancy model is saturated at BOTH 2 and 10 wt%, so the ratio "
+            "was ~1.0 and the 5x extrapolation was invisible -- the model was "
+            "asserting that loading does not matter anywhere above 0.04 wt%, "
+            "on the strength of a sweep that never went there. "
+            "tools/conc_half_necessity_probe.py found that constant NEEDED on "
+            "zero series and HARMFUL on one (it pulled the model's loading "
+            "slope to +0.106 against a measured +0.512), so it was withdrawn; "
+            "the derived power law then applies (2/10)^0.333 = 0.585 and the "
+            "scale ratio moves 1.78x -> 3.47x. The block's SHAPE improved over "
+            "the same change (10.1% -> 8.7% on the sibling W dataset, 12.9% "
+            "here), which is the signature of a suppression being removed "
+            "rather than an error being added. Not splittable: the divergence "
+            "is a loading extrapolation on the pack's own reference "
+            "composition, not a different slurry system, and no W dataset "
+            "here is anchored at 2 wt% to split onto."),
 }
 
 #: The prose with which a dataset declares its own absolute value incomparable.

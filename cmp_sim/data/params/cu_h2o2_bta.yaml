@@ -75,9 +75,39 @@ params:
     confidence: low
 
   abrasive_conc_half_wt_pct:
-    value: 2.09
+    value: null
     unit: wt%
     note: >
+      ** WITHDRAWN 2026-09-27. Was 2.09 wt% (confidence med). ** Removed
+      because ITS OWN JUSTIFICATION was withdrawn, not because a scan
+      preferred another number. Superseded reasoning kept below as evidence.
+
+      WHY IT LOOKED NECESSARY. The argument below is that without it the model
+      predicted a log-log loading slope of +1.0 against a measured
+      +0.23..+0.49. That was true, and it was a symptom of a BUG on the same
+      line: models/luo_dornfeld.mechanical_factor applied the active-particle
+      COUNT ratio directly, MRR ~ N^1, which asserts chi = 0 (no load sharing)
+      against the chi = 1.0 the same call resolves. With the load-sharing
+      exponent restored on BOTH branches the bare power law's own slope is
+      n_C = p*(1 - alpha*chi) = +0.333 -- already inside the measured band.
+      The saturation was bending down a slope the corrected contact regime no
+      longer produces.
+
+      WORSE, ON THIS PACK IT WAS NEVER TESTABLE. Both of the sources it was
+      fitted on are unscorable in this corpus: us9200180b2_cu_abrasive_series
+      has only 2 usable rows, and us20080090500a1 states no down force, so
+      P*V cannot be formed. tools/conc_half_necessity_probe.py finds ZERO
+      iso-condition Cu loading series that separates the two settings. A
+      constant fitted on data the scorer cannot evaluate is unfalsifiable
+      here; it was still acting on every Cu prediction (removing it moves
+      jani2025_cu_rsm_composition_heldout 49.6% -> 47.9%).
+
+      TODO(owner): to restore a Cu value, the corpus needs a scorable
+      iso-condition copper loading sweep -- fixed pressure, speed, pH and
+      oxidizer, a stated down force, and at least three wt% levels spanning
+      the knee. Do NOT restore 2.09: it was fitted against the pre-fix branch.
+
+      ---- superseded reasoning, retained as evidence ----
       Abrasive loading at which the mechanical term reaches half its saturated
       value: factor ~ C/(C_half + C). Without it the model used a bare power
       law and predicted a log-log slope of +1.0 against the +0.23 to +0.49 the
@@ -89,8 +119,12 @@ params:
       oxidizer with a concentration knob: in the W patent the oxidizer varies
       0-3 wt% and changes the rate 8x, which swamped the loading effect and
       gave a nonsense C_half of 20 wt%.
-    source: us9200180b2_cu_abrasive_series (0.5-20 wt%) and us20080090500a1_cu_ph_silica_cross (4 iso-pH series, 2-4 wt%); 16 points, fit MAPE 9.5%
-    confidence: med
+    source: >
+      WITHDRAWN. The superseded fit was us9200180b2_cu_abrasive_series
+      (0.5-20 wt%) and us20080090500a1_cu_ph_silica_cross (4 iso-pH series,
+      2-4 wt%); 16 points, fit MAPE 9.5% -- neither dataset is scorable in
+      this corpus. Necessity measured by tools/conc_half_necessity_probe.py
+    confidence: low
 
   # ── pH response, fitted to a MEASURED Cu sweep ─────────────────────────
   ph_peak:

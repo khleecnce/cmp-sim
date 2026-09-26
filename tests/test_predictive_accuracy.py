@@ -183,29 +183,85 @@ def test_the_size_exponent_has_the_right_sign_on_every_measured_sweep():
 
 
 # ── the disagreements, pinned so they cannot be quietly averaged away ──
-def test_the_two_oxide_loading_datasets_still_disagree():
-    """A finding, not a defect, and it must stay visible.
+def test_the_two_oxide_loading_datasets_no_longer_disagree():
+    """They disagreed because of a BUG, and the constant that mediated is gone.
 
-    us9499721b2 (0.5-3 wt%) is best fitted by C_half ~ 0.6; us6564116b2
-    (5-25 wt%) by ~5.9. One Langmuir cannot serve both ranges, so the pack
-    carries the compromise (4.4) and confidence: low. If someone later tunes
-    the constant to make one dataset look excellent, this test fails and says
-    why.
+    Until 2026-09-27 this test recorded a finding: us9499721b2 (0.5-3 wt%) was
+    best fitted by ``abrasive_conc_half_wt_pct`` ~ 0.6 and us6564116b2
+    (5-25 wt%) by ~5.9, so the pack carried a compromise (4.4, confidence low)
+    and both datasets were held away from excellence to keep the conflict
+    visible.
+
+    Both of those numbers were fitted while the saturating branch of
+    ``models/luo_dornfeld.mechanical_factor`` multiplied by the active-particle
+    COUNT ratio (N^1), asserting chi = 0 against the chi = 1.0 the same call
+    resolves. With the load-sharing exponent restored, a re-scan found BOTH
+    datasets at or near their best with the constant ABSENT, and
+    ``tools/conc_half_necessity_probe.py`` then found it NEEDED on zero of the
+    corpus's seven iso-condition loading series. It was withdrawn from all
+    three packs that carried a value.
+
+    So the assertion flips: the two datasets must now BOTH be reasonable at
+    once, which the compromise could not manage. If a saturation constant is
+    ever restored, the old conflict should return and this test should fail.
     """
     a = score_dataset(next(p for p in dataset_paths()
                            if p.stem.startswith("us9499721b2")))
     b = score_dataset(next(p for p in dataset_paths()
                            if p.stem.startswith("us6564116b2")))
     assert a.shape_mape is not None and b.shape_mape is not None
-    # Neither should be excellent, because the compromise costs both a little.
-    worse = max(a.shape_mape, b.shape_mape)
-    assert worse <= 30.0, (
-        f"the loading compromise degraded: {a.dataset} {a.shape_mape:.1f}%, "
-        f"{b.dataset} {b.shape_mape:.1f}%")
-    assert min(a.shape_mape, b.shape_mape) >= 5.0, (
-        "one of the two oxide loading datasets is now fitted very closely, "
-        "which means the compromise was abandoned in its favour. Check that "
-        "abrasive_conc_half_wt_pct was not re-tuned to a single dataset")
+    assert max(a.shape_mape, b.shape_mape) <= 22.0, (
+        f"the two oxide loading datasets are in conflict again: "
+        f"{a.dataset} {a.shape_mape:.1f}%, {b.dataset} {b.shape_mape:.1f}%. "
+        "Check whether abrasive_conc_half_wt_pct was restored — with the "
+        "withdrawn 4.4 wt% the pair read 7.8% / 23.9%, and without it "
+        "8.2% / 20.6%.")
+    # And the one that PAID for the withdrawal must not have been bought back
+    # by re-fitting: it was 7.8% with the compromise and 8.2% without.
+    assert a.shape_mape >= 7.0, (
+        f"{a.dataset} is at {a.shape_mape:.1f}%, better than it was WITH the "
+        "withdrawn constant. That dataset is what the constant was fitted on, "
+        "so a gain here is the signature of a refit rather than a derivation")
+
+
+def test_no_pack_carries_a_saturation_constant_that_is_never_necessary():
+    """The withdrawal is structural, so pin the CONDITION, not the absence.
+
+    ``abrasive_conc_half_wt_pct`` is the repo's clearest example of a fitted
+    constant whose justification evaporated: every pack's note argued it was
+    needed to bend a +1.0 model slope down to a measured +0.15..+0.53, and
+    that +1.0 turned out to be a load-sharing bug on the same line. Once the
+    bug was fixed the bare power law's own slope (+0.333) was already inside
+    every measured band.
+
+    A constant may legitimately come back — saturation at high loading is real
+    physics — but only with a series where it is NECESSARY, meaning the model
+    leaves the measured band without it. This test states that bar.
+    """
+    from cmp_sim.core.params import load_pack
+
+    for name in ("oxide_silica", "cu_h2o2_bta", "w_fe_oxidizer",
+                 "sic_ceria_h2o2", "sti_ceria"):
+        pack = load_pack(name)
+        value = pack.get_or("abrasive_conc_half_wt_pct", None)
+        note = (pack.param("abrasive_conc_half_wt_pct").note or "").lower()
+        if value is None:
+            # The refusal must carry its own exit condition, not be silent.
+            assert "todo(owner)" in note, (
+                f"{name} leaves the saturation constant null without saying "
+                "what measurement would restore it")
+            continue
+        assert "withdrawn" not in note, (
+            f"{name} carries abrasive_conc_half_wt_pct = {value} while its "
+            "own note still says WITHDRAWN. Restoring the value without "
+            "rewriting the justification re-introduces exactly the constant "
+            "whose reasoning was retracted.")
+        assert "necessary" in note and "series" in note, (
+            f"{name} restored abrasive_conc_half_wt_pct = {value} without "
+            "recording a series on which it is NECESSARY (the model leaving "
+            "the measured loading band without it). Run "
+            "tools/conc_half_necessity_probe.py: the withdrawal was decided "
+            "by NEEDED 0 / HARMFUL 1 / redundant 6 over seven series.")
 
 
 def test_the_anionic_silica_system_got_its_own_pack_not_a_wider_bell():

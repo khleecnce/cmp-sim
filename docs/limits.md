@@ -658,6 +658,66 @@ look identical in the census table. Distinguishing them requires asking *which
 datasets carry the negative exponents and what they share* — here, the packs
 that supply `C_half` — which is a question the census does not ask on its own.
 
+### ⚠ AMENDED AGAIN 2026-09-28: point 3 above is largely withdrawn, and the same lesson is why
+
+The amendment above concluded that a shared exponent on `abrasive_wt_pct` now
+buys 2.5 pp — over the 2.0 pp bar — and called that "the first derivation
+target this corpus has produced with an unambiguous sign". That reading has to
+be given back in its turn, and for exactly the reason the amendment itself
+states: the residual was still being measured on a model carrying the constant
+under suspicion.
+
+`abrasive_conc_half_wt_pct` was **withdrawn from every pack that carried a
+value** on 2026-09-28. The decision was not made on error scores — those
+recommend *re-fitting* it on tungsten (0.01 → 0.02 scores 10.1% → 7.8%) — but
+on necessity: `tools/conc_half_necessity_probe.py` re-runs the shipping solver
+at each condition of every iso-condition loading series with and without the
+constant and fits a power law to the model's own predictions, asking whether
+removing it pushes the model *outside the measured band*. Verdict over the
+seven series it touches: **NEEDED 0, HARMFUL 1, redundant 6**. Full derivation
+in `docs/derivations.md`, "Withdrawing `abrasive_conc_half_wt_pct`".
+
+Re-running the identical census across that removal:
+
+| | per-dataset exponents | shared gain | oracle gain |
+|---|---|---|---|
+| with `C_half` | +0.00 … +1.05 (0 negative) | +2.5 pp | +6.9 pp |
+| without | **−0.06 … +0.84 (3 negative)** | **+1.5 pp** | +5.9 pp |
+
+So the axis got **smaller**, not larger: a substantial part of what looked like
+a missing law with a definite sign was the withdrawn constant's own residual,
+and the shared gain fell back below the 2.0 pp bar. Point 3's "derivation
+target with an unambiguous sign" is therefore withdrawn as a *quantified* lead;
+the `N_active ∝ real contact area` idea remains physically reasonable but no
+longer has a measured residual arguing for it on this corpus.
+
+The three negatives that returned are **−0.06, −0.04, −0.02**, on precisely the
+three datasets whose pack lost the constant. They are an order of magnitude
+below the 0.15 exponent magnitude this repo treats as meaningful elsewhere, so
+this is *indistinguishable from zero*, not a return of the sign disagreement
+this section originally rested on. Point 2 stands: the sign-disagreement
+evidence for this axis remains withdrawn, and the remaining dispersed axes
+(`abrasive_size_nm`, `pressure`, `slurry_ph`) continue to carry the argument.
+Point 1 stands unchanged.
+
+**What would resolve it:** a loading sweep that resolves the saturation knee —
+one film, one fixed process condition, at least a decade in wt%, reaching the
+plateau. No dataset in this corpus does that, which is why the constant is
+unidentifiable rather than merely unfitted, and why re-fitting it against
+series that are already saturated at the bottom of their own range produced a
+value (0.01 wt%) that suppressed a real 5× loading extrapolation into
+invisibility on `ep3161098b1_w_silica_pressure_sweep`.
+
+**The second-order lesson, which is the transferable one:** *re-examine a
+fitted constant by asking whether it is NECESSARY, not whether it scores well.*
+An error score compares the constant against itself on its own fitting data and
+will recommend re-fitting a constant that should be deleted. And when a
+constant's note states why it exists — all three said "without it the slope is
++1.0" — that sentence is testable, and it can expire.
+
+**Enforced by** `tests/test_axis_error_is_distributed.py`,
+`tests/test_predictive_accuracy.py::test_no_pack_carries_a_saturation_constant_that_is_never_necessary`.
+
 **Enforced by** `tests/test_axis_error_is_distributed.py`.
 
 ---
