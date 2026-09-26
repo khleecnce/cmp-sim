@@ -4,6 +4,34 @@ All notable changes to CMP-Sim. Newest first.
 
 ## Unreleased
 
+### Measured — reproducibility, transcribed: 15 % is NOT the measurement floor (2026-09-27, 15th run)
+- `cmp_sim/data/validation/reproducibility.yaml` (new): what each publication
+  states about **its own** run-to-run scatter, verbatim, for 17 datasets.
+  Searched in **corpus order** (alphabetical, independent of score) so the result
+  cannot be steered; every statement found is recorded whether it helps or hurts.
+- `tools/repro_statement_scan.py` scans the held full texts for reproducibility
+  phrasing; `tools/stated_reproducibility.py` converts statements into a floor
+  comparable to our MAPE — and refuses to convert the ones that cannot honestly
+  be converted.
+- **The answer is negative.** Only 4 of 17 sources state something quantifiable,
+  and they disagree by an order of magnitude: jani2025 **1.5–9.5 %** RSD,
+  ihnfeldt2008 **19.1 %** (±14 nm/min averaged per row), miranda2004
+  **36.9–37.6 %** (derived from its printed ANOVA). A corpus-wide "15 % is the
+  noise floor" is therefore unsupported in **both** directions. The case for
+  ≤ 15 % remains §14 + §16 (axis-exponent sign dispersion; the 11.9 % oracle) and
+  is *not* a noise-floor argument.
+- **Three ways a floor can fail to exist, kept apart**: `spatial_only` (an SD
+  across points on one wafer is WIWNU, not reproducibility — it must not excuse
+  kenchappa2021's 42.8 %), `replicated_scatter_withheld` (exists, non-zero,
+  unrecoverable), `none_stated`. mariscal2020's 4.6 %/11.9 % are its **own
+  model's** RMS fit errors and are recorded as `none_stated` so that trap is
+  documented rather than available.
+- The one derived floor round-trips: the test inverts the algebra and reproduces
+  miranda2004's printed adjusted R² = 0.69 to 3 dp.
+- `docs/limits.md` §17; `tests/test_stated_reproducibility.py` (10 tests) pins
+  that every transcribed number appears in its own quote and that the pass cannot
+  move a median. Medians unmoved at **18.9 % / 21.3 %**, as required.
+
 ### Measured — the velocity exponent is not a number, it is an interaction (2026-09-26, 9th run)
 - `tools/velocity_pressure_interaction_probe.py`: measures b_V at **fixed
   pressure** as the raw log-log slope of *measured* rate against speed — no model

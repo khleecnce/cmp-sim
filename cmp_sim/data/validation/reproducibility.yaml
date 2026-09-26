@@ -1,0 +1,286 @@
+# Reproducibility AS STATED BY THE SOURCE — transcription only, never estimated.
+#
+# WHY THIS FILE EXISTS
+#   `Score.replicate_scatter` computes a dataset's own reproducibility from rows
+#   that repeat a condition. Only 6 of 46 scored datasets do, so for the other 40
+#   the question "is this model's error already at the measurement floor?" is
+#   unanswerable from the data alone. This file holds what each PUBLICATION says
+#   about its own reproducibility, so the question can be answered from the
+#   source where the source answers it — and left open where it does not.
+#
+# HARD RULES (a violation makes the entry worthless, not merely wrong)
+#   * `quote` must be VERBATIM from the source, and every number in `value`
+#     must appear in that quote, or be derived by an arithmetic rule named in
+#     `derivation` from numbers that do.
+#   * No estimates. A source that says nothing gets `kind: none_stated` and no
+#     value. An unmeasured floor is NOT a floor of zero, and it is not 15%
+#     either.
+#   * `kind` distinguishes claims that are NOT interchangeable:
+#       replicate_rsd            run-to-run scatter of repeated polishes, as %.
+#                                This is the floor we want.
+#       absolute_uncertainty     a stated ± on the rate in the rate's own unit.
+#                                Becomes a % only per row, since it is constant
+#                                while the rate is not.
+#       derived_pure_error       recovered from printed ANOVA/regression summary
+#                                statistics by a stated algebraic rule; carries
+#                                its assumptions and a sensitivity band.
+#       spatial_only             an SD taken across points on ONE wafer. This is
+#                                within-wafer non-uniformity, NOT reproducibility:
+#                                a model predicting a wafer-average rate is not
+#                                bounded by it. Recorded to stop it being
+#                                mistaken for a floor.
+#       replicated_scatter_withheld  the source says it averaged N runs and does
+#                                not print the spread. The floor exists, is
+#                                non-zero, and cannot be recovered.
+#       transcription_floor      the rate was digitised from a figure; the floor
+#                                is a reading error, not a measurement one.
+#       none_stated              the source says nothing about replication.
+#
+# ⚠ SELECTION DISCIPLINE. Sources were searched in CORPUS ORDER (alphabetical by
+#   dataset stem, see tools/repro_source_inventory.py), which is independent of
+#   each dataset's score. Every statement found was recorded whether it helps or
+#   hurts: jani2025's stated RSD of at most ~9.5% is recorded even though it
+#   REFUTES a 15% measurement floor for that dataset, which is the direction that
+#   costs us.
+#
+# Scope of this pass: the 15 datasets whose source text is held locally
+# (~/fab-sim/papers) plus the open-access HTML/TXT mirrors. Patent examples
+# (19 datasets) print rate tables with no replication statement at all; they are
+# entered as none_stated with that reason, not left absent, so the count of
+# "searched and silent" is visible rather than implied.
+
+datasets:
+
+  jani2025_cu_h2o2_acidic_chelator:
+    kind: replicate_rsd
+    value_percent_min: 1.5
+    value_percent_max: 9.5
+    typical_percent: 7.0        # the source's own summary bound, see quote
+    quote: >
+      "The measured Cu RRs for each pair of replicates were used to calculate the
+      mean, standard deviation (SD), and relative standard deviation (RSD). The
+      SDs ranged from 11 to 84 nm min-1, with RSDs between 1.5% and 9.5%. ...
+      Most of the replicate pairs exhibited RSD values below 7%, indicating good
+      reproducibility of the measurements."
+    source: >
+      C. Jani, R. Venkataswamy, J. Seo, S. Krishnan, ECS J. Solid State Sci.
+      Technol. 14(4) 044003 (2025), doi:10.1149/2162-8777/adc59e, Results
+      (replicate analysis of the 30-run design). Open-access HTML held at
+      ~/fab-sim/papers/jani2025-revisiting-roles-cu-cmp.html
+    confidence: high
+    note: >
+      ⚠ UNFAVOURABLE TO US, AND KEPT. A stated ceiling of 9.5% means a 15%
+      "measurement floor" cannot be claimed for this dataset: its own
+      reproducibility is better than that. Recorded first, before scoring.
+
+  jani2025_cu_rsm_composition_heldout:
+    kind: replicate_rsd
+    value_percent_min: 1.5
+    value_percent_max: 9.5
+    typical_percent: 7.0
+    quote: >
+      Same publication and same replicate analysis as
+      jani2025_cu_h2o2_acidic_chelator; the held-out subset is drawn from the
+      same 30-run design. "The SDs ranged from 11 to 84 nm min-1, with RSDs
+      between 1.5% and 9.5%. ... Most of the replicate pairs exhibited RSD values
+      below 7%, indicating good reproducibility of the measurements."
+    source: >
+      C. Jani et al., ECS J. Solid State Sci. Technol. 14(4) 044003 (2025),
+      doi:10.1149/2162-8777/adc59e.
+    confidence: high
+
+  ihnfeldt2008_cu_alumina_ph_oxidizer_chelator:
+    kind: absolute_uncertainty
+    value_nm_per_min: 14.0
+    quote: >
+      "Wafers were weighed using a Sartorius scale (model 1712 MP8) before and
+      after polishing to obtain MRR, which had a measurement error of +/- 0.5mg.
+      ... Therefore, the uncertainty for the MRR was calculated as +/- 14
+      nm/min." (dissertation p.101); the journal version states "The
+      experimental error for MRR was +/-14 nm/min." (p.3)
+    source: >
+      R. V. Ihnfeldt, PhD dissertation, UC San Diego (2008), p.101, and
+      Ihnfeldt & Talbot, ECS Trans. 13(4) 43-49 (2008), doi:10.1149/1.2912977.
+      Both PDFs held in ~/fab-sim/papers/.
+    confidence: high
+    note: >
+      A CONSTANT uncertainty on a rate that varies 15x across this dataset, so it
+      is a large relative floor on the slow rows and a small one on the fast
+      rows. It must be applied per row, never as one percentage.
+
+  miranda2004_cu_ph_h2o2_2x2:
+    kind: derived_pure_error
+    derivation: anova_adjusted_r2
+    # machine-readable inputs to the algebra; every one appears in `quote`
+    replicates: 3
+    adjusted_r2: 0.69
+    # the four cell means are NOT copied here: the algebra reads them from the
+    # dataset file itself, so the two can never drift apart
+    model_params_band: [3, 4]   # the text rejects the H2O2 main effect (p=0.588),
+                                # so the fitted model has 3 or 4 parameters
+    quote: >
+      "The DOE structure used was a 2^2 full factorial experiment with three
+      replicates for a total of 12 runs." ... "The model adequacy was checked by
+      reviewing the adjusted-R^2 value of 0.69." Table 3 prints the four cell
+      means: 243 / 1743 / 2908 / 1953 Ang/min.
+    source: >
+      P. A. Miranda, J. A. Imonigie, A. J. Moll, 2004 IEEE WMED,
+      doi:10.1109/WMED.2004.1297359; open-access full text mirrored at
+      ~/fab-sim/papers/miranda2004-wmed-cu-cmp-ph-h2o2.txt
+    confidence: low
+    note: >
+      The replicate rates themselves are withheld, but a saturated 2x2 model
+      fits the four printed cell means exactly, so SS_between is computable and
+      the printed adjusted R^2 fixes SS_residual. See
+      tools/stated_reproducibility.py for the algebra, and
+      tests/test_stated_reproducibility.py for the arithmetic check.
+      confidence: low because (a) adjusted R^2 is printed to 2 dp and (b) the
+      text rejects the H2O2 main effect, so the fitted model may have 3 rather
+      than 4 parameters; both are carried as a band, not hidden.
+
+  kenchappa2021_softpad_hdp_oxide:
+    kind: spatial_only
+    quote: >
+      "The blanket RRs were calculated from the difference in the film thickness
+      measured using a Film-Tek 2000 interferometer before and after polishing at
+      48 points along the wafer diameter. The standard deviation of RR was
+      obtained using this data. The polish results shown are an average material
+      RRs obtained for 2-3 wafers, each polished for 60 s."
+    source: >
+      N. B. Kenchappa et al., ECS J. Solid State Sci. Technol. 10, 014003 (2021),
+      doi:10.1149/2162-8777/abdc40, Experimental. PDF in ~/fab-sim/papers/.
+    confidence: high
+    note: >
+      The printed SD is across 48 points on ONE wafer diameter, i.e. within-wafer
+      non-uniformity. It is NOT a floor on predicting the wafer-average rate.
+      Wafer-to-wafer replication (2-3 wafers) happened; its spread is withheld.
+
+  dandu2009_sio2_ceria_ph_sweep:
+    kind: spatial_only
+    quote: >
+      "The polish results shown are all for blanket wafers and are an average of
+      the RRs from two wafers... The RR of each wafer was calculated from the
+      difference in film thickness before and after polishing, measured using a
+      Filmetrics F20 interferometer, and averaged over 17 points distributed
+      throughout the wafer surface. The standard deviation in the RR was
+      determined from the RRs at these 17 points."
+    source: >
+      P. R. Dandu Veera, S. Peddeti, S. V. Babu, J. Electrochem. Soc. 156(12)
+      H936 (2009), doi:10.1149/1.3230624, Experimental. PDF in ~/fab-sim/papers/.
+    confidence: high
+    note: Same distinction as kenchappa2021 — 17 points on one wafer, not replicates.
+
+  son2021_oxide_ceria_size_sweep:
+    kind: replicated_scatter_withheld
+    replicates: 3
+    quote: >
+      "At all CMP slurries in our experimental, 3 times CMP were conducted with
+      three 300-mm-diameter SiO2-film wafers and 149 points with 6.1-mm interval
+      and 1-mm exclusion from wafer edge were measured for each of wafers."
+    source: >
+      Y.-H. Son et al., Scientific Reports 11, 17820 (2021),
+      doi:10.1038/s41598-021-97122-9, Methods. PDF in ~/fab-sim/papers/.
+    confidence: high
+    note: Three wafers per slurry; no SD or error bar on the reported rate.
+
+  wei2026_sic_silica_size_sweep:
+    kind: replicated_scatter_withheld
+    replicates: 3
+    quote: >
+      "each polishing group was repeated at least three times. The mass of the
+      substrates before and after polishing was weighed using a precision
+      balance, repeated three times each, and the average value was taken."
+    source: >
+      Wei et al., Crystals 16(3) 179 (2026), §2 Experimental. PDF
+      ~/fab-sim/papers/wei2026-cryst16030179-4hsic-fenton-cmp.pdf
+    confidence: high
+
+  du2004_cu_h2o2_concentration_sweep:
+    kind: replicated_scatter_withheld
+    replicates: 5
+    quote: >
+      "average of 5 runs" (Experimental); the dataset file records that error
+      bars and standard deviations on those averages are not printed.
+    source: >
+      T. Du, D. Tamboli, V. Desai, S. Seal, J. Electrochem. Soc. 151(4) G230
+      (2004), doi:10.1149/1.1648029.
+    confidence: high
+
+  bouvet2002_w_silica_size_sweep:
+    kind: transcription_floor
+    value_nm_per_min: 3.0
+    quote: >
+      Recorded in the dataset file: marker-centroid reading residual of about
+      +/-3 nm/min on a digitised figure. The publication prints no error bars.
+    source: >
+      D. Bouvet et al., J. Vac. Sci. Technol. B 20(4) 1556 (2002),
+      doi:10.1116/1.1490393 — figure digitisation, see the dataset file.
+    confidence: med
+
+  bouvet2002_ti_silica_size_sweep:
+    kind: transcription_floor
+    value_nm_per_min: 4.0
+    quote: >
+      Recorded in the dataset file: marker-centroid reading residual of about
+      +/-4 nm/min on a digitised figure. The publication prints no error bars.
+    source: >
+      D. Bouvet et al., J. Vac. Sci. Technol. B 20(4) 1556 (2002),
+      doi:10.1116/1.1490393.
+    confidence: med
+
+  bouvet2002_oxide_silica_size_sweep:
+    kind: none_stated
+    quote: >
+      "Not stated by the paper: wafer diameter, polish time, replicate count,
+      error bars." (dataset file, from reading the source)
+    source: D. Bouvet et al., J. Vac. Sci. Technol. B 20(4) 1556 (2002).
+    confidence: high
+
+  mariscal2020_peteos_ceria_pressure_velocity_3x3:
+    kind: none_stated
+    quote: >
+      The paper states RMS errors of its own KINETIC MODEL fit (4.6% and 11.9%)
+      and a tool non-uniformity of "+/- 9% center-fast", but no replicate count
+      and no error bar on a removal rate.
+    source: >
+      J. C. Mariscal et al., ECS J. Solid State Sci. Technol. 9, 044005 (2020),
+      doi:10.1149/2162-8777/ab89bc. PDF in ~/fab-sim/papers/.
+    confidence: high
+    note: >
+      ⚠ A model's own RMS fit error is NOT reproducibility. Reading 4.6% as a
+      noise floor would credit us with a bound the experiment never measured.
+
+  bae2022_si_wafer_alkali_ph:
+    kind: none_stated
+    quote: >
+      A full-text scan for "+/-", "standard deviation", "error bars",
+      "repeatability", "n=", "average of N runs" returns nothing in the
+      Experimental or Results sections.
+    source: >
+      J. Bae et al., Nanomaterials 12(21) 3893 (2022), doi:10.3390/nano12213893.
+      PDF in ~/fab-sim/papers/.
+    confidence: high
+
+  li2021_oxide_silica_ph:
+    kind: none_stated
+    quote: Same full-text scan returns no reproducibility statement.
+    source: >
+      Y. Li et al., ECS J. Solid State Sci. Technol. 10, 123004 (2021),
+      doi:10.1149/2162-8777/ac3e44. PDF in ~/fab-sim/papers/.
+    confidence: high
+
+  su2011_sic_alumina_size_sweep:
+    kind: none_stated
+    quote: Same full-text scan returns no reproducibility statement.
+    source: >
+      SU Jianxiu et al., Procedia Engineering 24, 441 (2011),
+      doi:10.1016/j.proeng.2011.11.2673. PDF in ~/fab-sim/papers/.
+    confidence: high
+
+  lai2001_cu_alumina_size_sweep:
+    kind: none_stated
+    quote: >
+      "Not stated: abrasive loading, polish time per run, replicate count, error
+      bars." (dataset file, from reading Chapter 3)
+    source: J.-Y. Lai, PhD thesis, MIT (2001), Chapter 3.
+    confidence: high

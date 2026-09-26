@@ -751,3 +751,109 @@ bars) for the films in this corpus, transcribed into the datasets so
 factorial body named in §1, §4, §13 and §14.
 
 **Enforced by** `tests/test_ten_percent_is_out_of_reach.py`.
+
+## 17. 15 % is NOT the measurement floor: the corpus's own sources refute a blanket claim
+
+§16 closed one side of the accuracy question — ≤ 10 % is outside the reach of any
+model that shares its constants across datasets — and left the other side open:
+*is 15 % simply where measurement noise starts?* The obstacle was that
+`Score.replicate_scatter` can only be computed where a dataset repeats a
+condition, which is 6 of 46 scored datasets. Unmeasured is not zero, and it is not
+15 % either.
+
+**The pass.** Every source whose full text is held locally was searched, **in
+corpus order (alphabetical by dataset stem), which is independent of each
+dataset's score**, for a reproducibility the *authors* state: ±σ, "n = 3", error
+bars, "average of N runs", a stated repeatability. Every statement found was
+transcribed verbatim into `cmp_sim/data/validation/reproducibility.yaml`,
+including the ones that hurt. 17 datasets were searched and recorded.
+
+**The answer is negative.** Only **four** of 17 state something quantifiable, and
+they do not agree with each other by an order of magnitude:
+
+| dataset | stated floor | kind | our shape error |
+|---|---|---|---|
+| jani2025 (both halves) | **1.5 – 9.5 %** RSD, "most below 7 %" | replicate RSD, per condition | 5.6 % / 51.2 % |
+| ihnfeldt2008 | ±14 nm/min → **19.1 %** averaged per row | absolute uncertainty | gated |
+| miranda2004 | **36.9 – 37.6 %** | derived from printed ANOVA | gated |
+| bouvet2002 W / Ti | ±3 / ±4 nm/min | *transcription*, not measurement | 2.3 % / 30.7 % |
+
+So published CMP reproducibility spans **1.5 % to ~37 %** within one small corpus.
+A blanket "15 % is the noise floor" is therefore **unsupported in both
+directions**: it is far too generous for jani2025, whose own RSD ceiling is 9.5 %,
+and far too strict for miranda2004. The evidence for accepting ≤ 15 % remains what
+§14 and §16 established — between-dataset dispersion of the axis exponents, and
+the oracle bound of 11.9 % — and it is *not* a noise-floor argument. That
+distinction is now pinned by a test.
+
+**Three ways a floor can fail to exist, kept apart.** Collapsing them is how a
+reporting change becomes an excuse:
+
+* **`spatial_only`** — kenchappa2021 prints an SD across 48 points on *one wafer*
+  diameter, dandu2009 across 17. That is within-wafer non-uniformity. A model
+  predicting the *wafer-average* rate is not bounded by it. kenchappa2021 scores
+  42.8 %; reading its within-wafer SD as a floor would excuse the corpus's largest
+  single miss with the wrong statistic. **Yields no floor, by test.**
+* **`replicated_scatter_withheld`** — son2021 (3 wafers), wei2026 ("repeated at
+  least three times"), du2004 (5 runs) all replicate and none print the spread.
+  The floor exists, is non-zero, and is unrecoverable. **Yields no floor.**
+* **`none_stated`** — searched and silent: bae2022, li2021, su2011, lai2001,
+  bouvet2002 oxide, mariscal2020.
+
+**mariscal2020 is the trap worth naming.** It prints RMS errors of 4.6 % and
+11.9 % — for *its own kinetic model's fit*, not for repeated measurement. Reading
+those as reproducibility would credit this project with a bound the experiment
+never measured. Recorded as `none_stated` with the quote, so the temptation is
+documented rather than available.
+
+**The one derived number, and why it is admissible.** miranda2004 withholds its
+replicate rates but prints a 2² factorial with r = 3 (n = 12), the four cell
+means, and adjusted R² = 0.69. A saturated 2² model passes exactly through the
+four means, so SS_between is computable from the printed means alone, and the
+printed adjusted R² then fixes SS_error:
+
+    SS_between = r · Σ(ȳᵢ − ȳ)²
+    SS_error   = (n−p)·a·SS_between / ((n−1) − (n−p)·a),    a = 1 − R²_adj
+    σ_pure     = √(SS_error/(n−p))  →  36.9–37.6 % of the grand mean
+
+The band is the p = 3 / p = 4 ambiguity (the text rejects the H₂O₂ main effect at
+p = 0.588, so the fitted model may have three parameters, in which case SS_error
+also carries lack of fit and this is an upper bound). The test **inverts the
+algebra and reproduces the printed 0.69 to 3 decimal places**, so this is a
+checkable transcription rather than a plausible-looking derivation. Both
+miranda2004 rows that matter are gated by the pack anyway, so nothing is excused
+by it — it exists to show that a ~37 % floor is a real published condition.
+
+**What this changes about the target.** Nothing about the model, and one thing
+about the claim: accuracy statements must now be made **per dataset against that
+dataset's own floor**, never against a corpus-wide floor. jani2025's held-out half
+at 51.2 % is 5.4× its own stated reproducibility — a real failure, and the most
+valuable single number this pass produced, because it is the one place in the
+corpus where "the data is just noisy" is definitively ruled out by the authors
+themselves.
+
+**What was tried and rejected.** Three tempting uses of this data were
+**rejected**:
+1. *Excusing the corpus median with a 15 % floor.* Rejected: only 4 of 17 sources
+   quantify a floor and they span 1.5–37 %, so no single number covers the corpus.
+2. *Using within-wafer SD as the floor* (it is available for kenchappa2021 and
+   dandu2009, and would have made the corpus's largest miss look like noise).
+   Rejected as the wrong statistic — it bounds a point prediction, not a
+   wafer-average one. Enforced by test.
+3. *Reading mariscal2020's 4.6 %/11.9 % RMS as reproducibility.* Rejected: those
+   are its own kinetic model's fit residuals; the experiment never measured
+   replication. **The decision** is that a floor is quoted per dataset, only where
+   its own authors state one, and that ≤ 15 % is argued from §14/§16 dispersion
+   rather than from noise.
+
+**What would resolve it.** Replicate-level data, not summary statistics: a corpus
+source that prints the individual repeated rates (or ±σ per condition) for films
+other than Cu. jani2025 is currently the only such source, and it is Cu. For the
+gated datasets (ihnfeldt2008, miranda2004) the floor is now known but the rows are
+declined by the pack, so resolving §4's oxidiser-sign gap would also make two
+measured floors usable for the first time.
+
+**Enforced by** `tests/test_stated_reproducibility.py` (10 tests), which checks
+that every transcribed number appears in its own quote, that `spatial_only` and
+withheld-scatter kinds yield no floor, that the miranda algebra round-trips, and
+that the transcription cannot move a median.

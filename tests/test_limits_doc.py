@@ -74,6 +74,10 @@ LIMIT_ENFORCING_TESTS = {
     # (free per-dataset exponents reach only 11.9 %), and the unowned block is
     # the part the model gets right rather than the hard part
     "test_ten_percent_is_out_of_reach.py",
+    # limit 17: 15 % is NOT a measurement floor — the sources that state their own
+    # reproducibility span 1.5-37 %, so a corpus-wide floor cannot be claimed in
+    # either direction, and a within-wafer SD is not reproducibility at all
+    "test_stated_reproducibility.py",
 }
 
 
