@@ -4,7 +4,33 @@
 
 ### 1차 완성 — 모델링 정확도
 - **목표: 예측 오차 median ≤ 10.0%** (이력서에 쓸 수 있는 수준)
-- **현재: median 19.5% shape / 21.8% LOO** (코퍼스 46/50, 427점) — **891 tests**.
+- **현재: median 18.9% shape / 21.3% LOO** (코퍼스 46/50, 427점) — **898 tests**.
+  2026-09-26(6회차): **responsive_miss 버킷 공격 1건 성공 — 코퍼스 median이
+  19.5% → 18.9%로 내려갔다(정체 이후 첫 이동).** 최악의 반응성 데이터셋
+  `ep3161098b1_w`(54.9%)를 **54.9% → 12.9%**로 고쳤다. 원인은 STATUS가 예측한
+  대로 배관이 아니라 **빠진 법칙**이었다.
+  유도: W는 Kaufman 순환(JES 138(1991)3460)으로 제거되므로, WOx 부동태층을
+  **전단해 뜯어내기 전에는 아무것도 안 떨어진다** → Preston에 항복 오프셋이 붙는다
+  `RR = K·V·max(P − P0, 0)`. 그리고 P0는 억제제의 **벌크 농도가 아니라 표면
+  피복률**로 정해진다 → `P0 = P_y·θ`, `θ = K_L·C/(1+K_L·C)`(Langmuir).
+  상수 2개(P_y=4.76 psi, K_L=0.00562 /ppm), 18점·억제제 3수준 → 과결정.
+  `cmp_sim/models/passivation_threshold.py` + `tools/w_passivation_threshold_probe.py`
+  + `tests/test_w_passivation_threshold.py`(7 tests).
+  **상수 회계상 이득이다**: 같은 곡률을 피팅 압력지수 1개(n=2.15)로 흉내내면
+  26.9%에 그치고 메커니즘이 없다. 46.1%(순수 Preston) / 26.9%(지수 1개) /
+  **12.4%(유도식 2개)** — 테스트가 이 세 숫자를 매 실행 재유도해서, 유도식이
+  피팅지수를 10%p 이상 못 이기면 "곡률 재매개화일 뿐"이라며 실패한다.
+  죽어 있던 `inhibitor_ppm` 축이 살아났다(축 테이블에 12.9%로 신규 등장).
+  ⚠ **부분 반증을 숨기지 않았다**: 조성별로 P0를 따로 피팅하면 37/50/63 ppm에서
+  0.52/1.19/1.08 psi로 **단조가 아니다**(상위 두 수준이 서로의 산포 안). 피팅된
+  K_L에서 θ가 0.17→0.26밖에 안 움직이므로 Langmuir 포화와 모순은 아니지만,
+  데이터는 피복률의 **시작부만** 제약한다 → P_y는 외삽된 절편이며 WOx의 전단강도로
+  인용하면 안 된다(팩 노트·테스트 양쪽에 고정).
+  ⚠ **Fe 축은 일부러 비워 뒀다**: Fenton은 촉매에 1차이므로 `[Fe]/[Fe]_ref` 인자가
+  같은 적합을 12.4%→11.5%로 더 개선하고 **형상 상수를 늘리지도 않는다**. 그런데
+  이 팩의 Kp는 US2011/0186542A1에 앵커돼 있고 그 특허는 **자기 Fe 농도를 안 적는다**.
+  항을 작동시키는 유일한 방법이 기준농도를 지어내는 것이므로 침묵을 택했고,
+  테스트가 "Fe를 바꿔도 rate가 변하지 않음"을 assert해 미래의 날조를 막는다.
   2026-09-28(5회차): **19.5%의 정체를 분해했다 — 완성 기준 논쟁의 답이 나왔다.**
   `tools/residual_census.py`가 채점된 46개를 원인별로 한 버킷씩 배정한다(반응성은
   선언이 아니라 **실측** — 첫 행을 각 축의 min/max로 재구성해 실제 시뮬레이터를
@@ -443,33 +469,50 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-**Attack the `responsive_miss` bucket by CAUSE, one law per run — starting with
-the pH-dominated oxide subset (5 datasets, 25-49% shape, all oxide/ceria).**
+**Keep attacking `responsive_miss` by CAUSE — the threshold result says the
+remaining misses are MISSING LAWS, not plumbing. Next target: the
+pH-dominated oxide/ceria subset (5 datasets, 25-49% shape).**
 
-The census (below) named the bucket: 35/46 datasets, 342/427 points, median
-20.2%. Inside it the misses are NOT spread evenly — they cluster:
-* **pH-dominated oxide/ceria** (netzband2020 49.2, cn109609035b 32.1,
-  dandu2009 31.5, us9422456b2 25.3, son2021 25.6): the pH axis moves the
-  predicted rate 52-89%, so a constant exists and is WRONG, not missing. The pH
-  axis is CLOSED to further closed-form attempts by the 2026-09-27 rule (two
-  falsifications). What is NOT closed: these five are all **ceria or
-  ceria-adjacent on oxide**, where the mechanism is chemical-tooth
-  (Ce3+ site density), not electrostatic. Measure whether the residual orders by
-  **Ce3+ fraction / dissolved-Ce proxy** before proposing any functional form.
-* **velocity-bearing L25/L16 DOEs** (yang2023 69.0, us6564116b2 20.3,
-  mariscal2020 12.9, us6918821b2 44.1): pressure AND velocity both respond, and
-  the pressure-residual probe (this run) showed yang2023 alone at -1.28 while
-  the others sit near 0 — i.e. yang2023 is an outlier to explain, not a shared
-  curvature.
-* **two INERT axes inside otherwise-responsive datasets** are worth more than
-  any new law: `ep3161098b1_w` (54.9%) varies `fe_ppm` and `inhibitor_ppm` and
-  the model answers with the SAME rate for both — the Fenton term never reaches
-  the rate. Same for `jani2025_cu_rsm` (`chelator_M`, `promoter_M`, 51.2%) and
-  `yang2023` (`dispersant_wt_pct`, `slurry_ph` both inert under its pack).
-  These are the two worst-scoring responsive datasets and the cause is a
-  plumbing gap, not physics. **Check the wiring before deriving anything.**
+The 2026-09-26 run proved the method works: the worst responsive dataset went
+54.9% → 12.9% on a derived 2-constant law that BEAT a fitted exponent, and the
+corpus median moved for the first time since the census (19.5% → 18.9%).
 
-Rule kept from earlier runs: do not fit. Measure first, one axis per run.
+Two follow-ups the threshold run opened, in order of expected value:
+
+1. **Does the threshold generalise to the OTHER W dataset?** `bouvet2002_w` is
+   at its own noise floor so it cannot test it, but `us20110186542a1_w` sweeps
+   H2O2 and pH at fixed pressure — it cannot see P0 either. **So the threshold
+   currently rests on ONE patent.** Find a second W pressure sweep with a
+   stated inhibitor loading before promoting P_y past `confidence: fitted`.
+   If none exists, record that as the limit and do not widen the claim.
+2. **The same shear-off logic predicts a threshold on Cu** (BTA passivation is
+   the textbook case, and `us6918821b2_cu` is 44.1% with pressure AND velocity
+   responding). Do NOT copy P_y across films — the layer is different. Probe
+   Cu's own pressure ladders for a non-zero intercept first, and if the
+   intercept comes out at ~0 report the null result.
+3. pH-dominated oxide/ceria (netzband2020 49.2, cn109609035b 32.1, dandu2009
+   31.5, us9422456b2 25.3, son2021 25.6): the pH axis is CLOSED to further
+   closed-form attempts by the 2026-09-27 two-falsification rule. What is NOT
+   closed: all five are ceria or ceria-adjacent on oxide, where the mechanism
+   is chemical-tooth (Ce3+ site density), not electrostatic. **Measure whether
+   the residual orders by Ce3+ fraction before proposing any functional form.**
+
+Still true, and still the rule: do not fit. Measure first, one axis per run.
+
+### Closed 2026-09-26: W passivation shear threshold — DERIVED, and it moved the corpus
+`cmp_sim/models/passivation_threshold.py`, `tools/w_passivation_threshold_probe.py`,
+`tests/test_w_passivation_threshold.py` (7 tests). Details in the header block
+above. The two inert axes STATUS flagged as "a plumbing gap, not physics" were
+half right: `inhibitor_ppm` was a missing LAW (now 12.9%), `fe_ppm` is a
+genuine data gap (the anchoring patent never states its Fe loading) and stays
+silent by choice.
+
+### Superseded by the above (was NEXT)
+The earlier NEXT read "check the wiring before deriving anything" for
+`ep3161098b1_w`. The wiring was fine; the pack simply had no term. Recorded
+because the diagnosis was wrong in an instructive direction — an axis that does
+not reach the rate can mean "unconnected" OR "the pack has nothing to connect",
+and those need different fixes.
 
 ### Closed 2026-09-28 (2nd run): the residual is DECOMPOSED — 80% of points are improvable
 `tools/residual_census.py` + `tests/test_residual_census.py` (7 tests).

@@ -36,8 +36,8 @@ from cmp_sim.core.validation import dataset_paths
 #: 19.5 because the change is a pure per-dataset scale factor, which divides out
 #: of the shape metric — that invariant is the reason this file still guards
 #: something after the re-baseline.
-MEDIAN_SHAPE = 19.5
-MEDIAN_LOO = 21.8
+MEDIAN_SHAPE = 18.9  # moved by the W passivation threshold (physics), 2026-09-26
+MEDIAN_LOO = 21.3  # moved by the W passivation threshold (physics), 2026-09-26
 BEATS_MEAN = 35
 SCORED = 46
 

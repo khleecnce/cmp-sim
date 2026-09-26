@@ -367,6 +367,38 @@ def _exponent_hook(rr: ResolvedRecipe) -> Dict[str, Any]:
     return out
 
 
+def _passivation_threshold_hook(rr: ResolvedRecipe) -> Dict[str, Any]:
+    """Threshold-Preston for films that must have a passivation layer sheared
+    off before removal starts (P4 x P1 coupling).
+
+    Derivation, measured support and the partial falsification kept with it are
+    in ``cmp_sim/models/passivation_threshold.py``. The hook only fires when the
+    PACK declares both constants, so a film with no measured threshold keeps
+    plain Preston rather than inheriting a borrowed one.
+    """
+    yield_psi = rr.p_or("passivation_yield_pressure_psi", None)
+    k_l = rr.p_or("inhibitor_langmuir_K_per_ppm", None)
+    if yield_psi is None or k_l is None:
+        return {}
+    inhibitor_ppm = rr.p_or("inhibitor_ppm", None)
+    if inhibitor_ppm is None:
+        # A declared threshold with no inhibitor loading is a gap, not a zero:
+        # assuming 0 ppm would silently claim P0 = 0 and hide the missing input.
+        return {"name": "passivation_threshold", "value": 1.0,
+                "warnings": ["pack declares a passivation shear threshold but "
+                             "no inhibitor_ppm is set for this run — the "
+                             "threshold was NOT applied"]}
+
+    from cmp_sim.models.passivation_threshold import (
+        passivation_threshold_factor)
+
+    pressure_psi = rr.pressure_pa / 6894.757293168361
+    res = passivation_threshold_factor(pressure_psi, float(inhibitor_ppm),
+                                       float(yield_psi), float(k_l))
+    return {"name": "passivation_threshold", "value": res.factor,
+            "notes": res.notes, "warnings": res.warnings, "terms": res.terms}
+
+
 def _kappa_contact_hook(rr: ResolvedRecipe) -> Dict[str, Any]:
     """P2 — pad contact mechanics."""
     if not rr.profile.enabled("contact"):
@@ -775,7 +807,8 @@ def simulate(recipe: Recipe) -> Result:
     # _abrasive_type_hook must precede _abrasive_hook: it rewrites the
     # concentration and size exponents to the ones scoped to the abrasive
     # actually in the recipe, which is what _abrasive_hook then reads.
-    hooks = list(_FACTOR_HOOKS) + [_exponent_hook, _kappa_contact_hook,
+    hooks = list(_FACTOR_HOOKS) + [_exponent_hook, _passivation_threshold_hook,
+                                   _kappa_contact_hook,
                                    _abrasive_type_hook, _abrasive_hook,
                                    _chemistry_hook]
     if rr.profile.enabled("transport"):

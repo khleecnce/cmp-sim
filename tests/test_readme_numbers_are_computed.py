@@ -142,8 +142,15 @@ def test_the_badges_are_not_stale():
 
 
 def test_the_badge_does_not_call_the_trend_number_a_prediction():
-    """Badge wording is where overclaiming is easiest and least visible."""
+    """Badge wording is where overclaiming is easiest and least visible.
+
+    The number is re-derived, not hardcoded: hardcoding it is what made this
+    test stop guarding anything the last time the corpus moved.
+    """
     text = _text()
-    assert "badge/trend-19.5" in text, (
+    scores = _scored()
+    shape = sorted(s.shape_mape for s in scores if s.shape_mape is not None)
+    median_shape = shape[len(shape) // 2]
+    assert f"badge/trend-{median_shape:.1f}" in text, (
         "the accuracy badge must be labelled 'trend', not 'prediction': the "
-        "19.5% does not describe absolute-rate prediction")
+        f"{median_shape:.1f}% does not describe absolute-rate prediction")

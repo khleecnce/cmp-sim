@@ -314,6 +314,52 @@ params:
     source: "DOI:10.1149/1.2085434"
     confidence: literature
 
+  passivation_yield_pressure_psi:
+    value: 4.76
+    unit: "psi"
+    note: >
+      Down force needed to shear a FULLY inhibitor-covered WOx passivation
+      layer, i.e. P_y in P0 = P_y * theta of
+      cmp_sim/models/passivation_threshold.py (Kaufman 1991 shear-off cycle,
+      DOI:10.1149/1.2085434). W removal in Fe(III)/H2O2 is gated by breaking the
+      oxide layer, so Preston acquires an offset: RR = K*V*(P - P0).
+      Fitted jointly with inhibitor_langmuir_K_per_ppm on EP3161098B1 Table 5B
+      (18 points, 6 compositions x 3 pressures, 1.5-3.0 psi) by
+      tools/w_passivation_threshold_probe.py. Two constants, 18 points, three
+      inhibitor levels -> over-determined, not interpolated.
+      Shape error on that dataset: 46.1% (plain Preston) / 26.9% (one fitted
+      pressure exponent n=2.15, curve-fitting with no mechanism) / 12.4% here.
+      ⚠ EXTRAPOLATED QUANTITY. The data only reach theta ~ 0.26, so full
+      coverage is never observed and P_y is the intercept of a saturating curve,
+      not a measured pressure. Per-composition threshold fits are 0.52 / 1.19 /
+      1.08 psi at 37 / 50 / 63 ppm — the top two levels are within each other's
+      scatter, consistent with saturation but NOT independent evidence of it.
+      Do not quote P_y as the shear strength of WOx.
+    source: "EP3161098B1 TABLE 5B (Cabot Microelectronics); mechanism DOI:10.1149/1.2085434"
+    confidence: fitted
+
+  inhibitor_langmuir_K_per_ppm:
+    value: 0.00562
+    unit: "1/ppm"
+    note: >
+      Langmuir adsorption constant of the tungsten etch inhibitor on WOx, used
+      only to convert ppm into surface coverage theta = K*C/(1+K*C) for the
+      passivation threshold above. 1/K = 178 ppm is the half-coverage loading,
+      well above the 37-63 ppm the patent tests, which is why the measured
+      compositions sit on the near-linear onset of the isotherm.
+      Fitted jointly with passivation_yield_pressure_psi (same 18 points, same
+      probe). K was scanned over four decades rather than gradient-fitted, so
+      the reported optimum is not a local minimum.
+      Declined deliberately: adding a Fenton first-order factor in [Fe(III)]
+      improves the same fit further (12.4% -> 11.5%) with no new SHAPE constant,
+      because Fenton kinetics is first order in the catalyst — but it needs a
+      reference Fe concentration, and this pack's Kp is anchored on
+      US2011/0186542A1, which never states its Fe loading. Inventing that
+      reference is the only way to make the term work, so the Fe axis stays
+      silent and the measurement is recorded instead.
+    source: "EP3161098B1 TABLE 5B (Cabot Microelectronics); isotherm form Langmuir 1918"
+    confidence: fitted
+
   oxidizer_catalyst:
     value: Fe(NO3)3
     note: >
