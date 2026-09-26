@@ -90,10 +90,11 @@ python3 -m venv .venv
 #                 its data (see below)
 
 # the same engine over HTTP, standard library only:
-#   POST /api/simulate   one run           GET /api/meta   films, packs, profiles
-#   POST /api/sweep      vary one input    GET /api/accuracy  measured error
+#   POST /api/simulate   one run           GET /api/meta   films, packs, pads, disks
+#   POST /api/sweep      vary one input    GET /api/model  constants + sources
+#                                          GET /api/accuracy  measured error
 
-# 587 tests
+# 930 tests
 .venv/bin/python -m pytest -q
 ```
 
@@ -559,6 +560,48 @@ simulated steps.
 three.js is vendored under `cmp_sim/web/vendor/`, so the view works on a fab
 machine with no outbound network. If WebGL is unavailable the scene is replaced
 by a notice and every part stays reachable from the parts list.
+
+### The four input stations
+
+Data is entered where it belongs on the tool, not in one flat form:
+
+| station | click | inputs |
+|---|---|---|
+| wafer cart / loading | load cup | film stack — Cu, W, oxide, poly-Si, Si, SiC, SnAg |
+| operation | platen, carousel, head, frame | pressure, platen & head rpm, flow, time, slurry and platen temperature, retaining-ring pressure, zone pressures |
+| slurry supply | slurry bottle, nozzle | abrasive kind, D50, D99, wt%, pH, temperature, two additives |
+| polishing unit | pad, conditioner disk | pad and disk **by product name** |
+
+A pad is chosen the way it is in a fab — as a product — and every property the
+name implies comes from `cmp_sim/data/consumables.yaml` with its source shown.
+Typing a Shore D directly is the fallback, not the interface.
+
+### The shell holds no physics, and a test enforces it
+
+A model change must not require touching the UI, and a UI change must not be
+able to alter the model:
+
+| kind of number | home | reaches the browser via |
+|---|---|---|
+| physics constants | `data/params/*.yaml`, `models/` | `GET /api/model?film=` |
+| named pad / disk properties | `data/consumables.yaml` | `GET /api/meta` |
+| operating conditions | the recipe being edited | the drawers themselves |
+
+The **model inspector** (`Model & sources` in the tool view) lists every constant
+the engine will use for the current film with its source and confidence, lets one
+be edited, and re-predicts — through the ordinary `recipe.params` override path,
+so the edit is reported as owner-supplied and can never pass for a sourced value.
+
+`tests/test_web_holds_no_physics_constants.py` greps every browser-loaded file
+for an assignment of a literal to any key a parameter pack declares. The
+forbidden vocabulary is **derived from the packs at test time**, so adding a
+constant to a pack immediately makes hard-coding it in the UI a failure with no
+test edit. This caught a real divergence: `tool.html` had been drawing 2.0 mm
+groove pitch while the engine computed with the sourced 3.05 mm, and nothing
+failed because nothing compared them.
+
+`.venv/bin/python tools/web_smoke.py` starts the server and exercises every
+route, including a full-chemistry prediction with a named pad and disk.
 
 ## Abrasive type: ceria is not "silica but harder"
 

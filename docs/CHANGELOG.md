@@ -4,6 +4,63 @@ All notable changes to CMP-Sim. Newest first.
 
 ## Unreleased
 
+### Added — the simulator's shell is separated from its physics (2026-09-26)
+- `cmp_sim/data/consumables.yaml`: named polishing pads and conditioner disks,
+  one sourced property at a time (value / unit / source / confidence, `null`
+  where the literature held here publishes nothing). `cmp_sim/pad/catalog.py`
+  resolves a product name to properties and is applied once in `solver.resolve`,
+  so every physics layer sees the same pad.
+- `GET /api/model?film=`: every physics constant the engine will use for a film,
+  with its source and confidence — the UI reads the model instead of restating
+  it. A model-inspector panel in the tool view shows them, allows one to be
+  edited, and re-predicts through the ordinary `recipe.params` override path
+  (reported as owner-supplied, so an edit can never pass for a sourced value).
+- The four input stations the brief names now all work and all reach the model:
+  wafer cart (film stack), operation screen (pressure / platen & head rpm / flow
+  / time / slurry and platen temperature / retaining-ring / zone pressures),
+  slurry supply (abrasive kind, D50, D99, wt%, pH, additives), polishing unit
+  (pad and conditioner disk **by product name**, with sources shown).
+- `tools/web_smoke.py`: starts the server and exercises every route the tool view
+  uses, including a full-chemistry prediction with a named pad and disk.
+
+### Fixed
+- `tool.html` hard-coded `groove_pitch_mm: 2.0` and `groove_width_mm: 0.5`. Both
+  disagreed with what the project can source — 3.05 mm pitch (120 mil, base
+  pack) and 0.6 mm width (Mu et al. 2016, doi:10.1016/j.mee.2016.02.035) — and
+  nothing failed, because nothing compared the two. The 3D view was drawing a
+  pad nobody measured while the engine computed with another.
+- Selecting the pad a parameter pack was **calibrated on** multiplied the
+  predicted rate by 1.9x. `kappa_contact` is a ratio against the pack's
+  reference pad, and the catalogue's published Shore D 60 for IC1000 routed
+  through the Qi correlation gives `E* = 2.5e8 Pa`, while
+  `oxide_silica_calibrated_pad`'s reference is the `1.0e9 Pa` of Jeong et al.
+  2024 (doi:10.3390/ma17081817) measured on that same physical pad. Two
+  descriptions of one pad were being multiplied as though they were a physical
+  difference. A pack may now declare `reference_pad_name`; naming that pad with
+  no override pins kappa to exactly 1.0 — the same rule the whole factor system
+  rests on, that every factor is 1.0 at its pack's reference condition.
+- `Pad.name` defaults to `"IC1000"`, and the catalogue acted on that default,
+  filling IC1000's properties into every recipe that never chose a pad. That
+  made the pad differ from the pack reference and silently removed
+  `kappa_contact` from three existing tests. `Pad.name_was_chosen` now defaults
+  to `False`, so an unset flag means inert; both the config path and a bare
+  `Pad()` built in code are pinned by tests.
+
+### Testing
+- `tests/test_web_holds_no_physics_constants.py` (11 tests) greps every
+  browser-loaded file for an assignment of a literal to any key a parameter pack
+  declares, or to any pad/disk property the catalogue owns. The forbidden
+  vocabulary is derived from the packs **at test time**, so adding a constant to
+  a pack immediately makes hard-coding it in the UI a failure with no test edit.
+  Operating-condition names are excluded by intersecting with the recipe
+  dataclasses' own fields: a form defaulting to 3 psi is not a physics claim.
+- 8 browser-driven tests pin the four stations, including one that doubles the
+  Preston coefficient in the model inspector and asserts the prediction doubles,
+  and one that asserts two different conditioner disks predict the **same** rate
+  — so the day grit design is wired with a sourced constant, it fails loudly.
+- Corpus median is unmoved at 18.9% shape / 21.3% LOO, as required: no pack
+  physics changed in this work. Had it moved, that would have been the bug.
+
 ### Physics
 - **P1 Preston** baseline, `Kp` decomposed by slurry / pad / film.
 - **P2 Greenwood-Williamson** asperity contact; the correction is applied only

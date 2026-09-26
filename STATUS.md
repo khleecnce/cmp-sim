@@ -13,9 +13,54 @@
 - UI에서 모델 파라미터를 출처와 함께 보고·수정 → 즉시 재예측
 - **테스트로 고정**: 웹 파일에 물리 상수가 하드코딩되면 실패하는 테스트
 
-### 1차 완성 — 모델링 정확도 (시뮬레이터 다음)
+#### ✅ 2차 완성 — 2026-09-26 달성 (930 tests). 4개 입력부 전부 동작·모델 연동
+`python -m cmp_sim.api` → **http://127.0.0.1:8765/tool** (또는 `./CMP-Sim.command`).
+검증 스크립트 `tools/web_smoke.py`가 실제 서버를 띄워 전 라우트를 찍는다(한글 0자).
+
+| 입력부 | 클릭 대상 | 입력 | 상태 |
+|---|---|---|---|
+| wafer cart / loading | `loadcup` | film stack (cu/w/oxide/poly_si/si/sic/snag) | ✅ |
+| operation | `platen`·`carousel`·`head`·`frame` | pressure, platen/head rpm, flow, time, **slurry T**, platen T, ring, zone P | ✅ |
+| slurry supply | `slurry`·`nozzle` | abrasive 종류·D50·D99·wt%, pH, T, 첨가제 2종 | ✅ |
+| polishing unit | `pad`·`disk` | **패드·디스크를 제품명으로 선택** | ✅ |
+
+**분리 구조(사용자 요구의 핵심):**
+- 물리 상수 → `cmp_sim/data/params/*.yaml` · `cmp_sim/models/` → **`GET /api/model?film=`**
+- 소모품 물성(패드·디스크) → **`cmp_sim/data/consumables.yaml`**(신규, 출처·신뢰도 필수)
+  → `GET /api/meta` · 이름→물성 해석은 `cmp_sim/pad/catalog.py`
+- 공정 조건만 UI가 소유. **tool.html에 물리 상수 0개.**
+- UI에 **모델 파라미터 인스펙터**: 현재 막질의 상수 전부를 출처·신뢰도와 함께 표시
+  → 편집 → `recipe.params` 경로로 즉시 재예측(owner-supplied로 기록됨).
+- 이 분리를 **테스트가 강제**(`tests/test_web_holds_no_physics_constants.py`, 11개):
+  금지 어휘를 팩에서 실행시점에 뽑으므로, 팩에 상수를 추가하면 그 상수의 UI 하드코딩이
+  **테스트 수정 없이 자동으로** 실패가 된다.
+
+**이 작업이 잡은 실제 버그 3건**(전부 테스트로 고정):
+1. `tool.html`이 groove pitch 2.0 / width 0.5 mm를 하드코딩 — 출처값(3.05 / 0.6 mm)과
+   불일치했고 **비교하는 게 없어서 아무도 실패하지 않았다.** 그림이 측정되지 않은 패드를
+   그리고 있었다.
+2. **팩이 캘리브레이션한 패드를 고르면 rate가 1.9배 뛰었다.** kappa는 reference pad와의
+   비(比)인데, 카탈로그의 Shore D 60 → Qi 상관식 E*=2.5e8 Pa vs 팩의 직접 측정
+   1.0e9 Pa(Jeong 2024). **같은 패드의 두 기술(記述) 불일치가 물리 차이로 곱해졌다** —
+   드롭다운으로 들어온 피팅 상수. → 팩이 `reference_pad_name`을 선언하면 kappa≡1.0.
+3. `Pad.name`의 기본값 "IC1000"에 카탈로그가 반응해서, 패드를 고르지 않은 모든 레시피에
+   IC1000 물성이 채워졌다 → 팩 reference와 달라져 **kappa_contact가 조용히 사라지며
+   기존 테스트 3개가 깨졌다.** → `name_was_chosen` 기본 False(=불활성).
+
+**정직성 규칙 3개**(abrasive_effects와 동일한 규율):
+- **Politex·Suba IV는 Shore D가 문헌에 없다** → 선택해도 rate 불변 + 경고. Shore A→D
+  환산표는 비선형 근사이므로 숫자를 만들지 않았다.
+- **컨디셔너 그릿 설계는 `wired: false`** — grit→asperity 비례상수가 미확정
+  (`legacy/knowledge/performance/disk.yaml` status pack_only)이라 연결하면 그 상수를
+  피팅하는 것이다. 테스트가 "디스크 2종의 rate가 같음"을 assert하고, 언젠가 근거 있는
+  상수로 연결되면 **시끄럽게 실패**한다.
+- 카탈로그의 미공개 물성은 `null` + 사유. 그럴듯한 값 금지.
+
+⚠ **median은 의도대로 18.9% 불변** — 팩 물리를 하나도 바꾸지 않았다. 움직였다면 버그다.
+
+### 1차 완성 — 모델링 정확도 (2차 완료, 이제 여기로 복귀)
 - **목표: 예측 오차 median ≤ 10.0%** (이력서에 쓸 수 있는 수준)
-- **현재: median 18.9% shape / 21.3% LOO** (코퍼스 46/50, 427점) — **912 tests**.
+- **현재: median 18.9% shape / 21.3% LOO** (코퍼스 46/50, 427점) — **930 tests**.
   2026-09-26(8회차-B): **속도축 결판 — 기아 법칙 기각, 그러나 지수 자체는 입증됐다.**
   8회차-A가 요청한 데이터셋을 같은 실행에서 찾았다: **Sorooshian 2005**(애리조나대
   박사논문, Philipossian 그룹) — 열산화막에서 **유량 40/120 cc/min × 속도
@@ -190,30 +235,20 @@
 - 문헌에 데이터가 없어 못 푸는 BLOCKED(나노인덴테이션·SnAg Preston 등)는
   **완성의 조건이 아니다.** 기록만 하고 넘어간다.
 
-### 2차 완성 — 모델이 적용된 시뮬레이터 (1차 후 착수)
-1차 모델링이 끝나면 **그 모델이 실제로 도는 시뮬레이터**를 만든다.
-3D는 **실제 폴리셔처럼 보이게 매우 정교하게**. 입력은 부품을 클릭해서 한다:
+### 2차 완성 — ✅ 달성 2026-09-26 (상세는 이 파일 최상단)
+4개 입력부 전부 동작 + 현재 모델과 연결 + 껍데기/물리 분리를 테스트가 강제.
+남은 3D 정교화 여지는 **완성 조건이 아니라 개선 항목**으로 아래 NEXT 하단에 둔다.
 
-| 부품 | 입력 |
-|---|---|
-| **wafer cart / loading** | wafer 종류 선택 (film stack) |
-| **operation 화면** | 공정 조건 (pressure, rpm, flow, time, temp) |
-| **슬러리 공급장치** | 슬러리 formulation (abrasive 종류·입경·농도, pH, 산화제, 첨가제) |
-| **polishing unit** | Pad, conditioning disk 선택 |
+**UI 언어 = 영어**(사용자 확정 2026-09-25). 전부 영어 유지 중 — `tools/web_smoke.py`가
+매 실행 `/tool`의 한글 문자 수를 세어 0임을 찍는다. 이 상태를 유지한다.
 
-입력 → **1차에서 만든 물리 모델이 계산** → MRR·불균일도·결함 출력.
-
-**UI 언어 = 영어**(사용자 확정 2026-09-25). 라벨·버튼·단위·툴팁·에러메시지·
-축 이름 전부 영어. 한글 금지. 실제 팹 장비 UI가 영어이고 포트폴리오 대상도
-영어권이다. 현재 `cmp_sim/web/` 한글 0건 — 이 상태를 유지한다.
-
-현 상태: `cmp_sim/web/tool.html`(633줄) + `vendor/tool3d.js`(669줄),
-클릭 대상 8종(wafer/pad/disk/slurry/head/platen/carousel/loadcup) 존재.
-**뼈대는 있으니 갈아엎지 말고 정교화하라.**
+현 상태: `cmp_sim/web/tool.html`(약 830줄) + `vendor/tool3d.js`(669줄),
+클릭 대상 10종. **뼈대는 있으니 갈아엎지 말고 정교화하라.**
 
 ### 멈추지 않는다
 **1차·2차가 모두 끝날 때까지 멈추지 마라**(사용자 명시 2026-09-25).
-중간에 "완성했다"고 선언하고 대기하는 것은 위반이다.
+중간에 "완성했다"고 선언하고 대기하는 것은 위반이다. → 2차는 끝났고 1차는 남았으므로
+**계속 진행한다.**
 
 ## 🔬 방법론 (사용자 확정 2026-09-25) — 물리화학 법칙 중심
 - **실측 데이터를 늘려 맞추는 것보다, 물리화학 법칙에서 유도한 모델식을 세운다.**
@@ -225,6 +260,32 @@
   실수치 예측으로 바뀐다 — **median을 내리는 가장 큰 레버**.
 
 ## DONE (phase, module, tests)
+- **2차 완성: the simulator's SHELL is now separated from its PHYSICS, and the
+  separation is enforced by test rather than by convention.**
+  `cmp_sim/data/consumables.yaml` + `cmp_sim/pad/catalog.py` +
+  `GET /api/model` + `tests/test_web_holds_no_physics_constants.py` (11 tests)
+  + 8 new browser tests in `tests/test_tool_ui_3d.py` + `tools/web_smoke.py`.
+  Physics constants live in the packs and are published with their sources at
+  `/api/model?film=`; named pad/disk properties live in `consumables.yaml` and
+  are published at `/api/meta`; the UI owns only operating conditions. The
+  forbidden-vocabulary test derives its word list FROM THE PACKS at test time,
+  so adding a pack constant makes hard-coding it in the browser a failure with
+  no test edit. Three real bugs fell out, all now pinned: (a) `tool.html`
+  hard-coded groove pitch 2.0 / width 0.5 mm against sourced 3.05 / 0.6 mm and
+  nothing compared them; (b) selecting the pad a pack was CALIBRATED ON
+  multiplied the rate 1.9x, because the catalogue's Shore D 60 → Qi correlation
+  (2.5e8 Pa) disagreed with the pack's own direct measurement of that same
+  physical pad (1.0e9 Pa, Jeong 2024) — a fitted constant arriving through a
+  dropdown, fixed by letting a pack declare `reference_pad_name` and pinning
+  kappa ≡ 1.0 there; (c) `Pad.name`'s "IC1000" default made the catalogue fill
+  properties into recipes that never chose a pad, silently deleting
+  `kappa_contact` from 3 existing tests — `name_was_chosen` now defaults False.
+  Honesty preserved: Politex and Suba IV publish no Shore D anywhere held here,
+  so choosing them changes nothing and says so rather than inventing a hardness
+  to make the control feel responsive; conditioner GRIT design stays
+  `wired: false` with a test asserting two disks predict the same rate, because
+  the grit→asperity constant is undetermined and wiring it would mean fitting
+  it. **Median unmoved at 18.9% by construction — no pack physics changed.**
 - **The abrasive-size exponent is a MATERIAL property, not a per-pack handle.**
   `tools/size_derived_probe.py` + `tests/test_size_exponent_is_material_property.py`
   (5 tests). Two findings, opposite directions, both recorded: a SINGLE derived
