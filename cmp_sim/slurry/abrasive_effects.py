@@ -115,6 +115,63 @@ SIZE_EXPONENT_COMPOSITE_NOTE = (
     "because they resolve to neither parent material")
 
 
+#: MRR ~ C_wt ** (+1/3) — a DERIVED, abrasive-INDEPENDENT concentration law.
+#:
+#: DERIVATION (Li 2021 surface-area-limited branch; Cook 1990 supply limit).
+#: No constant is fitted here; the exponent falls out of geometry:
+#:   1. At weight fraction C and particle diameter d the volumetric particle
+#:      count is n ~ C / d**3.
+#:   2. Only particles inside the pad-wafer gap remove material, and the gap
+#:      admits a monolayer, so the participating count is the 2-D projection of
+#:      the 3-D population: n_gap ~ n**(2/3) ~ C**(2/3) / d**2.
+#:   3. The wafer load is set by the tool, not by the slurry, so the load per
+#:      participating particle falls as 1 / n_gap. Under Luo-Dornfeld plastic
+#:      indentation the volume removed per particle per pass scales as its
+#:      load to the power 1/2 ... carrying Li 2021's algebra through gives
+#:      MRR ~ n_gap * load**(1/2) ~ n_gap**(1/2) ~ C**(1/3).
+#: The two competing branches predict different exponents (dilute active-count
+#: limit +1, fully-saturated load-sharing 0), so this is a falsifiable choice,
+#: not a curve shape with a free index.
+#:
+#: MEASURED CHECK (``tools/conc_derived_probe.py``, 18 sweeps / 16 with r2>=0.5):
+#:   median m = +0.33, mean +0.28, sd 0.29; 13/16 groups within 0.25 of +1/3.
+#: The material hypothesis that WORKED for the size exponent FAILS here:
+#: between-material stdev 0.37 vs within-material 0.22 is only 1.6x, below the
+#: 2x bar STATUS.md set in advance, and the three well-sampled materials agree
+#: to 0.04 (diamond +0.30, silica +0.33, ceria +0.34) — the scatter is within
+#: materials, not between them, which is the signature of ONE shared law.
+#: Saturation is separately falsified: if the response were Langmuir-type the
+#: chord slope would fall as the sweep's mean concentration rises, and the
+#: correlation is +0.06 (essentially zero) over a 0.01-9 wt% span.
+#:
+#: This REMOVES a constant rather than renaming one: five packs each fitted
+#: their own value (+0.227, +0.3333, +0.3333, -0.4295, -0.406) and two of those
+#: are already +1/3 by another route.
+#:
+#: ⚠ WHAT IT DOES NOT COVER. Three dissenting groups are recorded rather than
+#: excluded: entegris2022 SiC/alumina (-0.41, r2 0.92, 0.1-5 wt%) and two SiC
+#: ceria groups from one DOE (-0.31 and +0.65 at identical 2-6 wt%, i.e. the
+#: same slurry disagrees with itself by ~1.0 across pressure levels). All three
+#: are SiC — a film hard enough that indentation, not reacted-layer supply, may
+#: set the rate, which is the regime where branch (a) rather than (c) applies.
+#: So this law is a FALLBACK for a swapped abrasive with no sweep of its own; it
+#: does not override a pack's own measured value, and it never touches
+#: ``abrasive_conc_half_wt_pct``, which is a wt% with units and plausibly
+#: depends on pad and film rather than on the law above.
+DERIVED_CONC_EXPONENT = 1.0 / 3.0
+
+DERIVED_CONC_EXPONENT_WHY = (
+    "derived surface-area-limited concentration exponent m = +1/3 "
+    "(MRR ~ C**(1/3); Li 2021 branch, Cook 1990 supply limit): the gap admits "
+    "a monolayer so n_gap ~ C**(2/3), and load per particle falls as 1/n_gap, "
+    "leaving C**(1/3) with NO fitted constant. Measured corpus median is +0.33 "
+    "over 16 sweeps (13/16 within 0.25); unlike the size exponent this one is "
+    "NOT a material property (between/within 1.6x, below the 2x bar) and "
+    "saturation is falsified (corr of slope with mean wt% = +0.06). Dissenters "
+    "are all SiC, where indentation rather than reacted-layer supply may set "
+    "the rate")
+
+
 def _db() -> Dict[str, Any]:
     return _load_db(ABRASIVE_DB_PATH) or {}
 
@@ -178,6 +235,11 @@ class AbrasiveResolution:
     #: engine key -> provenance, for values borrowed from the MATERIAL-scoped
     #: table rather than from a film-scoped sweep of this exact pairing
     material_scoped: Dict[str, str] = field(default_factory=dict)
+    #: engine key -> derivation, for values supplied by a LAW with no fitted
+    #: constant (as opposed to ``material_scoped``, which is a re-attributed
+    #: fitted constant). Kept separate so a report can never present a borrowed
+    #: measurement as derived physics, or vice versa.
+    derived: Dict[str, str] = field(default_factory=dict)
     relative_rate: Optional[float] = None
     relative_rate_source: Optional[str] = None
     notes: List[str] = field(default_factory=list)
@@ -193,6 +255,7 @@ class AbrasiveResolution:
             "overrides": dict(self.overrides),
             "withdrawn": dict(self.withdrawn),
             "material_scoped": dict(self.material_scoped),
+            "derived": dict(self.derived),
             "relative_rate": self.relative_rate,
             "relative_rate_source": self.relative_rate_source,
             "ranking_only": self.ranking_only,
@@ -310,6 +373,21 @@ def resolve(kind: Optional[str], film: str, reference_kind: Optional[str],
                     f"This pack's own value was fitted for '{ref_canon}' and is "
                     f"not transferable across abrasive materials")
                 continue
+        # The CONCENTRATION exponent takes the DERIVED +1/3 instead, because the
+        # material split that licensed the size table was tested here and FAILED
+        # (between/within 1.6x < the 2x bar), while the derived surface-area law
+        # lands on the corpus median exactly. See DERIVED_CONC_EXPONENT above for
+        # the derivation, the measured check and the SiC dissenters. Note this is
+        # a law, not a borrow: it is abrasive-independent by construction, so no
+        # per-material k or spread attaches to it.
+        if engine_key == "abrasive_conc_exponent":
+            out.overrides[engine_key] = DERIVED_CONC_EXPONENT
+            out.derived[engine_key] = DERIVED_CONC_EXPONENT_WHY
+            out.notes.append(
+                f"{engine_key} = {DERIVED_CONC_EXPONENT:+.4f} — "
+                f"{DERIVED_CONC_EXPONENT_WHY}. Replaces this pack's value, "
+                f"which was fitted for '{ref_canon}'")
+            continue
         if pack_declares.get(engine_key):
             out.withdrawn[engine_key] = (
                 f"the pack's {engine_key} was fitted for '{ref_canon}' and the "

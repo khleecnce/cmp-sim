@@ -2758,3 +2758,81 @@ genuinely hard passivating layers, but Cu has 2 matched-condition datasets and W
 has 1, so that stays UNTESTABLE on present data rather than supported.
 Pinned by `tests/test_pv_exponent_confound.py::
 test_a_per_film_threshold_pressure_does_not_earn_its_constant_either`.
+
+## The abrasive-concentration exponent: a derived law that SURVIVED (2026-09-28)
+
+Three previous attempts to replace a fitted constant with a derivation were
+falsified (the pH rate law, the single global size exponent, the derived size
+exponent's sign). This one survived, and the asymmetry is the point: the same
+probe method returned "falsified" three times and "confirmed" once, so it is
+discriminating rather than permissive.
+
+### Derivation (zero fitted constants)
+
+Luo & Dornfeld (2001) / Li (2021) surface-area branch, Cook (1990) supply limit.
+At weight fraction `C` and particle diameter `d`:
+
+1. volumetric particle count `n ~ C / d^3`;
+2. only particles inside the pad-wafer gap remove material, and the gap admits a
+   monolayer, so the participating count is the 2-D projection of the 3-D
+   population: `n_gap ~ n^(2/3) ~ C^(2/3) / d^2`;
+3. the wafer load is set by the tool, not by the slurry, so load per
+   participating particle falls as `1 / n_gap`. Under plastic indentation the
+   volume removed per particle scales as the square root of its load, giving
+   `MRR ~ n_gap * load^(1/2) ~ n_gap^(1/2) ~ C^(1/3)`.
+
+The competing branches give different answers — dilute active-count limit `+1`,
+fully saturated load-sharing `0` — so choosing `+1/3` is a falsifiable
+commitment, not a curve with a free index.
+
+### Measurement (`tools/conc_derived_probe.py`)
+
+18 corpus sweeps with >= 3 distinct `abrasive_wt_pct` at otherwise matched
+process conditions; 16 with r2 >= 0.5. Local power-law fit in log-log, so the
+unknown per-dataset scale divides out.
+
+    median m = +0.33    mean +0.28    sd 0.29    13/16 within 0.25 of +1/3
+
+Two alternative hypotheses were tested and both FAILED:
+
+- **material property** (the mechanism that licensed `SIZE_EXPONENT_BY_ABRASIVE`):
+  between-material stdev 0.37 vs within-material 0.22 = 1.6x, below the 2x bar
+  set in STATUS.md *before* the measurement. The three well-sampled materials
+  agree to 0.04 (diamond +0.30, silica +0.33, ceria +0.34) — the scatter lives
+  *within* materials, which is the signature of one shared law, not a table.
+  Building a `CONC_EXPONENT_BY_ABRASIVE` table for symmetry with the size axis
+  was explicitly declined.
+- **Langmuir saturation**: a saturating response requires the chord slope to fall
+  as the sweep's mean concentration rises. corr(m, log geo-mean wt%) = +0.06
+  across a 0.01-9 wt% span. Falsified. `abrasive_conc_half_wt_pct` is therefore
+  left untouched — it is a wt% with units, not this exponent, and nothing here
+  speaks to it.
+
+### What it buys, and what it does not
+
+Five packs each carried their own fitted value (+0.227, +0.3333, +0.3333,
+-0.4295, -0.406); one law replaces all five. This is a constant REMOVED, not
+renamed — the project's stated test for real progress. Corpus median is unmoved
+at 19.5% and that is arithmetically required: every scored row runs its pack's
+reference abrasive, so no abrasive-scoped change can reach them. The gain is that
+a swapped abrasive now has a real concentration response instead of a withdrawn
+axis.
+
+Three dissenting groups are recorded rather than excluded: entegris2022
+SiC/alumina (-0.41, r2 0.92) and two SiC ceria groups from one DOE that disagree
+with *each other* by ~1.0 at identical concentrations. All three are SiC — hard
+enough that indentation rather than reacted-layer supply may be rate-limiting,
+which is branch (a) not branch (c). A test fails if a non-SiC dissenter ever
+appears, because that would break this explanation rather than merely widen it.
+
+### The bug this exposed
+
+The withdrawal gate in `solver._abrasive_hook` was all-or-nothing: it fired only
+when the abrasive resolution produced *no* overrides. Once the derived law always
+supplied the concentration exponent, the gate stopped firing, and a WITHDRAWN
+size exponent fell through as a null — which `luo_dornfeld` reads as "use the
+derived size exponent", i.e. the already-falsified -0.84 whose sign was wrong on
+8 of 10 measured sweeps. A diamond run's rate moved 6.8x over a 10x diameter step
+on an axis the model claimed not to be applying. Withdrawal is now per-axis.
+The lesson generalises: a guard conditioned on "nothing was supplied" silently
+inverts as soon as anything is always supplied.

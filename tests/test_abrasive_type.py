@@ -105,18 +105,58 @@ def test_the_packs_exponents_are_withdrawn_not_reused_on_a_swap():
     material (``abrasive_effects.SIZE_EXPONENT_BY_ABRASIVE``), because the
     corpus shows the exponent transfers across films within one material
     (bouvet2002's silica near zero on Ti/W/oxide in the same runs) but never
-    across materials (between-material stdev 0.51 vs within 0.16). The
-    CONCENTRATION keys still withdraw: no equivalent cross-film check exists
-    for them, so borrowing them would be an untested assumption.
+    across materials (between-material stdev 0.51 vs within 0.16).
+
+    Updated again 2026-09-28: the CONCENTRATION exponent no longer withdraws
+    either, but for the OPPOSITE reason — the material hypothesis was tested on
+    it (``tools/conc_derived_probe.py``) and FAILED (between/within only 1.6x,
+    below the 2x bar set in advance), while the DERIVED surface-area law
+    MRR ~ C**(1/3) lands on the corpus median (+0.33 over 16 sweeps, 13/16
+    within 0.25) with no fitted constant. So it is supplied as a LAW, reported
+    under ``derived`` rather than ``material_scoped`` so the two provenances can
+    never be confused. Superseded reasoning, kept because it was the right call
+    until the check was run: "no equivalent cross-film check exists for the
+    concentration keys, so borrowing them would be an untested assumption."
+    ``abrasive_conc_half_wt_pct`` still withdraws — it is a wt% with units, not
+    an exponent, and the law above says nothing about it.
     """
     info = _abr(_run("alumina"))
-    assert set(info["withdrawn"]) >= {"abrasive_conc_exponent"}, info
+    assert set(info["withdrawn"]) == {"abrasive_conc_half_wt_pct"}, info
     assert "abrasive_size_exponent" not in info["withdrawn"], info
     why = " ".join(info["withdrawn"].values())
     assert "split by ABRASIVE" in why and "colloidal_silica" in why
     # and the size exponent that replaced it is alumina's own, with its k
     assert info["overrides"]["abrasive_size_exponent"] == pytest.approx(0.28)
     assert "k=2" in info["material_scoped"]["abrasive_size_exponent"]
+    # the concentration exponent is the DERIVED 1/3, declared as derived and
+    # NOT as a material-scoped borrow
+    assert info["overrides"]["abrasive_conc_exponent"] == pytest.approx(1 / 3)
+    assert "abrasive_conc_exponent" in info["derived"]
+    assert "abrasive_conc_exponent" not in info["material_scoped"], info
+
+
+def test_the_derived_conc_exponent_is_abrasive_independent():
+    """A LAW must give the same value for every abrasive; a borrow need not.
+
+    This is the distinguishing test between the two provenance kinds now in
+    play. ``SIZE_EXPONENT_BY_ABRASIVE`` is a re-attributed measurement and so
+    MUST differ by material; ``DERIVED_CONC_EXPONENT`` is geometry and so must
+    NOT. If a later change ever quietly makes the concentration value material-
+    dependent, it has stopped being derived and this fails.
+    """
+    from cmp_sim.slurry.abrasive_effects import DERIVED_CONC_EXPONENT
+
+    seen = {}
+    for kind in ("alumina", "ceria", "zirconia", "diamond"):
+        info = _abr(_run(kind))
+        if "abrasive_conc_exponent" in info["overrides"]:
+            seen[kind] = info["overrides"]["abrasive_conc_exponent"]
+    assert seen, "no abrasive received the derived concentration exponent"
+    assert len(set(seen.values())) == 1, seen
+    assert next(iter(seen.values())) == pytest.approx(DERIVED_CONC_EXPONENT), seen
+    # and the derivation, not just the number, must travel with it
+    why = _abr(_run("ceria"))["derived"]["abrasive_conc_exponent"]
+    assert "C**(1/3)" in why and "1.6x" in why, why
 
 
 def test_a_withdrawn_axis_is_unevaluated_rather_than_silently_derived():
@@ -128,12 +168,25 @@ def test_a_withdrawn_axis_is_unevaluated_rather_than_silently_derived():
     than quietly filling it from the derivation. ``diamond`` is that case —
     ``alumina`` used to be, before its two sweeps were re-attributed to the
     material (see the test above).
+
+    Updated 2026-09-28: ``chi_abrasive`` is now PRESENT for diamond, because the
+    concentration axis is supplied by a derived law that needs no diamond sweep
+    (DERIVED_CONC_EXPONENT). The SIZE axis is still withdrawn, and that is what
+    this test now checks — per-axis rather than all-or-nothing. This is the real
+    hole the change exposed: the old guard fired only when NO override existed,
+    so once the conc law always supplied one, a withdrawn size exponent fell
+    through as a null and luo_dornfeld read that null as "use the derived -0.84".
+    A diamond run's rate moved 6.8x over a 10x size step before the per-axis
+    neutralisation in ``solver._abrasive_hook`` was added.
     """
     r = _run("diamond")
-    assert "chi_abrasive" not in r.factors
+    assert "chi_abrasive" in r.factors, (
+        "the derived concentration law applies to any abrasive, so the factor "
+        "must exist even when the size axis is withdrawn")
     joined = " ".join(r.warnings)
-    assert "were NOT applied" in joined
-    assert "derived exponent was NOT used" in joined
+    assert "particle-SIZE axis was NOT applied" in joined, joined
+    assert "wrong sign on 8 of 10" in joined, joined
+    # the sister test below proves the withdrawal is real, not just announced
 
 
 def test_size_has_no_effect_once_the_axis_is_withdrawn():

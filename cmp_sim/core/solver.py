@@ -453,8 +453,22 @@ def _abrasive_hook(rr: ResolvedRecipe) -> Dict[str, Any]:
                     f"'{res.kind}' at two loadings and two sizes to unlock this "
                     f"axis."]}
 
+    # PER-AXIS withdrawal. Until 2026-09-28 the check above was all-or-nothing
+    # (``withdrawn and not overrides``), which was safe only while a swap either
+    # supplied BOTH exponents or neither. The derived concentration law
+    # (DERIVED_CONC_EXPONENT) broke that assumption: it always supplies the conc
+    # exponent, so ``overrides`` is never empty, the guard above stopped firing,
+    # and a WITHDRAWN size exponent fell through as a null — which luo_dornfeld
+    # reads as "use the derived size exponent", i.e. exactly the falsified -0.84
+    # whose sign was wrong on 8 of 10 measured sweeps. A diamond run's rate moved
+    # 6.8x over a 10x size step on a withdrawn axis before this was caught.
+    # An axis that was withdrawn must be INERT, not defaulted, so each axis is
+    # neutralised independently by removing its reference point: with no
+    # reference the ratio has nothing to be relative TO, which is how the rest of
+    # this hook already expresses "not applied".
+    withdrawn_axes = set((res.withdrawn or {}).keys()) if res is not None else set()
+
     conc = rr.p_or("abrasive_wt_pct", None)
-    conc_ref = rr.p_or("abrasive_ref_wt_pct", None)
     d50 = rr.p_or("abrasive_size_nm", None)
     # `abrasive_d50_nm` is the same quantity under a different name, and it is
     # the name most of the measured datasets use. Reading only one of the two
@@ -465,6 +479,20 @@ def _abrasive_hook(rr: ResolvedRecipe) -> Dict[str, Any]:
     if d50 is None:
         d50 = rr.p_or("abrasive_d50_nm", None)
     d50_ref = rr.p_or("abrasive_ref_size_nm", None)
+    conc_ref = rr.p_or("abrasive_ref_wt_pct", None)
+    axis_warnings: List[str] = []
+    if res is not None and "abrasive_size_exponent" in withdrawn_axes:
+        d50_ref = None
+        axis_warnings.append(
+            f"the particle-SIZE axis was NOT applied for '{res.kind}': "
+            f"{res.withdrawn['abrasive_size_exponent']}. The derived exponent "
+            f"was not substituted — it had the wrong sign on 8 of 10 measured "
+            f"sweeps. The concentration axis was still applied (derived law).")
+    if res is not None and "abrasive_conc_exponent" in withdrawn_axes:
+        conc_ref = None
+        axis_warnings.append(
+            f"the abrasive-LOADING axis was NOT applied for '{res.kind}': "
+            f"{res.withdrawn['abrasive_conc_exponent']}")
     if conc is None and d50 is None:
         return {"name": "chi_abrasive", "value": None,
                 "notes": ["abrasive mechanics inactive: the pack declares neither "
@@ -506,8 +534,9 @@ def _abrasive_hook(rr: ResolvedRecipe) -> Dict[str, Any]:
         warnings.append(
             "the pack has no abrasive_ref_wt_pct, so the concentration term has no "
             "reference point and abrasive loading does not affect the result")
-    return {"name": "chi_abrasive", "value": factor, "notes": notes,
-            "warnings": warnings, "regime": regime.as_dict()}
+    return {"name": "chi_abrasive", "value": factor,
+            "notes": notes, "warnings": axis_warnings + warnings,
+            "regime": regime.as_dict()}
 
 
 def _supply_diagnostic(rr: ResolvedRecipe) -> Dict[str, Any]:

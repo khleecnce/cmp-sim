@@ -4,7 +4,26 @@
 
 ### 1차 완성 — 모델링 정확도
 - **목표: 예측 오차 median ≤ 10.0%** (이력서에 쓸 수 있는 수준)
-- **현재: median 19.5% shape / 21.8% LOO** (코퍼스 46/50, 427점) — **873 tests**.
+- **현재: median 19.5% shape / 21.8% LOO** (코퍼스 46/50, 427점) — **880 tests**.
+  2026-09-28(4회차): **농도 지수의 피팅 상수를 유도식으로 제거했다**(상수 감소).
+  `tools/conc_derived_probe.py`로 농도 스윕 18개(r2≥0.5는 16개)를 측정한 결과:
+  (1) size축에서 통했던 **재질 가설은 반증** — between/within 1.6x로 사전에 정한
+  2x 기준 미달이고, 잘 샘플된 세 재질이 0.04 이내로 **일치**한다(diamond +0.30,
+  silica +0.33, ceria +0.34). 대칭성 때문에 재질표를 만드는 것은 금지했고 안 했다.
+  (2) 대신 **유도식 m = +1/3**(Li 2021 표면적 지배 / Cook 1990 공급한계, 간극이
+  단층만 수용 → n_gap ~ C^(2/3), 입자당 하중 ~ 1/n_gap → MRR ~ C^(1/3), **피팅
+  상수 0개**)이 코퍼스 median +0.33과 정확히 일치. 16개 중 13개가 ±0.25 내.
+  (3) Langmuir 포화형도 **반증** — 포화라면 스윕 평균농도가 높을수록 기울기가
+  떨어져야 하는데 상관계수 +0.06(0.01~9 wt% 범위).
+  팩 5개가 각자 피팅했던 값(+0.227/+0.3333/+0.3333/-0.4295/-0.406)이 법칙 1개로
+  대체됐다 — **상수를 줄이면서** swap 조합의 농도축이 실수치로 살아났다.
+  이견 3건(모두 SiC)은 제외하지 않고 기록했다: 경한 막질에서는 반응층 공급이 아니라
+  압입이 율속일 수 있다는 가설(테스트가 "비-SiC 이견이 나오면 실패"로 고정).
+  ⚠ 이 과정에서 **잠재 버그 1건을 잡았다**: 기존 withdraw 게이트가 "override가
+  하나도 없을 때"만 작동해서, 농도 법칙이 항상 값을 공급하자 게이트가 꺼지고
+  **철회된 size축이 null로 떨어져 반증된 유도값 -0.84를 타게 됐다**(diamond 런의
+  rate가 10배 입경 변화에 6.8배 움직였다). `solver._abrasive_hook`을 축별 철회로
+  고쳤다. 코퍼스 median은 의도대로 불변 — 채점 행은 모두 팩의 reference 연마재다.
   2026-09-27(3회차): abrasive-size 지수를 **팩별 피팅 상수에서 재질 상수로 재귀속**
   (`SIZE_EXPONENT_BY_ABRASIVE`, silica -0.13 k=3 / alumina +0.28 k=2 / ceria +1.00 k=1).
   상수 개수가 줄었다(팩 6개가 각자 피팅 → 재질 3개 공유). 코퍼스 median은 불변이
@@ -408,35 +427,51 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-**Run the same material-scope probe on `abrasive_conc_exponent` that was just
-run on the size exponent, and re-attribute it only if the same test passes.**
-The size half is DONE (see DONE, 873 tests): `SIZE_EXPONENT_BY_ABRASIVE` in
-`slurry/abrasive_effects.py` now carries silica -0.13 (k=3), alumina +0.28
-(k=2), ceria +1.00 (k=1) with k and spread attached, and a swapped abrasive
-takes its own material's exponent instead of withdrawing the axis. The
-concentration keys (`abrasive_conc_exponent`, `abrasive_conc_half_wt_pct`)
-deliberately still WITHDRAW, because nothing has checked whether they transfer
-across films within one material.
+**Find out WHY the corpus median sits at 19.5% while every axis probe succeeds —
+decompose the residual by cause, before touching another constant.**
 
-Protocol — copy `tools/size_derived_probe.py`, do not invent a new one:
-1. collect every corpus sweep with >=3 distinct `abrasive_wt_pct` at otherwise
-   matched conditions; regress log(MRR) on log(wt%), keep r2 >= 0.5;
-2. compute between-material stdev of means vs within-material stdev of
-   residuals. The size axis gave 0.51 vs 0.16 (3.2x). **If the ratio is not
-   clearly > 2, STOP and record that concentration is NOT a material property** —
-   do not re-attribute it anyway for symmetry. A negative result here is as
-   publishable as the size positive and costs nothing;
-3. if it passes, add `CONC_EXPONENT_BY_ABRASIVE` alongside the size table and
-   extend the `engine_key == "abrasive_size_exponent"` branch in `resolve()` to
-   cover it, same k/spread honesty.
-⚠ The saturation constant `abrasive_conc_half_wt_pct` is a DIFFERENT kind of
-number (a wt% with units, not an exponent) and Langmuir-type saturation plausibly
-depends on the pad and the film, not only on the particle. Do not fold it into
-the same table without its own evidence.
+Rationale (this is now the highest-value item, ahead of any further axis work).
+Four consecutive runs improved the model's HONESTY and reduced its constant count
+(pH law falsified, size exponent re-attributed to material, conc exponent
+replaced by a derived +1/3) and the corpus median did not move once — 19.5% after
+all four. That is not a coincidence to work around, it is the finding: **the
+scored corpus rows do not exercise the axes being fixed.** Every scored row runs
+its pack's reference abrasive, so abrasive-scoped work provably cannot move the
+number, and the pH work moved only a shape that was already in-sample.
 
-Expected corpus effect: none, for the reason the size move had none — the
-scored rows all run their pack's reference abrasive. The payoff is that the
-`ranking_only` combinations gain a real concentration response.
+So before spending another run on a constant, MEASURE where the 19.5% comes from.
+Concretely, for the 46 scored datasets produce a per-dataset attribution of the
+residual to one of these buckets and count them:
+1. **at the dataset's own noise floor** — already 3 marked `floor`; how many more
+   would be if `repl%` were measured? (only 6/46 have it). Irreducible.
+2. **axis the pack has NO constant for** (declared gap, model declines) — these
+   are honest and cannot improve without new literature.
+3. **axis the pack HAS a constant for and still misses** — the only bucket where
+   a better law helps. THIS is the bucket to size.
+4. **single-point / 2-level datasets** where shape error is arithmetically
+   dominated by one reading.
+Report the four counts and the median WITHIN bucket 3. If bucket 3 is small, the
+10% target is arithmetically unreachable on this corpus and the ≤15% allowance
+should be invoked WITH THIS TABLE as the required evidence — STATUS.md demands
+"what sets the floor", and a bucket census is exactly that argument. If bucket 3
+is large, it names the next law to derive instead of guessing.
+
+Do NOT fit anything in this run. It is a measurement, like `ph_derived_probe` and
+`conc_derived_probe` were, and it must not touch a pack. Put it in
+`tools/residual_census.py` with a test that re-derives the bucket counts from the
+dataset files rather than hardcoding them.
+
+### Closed 2026-09-28 (was the previous NEXT): the conc exponent is a DERIVED LAW
+Ran exactly the protocol the item specified and it returned a NEGATIVE on the
+question asked (material scope, 1.6x < 2x bar) — recorded as required, no
+re-attribution made. The probe then tested the next-simplest hypothesis and found
+the positive result the item did not anticipate: a single DERIVED +1/3 lands on
+the corpus median with zero fitted constants, which removes five per-pack fitted
+values instead of renaming them. `abrasive_conc_half_wt_pct` was left alone, as
+the item warned. Also fixed the all-or-nothing withdrawal gate this change
+exposed in `solver._abrasive_hook` (a withdrawn size axis was falling through to
+the falsified derived -0.84). 880 tests.
+`tools/conc_derived_probe.py` + `tests/test_conc_exponent_material_scope.py` (6).
 
 ### Closed 2026-09-27 (was the previous NEXT): the size exponent is now a MATERIAL constant
 Implemented exactly as the item specified, with one deviation recorded: the
