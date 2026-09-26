@@ -948,3 +948,43 @@ def test_the_carrier_head_reads_as_machined_metal(page):
         f"(p10 {lum['head']['p10']:.0f} .. p90 {lum['head']['p90']:.0f}). It "
         f"has no highlight to go with its shadow, which is what makes a part "
         f"read as moulded plastic instead of machined metal")
+
+
+def test_every_free_standing_fixture_stands_on_something(page):
+    """Nothing may hang in mid-air, and no other check in this suite can see it.
+
+    This is the error class that slipped past 1070 green tests. The polisher's
+    signal tower was placed at 0.74 * BAY_R = 1.44 from the centre, while the
+    roof it is supposed to stand on is an ANNULUS whose inner edge is at
+    R_DECK + PLATEN_R + 0.10 = 1.74. The tower therefore sat over the open
+    centre of the roof with a 1.5 m drop beneath it, floating above the
+    platens — and it was lit correctly, coloured correctly, clickable, and
+    inside the framing bounds, so the scene test, the click test, the framing
+    test and both luminance tests all passed on it. A human looking at a
+    screenshot is what found it.
+
+    The check is a ray cast straight down from each fixture's declared foot,
+    ignoring the fixture's own meshes, measuring the distance to the first
+    surface below. Standing on sheet metal gives ~0; floating gives the whole
+    drop. It is asserted on the RENDERED SCENE GRAPH rather than on the
+    coordinate arithmetic in tool3d.js, so it keeps holding when the radii,
+    the enclosure height or the layout change — which is the point, because
+    the bug was created by exactly such a change (the roof became an annulus
+    while the tower kept its old radius).
+
+    The tolerance is generous (60 mm at tool scale) because a foot may be
+    modelled slightly proud of or sunk into its support; the failure being
+    caught is a drop of metres, not a millimetre of interpenetration.
+    """
+    gaps = page.evaluate("() => window.__gaps()")
+    assert gaps, "no free-standing fixtures are registered — the check is inert"
+
+    floating = [g for g in gaps if g["gap"] is None or g["gap"] > 0.06]
+    assert not floating, (
+        "these fixtures hang in mid-air with nothing under them: "
+        + "; ".join(
+            f"{g['name']} at ({g['x']:.2f}, {g['y']:.2f}, {g['z']:.2f}) "
+            + (f"has NOTHING beneath it at all"
+               if g["gap"] is None
+               else f"floats {g['gap']:.2f} above {g['support']}")
+            for g in floating))

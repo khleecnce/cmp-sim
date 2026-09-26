@@ -899,6 +899,12 @@ $('dgo').onclick = run;
     // several window shapes without reloading.
     window.__freeze = (on) => SCENE.freeze(on);
     window.__fit = () => SCENE.fitView();
+    // Ground check: reports, for every free-standing fixture, the drop from
+    // its foot to the first surface beneath it. A part hanging in mid-air is
+    // invisible to every other automated check — it lights, clicks and frames
+    // exactly like one that is bolted down — so this is the hook that makes
+    // "it stands on something" testable instead of eyeball-only.
+    window.__gaps = () => SCENE.fixtureGaps();
   } catch (e) {
     // WebGL can be unavailable (VM, remote desktop, old driver). The simulator
     // must stay usable: the legend buttons already open every drawer.

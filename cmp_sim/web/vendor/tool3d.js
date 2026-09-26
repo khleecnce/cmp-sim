@@ -318,6 +318,32 @@ export function createScene(canvas, onPick) {
   scene.add(floor);
 
   // ── tool frame: the deck the platens are set into ───────────────
+  /* FIXTURES: free-standing things that must STAND on something.
+   *
+   * A signal tower, a console post or a cleaner cabinet is not attached to the
+   * part below it in the scene graph -- each is positioned by an absolute
+   * coordinate. That makes "it floats in mid-air" a coordinate typo away at
+   * all times, and no click test, framing test or luminance test can see it:
+   * a floating tower is lit correctly, clickable and the right colour. The
+   * only build that ever caught one was a human looking at a screenshot.
+   *
+   * So each such fixture registers its base point here, and `window.__gaps()`
+   * casts a ray straight DOWN from that point and reports the distance to the
+   * first surface that is not the fixture's own geometry. A test then requires
+   * every gap to be small. This is the render equivalent of the sanity check
+   * the physics side runs on absolute rates: cheap, and it catches the class
+   * of error that every other check is structurally blind to.
+   *
+   * `base` is given in the fixture group's OWN local frame and converted to
+   * world at check time, because most of these groups are translated and
+   * rotated onto the outward axis -- hand-converting would reintroduce exactly
+   * the coordinate arithmetic the check exists to police.
+   */
+  const FIXTURES = [];
+  const standsOn = (name, group, base) => {
+    FIXTURES.push({ name, group, base: base.clone() });
+    return group;
+  };
   const frame = new THREE.Group();
   const deck = new THREE.Mesh(new THREE.CylinderGeometry(1.72, 1.80, 0.36, 72), M.deck);
   deck.position.y = -0.20;
@@ -507,6 +533,8 @@ export function createScene(canvas, onPick) {
   cleanBody.position.y = BAY_Y + 0.67;
   cleanBody.castShadow = cleanBody.receiveShadow = true;
   clean.add(tag(cleanBody, 'frame'));
+  standsOn('cleaner/dryer module', clean,
+           new THREE.Vector3(0, BAY_Y + 0.67 - 1.34 / 2, 0));
   // service lids over the cleaning stations: brush box, brush box, dryer
   for (const [z, lit] of [[-0.58, false], [0, false], [0.58, true]]) {
     const lid = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.05, 0.52), M.skinLo);
@@ -534,6 +562,10 @@ export function createScene(canvas, onPick) {
     new THREE.CylinderGeometry(0.032, 0.032, 0.95, 16), M.steel);
   ergoPost.position.set(-0.02, BAY_Y + 1.30, -0.88);
   console_.add(tag(ergoPost, 'carousel'));
+  // The ergo-arm post is free-standing on the fab floor: its foot is the
+  // bottom of the post, and nothing in the scene graph holds it up.
+  standsOn('ergo arm post', console_,
+           new THREE.Vector3(-0.02, BAY_Y + 1.30 - 0.95 / 2, -0.88));
   const ergoUpper = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.05, 0.05), M.steel);
   ergoUpper.position.set(0.10, BAY_Y + 1.76, -0.68);
   ergoUpper.rotation.y = -0.85;
@@ -566,6 +598,7 @@ export function createScene(canvas, onPick) {
   const buildTower = (pos) => {
     const tower = new THREE.Group();
     tower.position.copy(pos);
+    standsOn('signal tower', tower, new THREE.Vector3(0, 0, 0));
     const towerPost = new THREE.Mesh(
       new THREE.CylinderGeometry(0.035, 0.035, 0.22, 16), M.dark);
     towerPost.position.y = 0.11;
@@ -586,9 +619,21 @@ export function createScene(canvas, onPick) {
     tower.add(tag(towerCap, 'frame'));
     shell.add(tower);
   };
-  // polisher side: on the bay roof, away from the factory interface
-  buildTower(new THREE.Vector3(-outEf.x * BAY_R * 0.74, BAY_Y + BAY_H + 0.10,
-                              -outEf.z * BAY_R * 0.74));
+  /* Polisher side: on the bay ROOF. The radius is derived from the roof
+   * annulus, not picked by eye. The roof is a ring from R_DECK + PLATEN_R +
+   * 0.10 out to BAY_R, and the previous 0.74 * BAY_R = 1.44 fell INSIDE that
+   * inner edge (1.74) -- so the tower stood over the open centre with nothing
+   * under it and hung in the air above the platens. Mid-annulus keeps it on
+   * sheet metal for any future change to either radius.
+   *
+   * The roof's own top face is at BAY_Y + BAY_H + 0.05 and the seam strips
+   * stand 0.008 proud of it; the tower base sits on the panel, so its y is
+   * that face, not an independent number. */
+  const ROOF_IN = R_DECK + PLATEN_R + 0.10;
+  const ROOF_MID = (ROOF_IN + BAY_R) / 2;
+  const ROOF_TOP = BAY_Y + BAY_H + 0.05;
+  buildTower(new THREE.Vector3(-outEf.x * ROOF_MID, ROOF_TOP,
+                              -outEf.z * ROOF_MID));
   // factory-interface side: on the EFEM roof
   buildTower(new THREE.Vector3(outEf.x * EFEM_MID, BAY_Y + 1.96,
                                outEf.z * EFEM_MID));
@@ -1377,8 +1422,43 @@ export function createScene(canvas, onPick) {
     return hit ? hit.object.userData.part : null;
   }
 
+  /* Ground check for the free-standing fixtures registered in FIXTURES.
+   *
+   * Casts a ray straight down from each fixture's base and returns the gap to
+   * the first surface beneath that is not part of the fixture itself. A
+   * fixture standing on sheet metal reports ~0; one hanging over an opening
+   * reports the whole drop to the floor. This is the only check in the suite
+   * that can see a floating part -- lighting, clicking, framing and luminance
+   * are all blind to it, and a human looking at a screenshot is what caught
+   * the first one.
+   */
+  function fixtureGaps() {
+    const down = new THREE.Vector3(0, -1, 0);
+    const rc = new THREE.Raycaster();
+    scene.updateMatrixWorld(true);
+    return FIXTURES.map(({ name, group, base }) => {
+      const own = new Set();
+      group.traverse(o => { if (o.isMesh) own.add(o); });
+      const world = base.clone().applyMatrix4(group.matrixWorld);
+      // Start slightly above the declared base so a fixture resting exactly on
+      // a surface still gets a hit rather than starting inside it.
+      rc.set(new THREE.Vector3(world.x, world.y + 0.02, world.z), down);
+      rc.far = 100;
+      const below = rc.intersectObjects(scene.children, true)
+                     .filter(h => h.object.isMesh && !own.has(h.object));
+      // No hit at all is reported as null, not Infinity: Infinity does not
+      // survive the structured clone the automation bridge uses, and a
+      // silently-mangled sentinel here would turn "nothing beneath it" into a
+      // passing number — the exact failure this check exists to catch.
+      return { name, x: world.x, y: world.y, z: world.z,
+               gap: below.length ? below[0].distance - 0.02 : null,
+               support: below.length ? (below[0].object.userData.part || 'untagged')
+                                     : null };
+    });
+  }
+
   return {
-    setState, paintWafer, resize, probeAt, fitView, freeze,
+    setState, paintWafer, resize, probeAt, fitView, freeze, fixtureGaps,
     parts: PARTS,
     dispose() { cancelAnimationFrame(raf); renderer.dispose(); },
   };

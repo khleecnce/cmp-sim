@@ -4,6 +4,36 @@ All notable changes to CMP-Sim. Newest first.
 
 ## Unreleased
 
+### Fixed — a signal tower was floating above the platens, invisible to 1070 green tests (2026-09-27, 22nd run)
+- The polisher-side signal tower was placed at `0.74 * BAY_R` = 1.44 while the
+  roof it stands on is an **annulus** whose inner edge is `R_DECK + PLATEN_R +
+  0.10` = 1.74. It therefore hung over the roof's open centre, 0.36 m above the
+  polishing pad, with nothing beneath it. The radius is now derived from the
+  annulus mid-line, so it survives a change to either bound — the bug was
+  created by exactly such a change (the roof became a ring; the tower kept its
+  old radius).
+- **This error class is transparent to every other check in the suite.** A
+  floating part is lit, coloured, clickable and inside the framing bounds, so
+  the scene, click, framing and both luminance tests all passed on it. It was
+  found by a human looking at a screenshot, which is not a repeatable process.
+- `tool3d.js`: `FIXTURES` / `standsOn()` / `fixtureGaps()`, exposed as
+  `window.__gaps()`. Each free-standing fixture registers its foot; a ray is
+  cast straight down, ignoring the fixture's own meshes, to the first surface
+  below. Measured on the **rendered scene graph**, not on the coordinate
+  arithmetic, so re-modelling cannot quietly invalidate it.
+- `tests/test_tool_ui_3d.py::test_every_free_standing_fixture_stands_on_something`
+  (30 → 31 UI tests). Calibrated against the bug: restoring the old radius
+  fails with *"signal tower at (1.44, 0.44, -0.00) floats 0.36 above pad"*.
+- A no-hit is reported as `null`, never `Infinity` — `Infinity` does not
+  survive the automation bridge's structured clone, which would turn "nothing
+  beneath it at all" into a silently passing value.
+- `tools/prod_freshness.py` (new): compares the SHA-256 of each browser-served
+  asset with the file on disk. A green e2e against production proves the
+  deployed build *works*; it does not prove it is the build just committed, and
+  every prior "the UI is fixed" report was made without checking. Both assets
+  verified SAME.
+- Shell-only: median unmoved at 18.9% / 21.3% LOO, no physics touched.
+
 ### Measured — the absolute-scale failures were already identified, in prose the scorer cannot read (2026-09-27, 21st run)
 - `tools/kp_provenance_table.py` (new): for each block missing the absolute
   rate by ≥3×, what its pack silently conflates — the follow-up §22 named.
