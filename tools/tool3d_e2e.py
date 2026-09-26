@@ -62,9 +62,18 @@ def main() -> int:
     ap.add_argument("--shot", default="/tmp/cmpsim-tool3d.png")
     ap.add_argument("--serve", action="store_true",
                     help="start our own server on --port and stop it after")
+    ap.add_argument("--base", default=None,
+                    help="test an already-running instance at this URL "
+                         "(e.g. a public tunnel) instead of 127.0.0.1:PORT")
+    ap.add_argument("--token", default=None,
+                    help="CMPSIM_TOKEN of a link-protected instance; appended "
+                         "as ?t= on the first request, after which the server's "
+                         "cookie authenticates the module imports")
     args = ap.parse_args()
 
-    base = f"http://127.0.0.1:{args.port}"
+    base = args.base or f"http://127.0.0.1:{args.port}"
+    base = base.rstrip("/")
+    tool_url = base + "/tool" + (f"?t={args.token}" if args.token else "")
     proc = None
     if args.serve:
         proc = subprocess.Popen(
@@ -74,16 +83,16 @@ def main() -> int:
             env={"CMPSIM_QUIET": "1", "PATH": "/usr/bin:/bin"},
         )
     try:
-        if not _wait_http(base + "/tool"):
-            print(f"FAIL  server did not answer on {base}/tool")
+        if not _wait_http(tool_url):
+            print(f"FAIL  server did not answer on {tool_url}")
             return 1
-        return _drive(base, args.shot)
+        return _drive(tool_url, args.shot)
     finally:
         if proc is not None:
             proc.terminate()
 
 
-def _drive(base: str, shot: str) -> int:
+def _drive(tool_url: str, shot: str) -> int:
     from playwright.sync_api import sync_playwright
 
     failures: list[str] = []
@@ -102,7 +111,7 @@ def _drive(base: str, shot: str) -> int:
                 lambda m: errs.append("console: " + m.text)
                 if m.type == "error" else None)
 
-        page.goto(base + "/tool", wait_until="networkidle")
+        page.goto(tool_url, wait_until="networkidle")
         # boot ends by running one simulation; the readout leaves its em-dash
         page.wait_for_function(
             "() => !/\\u2014/.test(document.getElementById('lrate').textContent)",
