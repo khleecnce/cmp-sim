@@ -2931,3 +2931,78 @@ re-predicts through the ordinary `recipe.params` override path — which reports
 the edit as owner-supplied, so it can never be mistaken for a sourced value.
 Eight browser-driven tests pin each station, including one that doubles the
 Preston coefficient in the inspector and asserts the prediction doubles.
+
+## The velocity exponent is not a number, it is an interaction (2026-09-26, 9th run)
+
+Three runs of work on the velocity axis all searched for one constant `b_V` in
+`MRR ~ P * V**b_V`. `tools/velocity_thermal_probe.py` rejected frictional
+heating, Stribeck lubrication and `P*V` series resistance;
+`tools/sorooshian_flow_probe.py` corroborated sub-linearity as an experimental
+fact (`b_V = +0.655` on a full factorial that passes the Preston audit) but
+falsified its only zero-constant derivation on the flow leg (`b_Q = -0.010`
+against the `+1/3` the same mass balance requires).
+
+Rather than try a fourth functional form, this run measured the **shape** of the
+thing being explained. The prompt was Borucki & Philipossian (ECS J. Solid State
+Sci. Technol. **12** (2023) 043003, doi:10.1149/2162-8777/accaa6), who report
+copper velocity exponents that change sign with pressure: `-0.81 / -0.62 / +0.33`
+at 1 / 1.5 / 2 psi on one tool, one pad, one slurry.
+
+### The estimator
+
+At **fixed pressure**, Preston's `P`-linearity is a constant factor, so the raw
+log-log slope of *measured* rate against speed **is** the velocity exponent — no
+model in the loop, no fitted scale. That is deliberately the weakest estimator
+available: a probe auditing the simulator must not be able to inherit an
+artefact from it. `tools/velocity_pressure_interaction_probe.py`.
+
+### What was measured
+
+| body | design | per-pressure `b_V` | trend |
+|---|---|---|---|
+| Sorooshian 2005, thermal oxide / fumed silica | 29 ladders, 3 grooves x 2 thicknesses x 2 flows | 2 psi **+0.370** (n=11, SE 0.081) · 4 psi **+0.687** (n=9, SE 0.079) · 6 psi **+0.764** (n=9, SE 0.034) | monotone **up**, endpoints ~4 SE apart |
+| `mariscal2020_peteos_ceria` | genuine 3x3 P x V | 2/3/4 psi **+1.105 / +0.857 / +0.625** | monotone **down** |
+| `us6918821b2_cu_ic1000` | genuine 2x3 P x V | 1.5 psi **−0.416** · 4 psi **+0.863** | **sign change** |
+| Borucki 2023, Cu (published) | one tool/pad/slurry | 1/1.5/2 psi **−0.81 / −0.62 / +0.33** | **sign change** |
+
+### The conclusion, which is stronger than a number
+
+1. **`b_V` is not a constant.** One clean factorial changes its sign with
+   pressure, and it independently reproduces a published Cu observation. No
+   global exponent — derived or fitted — can be right, so the three-run
+   programme of hunting for one was aimed at the wrong object.
+2. **The interaction's direction is not universal either.** Oxide/silica rises
+   with pressure while PETEOS/ceria falls. This is therefore not one master
+   curve `b_V(P)` waiting to be parameterised: any law of the form `V**f(P)`
+   with a single `f` is already excluded by those two datasets *together*. The
+   obvious next move after finding a pressure-dependent exponent — fit `b_V(P)`
+   per pack — would be a fitted *function* replacing a fitted constant, and it
+   is forbidden by the same measurement that motivated it.
+3. So the "find the velocity exponent" line is **closed**, as the pH axis was,
+   and the open question is restated: *what couples pressure and velocity such
+   that the coupling can invert between consumable sets?* Contact-area evolution
+   and pad-asperity flash heating both do this in principle; neither has a
+   zero-constant form here yet.
+
+### Two honesty notes, both pinned by tests
+
+* The pre-registered bar (across-pressure spread ≥ 2x within-pressure spread,
+  the same rule that falsified the material hypothesis for the concentration
+  exponent at 1.6x) **does not fire** on Sorooshian: 0.99x. With ~10 ladders per
+  pressure it compares the spread of *medians* against the spread of *single*
+  ladders and is structurally insensitive. The monotone trend is therefore
+  reported as **post-hoc** and asserted only in its weaker form (endpoints
+  separated by several standard errors of the medians). A statistic chosen after
+  looking is disclosed, not substituted.
+* The first cut of this probe pooled one ladder from each of several unrelated
+  datasets and reported a spurious **22x** interaction — the across-pressure
+  spread was really the spread between films, slurries and tools. Scoring is now
+  strictly per dataset, every ladder-producing dataset must carry an explicit
+  admit/exclude reason, and a test fails when a new one appears unreviewed.
+  `sic2023_shear_rheological_L9` is excluded on **design**, not on its answer:
+  its abrasive size and loading change from row to row and are recorded only in
+  the row *label*, which is why one of its "ladders" read `b_V = +6.76`.
+
+Nothing was adopted. The corpus median stays **18.9% / 21.3%** by choice, as it
+must when a run produces a negative shape result.
+`tests/test_velocity_exponent_is_not_constant.py` (8 tests).

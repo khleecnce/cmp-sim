@@ -60,7 +60,45 @@
 
 ### 1차 완성 — 모델링 정확도 (2차 완료, 이제 여기로 복귀)
 - **목표: 예측 오차 median ≤ 10.0%** (이력서에 쓸 수 있는 수준)
-- **현재: median 18.9% shape / 21.3% LOO** (코퍼스 46/50, 427점) — **930 tests**.
+- **현재: median 18.9% shape / 21.3% LOO** (코퍼스 46/50, 427점) — **938 tests**.
+  2026-09-26(9회차): **속도지수 탐색 종결 — b_V는 상수가 아니고, 심지어 b_V(P)도 아니다.**
+  8회차까지 세 회차가 전부 `MRR ~ P·V^b_V`의 **단일 상수**를 찾고 있었다. 이번엔 식을
+  또 제안하기 전에 **설명 대상의 모양**을 먼저 측정했다. 추정자는 의도적으로 가장 약한
+  것: **압력 고정**이면 Preston의 P선형성은 상수배이므로 *측정* rate의 log-log 기울기가
+  곧 b_V다 — 모델을 개입시키지 않으므로 감사 대상인 시뮬레이터의 아티팩트를 물려받을 수 없다
+  (`tools/velocity_pressure_interaction_probe.py`).
+  · Sorooshian 2005 열산화막(사다리 29개): 2/4/6 psi에서 **+0.370 / +0.687 / +0.764**
+    — **단조 증가**, 양 끝이 중앙값 표준오차의 약 4배만큼 떨어져 있다.
+  · `mariscal2020_peteos_ceria`(정식 3×3): 2/3/4 psi에서 **+1.105 / +0.857 / +0.625**
+    — **단조 감소**.
+  · `us6918821b2_cu_ic1000`(정식 2×3): 1.5 psi **−0.416** → 4 psi **+0.863** — **부호 반전**.
+    Borucki/Philipossian(ECS 2023, DOI 10.1149/2162-8777/accaa6)의 Cu 관측
+    (1/1.5/2 psi에서 −0.81/−0.62/+0.33)을 **독립 재현**했다.
+  ⇒ **결론 1: b_V는 상수가 아니다.** 깨끗한 요인배치 하나가 압력에 따라 부호를 바꾸므로
+  전역 지수는 유도든 피팅이든 불가능하다 — 세 회차의 탐색이 **대상을 잘못 겨눴다**.
+  ⇒ **결론 2(더 중요): 상호작용의 방향조차 보편적이지 않다.** 산화막/실리카는 압력과
+  함께 오르고 PETEOS/세리아는 내린다. 즉 매개화를 기다리는 단일 마스터곡선 b_V(P)가
+  **아니다** — `V^f(P)` 형태의 어떤 법칙도 단일 f로는 이 두 데이터셋에 **동시에** 못 맞는다.
+  지수가 압력의존임을 발견한 뒤의 뻔한 다음 수(팩별 b_V(P) 피팅)는 **상수를 함수로 바꾼
+  피팅**일 뿐이고, 그것을 동기부여한 바로 그 측정이 그것을 금지한다.
+  ⇒ 그래서 "속도지수를 찾는다" 노선을 **pH축처럼 닫았다.** 열린 질문을 재정의한다:
+  **무엇이 P와 V를 결합시키는데 그 결합이 소모품 조합에 따라 뒤집힐 수 있는가?**
+  (접촉면적 진화·패드 asperity flash heating은 원리상 둘 다 가능하나, 아직 자유상수
+  0개 형태가 없다.)
+  ⚠ 정직성 2건(둘 다 테스트로 고정): (1) **사전등록 기준(across/within ≥ 2배)은
+  Sorooshian에서 발화하지 않았다 — 0.99배.** 압력당 사다리가 10개면 이 규칙은 *중앙값*의
+  산포를 *단일* 사다리의 산포와 비교하므로 구조적으로 둔감하다(원래 size·conc 프로브용으로
+  교정된 기준). 그래서 단조성은 **사후(post-hoc) 통계로 명시**하고 약한 형태(양 끝이
+  표준오차 여러 배)만 assert했다. 보고 나서 고른 통계는 **바꿔치기하지 않고 공시**한다.
+  (2) **이 프로브의 첫 판은 22배라는 허위 상호작용을 냈다** — 서로 무관한 데이터셋에서
+  압력당 사다리 하나씩을 모아버려, across-pressure 산포가 실은 막질·슬러리·장비 간
+  차이였다. 이제 채점은 **데이터셋 단위**이고, 사다리를 내는 데이터셋은 전부 명시적
+  admit/exclude 사유를 달아야 하며, 미검토 데이터셋이 새로 나타나면 테스트가 실패한다.
+  `sic2023_shear_rheological_L9`는 **답이 아니라 설계 때문에** 제외: 입경·농도가 행마다
+  바뀌는데 그 값이 행 **label**에만 적혀 있어 그룹화 키가 볼 수 없다(그래서 사다리 하나가
+  b_V=+6.76을 냈다).
+  **아무것도 채택하지 않았으므로 median은 의도대로 18.9% 불변.**
+  `tests/test_velocity_exponent_is_not_constant.py`(8 tests).
   2026-09-26(8회차-B): **속도축 결판 — 기아 법칙 기각, 그러나 지수 자체는 입증됐다.**
   8회차-A가 요청한 데이터셋을 같은 실행에서 찾았다: **Sorooshian 2005**(애리조나대
   박사논문, Philipossian 그룹) — 열산화막에서 **유량 40/120 cc/min × 속도
@@ -625,47 +663,44 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-**Measure whether the velocity exponent depends on PRESSURE. Borucki's Cu data
-show it changing SIGN across 1 → 1.5 → 2 psi (−0.81 / −0.62 / +0.33) on one
-tool, one pad, one slurry. If that holds in our corpus, then NO global velocity
-exponent — derived or fitted — can be right, and the whole 8th-run programme of
-looking for one was aimed at the wrong object.**
+**What couples pressure and velocity, given that the coupling INVERTS between
+consumable sets? The 9th run closed the search for a velocity exponent: b_V is
+not a constant (Cu changes its sign across 1.5 → 4 psi, reproducing Borucki
+2023) and it is not a single function b_V(P) either (oxide/silica rises with
+pressure, PETEOS/ceria falls). So the missing physics is a P–V INTERACTION whose
+sign depends on the film/slurry pair, and the next run must measure what selects
+that sign — not propose a functional form.**
 
-Why this and not another law: the 8th run established the sub-linear velocity
-response as an experimental fact (Sorooshian +0.655; Tseng & Wang +0.5;
-Park/Lee/Jeong +0.74) but falsified its only zero-constant derivation on the
-flow leg (b_Q = −0.010 vs +1/3 required). Rather than hunt a fourth functional
-form, first establish the SHAPE of the thing being explained. A pressure-
-dependent velocity exponent and a constant one call for completely different
-mechanisms, and we can settle which we have before proposing anything.
+Do NOT fit b_V(P) per pack. That is a fitted function replacing a fitted
+constant, and `tests/test_velocity_exponent_is_not_constant.py` forbids it for
+the reason the measurement itself supplies: no single f covers the two clean
+factorials we have.
 
-Measurement plan (no fitting, one axis, as usual):
-1. In `research/digitized/sorooshian2005_ild_cmp.csv` the exponent can be cut
-   per pressure directly: 2, 4, 6 psi × 3 velocities × both flows × 3 grooves.
-   `velocity_exponent()` in `tools/sorooshian_flow_probe.py` already returns
-   per-ladder exponents — group them by psi instead of taking the median.
-2. Do the same on the corpus's own velocity ladders (`us6564116b2`,
-   `mariscal2020`, `us6918821b2`, `yang2023`, `sic2023`).
-3. Pre-register the bar BEFORE looking, as with the size/conc probes: call the
-   exponent pressure-dependent only if the spread ACROSS pressures exceeds the
-   spread WITHIN a pressure by ≥2x (the same criterion that falsified the
-   material hypothesis for the concentration exponent).
-
-Then, and only then, branch:
-- **Exponent is constant in P** ⇒ one number explains 29 ladders across 3
-  pressures, and the search narrows to mechanisms giving a fixed sub-linear V
-  with no flow term. Best candidate to derive next: slurry utilisation
-  efficiency is 2–22 % and itself V-dependent (Philipossian & Mitchell 2003,
-  DOI 10.1557/PROC-767-F1.4), so the reactant variable was probably never the
-  dispensed Q. Re-deriving the mass balance in terms of the ENTRAINED fraction
-  may give a V exponent with no Q dependence at all — which is exactly the
-  shape the data demand.
-- **Exponent varies with P** ⇒ record that a global exponent is impossible,
-  close the "find the velocity exponent" line the way the pH axis is closed,
-  and reframe: the P–V interaction, not V alone, is the missing physics.
-
-Either branch is publishable-grade negative or positive knowledge, and neither
-requires new data — points 1 and 2 use what is already in the repo.
+Measurement plan (one axis, no fitting, uses data already in the repo):
+1. **Sort the three clean bodies by what differs between them** and ask which
+   property tracks the sign of db_V/dP. Available: abrasive material (fumed
+   silica ↑ vs ceria ↓), film (thermal oxide / PETEOS / Cu), pad, pressure
+   range. With three bodies this cannot be decided — it can only NARROW, so
+   pre-register that the output is a ranked shortlist, not a law.
+2. **The most promising mechanism is contact-area evolution, and it is already
+   half-built here.** `cmp_sim/models/contact_gw.py` gives A_r(P), and the
+   repo's own GW work found the elastic fully-load-sharing regime where
+   particle size cancels exactly. If A_r grows sub-linearly in P while the
+   per-asperity sliding distance grows linearly in V, the EFFECTIVE velocity
+   exponent acquires a P dependence with NO new constant. Derive dln b_V/dln P
+   from the existing GW parameters and check its SIGN against the three bodies
+   before touching any pack. A derivation that gets the sign right in two bodies
+   and wrong in the third is still a result worth recording.
+3. **Second candidate, cheaper to test: pad-asperity flash heating.** Contact
+   temperature rises with P·V, so an Arrhenius chemical term produces a P–V
+   cross term. This was rejected as a pure VELOCITY law in the 8th run (residual
+   slope −0.549, wrong sign), but a cross term was never tested; the rejection
+   does not carry over automatically and the distinction must be stated, not
+   assumed.
+4. If neither derivation produces a sign-correct zero-constant cross term,
+   record the axis as closed the way pH is closed, and state in
+   `docs/limits.md` what the P–V interaction costs the corpus median — that
+   number is part of the honest answer to "is ≤10% reachable?".
 
 Secondary, unchanged from the 7th run:
 
@@ -684,6 +719,23 @@ Secondary, unchanged from the 7th run:
    the residual orders by Ce3+ fraction before proposing any functional form.**
 
 Still true, and still the rule: do not fit. Measure first, one axis per run.
+
+### Closed 2026-09-26 (9th run): there is no velocity exponent to find
+`tools/velocity_pressure_interaction_probe.py` +
+`tests/test_velocity_exponent_is_not_constant.py` (8 tests). Measured b_V at
+FIXED pressure (raw log-log slope of measured rate vs speed — no model in the
+loop, so the probe cannot inherit an artefact from the simulator it audits):
+Sorooshian oxide +0.370/+0.687/+0.764 at 2/4/6 psi (monotone up, endpoints ~4
+median-SE apart), mariscal2020 PETEOS +1.105/+0.857/+0.625 at 2/3/4 psi
+(monotone down), us6918821b2 Cu −0.416 → +0.863 across 1.5 → 4 psi (SIGN
+CHANGE, independently reproducing Borucki 2023). Nothing adopted; median 18.9%
+unchanged by choice. Two honesty notes pinned by tests: the pre-registered 2x
+ratio bar did NOT fire on Sorooshian (0.99x — it is structurally insensitive
+when a pressure holds ~10 ladders), so the monotone trend is labelled post-hoc
+and asserted only in its weaker SE form; and the probe's first cut reported a
+spurious 22x by pooling one ladder per pressure from UNRELATED datasets, so
+scoring is now strictly per dataset with a recorded admit/exclude reason for
+every ladder-producing dataset and a test that fails on an unreviewed one.
 
 ### Closed 2026-09-26 (7th run): the Cu threshold is a NULL result — do not port P_y across films
 `tools/cu_passivation_threshold_probe.py` + `tests/test_cu_passivation_threshold_null.py`

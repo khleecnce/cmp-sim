@@ -366,14 +366,24 @@ class Handler(BaseHTTPRequestHandler):
         """True when no token is configured, or the caller presented it.
 
         Accepts the token from `?t=` (so a single link works when pasted into
-        a browser) or from an `X-CMPSim-Token` header (so scripted clients do
-        not have to put the secret in a URL that lands in server logs).
+        a browser), from an `X-CMPSim-Token` header (so scripted clients do
+        not have to put the secret in a URL that lands in server logs), or
+        from the `cmpsim_t` cookie set when the token first arrives.
+
+        The cookie is what makes the 3D view work behind a link. `tool3d.js`
+        reaches three.js with a bare `import './three.module.min.js'`, and the
+        browser issues that request with NO query string -- the `?t=` from the
+        address bar is not inherited. Without the cookie every vendor asset
+        came back 401 and the viewport stayed empty while the page around it
+        loaded fine, which reads as "the 3D model is broken" rather than as an
+        auth failure. Observed on a phone over the public tunnel.
 
         Compared with compare_digest: a plain `==` on a secret leaks its
         length and prefix through timing, which is a needless gift to anyone
         probing a public URL.
         """
         import hmac
+        from http.cookies import SimpleCookie
         from urllib.parse import parse_qs, urlparse
 
         want = _expected_token()
@@ -383,7 +393,18 @@ class Handler(BaseHTTPRequestHandler):
         if not given:
             qs = parse_qs(urlparse(self.path).query)
             given = (qs.get("t") or [""])[0]
-        return hmac.compare_digest(given, want)
+        if given and hmac.compare_digest(given, want):
+            self._grant_cookie = True
+            return True
+        raw = self.headers.get("Cookie", "")
+        if raw:
+            try:
+                morsel = SimpleCookie(raw).get("cmpsim_t")
+            except Exception:
+                morsel = None
+            if morsel and hmac.compare_digest(morsel.value, want):
+                return True
+        return False
 
     def _deny(self) -> None:
         self._json(401, {
@@ -398,6 +419,16 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        if getattr(self, "_grant_cookie", False):
+            # Hand the browser the token once, so the module imports that
+            # follow (three.js, OrbitControls) authenticate without a query
+            # string. HttpOnly: the page never needs to read it back, and
+            # keeping it out of JS means a stray script cannot exfiltrate it.
+            self.send_header(
+                "Set-Cookie",
+                f"cmpsim_t={_expected_token()}; Path=/; HttpOnly; SameSite=Lax",
+            )
+            self._grant_cookie = False
         self.end_headers()
         self.wfile.write(body)
 

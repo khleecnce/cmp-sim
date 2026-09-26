@@ -107,7 +107,34 @@ def test_citations_in_the_document_agree_with_the_data_files():
     # Classic papers (Preston, Greenwood-Williamson, Luo-Dornfeld, Cook,
     # Kaufman, Stine) are cited in the document for provenance and need not
     # appear in a data file. Dataset DOIs must.
-    dataset_dois = {d for d in doc_dois if "2162-8777" in d}
+    #
+    # The ECS JSS prefix is used as the marker for "this is one of our scored
+    # datasets", which is a heuristic, and one paper breaks it: a published
+    # measurement can be cited for a VERDICT without ever being scored against.
+    # Such a citation is exempted here only on a condition that keeps it
+    # honest -- the transcribed numbers must live in the code that reasons from
+    # them, so the claim can be checked rather than floating in prose.
+    CITED_NOT_DIGITISED = {
+        # Borucki & Philipossian 2023: Cu velocity exponents change sign with
+        # pressure. Used to corroborate the 9th run's finding that no global
+        # velocity exponent exists. We have no rate table from it and score
+        # nothing against it, so it is deliberately NOT a corpus dataset.
+        "10.1149/2162-8777/accaa6":
+            "tools/velocity_pressure_interaction_probe.py",
+    }
+    for doi, home in CITED_NOT_DIGITISED.items():
+        if doi not in doc_dois:
+            continue
+        source = (root / home).read_text(encoding="utf-8").lower()
+        assert doi in source, (
+            f"{doi} is exempted from the dataset rule because it is cited for a "
+            f"verdict rather than scored, but {home} no longer contains it. "
+            "Either restore the transcribed values there or remove the "
+            "exemption -- an exempt citation with no home is an unverifiable "
+            "claim.")
+
+    dataset_dois = {d for d in doc_dois
+                    if "2162-8777" in d and d not in CITED_NOT_DIGITISED}
     for doi in dataset_dois:
         assert doi in haystack, (
             f"the document cites {doi} for a validation dataset, but no data "

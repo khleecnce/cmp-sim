@@ -4,6 +4,43 @@ All notable changes to CMP-Sim. Newest first.
 
 ## Unreleased
 
+### Measured — the velocity exponent is not a number, it is an interaction (2026-09-26, 9th run)
+- `tools/velocity_pressure_interaction_probe.py`: measures b_V at **fixed
+  pressure** as the raw log-log slope of *measured* rate against speed — no model
+  in the loop and no fitted scale, so the probe cannot inherit an artefact from
+  the simulator it audits. Sorooshian 2005 thermal oxide gives
+  **+0.370 / +0.687 / +0.764** at 2 / 4 / 6 psi (29 ladders, monotone up,
+  endpoints ~4 median standard errors apart); `mariscal2020_peteos_ceria` gives
+  **+1.105 / +0.857 / +0.625** at 2 / 3 / 4 psi (monotone **down**);
+  `us6918821b2_cu_ic1000` gives **−0.416 → +0.863** across 1.5 → 4 psi, a **sign
+  change** that independently reproduces Borucki & Philipossian 2023
+  (doi:10.1149/2162-8777/accaa6).
+- **Two conclusions, both negative and both stronger than a number.** b_V is not
+  a constant, so no global exponent — derived or fitted — can be right and three
+  runs of searching for one were aimed at the wrong object. And the
+  interaction's *direction* is not universal either, so this is not one master
+  curve b_V(P) waiting to be parameterised: any `V**f(P)` with a single f is
+  excluded by the oxide and PETEOS bodies together. The "find the velocity
+  exponent" line is therefore **closed**, as the pH axis is, and the open
+  question is restated as *what couples P and V such that the coupling can
+  invert between consumable sets?*
+- `tests/test_velocity_exponent_is_not_constant.py` (8 tests) pins the verdict
+  and forbids any pack from declaring a velocity exponent **or** a P–V coupling
+  constant. Nothing was adopted; the corpus median stays **18.9% / 21.3%**, as
+  it must when a run produces a negative shape result.
+- Two honesty notes, both pinned by tests rather than buried: the pre-registered
+  2x spread bar does **not** fire on Sorooshian (0.99x — it compares the spread
+  of medians against the spread of single ladders and is structurally
+  insensitive when a pressure holds ~10 ladders), so the monotone trend is
+  labelled **post-hoc** and asserted only in its weaker standard-error form; and
+  the probe's first cut reported a spurious **22x** interaction by pooling one
+  ladder per pressure from *unrelated* datasets, so scoring is now strictly per
+  dataset, every ladder-producing dataset carries an explicit admit/exclude
+  reason, and a test fails when an unreviewed one appears.
+  `sic2023_shear_rheological_L9` is excluded on **design** (its abrasive size and
+  loading change per row and are recorded only in the row label, which is why one
+  of its "ladders" read b_V = +6.76), not on its answer.
+
 ### Added — the simulator's shell is separated from its physics (2026-09-26)
 - `cmp_sim/data/consumables.yaml`: named polishing pads and conditioner disks,
   one sourced property at a time (value / unit / source / confidence, `null`
