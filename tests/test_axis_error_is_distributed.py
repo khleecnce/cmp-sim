@@ -92,8 +92,7 @@ def test_the_largest_single_block_is_error_no_swept_axis_can_reach():
         "14's argument to hold")
 
 
-@pytest.mark.parametrize("axis", ["abrasive_size_nm", "abrasive_wt_pct",
-                                  "pressure", "slurry_ph"])
+@pytest.mark.parametrize("axis", ["abrasive_size_nm", "pressure", "slurry_ph"])
 def test_a_shared_exponent_buys_almost_nothing_on_the_dispersed_axes(axis):
     """A LAW must use one constant everywhere, and here that costs the gain.
 
@@ -101,6 +100,11 @@ def test_a_shared_exponent_buys_almost_nothing_on_the_dispersed_axes(axis):
     shared across the same datasets buys < 2 pp. The gap is the whole reason
     the oracle is reported as an upper bound: what looks like a missing law is
     between-dataset dispersion.
+
+    ``abrasive_wt_pct`` was in this list until 2026-09-27 and is now measured
+    separately below: fixing the saturating branch's load-sharing exponent
+    removed its sign disagreement, so the "dispersed" diagnosis no longer
+    describes it.
     """
     bound = _bound(axis)
     assert bound is not None, f"{axis} is no longer swept by 2+ datasets"
@@ -115,8 +119,7 @@ def test_a_shared_exponent_buys_almost_nothing_on_the_dispersed_axes(axis):
         "oracle is mis-measured")
 
 
-@pytest.mark.parametrize("axis", ["abrasive_size_nm", "abrasive_wt_pct",
-                                  "pressure", "slurry_ph"])
+@pytest.mark.parametrize("axis", ["abrasive_size_nm", "pressure", "slurry_ph"])
 def test_the_dispersed_axes_disagree_in_sign_not_merely_in_magnitude(axis):
     """The diagnosis, not just the symptom.
 
@@ -131,6 +134,65 @@ def test_the_dispersed_axes_disagree_in_sign_not_merely_in_magnitude(axis):
     assert min(exponents) < 0.0 < max(exponents), (
         f"{axis} exponents no longer straddle zero ({exponents}); re-argue "
         "section 14 rather than relaxing this test")
+
+
+def test_the_concentration_axis_stopped_disagreeing_in_sign_when_the_model_did():
+    """The sign scatter on ``abrasive_wt_pct`` was partly the MODEL's, not the data's.
+
+    Until 2026-09-27 this axis was pinned alongside the other dispersed axes:
+    its per-dataset residual exponents straddled zero, which was read as
+    "no single exponent is even the right direction" and used to argue that
+    the axis is unreachable (docs/limits.md section 14).
+
+    Three of those nine exponents were NEGATIVE because the model was
+    over-predicting the concentration response, not because those experiments
+    disagreed with the others. The saturating branch of
+    ``models/luo_dornfeld.mechanical_factor`` was multiplying by the active
+    particle COUNT ratio (N^1), asserting chi = 0 against the chi = 1.0 the
+    same call resolves; datasets under a pack with ``abrasive_conc_half_wt_pct``
+    therefore needed a negative correction to undo the model's excess slope.
+    See docs/derivations.md, "The two concentration branches were different
+    PHYSICS".
+
+    Measured across that one change (`tools/axis_error_census.py`):
+
+        before   exponents [-0.54, -0.18, -0.04, 0.0, 0.10, 0.26, 0.44, 0.49, 0.81]
+                 shared gain 1.46 pp,  oracle 7.58 pp,  85 points owned (24.9 %)
+        after    exponents [ 0.00,  0.02,  0.12, 0.18, 0.26, 0.26, 0.44, 0.49, 1.05]
+                 shared gain 2.54 pp,  oracle 6.85 pp,  63 points owned (18.4 %)
+
+    Two things follow, and they point in opposite directions, so both are
+    pinned rather than the convenient one:
+
+    1. The axis is no longer DISPERSED in the sign sense. Every residual
+       exponent is now >= 0, so a single shared exponent is at least the right
+       direction everywhere. That is why it is no longer parametrized into the
+       two tests above.
+    2. It is therefore also no longer closed. A shared exponent now buys
+       2.5 pp, over the 2.0 pp bar those tests use as "a law may be hiding
+       here". **That is a lead, not a licence to fit one**: all nine residual
+       exponents being positive means the model still UNDER-responds to
+       loading, and the honest next step is to find which term is missing, not
+       to add a fitted offset that would reproduce this residual by
+       construction. This test exists so the lead cannot be quietly forgotten.
+    """
+    bound = _bound("abrasive_wt_pct")
+    assert bound is not None, "abrasive_wt_pct is no longer swept by 2+ datasets"
+    exponents = bound["exponents"]
+    assert min(exponents) >= 0.0, (
+        f"the concentration residual exponents straddle zero again "
+        f"({exponents}). Either a regression re-introduced an over-steep "
+        "concentration term, or a newly added dataset genuinely disagrees in "
+        "sign -- find out which before touching this test.")
+    assert bound["shared_gain_pp"] > 2.0, (
+        f"a shared concentration exponent now buys only "
+        f"{bound['shared_gain_pp']:.2f} pp. If a DERIVED term closed this gap, "
+        "that is the intended outcome: record it in docs/derivations.md and "
+        "retire this test. If it shrank without a derivation, something is "
+        "masking the axis.")
+    assert bound["shared_gain_pp"] < bound["oracle_gain_pp"], (
+        "sharing a constant cannot beat a per-dataset fit; if it does, the "
+        "oracle is mis-measured")
 
 
 def test_the_oxidizer_axis_survives_sharing_but_its_gain_is_inadmissible():

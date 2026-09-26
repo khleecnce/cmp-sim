@@ -598,6 +598,66 @@ dataset adds a tenth exponent, not agreement. What would resolve it is a
 full factorial with consumable properties measured rather than inferred — which
 is precisely the measurement the earlier limits (§1, §4, §13) also name.
 
+### ⚠ AMENDED 2026-09-27: part of the dispersion on `abrasive_wt_pct` was the MODEL's
+
+The argument above is **not withdrawn**, but its single strongest example has to
+be given back. `abrasive_wt_pct` was presented as "the clearest case" of
+irreducible between-dataset dispersion, on the strength of per-dataset exponents
+running −0.54 … +0.81 — exponents that straddle zero, so no shared constant is
+even the right *direction*. Three of those nine exponents were negative **because
+the model was over-predicting the concentration response**, not because those
+experiments disagreed with the others.
+
+The cause is recorded in full in `docs/derivations.md`, "The two concentration
+branches were different PHYSICS": the saturating branch of
+`models/luo_dornfeld.mechanical_factor` multiplied by the active-particle *count*
+ratio `N(C)/N(C_ref)`, i.e. `N^1`, where the module's own derivation requires
+`N^(1-alpha*chi)`. That asserts `chi = 0` on datasets whose pack carries
+`abrasive_conc_half_wt_pct`, against the `chi = 1.0` the same call resolves, so
+those datasets — and only those — needed a negative residual exponent to undo
+the model's excess slope. Re-running the identical census across that one fix:
+
+| | per-dataset exponents | shared gain | oracle gain | points owned |
+|---|---|---|---|---|
+| before | −0.54 … +0.81 (3 negative) | +1.5 pp | +7.6 pp | 85 (24.9%) |
+| after | **+0.00 … +1.05 (0 negative)** | **+2.5 pp** | +6.9 pp | 63 (18.4%) |
+
+Three things follow, and they do not all favour the same conclusion, so all
+three are recorded:
+
+1. **The headline reading survives, and by a wider margin.** The pre-registered
+   test was whether any one axis owns ≥ 30% of improvable points.
+   `abrasive_wt_pct` fell from 24.9% to **18.4%**, and the `distributed` block
+   — error no swept axis reaches even with a free exponent — *grew* from 42.4%
+   to **48.8%**. Reading 2 stands more firmly than when it was written.
+2. **The sign-disagreement evidence for this one axis is withdrawn.** The
+   remaining dispersed axes (`abrasive_size_nm`, `pressure`, `slurry_ph`) still
+   straddle zero and still buy < 2 pp shared, and they continue to carry the
+   argument. `abrasive_wt_pct` no longer does, and
+   `tests/test_axis_error_is_distributed.py` now measures it separately rather
+   than asserting a sign scatter that is no longer there.
+3. **A shared exponent on this axis now buys 2.5 pp, over the 2.0 pp bar — and
+   is still rejected, on different grounds.** The old rejection ("it would push
+   five of nine datasets the wrong way") no longer applies. The new one is that
+   all nine residual exponents are now **positive**, which says the model
+   consistently *under*-responds to abrasive loading — a missing term with a
+   definite sign, not noise. Fitting a shared offset would reproduce that
+   residual by construction and destroy the evidence that a term is missing.
+   **What would unblock it:** a derivation that predicts an additional positive
+   concentration dependence from measured quantities — the obvious candidate
+   being that `N_active` should scale with the real contact area (which itself
+   grows with loading through slurry-film thickening), not with the nominal
+   area. That is a derivation target, and it is the first one this corpus has
+   produced with an unambiguous sign.
+
+**The lesson this limit now also carries:** a "dispersion" diagnosis is only as
+trustworthy as the model whose residuals it is measured on. Residual exponents
+that straddle zero can mean the data disagree, or they can mean the model is
+wrong in a way that some datasets are exposed to and others are not. The two
+look identical in the census table. Distinguishing them requires asking *which
+datasets carry the negative exponents and what they share* — here, the packs
+that supply `C_half` — which is a question the census does not ask on its own.
+
 **Enforced by** `tests/test_axis_error_is_distributed.py`.
 
 ---

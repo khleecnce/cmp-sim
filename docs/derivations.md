@@ -2837,6 +2837,103 @@ on an axis the model claimed not to be applying. Withdrawal is now per-axis.
 The lesson generalises: a guard conditioned on "nothing was supplied" silently
 inverts as soon as anything is always supplied.
 
+## The two concentration branches were different PHYSICS, not different maths (2026-09-27, 24th run)
+
+`models/luo_dornfeld.mechanical_factor` has always had two concentration
+branches: a saturating one when the pack supplies `abrasive_conc_half_wt_pct`,
+and a power law when it does not. They were supposed to differ only in how the
+active-particle count `N(C)` is modelled. They did not. The saturating branch
+was one contact regime steeper than the power law, and the difference was
+invisible because no test compared the branches to each other.
+
+### The derivation, and where the branch left it
+
+Both branches start from this module's own header:
+
+    MRR ~ N * F_particle^alpha ,   F_particle = chi * P / N
+    =>  MRR ~ N^(1 - alpha*chi)
+
+The power-law branch models `N ~ C^p` and therefore uses
+
+    n_C = p * (1 - alpha*chi)                                     (as documented)
+
+The saturating branch models `N = n_s (1 - exp(-C/C_half))` — a better `N(C)`,
+and the whole reason `C_half` exists — and then multiplied the rate by the
+**count ratio itself**:
+
+    factor = N(C) / N(C_ref)            <-- WRONG: this is N^1
+
+Raising `N` to the first power asserts `1 - alpha*chi = 1`, i.e. **chi = 0**:
+every particle carries a load independent of how many others are present. The
+same call had just resolved `chi = 1.0` (full load sharing) for all these packs.
+So supplying `C_half` did not merely change the saturation shape, it silently
+switched off load sharing — a claim no branch of the decomposition can produce.
+The fix reads the exponent back off the regime the call already resolved,
+`(1 - alpha*chi) = n_C / p`, and adds **no constant**.
+
+### How it showed up, and why it hid for so long
+
+It hid because it moved the axis in the direction the axis was expected to move.
+`C_half` was introduced *because* the model's log-log concentration slope was
++1.0 against a measured +0.15..+0.53, and applying `C_half` did lower the slope
+— just not nearly as far as it claimed. Measured on the four iso-condition
+silica-on-oxide loading series of US9499721B2 (`tools/` probe, corrected here):
+
+| branch | model slope n_C | measured |
+|---|---|---|
+| power law (derived, `p(1-alpha*chi)` = 1/3) | +0.33 | +0.15 .. +0.53 |
+| saturating, before the fix | **+0.85** | +0.15 .. +0.53 |
+| saturating, after the fix | +0.27 .. +0.29 | +0.15 .. +0.53 |
+
+The pre-fix saturating branch reproduced almost exactly the "+1.0, keeps
+rewarding abrasive long after the process stopped responding" behaviour that
+`C_half` was added to remove. The constant was fighting a bug on the same line.
+
+Corpus effect: median shape error **18.9% -> 18.2%** on the repo's headline
+convention (`sorted(errors)[n//2]`, the upper median used by every pinning test
+and by `tools/score_report.py`). On the symmetric `statistics.median` the same
+change reads 18.6% -> 16.5%; the two conventions disagree by 1.7 points here
+because the distribution is dense around the middle, so **which median is being
+quoted must be stated**. The gain comes from a single dataset
+(`us9499721b2_teos_colloidal_silica_pressure_conc` 22.9% -> 7.8%), with three
+datasets moving 0.2-3.6 points the wrong way — a real trade, recorded rather
+than hidden, and small against the gain.
+
+### What this says about the constant that hid it
+
+`oxide_silica`'s `C_half = 4.4` is documented in its own note as a *compromise*
+between two datasets that "genuinely disagree" (0.6 vs 5.9), `confidence: low`.
+Re-scanning the constant under the corrected exponent (grid `None`, 0.3 .. 25
+wt%) shows that disagreement was largely an artefact of the bug:
+
+- `us9499721b2` is now nearly **flat in C_half** over 2-25 wt% (7.78-8.28%) and
+  is *best served by having no C_half at all* (8.16%) or any large value. Under
+  the bug it demanded 0.6.
+- `us6564116b2` prefers **no C_half** (20.59%) over every finite value tested
+  (21.0-26.6%), monotonically improving as C_half grows.
+
+So after the correction the two oxide datasets no longer disagree: both are at
+or near their best with the constant absent. **The constant is not removed in
+this commit** — the load-sharing fix is one change and must be scored alone, and
+the same scan shows `w_fe_oxidizer` would prefer 0.02-0.05 over its fitted 0.01,
+which is a separate question about a separate pack. That re-examination is the
+next step, and it is a chance to *delete* a fitted constant rather than add one.
+
+### The lesson worth keeping
+
+**When one quantity is computed by two branches, test the branches against each
+other in the limit where they must agree.** In the dilute limit `C << C_half`
+the occupancy model reduces to `N ~ C`, so the saturating branch is obliged to
+return exactly what the power law returns at `p = 1`. That is a structural
+identity requiring no data, no fit and no new constant — and it is the entire
+content of `test_the_saturating_branch_carries_the_same_load_sharing_as_the_power_law`.
+Before the fix it returned 2.00 where the power law returned 1.26: the whole
+3x exponent error, visible without a single measurement.
+
+The companion test (`..._still_saturates_after_the_correction`) exists because
+the obvious over-correction — an exponent that flattens the branch entirely —
+would pass the first test while deleting the physics `C_half` is there for.
+
 ## Separating the simulator's SHELL from its PHYSICS (2026-09-26)
 
 The owner's instruction is structural rather than physical: *"시뮬레이터에서

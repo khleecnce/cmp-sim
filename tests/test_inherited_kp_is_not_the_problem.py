@@ -140,15 +140,42 @@ def test_the_exclusion_list_matches_what_the_datasets_say():
 
 
 def test_the_packs_that_inherit_kp_are_well_calibrated():
-    """The expected finding is falsified: borrowing Kp did not hurt."""
+    """The expected finding is falsified: borrowing Kp did not hurt.
+
+    ⚠ NARROWED 2026-09-27, and the narrowing is the interesting part.
+    `oxide_silica_anionic` used to sit at 0.51x and was cited here as the
+    second piece of evidence. It is now 0.178x — and it did not get worse.
+    Fixing the saturating branch's load-sharing exponent
+    (`models/luo_dornfeld`, N^1 -> N^(1-alpha*chi)) removed a 2.9x suppression
+    that was acting on exactly this block, because it runs at 1 wt% against
+    the pack's 20 wt% reference. Its old 0.51x was two errors cancelling: an
+    over-steep concentration term hiding a 20x loading extrapolation.
+
+    That is a caution about this file's whole method, so it is written down
+    rather than absorbed: **a pack can look well calibrated because two errors
+    cancel, and the absolute-scale ratio cannot tell that apart from being
+    right.** The conclusion the file argues — that the deficits are chemistry
+    and range extrapolation, not a borrowed Kp — is unchanged and in fact
+    strengthened: the newly exposed miss is again an extrapolation
+    (concentration this time, not pH), adjudicated in
+    `tools/kp_provenance_table.RULINGS`. But it now rests on
+    `oxide_silica_aminosilane` plus that adjudication, not on two clean ratios.
+    """
     ratios = _scale_ratios()
-    for pack in ("oxide_silica_anionic", "oxide_silica_aminosilane"):
-        medians = [r for _, r in ratios[pack]]
-        assert medians, pack
-        assert 0.3 < st.median(medians) < 3.0, (
-            f"{pack} inherits kp_m_per_pa unchanged and was expected to be "
-            f"miscalibrated; it is within a factor of ~2, so the hypothesis "
-            "that inherited Kp is the problem does not hold")
+    medians = [r for _, r in ratios["oxide_silica_aminosilane"]]
+    assert medians, "oxide_silica_aminosilane"
+    assert 0.3 < st.median(medians) < 3.0, (
+        "oxide_silica_aminosilane inherits kp_m_per_pa unchanged and was "
+        "expected to be miscalibrated; it is within a factor of ~2, so the "
+        "hypothesis that inherited Kp is the problem does not hold")
+
+    anionic = st.median([r for _, r in ratios["oxide_silica_anionic"]])
+    assert 0.1 < anionic < 0.3, (
+        f"oxide_silica_anionic is at {anionic:.3f}x. It is pinned in this "
+        "narrow band deliberately: 0.5x would mean the load-sharing bug is "
+        "back (two errors cancelling again), and inside 0.3-3.0 would mean "
+        "the 20x concentration extrapolation stopped being visible. Both are "
+        "regressions dressed as improvements.")
 
 
 def test_the_parents_deficit_was_the_extrapolated_bell_and_is_now_gone():

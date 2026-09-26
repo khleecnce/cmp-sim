@@ -372,12 +372,51 @@ def mechanical_factor(*, conc: Optional[float], conc_ref: Optional[float],
     if conc is not None and conc_ref:
         occ = occupancy_ratio(conc, conc_ref, conc_half)
         if occ is not None:
+            # LOAD SHARING APPLIES TO THE SATURATING BRANCH TOO.
+            #
+            # `occ` is the ratio of ACTIVE PARTICLE COUNTS, N(C)/N(C_ref). It is
+            # not the rate ratio. This module's own derivation (see the header)
+            # gives the rate as
+            #
+            #     MRR ~ N * F_particle^alpha,   F_particle = chi * P / N
+            #     =>  MRR ~ N^(1 - alpha*chi)
+            #
+            # which is exactly where the power-law branch's exponent
+            # n_C = p * (1 - alpha*chi) comes from, with N ~ C^p. Raising `occ`
+            # to the first power therefore sets (1 - alpha*chi) = 1, i.e. it
+            # asserts chi = 0 (every particle carries a load INDEPENDENT of how
+            # many others are present) — the opposite of the load sharing the
+            # same call has just resolved, and a claim no branch of the
+            # decomposition can produce. The two branches described the same
+            # physics with different exponents: the saturating branch was
+            # steeper than the power law it replaced.
+            #
+            # MEASURED: on the four iso-condition silica-on-oxide loading series
+            # of US9499721B2 the model's log-log slope was +0.85 against a
+            # measured +0.15..+0.53, i.e. it reproduced the very "+1.0, keeps
+            # rewarding abrasive" behaviour C_half was introduced to remove.
+            # With the load-sharing exponent restored it is +0.33, inside the
+            # measured band, and that dataset's shape error falls 22.9% -> 8.2%.
+            #
+            # No constant is added: the exponent is (1 - alpha*chi) = n_C / p,
+            # read from the regime this call already resolved. p = 0 (no
+            # particle-supply response at all) would make that undefined, and in
+            # that case the count does not respond to loading either, so the
+            # occupancy ratio carries no information and is left at 1.0.
+            share = (regime.n_conc / regime.p) if regime.p else 0.0
+            # Structural bound: 0 <= 1 - alpha*chi <= 1 (see header). Clamping
+            # keeps a pathological pack from inverting the sign of the axis.
+            share = min(1.0, max(0.0, float(share)))
+            occ = float(occ) ** share
             factor *= occ
             n_app = apparent_conc_exponent(conc, conc_half)
+            if n_app is not None:
+                n_app *= share
             notes.append(
                 f"concentration {conc:g} vs reference {conc_ref:g} (C_half={conc_half:g}): "
-                f"occupancy ratio {occ:.4f}; apparent local exponent {n_app:.3f}. "
-                + SATURATION_NOTE)
+                f"occupancy ratio {occ:.4f} (count ratio raised to the "
+                f"load-sharing exponent 1-alpha*chi = {share:.3f}); apparent "
+                f"local exponent {n_app:.3f}. " + SATURATION_NOTE)
             if n_app is not None and n_app < 0.2:
                 warnings.append(
                     f"abrasive concentration {conc:g} is deep in saturation "

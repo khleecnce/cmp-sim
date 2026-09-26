@@ -165,13 +165,20 @@ def test_the_refusal_is_two_sided_because_a_bound_is_not_evidence():
 
 
 def test_refusing_the_term_keeps_the_corpus_median_where_it_was():
-    """A refusal must cost nothing in score. If it does, something was fitted."""
+    """A refusal must cost nothing in score. If it does, something was fitted.
+
+    Re-baselined 2026-09-27 (16.5, was 18.5-19.0) after the saturating branch's
+    load-sharing exponent was corrected in `models/luo_dornfeld`. ⚠ This
+    assertion uses `statistics.median`; the project's HEADLINE median is the
+    upper median `sorted(errors)[n//2]` (18.2), and the two differ by ~1.7
+    points on this corpus. Do not copy either number between conventions.
+    """
     import statistics
     from cmp_sim.core.predictive_score import score_all
 
     scores = [s for s in score_all() if s.shape_mape is not None]
     median = statistics.median(s.shape_mape for s in scores)
-    assert 18.5 <= median <= 19.0, median
+    assert 16.2 <= median <= 16.8, median
 
 
 # ── the scan itself, so the next wiring fault cannot be silent ───────────

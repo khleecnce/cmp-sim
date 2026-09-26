@@ -198,6 +198,29 @@ RULINGS: Dict[str, Ruling] = {
         quote="ceria-coated silica",
         why="Same particles, the HDP-oxide column of the same patent table. "
             "Predicted 0.21x, measured 0.235x."),
+    # ---- Became a scale failure on 2026-09-27, and the reason is instructive:
+    # it was NOT caused by a regression, it was UNMASKED by fixing one.
+    "cn109609035b_oxide_anionic_silica_ph": Ruling(
+        conflated="abrasive loading: this experiment runs at 1 wt% silica "
+                  "against the inherited pack's 20 wt% reference composition, "
+                  "so the whole concentration term is a 20x extrapolation",
+        identified=True, splittable=False,
+        quote="anionic silica concentration (1 wt%)",
+        why="Quantitatively identified, and the history matters. The pack "
+            "reference (legacy oxide_silica abrasive_ref_wt_pct = 20 wt%, Li "
+            "2021) is 20x this experiment's loading, so the concentration "
+            "factor carries the entire extrapolation. Until 2026-09-27 the "
+            "saturating branch applied the active-particle COUNT ratio "
+            "directly (N^1 instead of N^(1-alpha*chi)), giving 0.2055 where "
+            "the resolved regime requires 0.5901 -- a 2.9x suppression that "
+            "happened to push this block's scale ratio to 0.51x and made it "
+            "look well calibrated. With the load-sharing exponent corrected "
+            "the prediction rises 2.9x and the ratio falls to 0.178x. The "
+            "block did not get worse: a compensating error was removed, and "
+            "what is left is the honest size of the 20x loading extrapolation. "
+            "Not splittable: this is the only dataset on this pack, so any "
+            "constant fitted to close it would be fitted to the thing it is "
+            "meant to test."),
 }
 
 #: The prose with which a dataset declares its own absolute value incomparable.

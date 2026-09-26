@@ -33,7 +33,7 @@ from cmp_sim.core.predictive_score import report, score_all
 #: not a reporting one; the contract this file pins (a *column* must not move a
 #: score) is untouched, and the shape median staying at 19.5 across it is the
 #: evidence that the fix was the pure scale factor it claimed to be.
-MEDIAN_SHAPE = 18.9  # moved by the W passivation threshold (physics), 2026-09-26
+MEDIAN_SHAPE = 18.2  # moved by the saturating-branch load-sharing fix, 2026-09-27
 MEDIAN_LOO = 21.3  # moved by the W passivation threshold (physics), 2026-09-26
 SCORED = 46
 POINTS = 427

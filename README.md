@@ -2,7 +2,7 @@
 
 [![tests](https://img.shields.io/badge/tests-898%20passing-brightgreen)](#)
 [![validation](https://img.shields.io/badge/literature%20gate-4%20datasets%20within%20%C2%B115%25-brightgreen)](#validation)
-[![accuracy](https://img.shields.io/badge/trend-18.9%25%20median%2C%20427%20points-blue)](#2-how-accurate-is-it-on-every-axis-cmp-sim-accuracy)
+[![accuracy](https://img.shields.io/badge/trend-18.2%25%20median%2C%20427%20points-blue)](#2-how-accurate-is-it-on-every-axis-cmp-sim-accuracy)
 [![scale](https://img.shields.io/badge/absolute%20rate-25%2F34%20within%203x-yellow)](#2-how-accurate-is-it-on-every-axis-cmp-sim-accuracy)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -234,17 +234,17 @@ points on whichever axis each dataset varies:
 | axis | datasets | median error |
 |---|---:|---:|
 | abrasive particle size | 11 | **11.2%** |
-| oxidizer | 12 | 21.3% |
-| abrasive loading | 11 | 22.4% |
-| pressure | 14 | 21.6% |
-| pH | 15 | 25.3% |
+| oxidizer | 12 | 22.6% |
+| abrasive loading | 11 | 23.9% |
+| pressure | 14 | 22.1% |
+| pH | 15 | 25.4% |
 | velocity | 6 | 39.0% |
 
-**Overall: median 18.9% shape error, 21.3% leave-one-out**, over 46 of 50
-datasets and 427 measured points. 35 of 46 beat "predict this dataset's
+**Overall: median 18.2% shape error, 21.3% leave-one-out**, over 46 of 50
+datasets and 427 measured points. 34 of 46 beat "predict this dataset's
 average" — the baseline that says whether the physics contributed anything.
 
-> **⚠ Read the 18.9% as a ranking claim, not a rate claim.** It says the model
+> **⚠ Read the 18.2% as a ranking claim, not a rate claim.** It says the model
 > follows the *trend* to about 20%. It does **not** say it predicts absolute
 > removal rate to 20%. Those fail independently, and on this corpus the second
 > one often fails: `cmp-sim accuracy` now prints a `scale` column (median

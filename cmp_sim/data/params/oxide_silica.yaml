@@ -77,6 +77,26 @@ params:
       the other 5-25 wt%, so either the response is not a single Langmuir
       over 0.5-25 wt%, or the two tools differ in slurry delivery. Fitting
       each dataset its own constant would hide that behind two good numbers.
+
+      ** 2026-09-27 UPDATE — the disagreement above was largely an ARTEFACT,
+      and this constant is now a candidate for DELETION. ** The two numbers
+      (0.6 and 5.9) were both fitted while the saturating branch of
+      models/luo_dornfeld.mechanical_factor applied the active-particle COUNT
+      ratio directly, i.e. MRR ~ N^1, which asserts chi = 0 (no load sharing)
+      against the chi = 1.0 the same call resolves. See docs/derivations.md,
+      "The two concentration branches were different PHYSICS". With the
+      load-sharing exponent (1 - alpha*chi) restored, re-scanning C_half over
+      {none, 0.3, 0.6, 1, 2, 3, 4.4, 5.9, 8, 12, 25} wt% gives:
+        us9499721b2  14.6 / 11.8 / 10.0 / 8.28 / 7.91 / 7.81 / 7.78 / 7.87 /
+                     7.95 / 8.05, and 8.16 with NO C_half  -> flat above 2 wt%
+        us6564116b2  26.6 / 26.6 / 26.5 / 25.9 / 25.0 / 23.9 / 23.0 / 22.3 /
+                     21.6 / 21.0, and 20.59 with NO C_half -> monotonically
+                     better as the saturation weakens; best with none at all
+      Both datasets are now at or near their best with this constant ABSENT,
+      so they no longer disagree. The value is left in place for now only
+      because the load-sharing fix must be scored as one change; removing it
+      is the next step, not a second simultaneous edit. Do NOT re-fit this
+      number against the old branch.
     source: >
       us9499721b2_teos_colloidal_silica_pressure_conc.yaml (22 pts) and
       us6564116b2_oxide_taguchi_L25_pressure_platenspeed.yaml (25 pts),

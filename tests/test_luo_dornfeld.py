@@ -192,3 +192,45 @@ def test_softened_surface_raises_the_rate_by_H_to_the_minus_1p5(regime):
         regime=regime, hardness_pa=3.5e9, hardness_ref_pa=7.0e9)
     assert f == pytest.approx(2.0 ** 1.5, rel=1e-9)
     assert any("H^-1.5" in n for n in notes)
+
+
+# ── the two concentration branches must describe the SAME physics ────
+def test_the_saturating_branch_carries_the_same_load_sharing_as_the_power_law(regime):
+    """The two concentration branches differ only by how N(C) is modelled.
+
+    `occupancy_ratio` is a ratio of active particle COUNTS. The rate follows
+    MRR ~ N^(1 - alpha*chi), which is exactly what makes the power-law branch's
+    exponent n_C = p * (1 - alpha*chi). Applying the count ratio directly
+    asserts (1 - alpha*chi) = 1, i.e. chi = 0 — no load sharing at all — while
+    the same call has resolved chi = 1. That is not a different saturation
+    model, it is a different contact regime smuggled in on one branch.
+
+    The check is structural: in the DILUTE limit (C, C_ref << C_half) the
+    occupancy model reduces to N ~ C, so the saturating branch must return
+    exactly what the power law returns for p = 1. Before the fix it returned
+    the count ratio itself — steeper by 1/(1 - alpha*chi) = 3x in the exponent.
+    """
+    kw = dict(conc=0.02, conc_ref=0.01, diameter_nm=None,
+              diameter_ref_nm=None, regime=regime)
+    saturating, _n, _w = ld.mechanical_factor(conc_half=50.0, **kw)   # C << C_half
+    power_law, _n2, _w2 = ld.mechanical_factor(conc_half=None, **kw)
+    assert regime.p == pytest.approx(1.0)      # dilute reduction is only valid here
+    assert saturating == pytest.approx(power_law, rel=1e-3)
+    # and the bug it replaces: the bare count ratio is a strictly larger claim
+    assert saturating < 2.0 ** 1.0
+
+
+def test_the_saturating_branch_still_saturates_after_the_correction(regime):
+    """Raising to a positive power cannot remove the saturation.
+
+    Guards the obvious over-correction: an exponent that made the branch flat
+    would pass the test above (both branches would be 1.0) while deleting the
+    physics C_half exists for.
+    """
+    kw = dict(conc_ref=1.0, diameter_nm=None, diameter_ref_nm=None,
+              regime=regime, conc_half=2.0)
+    f10, _n, _w = ld.mechanical_factor(conc=10.0, **kw)
+    f20, _n2, _w2 = ld.mechanical_factor(conc=20.0, **kw)
+    assert f20 > f10 > 1.0                       # still rising
+    assert f20 / f10 < 1.05                      # but has stopped responding
+    assert f20 < 10.0 ** regime.n_conc * 3.0     # below the unsaturated power law

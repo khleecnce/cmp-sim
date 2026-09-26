@@ -225,9 +225,14 @@ def test_declaring_the_gaps_did_not_move_the_score():
     """Zero constants were added, so the median must be exactly where it was.
 
     If this moves, something in this change was a fit dressed as a warning.
+
+    Re-baselined 2026-09-27 (16.5, was 18.5-19.0) after the saturating branch's
+    load-sharing exponent was corrected in `models/luo_dornfeld` — a different
+    change, which is allowed to move the median and did. ⚠ `statistics.median`
+    here; the headline median is the upper median (18.2). Different conventions.
     """
     from cmp_sim.core.predictive_score import score_all
 
     scores = [s for s in score_all() if s.shape_mape is not None]
     median = statistics.median(s.shape_mape for s in scores)
-    assert 18.5 <= median <= 19.0, median
+    assert 16.2 <= median <= 16.8, median
