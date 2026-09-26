@@ -70,6 +70,10 @@ LIMIT_ENFORCING_TESTS = {
     # measure a NEGATIVE order) and the census gain that motivated it is
     # inadmissible (one calibration set, one promoter-confounded body)
     "test_oxidizer_order_is_not_half.py",
+    # limit 16: <= 10 % is above the ceiling of any shared-constant model here
+    # (free per-dataset exponents reach only 11.9 %), and the unowned block is
+    # the part the model gets right rather than the hard part
+    "test_ten_percent_is_out_of_reach.py",
 }
 
 

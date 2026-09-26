@@ -211,7 +211,15 @@ https://cmp-sim.vercel.app --token …` 가 배포본을 상대로 전 항목 �
 
 ### 1차 완성 — 모델링 정확도 (2차 완료, 이제 여기로 복귀)
 - **목표: 예측 오차 median ≤ 10.0%** (이력서에 쓸 수 있는 수준)
-- **현재: median 18.9% shape / 21.3% LOO** (코퍼스 46/50, 427점) — **989 tests**.
+- **현재: median 18.9% shape / 21.3% LOO** (코퍼스 46/50, 427점) — **999 tests**.
+  2026-09-26(14회차): **≤10%는 어떤 공유상수 모델로도 도달 불가임을 측정으로 확정**
+  (`tools/unowned_error_partition.py`, `docs/limits.md` §16). 전 데이터셋에 각자
+  최적 축의 자유 지수를 주는 오라클(물리는 상수를 공유해야 하므로 절대 불가)에서도
+  코퍼스 median은 **18.6% → 11.9%**, 10% 이하는 **14→20개/46**뿐이다.
+  **⚠ 직관 역전: §14의 미귀속 145점은 어려운 쪽이 아니라 잘 맞는 쪽이다**
+  (median 11.2% vs 귀속 블록 23.9%, 가중오차 점유 28.9% vs 71.1%). 미설명은
+  블록의 12.4%(1개 데이터셋, 이미 7.0%)뿐 — 새 물리가 퍼낼 저수지가 없다.
+  남은 한쪽: 재현성이 46개 중 6개만 측정돼 **15%가 하한인지는 미판정**(15회차 과제).
   2026-09-26(13회차): **산화제 축까지 닫혔다 — 반감차수(+1/2) 반증, 그리고 그 축을
   열어보이게 만든 12회차 이득 자체가 증거 부적격**(`tools/oxidizer_order_probe.py`,
   `docs/limits.md` §15, 피팅 0). ① 캘리브레이션에 안 쓰인 4개 블록의 **실측** 차수는
@@ -945,32 +953,46 @@ exponent fitted to measured/PREDICTED is not evidence until the datasets
 producing it are checked for calibration reuse and for co-variation with an
 INERT axis. The census now has that audit built in.
 
-### ⬅ THE ONE NEXT ITEM (14th run): stop looking for laws; measure the FLOOR
-Every axis is now closed (pH, velocity, pressure saturation, P–V, and with §14/§15
-the whole axis-by-axis programme). §14's ≤15% allowance is argued and enforced.
-The remaining question is no longer "which law" but **"what is the floor, and is
-the model already at it?"** — which is the only honest way to declare 1차 done.
+### ✅ ANSWERED 2026-09-26 (14th run): ≤10%는 **어떤 공유상수 모델로도 도달 불가** — 측정으로 확정
+`tools/unowned_error_partition.py` + `tests/test_ten_percent_is_out_of_reach.py`
+(10) + `docs/limits.md` §16. Median 18.9% 불변(피팅 0).
+**결정적 수치:** 모든 데이터셋에 **각자 최적 축의 자유 지수**를 준다면(= 물리가
+절대 못 하는 오라클. 법칙은 상수를 공유해야 하므로) 코퍼스 median은
+**18.6% → 11.9%**에 그치고, 10% 이하 데이터셋은 **14 → 20개/46**뿐이다.
+→ ≤10%는 "아직 못 한 것"이 아니라 **법칙 추가 프로그램의 천장 위**에 있다.
+이것이 §14 근거와 합쳐져 **≤15% 기준을 정당화**한다.
 
-Measure, do not fit:
-1. **Replicate scatter is known for only 6 of 46 datasets.** That column is the
-   physical floor on any model's error, and 40 blanks mean the floor is unknown
-   for most of the corpus. Go through the sources for **stated** reproducibility
-   (±σ, "n=3", error bars, WIWNU) and record what each paper actually says. Blank
-   stays blank — do not impute. Then re-run `score_report.py`: how many datasets
-   are already AT their own floor?
-2. **The 42.4% unowned block (§14) needs a positive diagnosis, not just "no
-   axis".** For each unowned dataset ask whether its error is (a) at the
-   replicate floor once (1) is done, (b) an absolute-scale failure that the
-   shape metric cannot see (9 datasets are off by >3×), or (c) genuinely
-   unexplained. That partition decides whether ≤15% is the floor or merely the
-   current state.
-3. If (1)+(2) show the median is within the measured floor band, **1차 is done**
-   at the ≤15% criterion — write it up in `docs/predictive-accuracy.md` with the
-   floor evidence and report to the owner. If not, the residual after the floor
-   is the honest remaining target.
+**⚠ 직관이 뒤집혔다 — §14의 42.4% 미귀속 블록은 어려운 쪽이 아니라 잘 맞는 쪽이다:**
+| 블록 | 데이터셋 | 점 | median shape | 가중오차 점유 |
+|---|---|---|---|---|
+| 미귀속(어느 축도 안 가짐) | 17 | 145 | **11.2%** | 28.9% |
+| 귀속(어느 축이 가짐) | 18 | 197 | **23.9%** | 71.1% |
+"어느 축도 설명 못 한다" = "오차를 지배하는 단일 입력이 없다"이고, 그건 깨끗한
+스윕에서 **모델이 정상일 때의 모습**이다. 오차는 오히려 귀속 블록에 몰려 있고,
+거기서 공유 법칙이 회수 가능한 양은 §14가 이미 ≈6 pp로 값을 매겼다.
 
-Do NOT add a constant in that run either. Four consecutive measurement runs
-have each produced a closure; the programme is working.
+미귀속 블록 원인 분해: 재현성 **미측정 12개(109점, median 10.8%)** / 절대값
+실패(>3배) 3개(14점) / 평균에 지는 것 1개 / **진짜 미설명 1개(18점, 이미 7.0%)**.
+→ 새 물리가 퍼낼 미설명 오차 저수지는 **없다**(블록의 12.4%).
+
+### ⬅ THE ONE NEXT ITEM (15th run): 재현성(측정 하한)을 문헌에서 옮겨 적어라 — 유일하게 남은 한쪽
+§16의 주장은 **한쪽만** 성립한다: ≤10% 불가는 측정됐지만, **15%가 하한인지는
+아직 판정 불가**다. 이유는 하나다 — `replicate_scatter`가 **46개 중 6개**에서만
+측정됐다(같은 조건이 반복된 데이터셋만 계산 가능). 미측정은 0이 아니다.
+
+할 일(측정만, 피팅 금지):
+1. 코퍼스 각 출처에서 **논문·특허가 명시한** 재현성을 찾아 옮긴다: ±σ, "n=3",
+   에러바, WIWNU, "3회 평균" 같은 문구. **없으면 빈칸으로 둔다 — 추정 금지.**
+   스키마는 이미 있다(반복 조건 행) — 명시된 산포만 있는 경우 어떻게 기록할지
+   `docs/derivations.md`에 필드를 먼저 정의하고 출처를 함께 남겨라.
+2. 옮긴 뒤 `score_report.py` 재실행: **몇 개가 자기 하한에 이미 도달했는가?**
+   `at_noise_floor`가 6개에서 몇 개로 늘어나는가.
+3. 그 결과로 §16을 **양쪽 주장**으로 승격하거나(median이 측정된 하한 띠 안이면
+   **1차 완료** — `docs/predictive-accuracy.md`에 하한 근거와 함께 쓰고 사용자에게
+   보고), 아니면 "하한 이후의 잔차"가 정직한 남은 목표가 된다.
+4. ⚠ 유혹 차단: 재현성이 큰 데이터셋만 찾아 넣으면 하한이 인위적으로 올라간다.
+   **찾는 순서를 코퍼스 순서(점수와 무관)로 고정**하고, 찾은 것은 유리하든
+   불리하든 전부 기록하라. 이건 §16 테스트가 잡지 못하는 종류의 편향이다.
 
 Secondary, unchanged from the 7th run:
 

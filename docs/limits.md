@@ -681,3 +681,73 @@ candidates). That single body would decide +1/2 versus +1 versus the
 over-passivation branch, which the present corpus cannot.
 
 **Enforced by** `tests/test_oxidizer_order_is_not_half.py`.
+
+---
+
+## 16. ≤ 10 % is outside the reach of any shared-constant model on this corpus, and the reason is not "missing physics"
+
+**The single number.** Grant every scored dataset a free exponent on its own best
+axis — fitted on the very rows being scored, with no requirement that different
+datasets agree on it. That is an **oracle no physical model can attain**, since a
+model must carry one constant into every dataset. Under that grant the corpus
+median falls from **18.6 % to 11.9 %**, and the count of datasets at or below
+10 % rises only from **14 to 20 of 46**.
+
+So ≤ 10 % is not merely unreached; it is **above the ceiling of the entire
+law-adding programme**, measured rather than asserted. This is the evidence
+STATUS.md's completion criterion requires for invoking the ≤ 15 % allowance, and
+§14 and §15 explain the mechanism: on four of six axes a shared exponent buys
+almost nothing because the per-dataset exponents disagree in sign, and the one
+axis that appeared to survive turned out to rest on inadmissible evidence.
+
+**Where the error actually is — this reverses the intuition that motivated the
+measurement.** §14 named a 145-point block that no axis owns, and it was natural
+to read that as the hard part of the corpus. It is the opposite:
+
+| block | datasets | points | median shape | point-weighted | share of weighted error |
+|---|---|---|---|---|---|
+| unowned by any axis | 17 | 145 | **11.2 %** | 18.4 % | 28.9 % |
+| owned by some axis | 18 | 197 | **23.9 %** | 33.2 % | 71.1 % |
+
+The datasets no axis explains are the ones the model gets **right**. "No axis
+owns it" means "there is no single input whose mis-modelling dominates", which is
+what a model in reasonable shape looks like on a clean sweep — not a mystery.
+The error is concentrated in the *owned* block, and §14 already priced what any
+shared law can recover there: ≈ 6 pp at most, spread over overlapping axes.
+
+**Partition of the unowned block by cause** (`tools/unowned_error_partition.py`,
+first matching cause in order, all other flags still printed):
+
+| cause | datasets | points | median shape |
+|---|---|---|---|
+| at its own replicate floor | 0 | 0 | — |
+| reproducibility **unmeasured** | 12 | 109 | 10.8 % |
+| absolute-scale failure (>3×) | 3 | 14 | 18.9 % |
+| loses to predicting the mean | 1 | 4 | 11.2 % |
+| genuinely **unexplained** | 1 | 18 | 7.0 % |
+
+Only **18 points (12.4 % of the block)** are unexplained by any of the named
+causes, and that one dataset already scores 7.0 %. There is no reservoir of
+unexplained error in the unowned block for new physics to drain.
+
+**The refit that was rejected.** The tempting move is to chase the 3
+scale-failure datasets (`us8501625b2` at 12.7×, the two `us20190127607a1`
+variants at 0.19–0.24×) with per-dataset Kp corrections, which would improve the
+absolute-rate column. **Rejected**: those are 14 of 427 points, the shape metric
+already divides the scale out (limit 11), and a per-dataset Kp is a calibration
+constant, not physics. **The decision** is that scale failures are reported in
+their own column and not fitted.
+
+**What this does NOT excuse.** The 12 datasets whose reproducibility is
+unmeasured are 109 points — *the floor is unknown for most of the corpus*, and
+unknown is not zero. The honest statement is therefore bounded from one side
+only: ≤ 10 % is unreachable, and whether 15 % is *at* the floor cannot be settled
+until more papers' stated reproducibility is transcribed. That is recorded in
+STATUS.md as work, not as a limit.
+
+**What would resolve it.** Papers reporting replicate scatter (±σ, n ≥ 3, error
+bars) for the films in this corpus, transcribed into the datasets so
+`Score.at_noise_floor` can speak for more than 6 of 46 — plus the cross-axis
+factorial body named in §1, §4, §13 and §14.
+
+**Enforced by** `tests/test_ten_percent_is_out_of_reach.py`.
