@@ -301,6 +301,38 @@ _PHRASE_MAP = (
     ("전이하지 않는다", "chelator-specific oxidizer constant NOT transferred: the fitted constant belongs to a different chelator than this pack uses, and the two were measured to move the rate in OPPOSITE directions (oxalic acid up, glycine down), so the legacy oxidizer path is used instead"),
     ("적용 범위를 벗어났다", "outside the validity range of this term"),
     ("건너뜀", "term skipped: a required constant is missing"),
+    # The chelator/promoter terms were never called from this wrapper before
+    # 2026-09-28, so their notes had no mapping and leaked Korean the moment
+    # they were wired (caught by test_inherited_notes_are_reported_in_english,
+    # which is exactly the leak it was written for). Species-gate refusals are
+    # mapped FIRST: they share vocabulary with the applied-term notes, and the
+    # first match wins, so the more specific phrase has to come earlier.
+    ("착화제 억제 항을 켜지 않는다",
+     "chelator suppression term NOT applied: the fitted constant belongs to a "
+     "different chelator species than this pack declares. Oxalate (+536.63) "
+     "and glycine (-440.91) have OPPOSITE signs in the same regression, so "
+     "the constant does not transfer across species"),
+    ("착화제 억제",
+     "chelator suppression: exp(-a(C - C_ref)) relative to the pack's "
+     "reference glycine concentration, so the term is exactly 1.0 there and "
+     "cannot double-count Kp. More glycine removes LESS copper, which is the "
+     "source paper's own conclusion (glycine acts as an inhibitor rather "
+     "than a dissolution promoter; regression coefficient -440.91, "
+     "p=4.1e-7). Two-point fit: use the magnitude for ranking"),
+    ("항을 켜지 않는다",
+     "term NOT applied: its fitted species does not match the species this "
+     "pack declares, and the two move the rate in opposite directions"),
+    ("카복실레이트 촉진",
+     "carboxylate promoter: g(C) = phi + (1-phi)(C/C_anchor)^m normalised to "
+     "the pack reference, fitted on US6309560B1 TABLE 1. An independent "
+     "cross-check against a different system gives a ratio 19.2% larger, so "
+     "the magnitude is for ranking only"),
+    ("정규화가 불가능하다",
+     "term skipped: the normalisation anchor is zero or negative"),
+    ("분모가 0 이하",
+     "term skipped: the reference-normalised denominator is not positive"),
+    ("음수가 있다",
+     "term skipped: a concentration is negative"),
 )
 
 
@@ -499,6 +531,111 @@ def chemical_factor(resolved, temp_c: Optional[float] = None) -> ChemicalEffect:
                     "falling limb where the exponential penalty is an "
                     "extrapolation rather than a fitted shape")
             used_peaked = True
+
+    # ── chelator / promoter: two SOURCED inherited terms that were never called ──
+    #
+    # The inherited `chemistry_factor` only assembles four terms (oxidizer,
+    # inhibitor, ceria, pH softening). Two further terms exist in the same
+    # inherited module, each with its own fitted constants, species gate and
+    # unit tests, and the inherited `factors.py` chi/psi path DOES call them —
+    # but this wrapper never did. The consequence was not a wrong number, it
+    # was SILENCE: `chelator_M` and `promoter_M` could be set to any value and
+    # the predicted rate did not move at all (measured: x2 on either gives a
+    # 0.00% change). An input the engine accepts, stores and ignores is the
+    # failure mode `docs/derivations.md` calls out as worse than a missing
+    # feature, because the result looks like a prediction about that axis.
+    #
+    # This adds NO constant. Both terms are already in the packs with sources:
+    #   chelator_suppression_a  exp(-a(C-C_ref)), glycine, Jani 2025 control
+    #                           pairs; the paper's own conclusion is that
+    #                           glycine acts as an inhibitor, not a dissolution
+    #                           promoter, and its regression coefficient is
+    #                           -440.91 (p=4.1e-7).
+    #   promoter_* (phi, m, anchor)  g(C)=phi+(1-phi)(C/C_a)^m, oxalate,
+    #                           fitted on US6309560B1 TABLE 1 — a DIFFERENT
+    #                           document from any Cu dataset scored here, so
+    #                           switching it on is a held-out test rather than
+    #                           a fit.
+    # Both are species-gated inside the inherited functions (oxalate +536.63
+    # and glycine -440.91 in the same regression, so the two must never share
+    # a term), and both are normalised to the pack's own reference composition
+    # so they are exactly 1.0 there and cannot double-count Kp.
+    for _term_name, _fn in (("chelator_suppression",
+                             legacy_chemistry._chelator_suppression_term),
+                            ("carboxylate_promoter",
+                             legacy_chemistry._carboxylate_promoter_term)):
+        if _term_name in terms:                              # pragma: no cover
+            continue
+        # ── the DEGENERATE-REFERENCE gate (structural, not fitted) ──────
+        # A reference-normalised factor is f(C) = g(C)/g(C_ref). When the
+        # pack's reference concentration is ZERO the denominator is g(0) =
+        # phi, the pure-mechanical floor, so EVERY non-zero concentration is
+        # multiplied by 1/phi = 12.8x before its own shape is applied. That
+        # amplification is not a statement about the promoter axis: it is the
+        # claim "this pack's reference composition removes material only
+        # mechanically". For cu_h2o2_bta that claim is FALSE and is
+        # contradicted by the pack itself, whose reference carries H2O2 and
+        # glycine and whose oxidizer/chelator terms are already normalised to
+        # that same chemistry. Applying 1/phi on top counts the reference
+        # chemistry twice — the failure that once collapsed a Cu rate 20x here.
+        #
+        # MEASURED, both directions (tools/jani_residual_probe.py):
+        #   SHAPE of the term transfers. The residual log-slope on promoter_M
+        #   over jani2025's held-out block is +0.581 +/- 0.233, and the
+        #   US6309560B1-fitted term's local slope there is +0.675. Switching
+        #   it on drops that block's shape error 51.2% -> 29.9% and flattens
+        #   the residual slope to +0.010 — with zero new constants.
+        #   MAGNITUDE of the floor does NOT transfer. The same switch moves
+        #   that block's absolute scale from 0.91x (right) to 0.075x (13x
+        #   over-prediction), i.e. jani's measured rates contain no 12.8x
+        #   oxalate boost at all. phi was measured as 21.7 -> 278 nm/min in a
+        #   BTA-free alumina system whose ONLY chemistry was the complexant;
+        #   in a system that already has an oxidiser and a chelator the
+        #   mechanical floor is a different number, and it is not stated
+        #   anywhere in this corpus.
+        #
+        # So the term is HELD OFF at a zero reference and the reason is
+        # reported. Fitting a per-pack phi to recover the shape gain is
+        # explicitly declined: it would add a free constant to a pack that has
+        # one promoter level in its own calibration, which is interpolation,
+        # not physics. The unblocking datum is a measured zero-oxalate rate
+        # for THIS pack's reference composition (then phi is data, not a fit).
+        if _term_name == "carboxylate_promoter":
+            _ref = resolved.p_or("promoter_ref_M", None)
+            _now = resolved.p_or("promoter_M", None)
+            if (_ref is not None and float(_ref) == 0.0
+                    and _now is not None and float(_now) > 0.0):
+                warnings.append(
+                    "carboxylate promoter term HELD OFF: this pack's "
+                    "promoter reference concentration is 0 M, so the "
+                    "reference-normalised factor divides by the pure-"
+                    "mechanical floor phi and multiplies every non-zero "
+                    "concentration by 1/phi = 12.8x. phi was measured "
+                    "(US6309560B1 TABLE 1, 21.7 -> 278.0 nm/min) in a system "
+                    "whose only chemistry was the complexant, whereas this "
+                    "pack's reference already carries H2O2 and glycine whose "
+                    "own terms are normalised to it — applying 1/phi would "
+                    "count that chemistry twice. Measured on the jani2025 "
+                    "held-out block: switching the term on improves SHAPE "
+                    "(51.2% -> 29.9%, residual slope +0.581 -> +0.010, "
+                    "confirming the exponent m transfers) but wrecks ABSOLUTE "
+                    "SCALE (0.91x -> 0.075x, refuting the floor magnitude). "
+                    "The promoter axis is therefore INERT here by declaration, "
+                    "not by oversight. Unblock it with a measured zero-oxalate "
+                    "rate for this pack's own reference composition")
+                continue
+        _raw: List[str] = []
+        try:
+            _v = _fn(resolved.pack, _raw)
+        except Exception as exc:                             # pragma: no cover
+            warnings.append(f"{_term_name} term skipped: {exc}")
+            continue
+        for _n in (_translate(n) for n in _raw):
+            (warnings if _n.startswith("caution:") else notes).append(_n)
+        if _v is None:
+            continue
+        factor *= float(_v)
+        terms[_term_name] = float(_v)
 
     # ── pH ──────────────────────────────────────────────────────────────
     # Before this, pH was inert: the packs carried ph_ref and ph_peak but no

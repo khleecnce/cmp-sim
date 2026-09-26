@@ -78,6 +78,11 @@ LIMIT_ENFORCING_TESTS = {
     # reproducibility span 1.5-37 %, so a corpus-wide floor cannot be claimed in
     # either direction, and a within-wafer SD is not reproducibility at all
     "test_stated_reproducibility.py",
+    # limit 18: two swept axes (chelator_M, promoter_M) were INERT — sourced
+    # inherited terms that this wrapper never called. The chelator term is now
+    # wired; the promoter term is held off because its pack reference is 0 M,
+    # so the shape gain would cost a 13x absolute-scale error
+    "test_chelator_promoter_axes_are_wired.py",
 }
 
 
