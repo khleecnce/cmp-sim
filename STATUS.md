@@ -4,7 +4,81 @@
 
 ### 1차 완성 — 모델링 정확도
 - **목표: 예측 오차 median ≤ 10.0%** (이력서에 쓸 수 있는 수준)
-- **현재: median 18.9% shape / 21.3% LOO** (코퍼스 46/50, 427점) — **904 tests**.
+- **현재: median 18.9% shape / 21.3% LOO** (코퍼스 46/50, 427점) — **912 tests**.
+  2026-09-26(8회차-B): **속도축 결판 — 기아 법칙 기각, 그러나 지수 자체는 입증됐다.**
+  8회차-A가 요청한 데이터셋을 같은 실행에서 찾았다: **Sorooshian 2005**(애리조나대
+  박사논문, Philipossian 그룹) — 열산화막에서 **유량 40/120 cc/min × 속도
+  0.32/0.64/0.96 m/s × 압력 2/4/6 psi 완전요인배치**, 즉 기아 법칙이 구속하는 세
+  변수 전부. 무엇보다 **yang2023이 떨어진 Preston 감사를 통과**하므로 심판 자격이 있다.
+  `tools/sorooshian_flow_probe.py`가 측정(117점):
+  · **b_P = +1.165**(사다리 30개) — Preston +1.000 요구, **감사 통과**
+  · **b_V = +0.655**(사다리 29개) — 기아 예측 +0.667, **거의 정확히 일치**
+  · **b_Q = −0.010**(**매칭쌍 47개**: groove·두께·압력·속도 동일, 유량만 상이)
+    — 기아 예측 +0.333, **완전 부재**. 유량 3배가 rate를 **−1.1%** 움직이는데
+    법칙은 **+44.2%**를 요구한다. 쌍별 부호도 동전던지기(22/47 양수).
+  ⇒ **두 다리는 맞고 한 다리는 없다. 그래서 지수를 넣지 않았다.** b_V와 b_Q는
+  **같은 물질수지**에서 나온다(Q/V는 하나의 양이다). 유도를 반쪽만 채택할 수는 없다 —
+  맞는 속도항만 취하고 틀린 유량항을 버리면, 유도식이 **분수 모양을 한 피팅상수**로
+  전락한다. median은 **선택에 의해** 18.9% 유지.
+  ✅ **그래도 큰 소득이 있다: sub-linear 속도응답이 코퍼스 아티팩트가 아니라
+  실험적 사실로 확정됐다** — Sorooshian +0.655, Tseng & Wang 1997이 열산화막에서
+  **유도**한 +0.5, Park/Lee/Jeong 2005이 Cu에서 피팅한 +0.74. 없는 것은 증거가
+  아니라 **메커니즘**이다.
+  ⚠ **학계 주류 가설을 우리가 이미 기각했음도 확인**: Borucki/Philipossian(ECS 2023,
+  DOI 10.1149/2162-8777/accaa6)은 비-Preston 거동을 **Stribeck 혼합윤활 COF 감소**로
+  설명하는데, COF가 V/p의 함수면 두 로그계수가 **크기 같고 부호 반대**여야 한다.
+  코퍼스 측정은 (−0.036, −0.549). 8회차-A의 기각이 곧 현 주류 가설의 기각이다.
+  ⚠ **유량항의 부호는 문헌이 오히려 반대로 측정한다**: Li/Philipossian(JES 2004,
+  DOI 10.1149/1.1758818)은 Cu에서 *"고정 p×V에서 유량이 늘면 rate가 감소"*(대류냉각
+  탓)라 하고, Park 2015(DOI 10.1007/s40684-015-0041-8)가 이를 재현한다. 우리 b_Q≈0과
+  합쳐, 기아 법칙은 독립 3중으로 반증됐다.
+  💡 **다음 수의 실마리 2개**(provenance 파일에 기록): (1) 슬러리 이용효율이
+  **2~22%**에 불과하고 그 자체가 V에 의존한다(Philipossian & Mitchell 2003) —
+  즉 **분사 유량 Q는 애초에 틀린 변수**였을 수 있다. (2) Borucki의 Cu 데이터에서
+  속도지수가 **압력에 따라 부호가 바뀐다**(1/1.5/2 psi에서 −0.81/−0.62/+0.33) —
+  전역 단일지수로는 유도든 피팅이든 재현 불가. **이 압력의존성 측정이 다음 수다.**
+  데이터: `research/digitized/sorooshian2005_ild_cmp.csv` + 추출코드 + PROVENANCE.md.
+  ⚠ 정직성: rate는 **표가 아니라 그림 판독**이다(논문이 p·V에 대해서만 플롯). 그래서
+  **상수 피팅에 쓰지 않고 기각에만 썼다** — 3배 스팬의 로그기울기 부호/크기만 묻는다.
+  판독오차 5~10%로는 +44% vs −1%를 만들거나 감출 수 없다. 축 보정 자체 검증:
+  117개 마커 전부가 공칭 (psi×m/s) 곱에 0.5% 이내로 안착(보정이 틀렸으면 불가능).
+  가드 4개(`tests/test_sorooshian_flow_falsifies_starvation.py`): Preston 감사·
+  sub-linear·b_Q≈0을 assert하고, 팩이 `velocity_exponent`류를 선언하면 실패한다.
+  2026-09-26(8회차-A): **속도축을 처음으로 측정했다 — 법칙 3개 동시 기각, 그리고
+  P/V 비대칭이라는 실질적 발견.** 압력축은 이미 조사했지만(포화 기각) 속도축은
+  한 번도 프로브된 적이 없었다. `tools/velocity_thermal_probe.py`가 속도 사다리
+  5개(≥3수준)에서 잔차 기울기를 측정:
+  (1) **마찰발열 Arrhenius 기각** — 발열이 화학항을 가속하면 고속에서 모델이
+  **과소**예측해야 하므로 기울기가 양수여야 하는데, median d(lnR)/d(lnV) =
+  **−0.549**로 부호가 정반대(5개 중 1개만 양수). R_th 상수 도입 금지.
+  (2) **진짜 발견은 joint fit이다.** 같은 잔차를 ln P·ln V에 **동시** 회귀하면
+  median **b_P = −0.036, b_V = −0.549** — 즉 잔차는 **압력에 평평하고 속도에만
+  급격히 떨어진다**. 이 비대칭 하나가 후보 법칙 둘을 동시에 죽인다:
+  · Stribeck 윤활(Sommerfeld수 ηV/P)은 b_P = −b_V(합=0)를 요구 → 합 −0.585, 기각.
+  · P·V **곱**에 대한 모든 직렬저항형은 b_P = b_V를 요구(곱은 두 인자를 구분
+    못 한다) → b_P≈0 vs b_V≈−0.55, 기각. 이는 압력 프로브의 포화 기각을
+    **반대 축에서 독립 재확인**한 것이다.
+  ⇒ **Preston의 P 선형성은 더 날카로운 검증을 또 통과했다**(압력 잔차 보정 불필요).
+  V 선형성은 통과하지 못했다.
+  (3) **그런데 상수를 넣지 않았다.** 뻔한 수는 sub-linear 속도지수이고, 유혹의
+  크기를 숨기지 않으려 스크립트가 반사실을 직접 출력한다: V^(2/3-1) 사후보정이
+  코퍼스 median을 **16.7% → 14.5%**로 옮긴다. 그래도 보류한 이유 — 2/3을 **유도**하는
+  유일한 법칙이 반응물 기아(Q/V 재고 × 이 저장소가 이미 유도한 세제곱근 농도법칙
+  ⇒ MRR ~ P·V^(2/3)·Q^(1/3), **자유상수 0개**)인데, 이 법칙은 예측을 3개 하고
+  그중 **b_Q = +1/3**이 독립 검증이다. 유량을 변화시키는 유일한 코퍼스 데이터셋에서
+  측정값은 **b_Q = −0.201로 부호가 반대**다. 유도가 자기 검증에 실패했으므로
+  지수만 떼어 쓰는 것은 피팅이다 → 보류.
+  ⚠ **반대 방향으로도 과장하지 않았다**: 그 유일한 유량 데이터셋
+  `yang2023_quartz_ceria_L25`는 코퍼스 최악(69%)이고 자체 b_P가 −1.276으로 나머지
+  4개가 깨끗이 세운 P 선형성과 모순된다. Preston의 가장 확립된 축을 재현 못 하는
+  데이터가 약한 축을 심판할 수는 없다. 그래서 기아 법칙의 정직한 판정은
+  **"신뢰할 유량 스윕 부재로 판정불가"**이지 기각이 아니다.
+  결정시킬 것: **P 선형성을 재현하는 데이터셋에서 나온, 유량 2수준 이상의 속도
+  스윕 1개.** 그러면 기아 법칙이 자유상수 0개로 median 약 2%p를 벌거나, 아니면
+  pH축처럼 V축이 닫힌다. 그때까지 median은 **선택에 의해** 18.9%다.
+  가드 4개(`tests/test_velocity_thermal_falsified.py`): 기각된 세 법칙의 부호·
+  비대칭·b_Q를 assert하고, 팩이 `thermal_resistance`/`velocity_exponent`류 상수를
+  선언하면 실패한다. 측정이 뒤집히면 조용히 낡지 않고 시끄럽게 실패한다.
   2026-09-26(7회차): **Cu 항복 임계 = NULL(음성 결과)**. W에서 통한 전단 임계를
   Cu/BTA로 옮기라는 예측을 Cu 자체 압력 사다리 12개로 측정했는데, 절편 부호가
   동전던지기(5/12 양수)이고 중앙값이 −0.094·P_mid로 **부호가 반대**였다. 상수를
@@ -479,12 +553,49 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-**Keep attacking `responsive_miss` by CAUSE. Next target: the pH-dominated
-oxide/ceria subset (5 datasets, 25-49% shape) — measure whether the residual
-orders by Ce3+ site fraction BEFORE proposing any functional form.**
+**Measure whether the velocity exponent depends on PRESSURE. Borucki's Cu data
+show it changing SIGN across 1 → 1.5 → 2 psi (−0.81 / −0.62 / +0.33) on one
+tool, one pad, one slurry. If that holds in our corpus, then NO global velocity
+exponent — derived or fitted — can be right, and the whole 8th-run programme of
+looking for one was aimed at the wrong object.**
 
-Follow-up 2 is now CLOSED as a null result (see below), so the remaining
-follow-ups from the threshold run are:
+Why this and not another law: the 8th run established the sub-linear velocity
+response as an experimental fact (Sorooshian +0.655; Tseng & Wang +0.5;
+Park/Lee/Jeong +0.74) but falsified its only zero-constant derivation on the
+flow leg (b_Q = −0.010 vs +1/3 required). Rather than hunt a fourth functional
+form, first establish the SHAPE of the thing being explained. A pressure-
+dependent velocity exponent and a constant one call for completely different
+mechanisms, and we can settle which we have before proposing anything.
+
+Measurement plan (no fitting, one axis, as usual):
+1. In `research/digitized/sorooshian2005_ild_cmp.csv` the exponent can be cut
+   per pressure directly: 2, 4, 6 psi × 3 velocities × both flows × 3 grooves.
+   `velocity_exponent()` in `tools/sorooshian_flow_probe.py` already returns
+   per-ladder exponents — group them by psi instead of taking the median.
+2. Do the same on the corpus's own velocity ladders (`us6564116b2`,
+   `mariscal2020`, `us6918821b2`, `yang2023`, `sic2023`).
+3. Pre-register the bar BEFORE looking, as with the size/conc probes: call the
+   exponent pressure-dependent only if the spread ACROSS pressures exceeds the
+   spread WITHIN a pressure by ≥2x (the same criterion that falsified the
+   material hypothesis for the concentration exponent).
+
+Then, and only then, branch:
+- **Exponent is constant in P** ⇒ one number explains 29 ladders across 3
+  pressures, and the search narrows to mechanisms giving a fixed sub-linear V
+  with no flow term. Best candidate to derive next: slurry utilisation
+  efficiency is 2–22 % and itself V-dependent (Philipossian & Mitchell 2003,
+  DOI 10.1557/PROC-767-F1.4), so the reactant variable was probably never the
+  dispensed Q. Re-deriving the mass balance in terms of the ENTRAINED fraction
+  may give a V exponent with no Q dependence at all — which is exactly the
+  shape the data demand.
+- **Exponent varies with P** ⇒ record that a global exponent is impossible,
+  close the "find the velocity exponent" line the way the pH axis is closed,
+  and reframe: the P–V interaction, not V alone, is the missing physics.
+
+Either branch is publishable-grade negative or positive knowledge, and neither
+requires new data — points 1 and 2 use what is already in the repo.
+
+Secondary, unchanged from the 7th run:
 
 1. **Does the W threshold generalise to a SECOND W pressure sweep?** `bouvet2002_w`
    is at its own noise floor; `us20110186542a1_w` sweeps H2O2/pH at fixed
