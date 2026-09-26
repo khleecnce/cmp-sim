@@ -43,6 +43,33 @@ VIEWPORTS = [
     ("phone-portrait", 390, 844),
 ]
 
+# Where can a REAL mouse click this mesh? Two constraints that a raycast alone
+# does not know about, both learned from failures that looked like wiring bugs:
+#
+#  - INTEGER coordinates. The probe answers happily at x = 1119.75, but a mouse
+#    click is rounded to a pixel, and on a target as small as a 300 mm wafer in
+#    a whole-machine view that rounding lands on the background instead. The
+#    click then opened nothing at all.
+#  - ON THE CANVAS. Panels float over it, so a point can be on the pad in 3D
+#    and under the TOOL PARTS list on screen, where a click never reaches the
+#    canvas.
+#
+# Named rather than inlined because it is needed twice: once to find the spot,
+# and again to re-find it if the camera moved in between.
+PROBE_JS = """(want) => {
+  const c = document.getElementById('scene');
+  const r = c.getBoundingClientRect();
+  for (let gy = 0.10; gy < 0.96; gy += 0.01)
+    for (let gx = 0.04; gx < 0.96; gx += 0.01) {
+      const x = Math.round(r.left + r.width * gx);
+      const y = Math.round(r.top + r.height * gy);
+      if (window.__probe(x, y) !== want) continue;
+      if (document.elementFromPoint(x, y) !== c) continue;
+      return {x, y};
+    }
+  return null;
+}"""
+
 
 def _wait_http(url: str, timeout: float = 20.0) -> bool:
     end = time.time() + timeout
@@ -160,30 +187,45 @@ def _drive(tool_url: str, shot: str) -> int:
         for station, meshes in STATIONS.items():
             ok = False
             for mesh, want_title in meshes.items():
-                spot = page.evaluate("""(want) => {
-                  const c = document.getElementById('scene');
-                  const r = c.getBoundingClientRect();
-                  if (!window.__probe) return null;
-                  for (let gy = 0.10; gy < 0.96; gy += 0.01)
-                    for (let gx = 0.04; gx < 0.96; gx += 0.01) {
-                      const x = r.left + r.width * gx, y = r.top + r.height * gy;
-                      if (window.__probe(x, y) !== want) continue;
-                      // The raycast does not know about the DOM. The drawer and
-                      // the TOOL PARTS list float OVER the canvas, so a point
-                      // can be on the pad in 3D and under a panel on screen --
-                      // a real mouse click there never reaches the canvas at
-                      // all. Only offer a spot the user could actually click.
-                      const top = document.elementFromPoint(x, y);
-                      if (top !== c) continue;
-                      return {x, y};
-                    }
-                  return null;
-                }""", mesh)
+                spot = page.evaluate(PROBE_JS, mesh)
                 if not spot:
                     print(f"      {mesh:9s}: not on screen")
                     continue
+                # Blank the title BEFORE clicking. Otherwise "which drawer is
+                # open" is answered by a string that is already correct-looking
+                # from the previous mesh, and a click that never reached the
+                # canvas scores as the previous station's pass -- that is
+                # exactly how a remote run reported the slurry cabinet as
+                # opening the operation form while the identical local run
+                # passed. A stale reading must be unmistakable, not plausible.
+                page.evaluate("() => { document.getElementById('dtitle')"
+                              ".textContent = '<<stale>>'; }")
+                # RE-CONFIRM the spot in the same breath as the click. Opening
+                # and closing the previous drawer resizes the stage, which
+                # re-fits the camera on a timer -- so a spot found a moment ago
+                # can be off the mesh by the time the mouse gets there even
+                # with the machine frozen. On a big part that slop is
+                # invisible; on the wafer, which is ~16 clickable pixels in a
+                # whole-machine view, it is the difference between opening the
+                # form and clicking the background. Cheap check, and it names
+                # the cause instead of reporting "unclickable".
+                still = page.evaluate("(s) => window.__probe(s.x, s.y)", spot)
+                if still != mesh:
+                    page.wait_for_timeout(500)
+                    spot = page.evaluate(PROBE_JS, mesh)
+                    if not spot:
+                        print(f"      {mesh:9s}: moved off-screen before the click")
+                        continue
                 page.mouse.click(spot["x"], spot["y"])
-                page.wait_for_timeout(250)
+                # Wait for the ANSWER to arrive rather than for a fixed 250 ms:
+                # over a public tunnel the drawer's contents can take longer
+                # than any sleep tuned on localhost.
+                try:
+                    page.wait_for_function(
+                        "() => document.getElementById('dtitle').textContent"
+                        " !== '<<stale>>'", timeout=5_000)
+                except Exception:
+                    pass
                 opened = page.evaluate(
                     "() => document.getElementById('drawer')"
                     ".classList.contains('open')")
@@ -197,16 +239,29 @@ def _drive(tool_url: str, shot: str) -> int:
                       f"expected~{want_title!r}")
                 if opened and fields > 0 and right:
                     ok = True
+                elif title == "<<stale>>":
+                    failures.append(
+                        f"{mesh}: the click never reached the page (the drawer "
+                        f"did not re-render within 5 s)")
                 elif opened and not right:
                     failures.append(
                         f"{mesh} opened {title!r}, expected {want_title!r}")
                 page.evaluate(
                     "() => document.getElementById('drawerclose')?.click()")
-                # Long settle: closing the drawer widens the stage, which fires
-                # a resize and re-frames the camera on a 240 ms timer. Probing
-                # before that lands makes the next click hit a stale pixel and
-                # open the wrong drawer -- which looked like a wiring bug and
-                # was not one.
+                # Wait for the drawer to actually BE closed, then settle:
+                # closing it widens the stage, which fires a resize and
+                # re-frames the camera on a 240 ms timer. Probing before that
+                # lands makes the next click hit a stale pixel and open the
+                # wrong drawer -- which looked like a wiring bug and was not
+                # one. The close is confirmed rather than assumed, because a
+                # fixed sleep that is generous on localhost is not generous
+                # over a tunnel.
+                try:
+                    page.wait_for_function(
+                        "() => !document.getElementById('drawer')"
+                        ".classList.contains('open')", timeout=5_000)
+                except Exception:
+                    pass
                 page.wait_for_timeout(700)
             hits[station] = ok
             if not ok:
