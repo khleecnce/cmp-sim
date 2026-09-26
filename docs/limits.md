@@ -1023,3 +1023,39 @@ No single value of `kp_m_per_pa` can satisfy both ends of a 222× spread. The th
 **What would resolve it.** Blocks under one pack that disagree by 8–222× are not describing one material system, so the question is **what the pack is silently conflating** — different pads, polishers, film variants or abrasive materials sharing one Kp. The next step is a per-block provenance table: for each failing block, the condition its pack's Kp was back-calculated from and the distance between the two. Where the conflated variable is identifiable and sourced, the answer is a pack **split** (the precedent is `oxide_silica_aminosilane` earning its own split, which is why it is coherent today); where it is not, the answer is to declare the block out of the pack's scope rather than to average over it. **Deliberately *not* a gate**: these blocks still score, because hiding them would restore exactly the blindness this entry exists to remove.
 
 **Enforced by** `tests/test_absolute_scale_is_not_one_constant.py` (7 tests).
+
+## 23. Nine of the eleven absolute-scale failures were already identified — in prose the scorer cannot read
+
+§22 ended by asking what each failing pack is **silently conflating**, and said the answer would be a per-block provenance table. `tools/kp_provenance_table.py` is that table, and its result is not the one the item anticipated.
+
+**The finding.** Of the eleven blocks missing the absolute rate by ≥3×, **nine already state their own cause in their dataset header** — that the `pack:` field is a placeholder, or that the block sits outside the window the pack's Kp was back-calculated in, or that the absolute value carries a named systematic bias. One more (`gong2024`) is disclosed inside the pack's own `kp_m_per_pa` note. Only **one** is genuinely unexplained. Nothing was missing; it was **never machine-readable**, so every run since has re-measured the same misses as though their causes were unknown.
+
+| block | scale | what the pack conflates |
+|---|---|---|
+| `lai2001_cu_alumina` | 0.06× | neutral pH 7 alumina, **no oxidiser or complexant**, scored against an acidic H2O2/glycine/BTA Kp |
+| `gong2024_4hsic` | 0.07× | Kp anchored via a secondary citation, assuming an alumina loading the source never states |
+| `us6918821b2_cu` | 0.08× | **UNIDENTIFIED** — the patent states no slurry composition |
+| `us8142675b2_pt` | 0.10× | the FILM: platinum through an oxide pack (`film: other`; there is no Pt pack) |
+| `us20190127607a1_teos` / `_hdpoxide` | 0.19× / 0.24× | ceria-**coated-silica composite** particles, which the pack's Kp note excludes by name |
+| `miranda2004_cu` | 0.31× | a 4-inch benchtop tool against a 200 mm damascene Kp |
+| `ihnfeldt2008_cu` | 3.19× | 1.0 psi, **below** the 2–3 psi window the Kp was anchored in |
+| `liang2026_sic` | 4.57× | CuxO-CeO2/Al2O3 composite abrasive at pH 7, outside the pack's pH 9–11 window |
+| `wei2026_sic` | 9.68× | colloidal **silica** through a pack that declares `reference_abrasive: ceria` |
+| `us8501625b2_cu` | 12.68× | inhibitor is **1,2,4-triazole, not BTA**, and loading is 18× below the pack reference |
+
+**Why this is not an excuse, tested two ways.** "Out of scope" is the cheapest sentence available, so the claim is checked rather than asserted:
+
+1. **The prose does not predict the miss.** 17 comparable blocks carry placeholder/rank-only prose and **9 of them land inside 3×**; 20 blocks carry none and **3 of them fail**. Median miss factor 2.09× with the prose, 2.00× without. A post-hoc excuse would mark the failures and nothing else — this marks which *question* a block can answer.
+2. **The prose predates the measurement.** Every quoted line was committed 2026-09-15 … 2026-09-24 (`git blame`); the audit that first measured these misses is 2026-09-27.
+
+**The one quantitative identification, and it could have failed.** When `sti_ceria`'s Kp was re-derived from four bare-ceria datasets, the two ceria-coated-silica blocks were excluded as a different abrasive and the value they imply (**2.3e-14** against the pack's **1.09e-13**) was written into the note. That exclusion is a prediction with no free parameter: those blocks must under-predict by **0.211×**. Measured: **0.188× and 0.235×** — they bracket it. Those two failures are not model error; they are the pack's own statement being scored as if it had not been made.
+
+**The split that was rejected.** Every ruling is marked **not splittable**, and the reason is the same in each case: the anchor a new pack would need does not exist independently of the blocks it would then be scored on. A composite-abrasive Kp can only be back-calculated from the two composite blocks; a Pt Kp from the single Pt block; a neutral-alumina-Cu Kp from the single such block. That is the 13th-run rule (a dataset may not testify for the constant fitted on it) applied to absolute scale. **Zero packs were split and zero constants changed.**
+
+**Corpus effect: none, by design.** Median shape **18.9 %**, leave-one-out 21.3 %.
+
+**What would resolve it.** Two different things, and conflating them is the trap:
+- For the nine identified blocks — a **second dataset in the same material system** from an independent source (a composite-abrasive oxide polish outside US20190127607A1; a second Pt block; a second silica-on-SiC block). Then a split has an anchor that is not its own scorecard. Until then, identification is the whole of the available answer.
+- For `us6918821b2` — nothing in this repo. The patent withholds the composition, so no comparison to the anchor exists at any effort.
+
+**Enforced by** `tests/test_kp_provenance_is_identified.py` (18 tests), including an adjudication obligation: a new ≥3× block fails the suite until its cause is named or explicitly recorded as unidentified.

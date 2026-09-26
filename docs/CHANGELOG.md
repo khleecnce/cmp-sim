@@ -4,6 +4,32 @@ All notable changes to CMP-Sim. Newest first.
 
 ## Unreleased
 
+### Measured — the absolute-scale failures were already identified, in prose the scorer cannot read (2026-09-27, 21st run)
+- `tools/kp_provenance_table.py` (new): for each block missing the absolute
+  rate by ≥3×, what its pack silently conflates — the follow-up §22 named.
+- **9 of the 11 failures state their own cause in their own dataset header**
+  (placeholder pack, condition outside the Kp anchoring window, or a named
+  systematic bias); a 10th is disclosed in its pack's `kp_m_per_pa` note. Only
+  `us6918821b2` is genuinely unexplained — the patent states no slurry
+  composition, so there is nothing to compare against the anchor.
+- **The "out of scope" claim is tested, not asserted.** (1) The prose does not
+  predict the miss: 9 of the 17 prose-carrying blocks land *inside* 3×, while 3
+  of the 20 blocks without it fail (median miss 2.09× vs 2.00×). (2) The prose
+  predates the measurement — committed 2026-09-15…24 against an audit dated
+  2026-09-27.
+- **One quantitative identification, and it could have failed.** `sti_ceria`
+  excluded the ceria-coated-silica composites from its Kp average and recorded
+  the value they imply (2.3e-14 vs 1.09e-13). That exclusion predicts a 0.211×
+  scale with no free parameter; the two blocks measure **0.188× and 0.235×**,
+  bracketing it.
+- **Rejected: every pack split.** In each case the only available anchor is the
+  block the new pack would then be scored on — the 13th-run rule applied to
+  absolute scale. Zero packs split, zero constants changed, median shape
+  **18.9 %** / LOO 21.3 % unmoved.
+- `tests/test_kp_provenance_is_identified.py` (18) makes adjudication a standing
+  obligation: a new ≥3× block fails the suite until its cause is named or
+  explicitly recorded as unidentified. `docs/limits.md` §23.
+
 ### Measured — reproducibility, transcribed: 15 % is NOT the measurement floor (2026-09-27, 15th run)
 - `cmp_sim/data/validation/reproducibility.yaml` (new): what each publication
   states about **its own** run-to-run scatter, verbatim, for 17 datasets.

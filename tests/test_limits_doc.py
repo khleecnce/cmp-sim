@@ -103,6 +103,10 @@ LIMIT_ENFORCING_TESTS = {
     # miss population is centred (no global missing factor) and four of five
     # failing packs disagree with themselves by 8-222x under one shared Kp
     "test_absolute_scale_is_not_one_constant.py",
+    # limit 23: nine of the eleven absolute-scale failures were ALREADY
+    # identified in dataset prose the scorer cannot read, and sti_ceria's own
+    # excluded composite Kp predicts the scale of the two blocks it excluded
+    "test_kp_provenance_is_identified.py",
 }
 
 
