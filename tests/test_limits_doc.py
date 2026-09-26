@@ -94,6 +94,11 @@ LIMIT_ENFORCING_TESTS = {
     # different causes (wrong path, correct-by-design, sourced null result),
     # zero constants added, and the known-silent allowlist is now empty
     "test_silent_axes_now_declare_themselves.py",
+    # limit 21: the ceria Ce3+ axis is closed on IDENTIFIABILITY — the
+    # published theta(D) relation holds out of sample, but theta is reachable
+    # only through D50, which the size term already reads, so no block varies
+    # Ce3+ at fixed size and the three that vary it disagree in sign
+    "test_ce3_axis_is_closed.py",
 }
 
 
