@@ -211,7 +211,17 @@ https://cmp-sim.vercel.app --token …` 가 배포본을 상대로 전 항목 �
 
 ### 1차 완성 — 모델링 정확도 (2차 완료, 이제 여기로 복귀)
 - **목표: 예측 오차 median ≤ 10.0%** (이력서에 쓸 수 있는 수준)
-- **현재: median 18.9% shape / 21.3% LOO** (코퍼스 46/50, 427점) — **961 tests**.
+- **현재: median 18.9% shape / 21.3% LOO** (코퍼스 46/50, 427점) — **976 tests**.
+  2026-09-26(12회차): **개선 가능한 오차가 어느 축에 있는지 측정했고, 답은 "한 축이
+  아니다"였다** (`tools/axis_error_census.py`, 피팅 0, 팩 수정 0). 개선 가능 342점 중
+  **145점(42.4%)이 어느 축에도 속하지 않는다** — 그 데이터셋이 스윕한 축에
+  **자유 지수를 줘도** 못 줄어드는 오차다. 최대 지명 축은 abrasive_wt_pct 24.9%로
+  사전등록한 30% 문턱 미달 → **Reading 2**(오차 분산형). 결정적인 두 번째 단계:
+  경계를 **오라클**(데이터셋별 지수 1개)에서 **법칙**(전 데이터셋 공유 지수 1개)으로
+  조였더니 6축 중 4축이 거의 0으로 붕괴했다 — 데이터셋별 지수의 **부호가 엇갈리기**
+  때문이다(예: abrasive_wt_pct −0.54 … +0.81). 법칙 하나로는 방향조차 못 맞춘다.
+  **살아남은 축은 oxidizer_wt_pct 하나**(공유 +0.48, 32.5→23.0%, 전부 양수) →
+  13회차의 단일 과제. 상세·표는 `docs/limits.md` §14, NEXT.
   2026-09-26(11회차): **P–V 상호작용 축을 닫았다 — 후보 메커니즘 2개를 자유상수 0개로 기각.**
   9회차가 "b_V는 상수도, b_V(P)도 아니다"로 남긴 질문에 STATUS의 NEXT가 지정한
   두 메커니즘을 **리포지토리에 이미 있는 파라미터만으로 부호 검증**했다
@@ -872,26 +882,58 @@ points. pH is closed, velocity is closed, pressure saturation is closed, P–V i
 closed. Four closures in a row means the next run must NOT propose a fifth
 kinematic law — it must go where the POINTS are.**
 
-The 5th run's census says 35 datasets / 342 points sit in `responsive_miss`
-(median 20.2%) — the bucket where a better law helps. Every axis closed since
-then was a THIN axis: velocity 29 points, P–V 24 points. So re-run
-`tools/residual_census.py` AND, this time, cut the improvable bucket by WHICH
-AXIS each dataset actually sweeps, weighted by points. That table has never been
-produced, and without it each run picks its axis by which mechanism sounds
-derivable rather than by which axis carries the error.
+**ANSWERED 2026-09-26 (12th run) — READING 2 HELD. `tools/axis_error_census.py`
++ `tests/test_axis_error_is_distributed.py` (15) + `docs/limits.md` §14.
+Median unmoved at 18.9%, as required (nothing was fitted).**
+Of 342 improvable points: **distributed 145 (42.4%)**, abrasive_wt_pct 85
+(24.9%), velocity 40, abrasive_size_nm 31, oxidizer_wt_pct 17, pressure 16,
+slurry_ph 8. No axis clears 30%, and the largest single block is error **no
+swept axis reaches even with a free per-dataset exponent**.
+The decisive second step was tightening the bound from an ORACLE (one exponent
+per dataset) to a LAW (one exponent shared by all datasets on that axis):
 
-Pre-register the reading before running it:
-1. If one axis holds ≥ 30% of `responsive_miss` POINTS, that axis is the next
-   target regardless of how attractive its physics looks.
-2. If no axis holds ≥ 30%, then the error is DISTRIBUTED, and the honest
-   conclusion is that ≤10% is unreachable by adding laws one axis at a time —
-   which is the evidence STATUS.md's completion criterion demands for invoking
-   the ≤15% allowance. Write that argument in `docs/limits.md`, not "it is hard".
-3. Report points, never dataset counts, for the reason the 11th run pinned by
-   test: a median over 49 datasets moves by re-ranking.
+| axis | shared gain | oracle gain | per-dataset exponents |
+|---|---|---|---|
+| abrasive_size_nm | +0.0 pp | +5.0 | −0.40 … +0.13 |
+| abrasive_wt_pct | +1.4 pp | +7.7 | −0.54 … +0.81 |
+| pressure | +0.6 pp | +4.0 | −1.28 … +1.49 |
+| slurry_ph | +0.2 pp | +3.9 | −0.67 … +2.20 |
+| velocity | +4.0 pp | +5.5 | −0.88 … +0.15 |
+| **oxidizer_wt_pct** | **+9.5 pp** (32.5→23.0%) | +13.4 | **+0.01 … +0.92 (all ≥0)** |
 
-Do NOT fit anything in that run either. It is a measurement, like
-`residual_census`, `conc_derived_probe` and `pv_interaction_closure` were.
+Four of six axes collapse because their exponents **disagree in sign** — that is
+between-dataset dispersion, not a missing law. This is the evidence for ≤15%.
+
+### ⬅ THE ONE NEXT ITEM (13th run): derive the oxidiser HALF ORDER, or falsify it
+`oxidizer_wt_pct` is the only axis that survives sharing, and its shared
+exponent **+0.48** sits on top of a mechanism: if the oxidant feeds a
+steady-state radical population that terminates by radical–radical
+recombination (Fenton-type H₂O₂ on Cu/W), the chain-carrier concentration goes
+as `[ox]^(1/2)` and the surface reaction rate inherits it. **+1/2 is a
+prediction with zero free constants**, so it is testable, not tunable.
+
+Pre-register the falsification BEFORE touching a pack:
+1. **Order test.** Fit the oxidiser order per dataset on the 4 sweeping
+   datasets. It must be statistically indistinguishable from +1/2 in **each**,
+   not merely in the mean. `jani2025` is +0.92 — if that is real and not a
+   co-varying artefact, the chain hypothesis is already dead (first order =
+   rate-limiting oxidant adsorption, a different mechanism).
+2. **Termination test.** A radical chain with *first-order* termination (surface
+   quenching) gives order +1, not +1/2. The two are distinguished by whether the
+   order DROPS as `[ox]` rises (bimolecular termination dominates at high
+   radical density). Check the order at low vs high concentration inside
+   `us20110186542a1_w` (15 points, H₂O₂ swept widely) — that single dataset can
+   decide it.
+3. **Sign guard.** Du 2004 measures Cu polishing *faster with no oxidiser at
+   all*. Any half-order term must keep the existing additive mechanical floor
+   and must not resurrect a purely multiplicative oxidiser factor.
+4. If either test fails, the axis is CLOSED, §14 becomes final, the ≤15%
+   allowance stands as the completion criterion, and the run writes limit §15
+   rather than fitting a compromise exponent.
+
+Do NOT introduce a fitted oxidiser exponent under any outcome. Either the
+derived +1/2 survives all three tests and enters the pack **with its
+derivation**, or the axis closes.
 
 Secondary, unchanged from the 7th run:
 

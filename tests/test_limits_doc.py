@@ -62,6 +62,10 @@ LIMIT_ENFORCING_TESTS = {
     # limit 13: the P-V interaction is real and both candidate mechanisms are
     # rejected with zero fitted constants; the axis is thin and priced
     "test_pv_interaction_closed.py",
+    # limit 14: the improvable error is DISTRIBUTED across axes; tightening the
+    # bound from a per-dataset oracle to a shared exponent collapses four of
+    # six axes because their exponents disagree in sign
+    "test_axis_error_is_distributed.py",
 }
 
 

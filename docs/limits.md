@@ -503,3 +503,97 @@ saturation precondition, a ban on any pack declaring a P–V coupling constant,
 the point share rather than the median as the axis's size, and a guard that the
 three packs in the report resolve to **one** inherited base pad so the identical
 slopes cannot be quoted as three independent confirmations.
+
+---
+
+## 14. The improvable error is DISTRIBUTED: no single-axis law reaches 10%
+
+**Why this entry is the decisive one.** Four axes were closed in a row (pH,
+velocity exponent, pressure saturation, P–V interaction) and the corpus median
+moved about 1 pp in total. Every one of those axes was chosen because its
+physics looked derivable; every one turned out to be *thin* (velocity 29
+measured points, P–V 24, out of 427). STATUS.md therefore **pre-registered** a
+reading before this measurement was run: if one axis holds ≥ 30% of the
+improvable points it is the next target regardless of how its physics looks; if
+none does, the error is distributed and the ≤ 15% allowance is invoked with the
+evidence below rather than with the word "hard".
+
+**The measurement** (`tools/axis_error_census.py`, fits nothing into any pack).
+Each axis a dataset sweeps is priced by an **oracle**: grant the model one extra
+free exponent `b` on that axis alone, `predicted' = predicted·(x/x_ref)^b`, fit
+`b` per dataset in log space beside the single free scale the shape score
+already allows, and re-measure the shape MAPE. The drop bounds what *any*
+closed-form law on that axis could buy, because a law must carry **one** shared
+constant into every dataset while the oracle gets a fresh one per dataset. A
+dataset's points are owned by its best axis if that axis buys ≥ 2.0 pp;
+otherwise the dataset is `distributed`. Correlation of residual with axis is
+deliberately **not** used: in a Taguchi array several axes move together, so
+correlation blames whichever axis co-varies with the true cause.
+
+Of the 342 improvable points (`responsive_miss`, 35 datasets, median 19.5%):
+
+| owning axis | points | share | datasets | median oracle gain |
+|---|---|---|---|---|
+| **distributed (no axis)** | **145** | **42.4%** | 17 | −0.0 pp |
+| abrasive_wt_pct | 85 | 24.9% | 5 | 13.4 pp |
+| velocity | 40 | 11.7% | 3 | 6.7 pp |
+| abrasive_size_nm | 31 | 9.1% | 4 | 8.9 pp |
+| oxidizer_wt_pct | 17 | 5.0% | 2 | 27.1 pp |
+| pressure | 16 | 4.7% | 2 | 15.7 pp |
+| slurry_ph | 8 | 2.3% | 2 | 16.1 pp |
+
+The largest named axis holds **24.9%**, below the pre-registered 30%, and the
+single biggest block — 42.4% of the improvable points — is error that **no axis
+the dataset sweeps can reach even with a free exponent**. Reading 2 stands.
+
+**Then the bound was tightened from oracle to law**, which is what makes this
+final rather than discouraging. Refitting each axis with **one exponent shared
+by every dataset that sweeps it** (each dataset keeps only its own free scale):
+
+| axis | datasets | best shared Δb | mean shape | shared gain | oracle gain | per-dataset exponents |
+|---|---|---|---|---|---|---|
+| abrasive_size_nm | 9 | +0.00 | 13.8% → 13.8% | **+0.0 pp** | +5.0 pp | −0.40 … +0.13 |
+| abrasive_wt_pct | 9 | +0.11 | 27.9% → 26.6% | **+1.4 pp** | +7.7 pp | −0.54 … +0.81 |
+| pressure | 9 | +0.17 | 33.1% → 32.5% | **+0.6 pp** | +4.0 pp | −1.28 … +1.49 |
+| slurry_ph | 8 | +0.05 | 30.4% → 30.2% | **+0.2 pp** | +3.9 pp | −0.67 … +2.20 |
+| velocity | 5 | −0.43 | 43.5% → 39.5% | +4.0 pp | +5.5 pp | −0.88 … +0.15 |
+| **oxidizer_wt_pct** | 4 | **+0.48** | 32.5% → **23.0%** | **+9.5 pp** | +13.4 pp | +0.01 … +0.92 |
+
+On four of the six axes a shared exponent buys essentially nothing while the
+per-dataset oracle buys 4–8 pp, and the reason is visible in the last column:
+the per-dataset exponents **disagree in sign**. That is not a law waiting to be
+found; it is between-dataset dispersion that a single constant cannot represent.
+`abrasive_wt_pct`, the largest named axis, is the clearest case — exponents from
+−0.54 to +0.81 across nine datasets, so its 13.4 pp oracle gain collapses to
+1.4 pp for any law.
+
+**The refit that was rejected.** The obvious response to a 24.9 % axis is to
+give `abrasive_wt_pct` a fitted exponent, which the table above prices at
++1.4 pp of mean shape — and that offer is **rejected**, because the same table
+shows the per-dataset exponents running −0.54 … +0.81. A shared constant would
+then be pushing five of nine datasets in the *wrong direction* to help the other
+four, which is interpolation dressed as a law. The `slurry_ph` (+0.2 pp),
+`pressure` (+0.6 pp) and `abrasive_size_nm` (+0.0 pp) refits are rejected for the
+same reason and at even lower price. **The decision** is that no exponent is
+added on any of the four dispersed axes, and the ≤ 15 % allowance is invoked on
+the evidence above.
+
+**What licenses this, and what it does not.** It licenses the ≤ 15 % completion
+criterion: the sum of every *law-attainable* gain above is ≈ 6 pp spread over
+axes that overlap, against a 42.4 % block no axis reaches, so ≤ 10 % is not
+reachable by adding closed-form laws one axis at a time. It does **not** license
+stopping. One axis survives the tightening — `oxidizer_wt_pct`, where the shared
+exponent is **+0.48 and the gain survives sharing (9.5 of 13.4 pp)** — and +1/2
+is the order a radical-chain mechanism predicts when the oxidant feeds a
+steady-state radical population terminated by radical–radical recombination
+(Fenton-type H₂O₂ on Cu and W), so that axis is a derivation target, not a fit.
+It is pursued in STATUS.md's NEXT with the falsification stated in advance.
+
+**What would resolve it.** Not more datasets on the same axes: the dispersion is
+*between* datasets that each sweep one axis cleanly, so adding a tenth such
+dataset adds a tenth exponent, not agreement. What would resolve it is a
+**cross-axis** body — one tool, one film, one operator, sweeping two axes in a
+full factorial with consumable properties measured rather than inferred — which
+is precisely the measurement the earlier limits (§1, §4, §13) also name.
+
+**Enforced by** `tests/test_axis_error_is_distributed.py`.
