@@ -11,7 +11,8 @@ Endpoints
 ``GET  /tool``           the 3D tool view — click a part of the polisher to
                          enter its data; the wafer shows the predicted profile
 ``GET  /vendor/<asset>`` vendored static assets (three.js, the scene module)
-``GET  /api/meta``       packs, models, films, additives and abrasives available
+``GET  /api/meta``       packs, models, films, additives, abrasives, pads, disks
+``GET  /api/model``      the physics constants of one pack, with sources
 ``GET  /api/accuracy``   measured predictive error over all 320 literature points
 ``POST /api/simulate``   a recipe dict in, a result dict out
 """
@@ -137,6 +138,7 @@ def _pack_reference_abrasives() -> Dict[str, str]:
 
 def _meta() -> Dict[str, Any]:
     from cmp_sim.core.profiles import LAYERS, PROFILES
+    from cmp_sim.pad.catalog import disk_catalog, pad_catalog
     from cmp_sim.slurry.formulation import abrasive_database, additive_database
 
     additives = additive_database()
@@ -158,7 +160,94 @@ def _meta() -> Dict[str, Any]:
         # everything the engine still accepts, and why it is not offered
         "abrasives_all": sorted(abrasives),
         "abrasives_withheld": split["withheld"],
+        # Named consumables, straight from cmp_sim/data/consumables.yaml. The UI
+        # must NOT carry a pad hardness of its own: every number the picker shows
+        # comes from here with its source, so fixing a pad property is a data
+        # edit and never an HTML edit.
+        "pads": _consumable_summary(pad_catalog()),
+        "disks": _consumable_summary(disk_catalog()),
         "sweepable": sorted(SWEEPABLE),
+    }
+
+
+def _consumable_summary(table: Dict[str, Any]) -> Dict[str, Any]:
+    """Catalogue entries flattened for a picker, keeping source + wired state.
+
+    ``published`` lists the properties that have a value, ``unpublished`` the
+    ones that are deliberately null, and ``unwired`` the ones the engine records
+    but does not let reach the rate. A UI that shows all three cannot present a
+    control that silently changes nothing — the failure this project already had
+    to fix for the abrasive picker.
+    """
+    out: Dict[str, Any] = {}
+    for name, entry in (table or {}).items():
+        entry = entry or {}
+        published, unpublished, unwired, sources = {}, [], [], {}
+        for prop, spec in entry.items():
+            if prop in ("description", "notes"):
+                continue
+            if not isinstance(spec, dict):
+                continue
+            if spec.get("value") is None:
+                unpublished.append(prop)
+                continue
+            published[prop] = spec["value"]
+            sources[prop] = {"unit": spec.get("unit") or "",
+                             "source": (spec.get("source") or "").strip(),
+                             "confidence": spec.get("confidence") or "unknown"}
+            if spec.get("wired") is False:
+                unwired.append(prop)
+        out[name] = {
+            "description": (entry.get("description") or "").strip(),
+            "notes": (entry.get("notes") or "").strip(),
+            "published": published,
+            "unpublished": sorted(unpublished),
+            "unwired": sorted(unwired),
+            "sources": sources,
+        }
+    return out
+
+
+def model_parameters(pack_name: str) -> Dict[str, Any]:
+    """Every physics constant of one parameter pack, with its source.
+
+    This is the route that keeps the simulator's SHELL separate from its PHYSICS.
+    The 3D view, the drawers and the result panels read model constants from
+    here; they never hard-code one. So a model change is a YAML/``models/`` edit
+    that the UI picks up on reload, and a UI change cannot alter the physics.
+
+    ``editable`` marks constants the run-time override path (``recipe.params``)
+    actually reads back, so the UI can offer an edit-and-re-predict loop without
+    guessing which keys are live.
+    """
+    from cmp_sim.core.params import load_pack
+
+    pack = load_pack(pack_name)
+    params = []
+    for key in sorted(pack.params):
+        p = pack.params[key]
+        if isinstance(p.value, (list, dict)):
+            continue
+        params.append({
+            "key": key,
+            "value": p.value,
+            "unit": p.unit or "",
+            "source": (p.source or "").strip(),
+            "confidence": p.confidence or "unknown",
+            "note": (p.note or "").strip(),
+            "declared_by": getattr(p, "owner", "") or "",
+            "editable": isinstance(p.value, (int, float)) or p.value is None,
+        })
+    return {
+        "pack": pack_name,
+        "lineage": list(pack.lineage),
+        "description": pack.description or "",
+        "parameters": params,
+        "override_hint": (
+            "POST /api/simulate with {\"params\": {\"<key>\": <value>}} to "
+            "re-predict with an edited constant. The override is reported in "
+            "the result's provenance as owner-supplied, so it can never be "
+            "mistaken for a sourced value."),
     }
 
 
@@ -380,6 +469,28 @@ class Handler(BaseHTTPRequestHandler):
             return self._static(path)
         if path == "/api/meta":
             return self._json(200, _meta())
+        if path == "/api/model":
+            # The physics constants themselves, with sources — so the UI can
+            # SHOW what equation and what number produced a prediction, and
+            # offer an edit-and-re-predict loop, without ever holding a constant
+            # of its own.
+            from urllib.parse import parse_qs, urlparse
+
+            qs = parse_qs(urlparse(self.path).query)
+            pack = (qs.get("pack") or [""])[0].strip()
+            film = (qs.get("film") or [""])[0].strip()
+            if not pack and film:
+                pack = FILM_PACK.get(film, "")
+            if not pack:
+                return self._json(400, {
+                    "error": "ValueError",
+                    "detail": "give ?pack=<name> or ?film=<name>",
+                    "packs": available_packs(), "films": sorted(FILM_PACK)})
+            try:
+                return self._json(200, model_parameters(pack))
+            except FileNotFoundError as exc:
+                return self._json(404, {"error": "PackMissing",
+                                        "detail": str(exc)})
         if path == "/api/accuracy":
             # Measured predictive accuracy across every dataset, so the UI can
             # state how far to trust a number instead of showing it bare.
@@ -413,7 +524,8 @@ class Handler(BaseHTTPRequestHandler):
             })
         self._json(404, {"error": f"no such path: {path}",
                          "valid_get_paths": ["/", "/tool", "/vendor/<asset>",
-                                             "/api/meta", "/api/accuracy"]})
+                                             "/api/meta", "/api/model",
+                                             "/api/accuracy"]})
 
     def do_POST(self) -> None:                    # noqa: N802
         if not self._authorised():

@@ -52,9 +52,18 @@ def recipe_from_dict(cfg: Dict[str, Any]) -> Recipe:
     wafer = _build(Wafer, wafer_cfg)
     wafer.film_was_defaulted = film_defaulted
 
+    pad_cfg = dict(cfg.pop("pad", {}) or {})
+    # Record whether a pad was actually NAMED. The consumables catalogue fills
+    # blank pad properties from the named pad, and doing that off a dataclass
+    # default would silently change every existing answer.
+    pad_named = bool(str(pad_cfg.get("name") or "").strip())
+    pad_cfg.pop("name_was_chosen", None)
+    pad = _build(Pad, pad_cfg)
+    pad.name_was_chosen = pad_named
+
     return Recipe(
         slurry=slurry,
-        pad=_build(Pad, cfg.pop("pad", {}) or {}),
+        pad=pad,
         disk=_build(Disk, cfg.pop("disk", {}) or {}),
         tool=_build(Tool, cfg.pop("tool", {}) or {}),
         wafer=wafer,

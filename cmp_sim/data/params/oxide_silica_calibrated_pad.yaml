@@ -14,6 +14,28 @@ base: oxide_silica
 description: "Oxide / colloidal silica on a sourced IC1000 reference pad"
 
 params:
+  reference_pad_name:
+    value: IC1000
+    unit: ""
+    note: >
+      The pad this pack's contact statistics were measured on, and therefore the
+      pad its Kp is anchored to. Declared so the engine can tell "the user chose
+      the calibration pad" from "the user chose a different pad": in the first
+      case the contact correction kappa must be exactly 1.0, because the pack's
+      Kp already contains this pad.
+
+      This matters concretely. The consumables catalogue gives IC1000 a
+      published Shore D of 60, which the Qi 2003 correlation turns into
+      E* = 2.5e8 Pa, while the reference pad below is 1.0e9 Pa measured
+      directly on the same physical pad by Jeong 2024. Feeding the correlation
+      through kappa against the measurement rescaled the rate 1.9x for
+      selecting the very pad the pack was calibrated on -- a fitted constant
+      arriving through a dropdown. Naming the pad closes that path.
+    source: >
+      doi:10.3390/ma17081817 (Jeong et al. 2024, Materials 17(8) 1817) --
+      the IC1000 surface whose contact statistics this pack uses.
+    confidence: literature
+
   pad_E_star_pa:
     value: 1.0e9
     unit: Pa

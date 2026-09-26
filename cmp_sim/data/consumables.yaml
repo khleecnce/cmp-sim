@@ -1,0 +1,201 @@
+# Named consumables: polishing pads and conditioner disks.
+#
+# WHY THIS FILE EXISTS
+# --------------------
+# The tool UI has to let an engineer pick a pad and a disk the way they do in a
+# fab -- by product name -- not by typing a Shore D number. That means the
+# name -> property mapping is DATA, and data belongs here next to the parameter
+# packs, never inside the HTML. The web layer reads this file through
+# /api/meta and holds no number of its own.
+#
+# RULES (same as data/params/*.yaml)
+#   * every number carries value / unit / source / confidence
+#   * a property that is not published is `null`, never a plausible invention.
+#     A null means the engine keeps its own reference value and SAYS so.
+#   * `wired: false` marks a property the engine records but does not yet let
+#     reach the removal rate. The API reports that, so a control that cannot
+#     move the answer never looks like a control that does.
+#
+# Sources are the ones already vetted in legacy/knowledge/performance/{pad,disk}.yaml
+# (patent claims and primary papers). Nothing here is a vendor marketing figure
+# unless the source says so.
+
+pads:
+
+  IC1000:
+    description: "Dow/DuPont IC1000 — cast, porous polyurethane; the industry reference hard pad"
+    shore_d:
+      value: 60
+      unit: "Shore D"
+      source: >
+        Pureon IC1000 datasheet (2024) states 60 Shore D. US8066552B2 (Applied
+        Materials) background gives the measured product spread as 52-62
+        Shore D. Recorded via legacy/knowledge/performance/pad.yaml
+        (hardness_shore_d, typical 60).
+      confidence: literature
+    groove_width_mm:
+      value: 0.6
+      unit: mm
+      source: >
+        Mu et al. 2016, Microelectron. Eng., doi:10.1016/j.mee.2016.02.035,
+        pad B (W = 600 um) -- the width at which the measured slurry
+        utilisation efficiency peaks (9.9 -> 13.4% from 300 -> 600 um).
+      confidence: literature
+    groove_depth_mm:
+      value: 0.76
+      unit: mm
+      source: >
+        K-groove initial depth 30 mil. US20120225612A1 (assigned Micron) gives
+        the usual initial depth as 30-50 mil (0.75-1.25 mm); US7198546B2 uses
+        50 mil. Matches the inherited base pack's groove_depth_mm.
+      confidence: literature
+    groove_pitch_mm:
+      value: 3.05
+      unit: mm
+      source: "120 mil pitch, inherited base pack groove_pitch_mm (legacy/knowledge/params/base.yaml)"
+      confidence: estimated
+    notes: >
+      This is the pad most packs' Kp was calibrated on, so selecting it is the
+      anchored 1.0x choice rather than a correction.
+
+  IC1010:
+    description: "Dow/DuPont IC1010 — IC1000 family, finer pore structure"
+    shore_d:
+      value: 60
+      unit: "Shore D"
+      source: >
+        Pureon datasheet (2024) quotes IC1000/IC1010 at 60 Shore D -- the two
+        are not distinguished on hardness in any source held here. Recorded via
+        legacy/knowledge/performance/pad.yaml.
+      confidence: literature
+    groove_width_mm: {value: null, unit: mm, source: "not published separately from IC1000", confidence: unknown}
+    groove_depth_mm: {value: null, unit: mm, source: "not published separately from IC1000", confidence: unknown}
+    groove_pitch_mm: {value: null, unit: mm, source: "not published separately from IC1000", confidence: unknown}
+    notes: >
+      No property in the sources held here separates IC1010 from IC1000. It is
+      offered as a distinct name because validation datasets state it, but the
+      engine will behave identically -- and says so -- rather than inventing a
+      difference.
+
+  Politex:
+    description: "Dow/DuPont Politex — soft poromeric (felt) pad, buff/barrier steps"
+    shore_d:
+      value: null
+      unit: "Shore D"
+      source: >
+        TODO(owner): no Shore D is published for Politex in the sources held
+        here. US7074115B2 names it only qualitatively, as the soft-pad
+        counter-example to IC1000 ("planarization ability of stiffer pads such
+        as IC1000" vs pad-induced defectivity of softer pads such as Politex).
+        Shore A/D conversion tables are non-linear approximations and are not
+        used to manufacture a number.
+      confidence: unknown
+    groove_width_mm: {value: null, unit: mm, source: "embossed, not grooved", confidence: unknown}
+    groove_depth_mm: {value: null, unit: mm, source: "embossed, not grooved", confidence: unknown}
+    groove_pitch_mm: {value: null, unit: mm, source: "embossed, not grooved", confidence: unknown}
+    notes: >
+      Qualitative only: softer than IC1000, better defectivity, worse
+      planarisation (US7074115B2 background). Selecting it therefore changes
+      NOTHING in the rate, and the engine warns instead of pretending.
+
+  SubaIV:
+    description: "Dow/DuPont Suba IV — non-woven urethane-impregnated pad / sub-pad"
+    shore_d:
+      value: null
+      unit: "Shore D"
+      source: >
+        Measured on the Shore A scale, not D: Shore A 61 (US8066552B2 /
+        US7654885B2, Applied Materials, background). A->D conversion tables are
+        non-linear approximations, so no Shore D is asserted here.
+      confidence: unknown
+    shore_a:
+      value: 61
+      unit: "Shore A"
+      source: "US8066552B2 / US7654885B2 (Applied Materials) background"
+      confidence: literature
+    groove_width_mm: {value: null, unit: mm, source: "ungrooved", confidence: unknown}
+    groove_depth_mm: {value: null, unit: mm, source: "ungrooved", confidence: unknown}
+    groove_pitch_mm: {value: null, unit: mm, source: "ungrooved", confidence: unknown}
+    notes: >
+      Used as a stacked sub-pad under IC1000 in several validation datasets
+      (bouvet2002, bae2022). The engine has no two-layer stack model, so a
+      Suba selection is recorded and disclosed, not modelled.
+
+  D100:
+    description: "Cabot/3M-class hard thermoplastic-polyurethane pad (Epic D100 control sample)"
+    shore_d:
+      value: 72
+      unit: "Shore D"
+      source: >
+        US10562149 (Cabot, US20170087688A1) Table 1B, control sample "D100" at
+        72 Shore D; the patent's own TPU examples reach 76-80.1 Shore D.
+        Recorded via legacy/knowledge/performance/pad.yaml.
+      confidence: literature
+    groove_width_mm: {value: null, unit: mm, source: "not stated in the patent", confidence: unknown}
+    groove_depth_mm: {value: null, unit: mm, source: "not stated in the patent", confidence: unknown}
+    groove_pitch_mm: {value: null, unit: mm, source: "not stated in the patent", confidence: unknown}
+    notes: >
+      The hardest pad with a published Shore D in the corpus. Useful as the
+      stiff end of a pad comparison.
+
+disks:
+
+  # ⚠ EVERY disk property below is `wired: false`. The engine's conditioning
+  # model reacts to the conditioning DUTY (down force, sweep, hours), not yet to
+  # the disk's grit design: legacy/knowledge/performance/disk.yaml records the
+  # grit->asperity mapping as `status: pack_only` with an undetermined
+  # proportionality constant. Offering these as if they moved the rate would be
+  # the "control that changes nothing" failure this project already fixed once
+  # for abrasives, so the API marks them and the UI shows them as recorded-only.
+
+  3M_E187_80mesh:
+    description: "3M electroplated diamond disk, 80 mesh (E187 class)"
+    grit_size_um:
+      value: 181
+      unit: um
+      source: >
+        3M E187 nominal 181 um; Kim & Kang 2011 measured an 80-mesh
+        electroplated disk's grit heights at 40-90 um protrusion.
+        legacy/knowledge/performance/disk.yaml (grit_size_um, typical 180).
+      confidence: literature
+      wired: false
+    grit_density_mm2: {value: null, unit: "1/mm2", source: "not published for this disk", confidence: unknown, wired: false}
+
+  EHWA_CVD_1.3K:
+    description: "EHWA CVD-diamond patterned disk, 1,300 tips on a 108 mm disk"
+    grit_size_um:
+      value: 45
+      unit: um
+      source: >
+        McAllister et al. 2019, Micromachines 10(4) 258,
+        doi:10.3390/mi10040258 -- CVD tips 45 x 45 um^2.
+      confidence: literature
+      wired: false
+    grit_density_mm2:
+      value: 0.15
+      unit: "1/mm2"
+      source: >
+        1,300 tips over a 108 mm disk face ~ 0.14-0.17 /mm^2
+        (McAllister 2019), computed in legacy/knowledge/performance/disk.yaml
+        assuming the tips cover the full face.
+      confidence: estimated
+      wired: false
+
+  Kwon2013_40k:
+    description: "Research disk, 40,000 electroplated grits on a 100 mm disk (Kwon 2013 mid-density arm)"
+    grit_size_um: {value: null, unit: um, source: "grade reported (640 medium), size not stated", confidence: unknown, wired: false}
+    grit_density_mm2:
+      value: 5.1
+      unit: "1/mm2"
+      source: >
+        Kwon et al. 2013, Tribol. Int. 67, 272,
+        doi:10.1016/j.triboint.2013.08.008 -- 17k/40k/60k grits on a 100 mm
+        disk; 40,000 / 7,854 mm^2 = 5.1 /mm^2. The same paper measures pad cut
+        rate 37/23/19 um/h, i.e. CR ~ N^-0.53.
+      confidence: literature
+      wired: false
+
+  generic-diamond:
+    description: "Unnamed diamond conditioner — the engine's default, no design data claimed"
+    grit_size_um: {value: null, unit: um, source: "owner did not name a disk", confidence: unknown, wired: false}
+    grit_density_mm2: {value: null, unit: "1/mm2", source: "owner did not name a disk", confidence: unknown, wired: false}

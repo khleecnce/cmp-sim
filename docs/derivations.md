@@ -2836,3 +2836,98 @@ derived size exponent", i.e. the already-falsified -0.84 whose sign was wrong on
 on an axis the model claimed not to be applying. Withdrawal is now per-axis.
 The lesson generalises: a guard conditioned on "nothing was supplied" silently
 inverts as soon as anything is always supplied.
+
+## Separating the simulator's SHELL from its PHYSICS (2026-09-26)
+
+The owner's instruction is structural rather than physical: *"시뮬레이터에서
+모델링만 수정할 수 있도록 작업구조를 만들어"* — a model change must not require
+touching the UI, and a UI change must not be able to alter the model. This entry
+records how that is enforced, because the enforcement is the substance; a
+convention would not have held.
+
+### The concrete failure that motivated it
+
+`tool.html` carried `groove_pitch_mm: 2.0` and `groove_width_mm: 0.5` in its
+recipe defaults. Those are real pad geometry, and they disagreed with what the
+project can source for IC1000 — 3.05 mm pitch (120 mil, the inherited base pack)
+and 0.6 mm width (Mu et al. 2016, doi:10.1016/j.mee.2016.02.035, the width at
+which measured slurry-utilisation efficiency peaks). Nothing failed when the two
+diverged, because nothing compared them. The picture was drawing a pad nobody
+measured, while the engine computed with another.
+
+### Where numbers live now
+
+| kind of number | home | reaches the UI via |
+|---|---|---|
+| physics constants | `cmp_sim/data/params/*.yaml`, `cmp_sim/models/` | `GET /api/model?film=` |
+| named pad / disk properties | `cmp_sim/data/consumables.yaml` | `GET /api/meta` |
+| operating conditions | the recipe the user is editing | the drawers themselves |
+
+`cmp_sim/data/consumables.yaml` is new and follows the parameter-pack rules
+exactly: value / unit / source / confidence per property, `null` where the
+literature held here publishes nothing. `cmp_sim/pad/catalog.py` resolves a name
+to properties and is called once, in `solver.resolve`, so every physics layer
+sees the same pad.
+
+### Enforced by test, not by convention
+
+`tests/test_web_holds_no_physics_constants.py` greps every browser-loaded file
+for an assignment of a literal to any key a parameter pack declares, and to any
+pad/disk property the catalogue owns. The forbidden vocabulary is derived from
+the packs at test time, so adding a constant to a pack immediately makes
+hard-coding it in the UI a failure with no test edit. Operating-condition names
+(`pressure_psi`, `rpm_platen`) are excluded by intersecting with the recipe
+dataclasses' own fields: a starting pressure of 3 psi in a form is not a claim
+about physics.
+
+### Three honesty rules the catalogue inherits
+
+1. **A pad with no published property changes nothing, and says so.** Politex has
+   no Shore D in any source held here; US7074115B2 names it only qualitatively,
+   as the soft counter-example to IC1000. Shore A→D conversion tables are
+   non-linear approximations, so no number is manufactured from Suba IV's
+   Shore A 61 either. Selecting these pads leaves the rate at the pack's own
+   reference pad and warns — the same discipline `abrasive_effects` applies to an
+   abrasive with no published rate ratio.
+
+2. **Conditioner grit design is `wired: false`.** The conditioning model responds
+   to the conditioning DUTY (down force, sweep, hours). The grit → pad-asperity
+   mapping is recorded in `legacy/knowledge/performance/disk.yaml` as
+   `status: pack_only` with an *undetermined proportionality constant*, so wiring
+   the disk to the rate would mean fitting that constant. The catalogue marks it,
+   the API publishes it, the drawer states it, and a test asserts two different
+   disks predict the same rate — so if grit design is ever wired with a sourced
+   constant, that test fails loudly and the claim has to be written down.
+
+3. **Choosing the pack's own calibration pad must not rescale the rate.** This
+   was a measured bug in this very change. `kappa_contact` is a ratio
+   `A_r(pad)/A_r(reference)`. The catalogue's published Shore D 60 for IC1000
+   goes through the Qi 2003 correlation to `E* = 2.5e8 Pa`, while
+   `oxide_silica_calibrated_pad`'s reference pad is the `1.0e9 Pa` Jeong et al.
+   2024 (doi:10.3390/ma17081817) measured on that same physical pad. Feeding one
+   against the other made *selecting the pad the Kp was calibrated on* multiply
+   the rate by 1.9x — a fitted constant arriving through a dropdown. A pack may
+   now declare `reference_pad_name`, and when the recipe names that pad with no
+   user override, kappa is pinned to exactly 1.0. The fix is the same principle
+   the whole factor system rests on: **every factor is exactly 1.0 at its pack's
+   reference condition**, and a named consumable is a reference condition.
+
+A fourth guard exists for the same reason: `Pad.name` defaults to `"IC1000"` for
+backward compatibility, so the catalogue must not act on it. `Pad.name_was_defaulted`
+distinguishes a chosen pad from a defaulted one, exactly as
+`Wafer.film_was_defaulted` already did for the film. Without it, every stored
+example and every validation row would have shifted on the strength of a
+dataclass default.
+
+### What the UI gained
+
+The four stations the brief names are now all present and all reach the model:
+the wafer cart selects the film stack, the operation screen carries pressure /
+rpm / flow / time / temperature, the slurry supply unit carries the formulation,
+and the polishing unit selects a pad and a disk **by product name** with their
+sources shown. A model-inspector panel lists every constant the engine will use
+for the current film with its source and confidence, allows one to be edited, and
+re-predicts through the ordinary `recipe.params` override path — which reports
+the edit as owner-supplied, so it can never be mistaken for a sourced value.
+Eight browser-driven tests pin each station, including one that doubles the
+Preston coefficient in the inspector and asserts the prediction doubles.

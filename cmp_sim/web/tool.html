@@ -188,10 +188,18 @@ const R = {
   model: 'auto',
   wafer: { film: 'oxide', diameter_mm: 300, initial_thickness_nm: 1000, n_radial: 81 },
   slurry: { abrasive: {}, additives: [] },
-  pad: { groove_width_mm: 0.5, groove_pitch_mm: 2.0, groove_depth_mm: 0.75, use_hours: 0 },
+  pad: { use_hours: 0 },
   disk: { hours_used: 0 },
   tool: { pressure_psi: 3.0, rpm_platen: 60, rpm_head: 60, flow_ml_min: 200, time_s: 60 },
 };
+/* NOTE ON WHERE NUMBERS LIVE. The defaults above are OPERATING CONDITIONS —
+ * what the machine is set to — and nothing else. No physics constant, no pad
+ * hardness, no groove geometry, no Preston coefficient appears anywhere in this
+ * file: pad and disk properties arrive from /api/meta (which reads
+ * cmp_sim/data/consumables.yaml) and model constants from /api/model (which
+ * reads the parameter packs). That separation is enforced by
+ * tests/test_web_holds_no_physics_constants.py, so a constant smuggled into the
+ * UI fails the suite rather than quietly becoming a second source of truth. */
 
 const numOrNull = v => (v === '' || v == null) ? null : Number(v);
 
@@ -215,17 +223,32 @@ function getR(path, dflt) {
 /** Push the recipe's kinematics into the animation, so the picture is honest. */
 function syncScene() {
   if (!SCENE) return;
+  // Groove geometry for the drawn platen comes from the CATALOGUE entry of the
+  // selected pad, never from a literal here — an ungrooved or embossed pad
+  // (Suba, Politex) publishes no pitch, and the scene then leaves the grooves as
+  // the renderer's own neutral default rather than drawing a geometry nobody
+  // measured.
+  const cat = padCatalog(getR('pad.name'));
+  const pitch = getR('pad.groove_pitch_mm', cat.groove_pitch_mm);
+  const width = getR('pad.groove_width_mm', cat.groove_width_mm);
   SCENE.setState({
-    rpmPlaten: Number(getR('tool.rpm_platen', 60)) || 0,
-    rpmHead: Number(getR('tool.rpm_head', 60)) || 0,
-    flow: Number(getR('tool.flow_ml_min', 200)) || 0,
+    rpmPlaten: Number(getR('tool.rpm_platen', 0)) || 0,
+    rpmHead: Number(getR('tool.rpm_head', 0)) || 0,
+    flow: Number(getR('tool.flow_ml_min', 0)) || 0,
     conditioning: true,
-    groovePitchMm: Number(getR('pad.groove_pitch_mm', 2.0)),
-    grooveWidthMm: Number(getR('pad.groove_width_mm', 0.5)),
+    ...(pitch != null ? { groovePitchMm: Number(pitch) } : {}),
+    ...(width != null ? { grooveWidthMm: Number(width) } : {}),
   });
   $('filmnow').textContent =
     `${getR('wafer.film', '?')} · ${getR('slurry.abrasive.kind') || 'pack abrasive'} · ` +
+    `${getR('pad.name') || 'pack pad'} · ` +
     `${getR('tool.pressure_psi', '?')} psi · ${getR('tool.rpm_platen', '?')}/${getR('tool.rpm_head', '?')} rpm`;
+}
+
+/** Published properties of a named pad, from /api/meta. {} when unknown. */
+function padCatalog(name) {
+  const e = ((META && META.pads) || {})[name];
+  return (e && e.published) || {};
 }
 
 /* ── drawers, one per clickable part ───────────────────────────────── */
@@ -338,46 +361,127 @@ const DRAWERS = {
     };
   },
 
-  pad: () => ({
-    title: 'Polishing pad',
-    why: 'Pad modulus and asperity statistics set the real contact pressure ' +
-         '(Greenwood–Williamson). Grooving controls slurry transport; the grooves ' +
-         'you see on the platen are drawn from the pitch below.',
-    body: `
-      <div class="row">
-        ${field('Shore D', 'pad.shore_d', { type: 'number', step: 1, placeholder: 'pack' })}
-        ${field('Pad hours used', 'pad.use_hours', { type: 'number', step: 0.5 })}
-      </div>
-      <div class="row3">
-        ${field('Groove w (mm)', 'pad.groove_width_mm', { type: 'number', step: 0.1 })}
-        ${field('pitch (mm)', 'pad.groove_pitch_mm', { type: 'number', step: 0.1 })}
-        ${field('depth (mm)', 'pad.groove_depth_mm', { type: 'number', step: 0.05 })}
-      </div>
-      <div class="hint">Pad hours drive the glazing / rate-decay layer.</div>`,
-  }),
+  pad: () => {
+    /* The pad is CHOSEN BY NAME, the way it is in a fab. Every property the
+     * name implies comes from /api/meta (cmp_sim/data/consumables.yaml) with its
+     * source; this drawer holds no pad number of its own. Properties the
+     * literature does not publish for a pad are shown as such instead of being
+     * filled with a plausible value — selecting Politex genuinely cannot move
+     * the rate, and saying so is the honest control. */
+    const pads = META.pads || {};
+    const cur = getR('pad.name') || '';
+    const e = pads[cur];
+    let info = '';
+    if (e) {
+      const rows = Object.entries(e.published).map(([k, v]) =>
+        `<tr><td>${k.replace(/_/g, ' ')}</td><td class="num">${v}
+         <span style="color:var(--muted)">${(e.sources[k] || {}).unit || ''}</span></td></tr>`).join('');
+      info = `<div class="note">${e.description}${rows ? `<table>${rows}</table>` : ''}
+        <details><summary>sources</summary>${
+          Object.entries(e.sources).map(([k, s]) =>
+            `<div style="margin:4px 0"><b>${k}</b> [${s.confidence}] ${s.source}</div>`).join('')
+          || 'no published property'}</details></div>`;
+      if (e.unpublished.length) {
+        info += `<div class="note warn"><b>not published for this pad:</b>
+          ${e.unpublished.join(', ')} — the pack's own reference pad is used for
+          those, so this selection cannot move the prediction through them. No
+          number was invented.</div>`;
+      }
+      if (e.notes) info += `<div class="note">${e.notes}</div>`;
+    }
+    return {
+      title: 'Polishing pad',
+      why: 'Pad modulus and asperity statistics set the real contact pressure ' +
+           '(Greenwood–Williamson). Grooving controls slurry transport; the grooves ' +
+           'drawn on the platen follow the selected pad.',
+      body: `
+        <label>Pad product<select data-path="pad.name">
+          <option value="">(the pack's own reference pad)</option>
+          ${Object.keys(pads).map(p =>
+            `<option value="${p}"${p === cur ? ' selected' : ''}>${p}</option>`).join('')}
+        </select></label>
+        ${info}
+        <div class="row">
+          ${field('Shore D (override)', 'pad.shore_d', { type: 'number', step: 1, placeholder: 'from pad' })}
+          ${field('Pad hours used', 'pad.use_hours', { type: 'number', step: 0.5 })}
+        </div>
+        <div class="row3">
+          ${field('Groove w (mm)', 'pad.groove_width_mm', { type: 'number', step: 0.1, placeholder: 'from pad' })}
+          ${field('pitch (mm)', 'pad.groove_pitch_mm', { type: 'number', step: 0.1, placeholder: 'from pad' })}
+          ${field('depth (mm)', 'pad.groove_depth_mm', { type: 'number', step: 0.05, placeholder: 'from pad' })}
+        </div>
+        <div class="hint">Anything typed here overrides the pad's published value.
+          Pad hours drive the glazing / rate-decay layer.</div>`,
+    };
+  },
 
   platen: () => DRAWERS.tool(),
   head: () => DRAWERS.tool(),
   nozzle: () => DRAWERS.slurry(),
   carousel: () => DRAWERS.tool(),
+
+  /* The wafer CART is where a wafer is loaded, so this is the film-stack
+   * selection point the brief asks for — the same view as clicking the wafer
+   * itself, which is correct: one recipe, two ways in. */
   loadcup: () => DRAWERS.wafer(),
 
-  disk: () => ({
-    title: 'Conditioner disk',
-    why: 'Conditioning regenerates pad asperities against glazing. Disk hours ' +
-         'stand for its own wear — a worn disk cuts less and the pad drifts.',
-    body: `
-      ${field('Disk hours used', 'disk.hours_used', { type: 'number', step: 1 })}
-      <div class="hint">Diamond grit size and density live in the parameter pack;
-        override them in the form view if you have vendor data.</div>`,
-  }),
+  disk: () => {
+    /* Conditioner disks are named too, but every design property is marked
+     * `wired: false` in the catalogue: the conditioning model reacts to the
+     * conditioning DUTY, not to grit design, because the grit -> pad-asperity
+     * proportionality constant is undetermined in the literature held here.
+     * The drawer says that instead of offering a control that does nothing. */
+    const disks = META.disks || {};
+    const cur = getR('disk.name') || '';
+    const e = disks[cur];
+    let info = '';
+    if (e) {
+      info = `<div class="note">${e.description}${
+        Object.entries(e.published).map(([k, v]) =>
+          `<div><b>${k.replace(/_/g, ' ')}</b> ${v} ${(e.sources[k] || {}).unit || ''}</div>`).join('')
+      }<details><summary>sources</summary>${
+        Object.entries(e.sources).map(([k, s]) =>
+          `<div style="margin:4px 0"><b>${k}</b> [${s.confidence}] ${s.source}</div>`).join('')
+        || 'no published property'}</details></div>`;
+      if (e.unwired.length) {
+        info += `<div class="note warn"><b>recorded, not modelled:</b>
+          ${e.unwired.join(', ')}. The conditioning model responds to the
+          conditioning duty (down force, sweep, hours), not to grit design — the
+          grit-to-asperity proportionality constant is undetermined in the
+          literature, so changing the disk will not change the rate. Wiring it
+          would mean fitting that constant.</div>`;
+      }
+    }
+    return {
+      title: 'Conditioner disk',
+      why: 'Conditioning regenerates pad asperities against glazing. Disk hours ' +
+           'stand for its own wear — a worn disk cuts less and the pad drifts.',
+      body: `
+        <label>Disk product<select data-path="disk.name">
+          ${Object.keys(disks).map(d =>
+            `<option value="${d}"${d === cur ? ' selected' : ''}>${d}</option>`).join('')}
+        </select></label>
+        ${info}
+        <div class="row">
+          ${field('Disk hours used', 'disk.hours_used', { type: 'number', step: 1 })}
+          ${field('Down force (N)', 'disk.down_force_n', { type: 'number', step: 1, placeholder: 'pack' })}
+        </div>
+        <div class="row">
+          ${field('Sweep (rpm)', 'disk.sweep_rpm', { type: 'number', step: 1, placeholder: 'pack' })}
+          ${field('Duty cycle (0–1)', 'disk.duty_cycle', { type: 'number', step: 0.05, min: 0, max: 1 })}
+        </div>
+        <div class="hint">In-situ conditioning = duty 1.0; ex-situ &lt; 1.</div>`,
+    };
+  },
 
   frame: () => DRAWERS.tool(),
 
   tool: () => ({
-    title: 'Process setup',
+    title: 'Operation — process conditions',
     why: 'Pressure and relative velocity are the Preston pair; flow and rpm ' +
-         'together decide whether the wafer is slurry-starved.',
+         'together decide whether the wafer is slurry-starved; temperature enters ' +
+         'the chemistry through Arrhenius, and the pack says whether it has an ' +
+         'activation energy to use.',
     body: `
       <div class="row">
         ${field('Pressure (psi)', 'tool.pressure_psi', { type: 'number', step: 0.25 })}
@@ -387,7 +491,17 @@ const DRAWERS = {
         ${field('Platen rpm', 'tool.rpm_platen', { type: 'number', step: 1 })}
         ${field('Head rpm', 'tool.rpm_head', { type: 'number', step: 1 })}
       </div>
-      ${field('Polish time (s)', 'tool.time_s', { type: 'number', step: 5 })}
+      <div class="row">
+        ${field('Polish time (s)', 'tool.time_s', { type: 'number', step: 5 })}
+        ${field('Slurry temperature (°C)', 'slurry.temperature_c',
+                { type: 'number', step: 1, placeholder: 'isothermal' })}
+      </div>
+      <div class="row">
+        ${field('Platen temperature (°C)', 'tool.platen_temp_c',
+                { type: 'number', step: 1, placeholder: 'not controlled' })}
+        ${field('Retaining ring (psi)', 'tool.retaining_ring_psi',
+                { type: 'number', step: 0.25, placeholder: 'same as head' })}
+      </div>
       <label>Zone pressures (psi, comma separated — blank = uniform)
         <input id="zones" value="${(getR('tool.zone_pressures_psi') || []).join(', ')}"
                placeholder="e.g. 2.5, 3.0, 4.0"/></label>
@@ -396,16 +510,22 @@ const DRAWERS = {
           .map(k => `<option value="${k}"${k === R.model ? ' selected' : ''}>${k}</option>`).join('')
       }</select></label>
       <div class="hint">A profile bundles physics layers for a <b>situation</b>, not
-        for a film. <b>auto</b> detects the situation and picks.</div>`,
+        for a film. <b>auto</b> detects the situation and picks.</div>
+      <button id="showmodel" style="margin-top:12px;width:100%;padding:8px;
+        background:var(--panel2);color:var(--accent);border:1px solid var(--line);
+        border-radius:6px;cursor:pointer;font-size:12.5px">model parameters &amp; sources</button>`,
     after: () => {
       const z = $('zones');
-      if (!z) return;
-      z.addEventListener('change', () => {
-        const zp = z.value.split(',').map(s => Number(s.trim())).filter(v => !isNaN(v));
-        if (!zp.length) { delete R.tool.zone_pressures_psi; delete R.tool.zone_edges_norm; return; }
-        R.tool.zone_pressures_psi = zp;
-        R.tool.zone_edges_norm = Array.from({ length: zp.length + 1 }, (_, i) => i / zp.length);
-      });
+      if (z) {
+        z.addEventListener('change', () => {
+          const zp = z.value.split(',').map(s => Number(s.trim())).filter(v => !isNaN(v));
+          if (!zp.length) { delete R.tool.zone_pressures_psi; delete R.tool.zone_edges_norm; return; }
+          R.tool.zone_pressures_psi = zp;
+          R.tool.zone_edges_norm = Array.from({ length: zp.length + 1 }, (_, i) => i / zp.length);
+        });
+      }
+      const mb = $('showmodel');
+      if (mb) mb.addEventListener('click', showModelSheet);
     },
   }),
 };
@@ -423,7 +543,8 @@ function openDrawer(part) {
       const raw = el.value;
       const v = (el.type === 'number') ? numOrNull(raw) : (raw === '' ? null : raw);
       setR(el.dataset.path, v);
-      if (el.dataset.path === 'wafer.film' || el.dataset.path === 'slurry.abrasive.kind') {
+      if (el.dataset.path === 'wafer.film' || el.dataset.path === 'slurry.abrasive.kind'
+          || el.dataset.path === 'pad.name' || el.dataset.path === 'disk.name') {
         openDrawer(part);                      // re-render so the hints update
       }
     });
@@ -447,6 +568,77 @@ function openDrawer(part) {
   panel('drawer', true);
 }
 
+/* ── the model inspector ───────────────────────────────────────────────
+ * This is the panel that makes the separation real rather than merely tidy:
+ * it lists the physics constants THE ENGINE will use for the current film, each
+ * with its source and confidence, lets one be edited, and re-predicts through
+ * the normal override path (`recipe.params`). The UI never computes with these
+ * numbers — it displays them and hands them back — so the model can be changed
+ * entirely in cmp_sim/models/ and data/params/*.yaml and this panel follows.
+ */
+async function showModelSheet() {
+  const film = getR('wafer.film');
+  panel('sheet', true);
+  $('sheetbody').innerHTML = `<p class="hint">Loading model parameters for ${film}…</p>`;
+  let j;
+  try {
+    j = await (await fetch(api(`/api/model?film=${encodeURIComponent(film)}`))).json();
+  } catch (e) {
+    $('sheetbody').innerHTML = `<div class="err">${e}</div>`;
+    return;
+  }
+  if (j.error) {
+    $('sheetbody').innerHTML = `<div class="err"><b>${j.error}</b>\n${j.detail || ''}</div>`;
+    return;
+  }
+  const over = R.params || {};
+  const rows = j.parameters.map(p => {
+    const edited = Object.prototype.hasOwnProperty.call(over, p.key);
+    const shown = edited ? over[p.key] : p.value;
+    const cell = p.editable
+      ? `<input data-param="${p.key}" value="${shown === null ? '' : shown}"
+           placeholder="${p.value === null ? 'not established' : p.value}"
+           style="width:12ch;text-align:right"/>`
+      : `<span class="num">${shown}</span>`;
+    return `<tr>
+      <td><b>${p.key}</b>${edited ? ' <span class="badge rank">edited</span>' : ''}
+        <div style="color:var(--muted);font-size:11px">${p.unit || ''} ·
+          ${p.confidence} · declared by ${p.declared_by || 'inherited'}</div>
+        ${p.source ? `<details><summary>source</summary>
+          <div style="font-size:11px;color:var(--muted)">${p.source}</div>
+          ${p.note ? `<div style="font-size:11px;margin-top:5px">${p.note}</div>` : ''}
+        </details>` : ''}</td>
+      <td class="num">${cell}</td></tr>`;
+  }).join('');
+
+  $('sheetbody').innerHTML = `
+    <h2>Model — ${j.pack}</h2>
+    <div class="note">${j.description}<br/>
+      inheritance: ${j.lineage.join(' → ')}<br/>
+      ${j.parameters.length} constants. Every one is read from
+      <code>cmp_sim/data/params/</code>; nothing in this page carries a physics
+      number of its own.</div>
+    <div class="note warn">${j.override_hint}</div>
+    <button class="go" id="reapply">Apply edits &amp; re-predict</button>
+    <button id="clearedits" style="margin-top:8px;width:100%;padding:8px;
+      background:var(--panel2);color:var(--fg);border:1px solid var(--line);
+      border-radius:6px;cursor:pointer">Clear all edits</button>
+    <table style="margin-top:14px">
+      <tr><th>constant</th><th style="text-align:right">value</th></tr>
+      ${rows}</table>`;
+
+  $('sheetbody').querySelectorAll('[data-param]').forEach(el => {
+    el.addEventListener('change', () => {
+      R.params = R.params || {};
+      const v = numOrNull(el.value);
+      if (v === null) delete R.params[el.dataset.param];
+      else R.params[el.dataset.param] = v;
+    });
+  });
+  $('reapply').onclick = async () => { await run(); showModelSheet(); };
+  $('clearedits').onclick = () => { R.params = {}; showModelSheet(); };
+}
+
 /* ── run ──────────────────────────────────────────────────────────── */
 function cleanRecipe() {
   // additives are held as a sparse array while the drawer is open; the API
@@ -454,6 +646,7 @@ function cleanRecipe() {
   const body = JSON.parse(JSON.stringify(R));
   body.slurry.additives = (body.slurry.additives || []).filter(a => a && a.name);
   if (!Object.keys(body.slurry.abrasive || {}).length) delete body.slurry.abrasive;
+  if (body.params && !Object.keys(body.params).length) delete body.params;
   return body;
 }
 
@@ -538,6 +731,22 @@ function renderSheet(j) {
     }
   }
 
+  const cons = j.consumables;
+  if (cons) {
+    h += `<h2>Consumables — what the names supplied</h2><table>
+      <tr><th>pad</th><td class="num">${cons.pad || '(pack reference pad)'}</td></tr>
+      <tr><th>disk</th><td class="num">${cons.disk || '(none named)'}</td></tr>
+      ${Object.entries(cons.filled).map(([k, v]) =>
+        `<tr><td>${k.replace(/_/g, ' ')}</td><td class="num">${v}</td></tr>`).join('')}
+      </table>`;
+    const up = Object.entries(cons.unpublished || {});
+    if (up.length) {
+      h += `<details><summary>${up.length} property/properties not published, so not used</summary>
+        <ul class="msgs">${up.map(([k, v]) =>
+          `<li class="w"><b>${k}</b>: ${v}</li>`).join('')}</ul></details>`;
+    }
+  }
+
   if (j.cmp_maturity && j.cmp_maturity.grade !== 'established') {
     h += `<div class="err"><b>${j.cmp_maturity.grade.toUpperCase()} CMP target</b><ul class="msgs">${
       (j.cmp_maturity.reasons || []).map(x => `<li>${x}</li>`).join('')}</ul></div>`;
@@ -601,9 +810,9 @@ $('dgo').onclick = run;
   $('legendbtns').innerHTML = order.filter(p => !seen.has(p) && seen.add(p) !== false)
     .map(p => `<button data-part="${p}">${
       ({ wafer: 'Wafer / film stack', head: 'Carrier head', pad: 'Pad (platen 1)',
-         platen: 'Platen & speeds', disk: 'Conditioner disk',
-         slurry: 'Slurry supply unit', loadcup: 'Load cup (wafer in/out)',
-         carousel: 'Carousel / process setup' })[p]}</button>`).join('');
+         platen: 'Operation (P, rpm, flow, T)', disk: 'Conditioner disk',
+         slurry: 'Slurry supply unit', loadcup: 'Wafer cart / loading',
+         carousel: 'Carousel / operation' })[p]}</button>`).join('');
   $('legendbtns').querySelectorAll('button').forEach(b =>
     b.addEventListener('click', () => openDrawer(b.dataset.part)));
 

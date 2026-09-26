@@ -50,13 +50,13 @@ const PARTS = {
   wafer:      { label: 'Wafer / film stack',      section: 'wafer'  },
   head:       { label: 'Carrier head',            section: 'tool'   },
   pad:        { label: 'Pad (platen 1)',          section: 'pad'    },
-  platen:     { label: 'Platen',                  section: 'tool'   },
+  platen:     { label: 'Operation / platen',      section: 'tool'   },
   disk:       { label: 'Conditioner disk',        section: 'disk'   },
   slurry:     { label: 'Slurry supply unit',      section: 'slurry' },
   nozzle:     { label: 'Slurry delivery arm',     section: 'slurry' },
-  carousel:   { label: 'Carousel / process setup',section: 'tool'   },
-  loadcup:    { label: 'Load cup (wafer in/out)', section: 'wafer'  },
-  frame:      { label: 'Tool / process setup',    section: 'tool'   },
+  carousel:   { label: 'Carousel / operation',    section: 'tool'   },
+  loadcup:    { label: 'Wafer cart / loading',    section: 'wafer'  },
+  frame:      { label: 'Tool / operation',        section: 'tool'   },
 };
 
 // Platen centres on the Reflexion deck. Three platens sit on a circle around

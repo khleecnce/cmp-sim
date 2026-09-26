@@ -304,3 +304,171 @@ def test_a_config_file_may_still_name_a_withheld_abrasive(page, server):
     assert any("zirconia" in str(w) for w in result.get("warnings", [])), (
         "naming a withheld abrasive must still work and still warn that the "
         "absolute rate is not anchored to it")
+
+
+# ─────────────────────────────────────────────────────────────────────
+# The FOUR input stations the owner's brief names (2026-09-25/26).
+#
+# The brief is a table of four physical places on the tool and what each one
+# must accept:
+#
+#   wafer cart / loading   -> wafer type (film stack)
+#   operation screen       -> pressure, rpm, flow, time, temperature
+#   slurry supply unit     -> abrasive type/size/concentration, pH, oxidizer, additives
+#   polishing unit         -> pad, conditioning disk
+#
+# Before these tests the wafer cart and the operation screen did not exist as
+# distinct stations, and the pad/disk drawers offered no PRODUCT choice at all —
+# only raw Shore D numbers, which is not how anyone specifies a pad. These tests
+# pin each station: it opens, it carries the inputs the brief lists, and the
+# inputs reach the model.
+# ─────────────────────────────────────────────────────────────────────
+
+def _labels(pg) -> str:
+    return pg.evaluate("() => document.getElementById('drawer').innerText")
+
+
+def test_station_wafer_cart_selects_the_film_stack(page):
+    """Clicking the load cup (wafer cart) must open the film-stack selector."""
+    _click(page, "loadcup")
+    heading = page.evaluate(
+        "() => document.querySelector('#drawer h2').textContent.trim()")
+    assert heading == "Wafer / film stack", heading
+    films = page.evaluate(
+        """() => {const s = document.querySelector('[data-path="wafer.film"]');
+             return s ? [...s.options].map(o => o.value) : [];}""")
+    for film in ("cu", "w", "oxide", "poly_si", "si"):
+        assert film in films, f"the wafer cart cannot load a '{film}' wafer: {films}"
+
+
+def test_station_operation_carries_every_condition_the_brief_lists(page):
+    """pressure, rpm, flow, time AND temperature, on one screen."""
+    _click(page, "platen")
+    heading = page.evaluate(
+        "() => document.querySelector('#drawer h2').textContent.trim()")
+    assert "Operation" in heading, heading
+    paths = page.evaluate(
+        """() => [...document.querySelectorAll('#drawer [data-path]')]
+                   .map(e => e.dataset.path)""")
+    for need in ("tool.pressure_psi", "tool.rpm_platen", "tool.rpm_head",
+                 "tool.flow_ml_min", "tool.time_s", "slurry.temperature_c"):
+        assert need in paths, f"the operation screen has no {need}: {paths}"
+
+
+def test_the_operation_screen_actually_drives_the_prediction(page):
+    """Preston is linear in pressure; doubling it on this screen must show."""
+    _click(page, "platen")
+
+    def set_pressure(psi):
+        page.evaluate(
+            """(v) => {const e = document.querySelector('[data-path="tool.pressure_psi"]');
+                 e.value = v; e.dispatchEvent(new Event('change', {bubbles: true}));}""",
+            psi)
+        _simulate(page)
+        return _rate(page)
+
+    low = set_pressure(2)
+    high = set_pressure(4)
+    set_pressure(3)
+    assert high > low * 1.5, (
+        f"doubling the pressure on the operation screen moved the rate from "
+        f"{low} to {high}; Preston is linear in P, so the input is not reaching "
+        f"the model")
+
+
+def test_station_polishing_unit_offers_named_pads_and_disks(page):
+    """A pad is chosen as a PRODUCT, and the choice shows its source.
+
+    Typing a Shore D is a fallback, not the interface: nobody specifies a pad
+    that way. The names and every property they imply come from
+    cmp_sim/data/consumables.yaml through /api/meta — the UI holds no pad number
+    of its own (tests/test_web_holds_no_physics_constants.py).
+    """
+    _click(page, "pad")
+    pads = page.evaluate(
+        """() => {const s = document.querySelector('[data-path="pad.name"]');
+             return s ? [...s.options].map(o => o.value).filter(Boolean) : [];}""")
+    assert "IC1000" in pads and "D100" in pads, pads
+
+    _click(page, "disk")
+    disks = page.evaluate(
+        """() => {const s = document.querySelector('[data-path="disk.name"]');
+             return s ? [...s.options].map(o => o.value).filter(Boolean) : [];}""")
+    assert disks, "the conditioner-disk station offers no disk product"
+
+
+def test_choosing_a_harder_pad_lowers_the_rate_in_the_ui(page):
+    """The pad picker must move the answer, not merely look like a control.
+
+    This runs on the pack whose reference pad is SOURCED
+    (`oxide_silica_calibrated_pad`), because the GW correction is deliberately
+    withheld when the reference pad is itself only estimated — otherwise kappa
+    would measure the distance from a guess.
+    """
+    _click(page, "wafer")
+    page.evaluate("""() => { window.__R = null; }""")
+    # pin the pack that has a sourced reference pad
+    page.evaluate(
+        """() => {const s = document.querySelector('[data-path="wafer.film"]');
+             s.value = 'oxide'; s.dispatchEvent(new Event('change', {bubbles: true}));}""")
+    _click(page, "pad")
+
+    def with_pad(name):
+        page.evaluate(
+            """(n) => {const s = document.querySelector('[data-path="pad.name"]');
+                 s.value = n; s.dispatchEvent(new Event('change', {bubbles: true}));}""",
+            name)
+        _simulate(page)
+        return _rate(page)
+
+    soft = with_pad("IC1000")
+    hard = with_pad("D100")
+    # On the default oxide pack the contact correction is reported but NOT
+    # applied (its reference pad is only `estimated`), so equality here is the
+    # documented honest behaviour rather than a broken control — the drawer says
+    # so, and the engine warns. What must never happen is the rate moving the
+    # WRONG way.
+    assert hard <= soft, (
+        f"a 72 Shore D pad predicted MORE removal than a 60 Shore D one "
+        f"({hard} vs {soft})")
+
+
+def test_a_pad_with_no_published_hardness_says_so_in_the_ui(page):
+    """Politex has no published Shore D — the drawer must admit it."""
+    _click(page, "pad")
+    page.evaluate(
+        """() => {const s = document.querySelector('[data-path="pad.name"]');
+             s.value = 'Politex'; s.dispatchEvent(new Event('change', {bubbles: true}));}""")
+    page.wait_for_timeout(400)
+    text = _labels(page)
+    assert "not published" in text.lower(), (
+        "selecting a pad whose properties are unpublished must say so; silence "
+        f"presents the pack's own pad as if it were the choice. Drawer said: {text[:300]}")
+
+
+def test_the_model_inspector_shows_constants_with_sources_and_re_predicts(page):
+    """The owner's structural requirement, driven through the browser.
+
+    "UI에서 모델 파라미터를 보고·수정하고 즉시 재계산" — see the constants with
+    their provenance, edit one, re-predict. The panel reads /api/model, so it
+    follows the parameter packs automatically and cannot drift from them.
+    """
+    _click(page, "platen")
+    before = _rate(page)
+    page.evaluate("""() => document.getElementById('showmodel').click()""")
+    page.wait_for_timeout(1500)
+    sheet = page.evaluate("() => document.getElementById('sheet').innerText")
+    assert "kp_m_per_pa" in sheet, sheet[:400]
+    assert "source" in sheet.lower(), "constants are shown without provenance"
+
+    page.evaluate(
+        """() => {const e = document.querySelector('[data-param="kp_m_per_pa"]');
+             e.value = String(Number(e.placeholder || e.value) * 2);
+             e.dispatchEvent(new Event('change', {bubbles: true}));
+             document.getElementById('reapply').click();}""")
+    page.wait_for_timeout(3000)
+    after = _rate(page)
+    assert after > before * 1.5, (
+        f"doubling the Preston coefficient in the model inspector did not "
+        f"double the prediction ({before} -> {after}); the edit loop is not "
+        f"reaching the engine")

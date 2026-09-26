@@ -76,6 +76,23 @@ class Slurry:
 @dataclass
 class Pad:
     name: str = "IC1000"
+    #: True only when the caller AFFIRMATIVELY chose this pad by name.
+    #:
+    #: The consumables catalogue (``cmp_sim/pad/catalog.py``) fills blank pad
+    #: properties from the NAMED pad, and it must only do that for a pad someone
+    #: actually picked. `name` has a default of "IC1000" for backward
+    #: compatibility, and there are two ways to arrive at it without choosing:
+    #: a config that never mentions a pad, and a `Pad()` built directly in code
+    #: or in a test. Applying IC1000's published Shore D and groove geometry in
+    #: either case would move existing answers on the strength of a default —
+    #: measured: it silently removed the contact factor from
+    #: tests/test_phase_gates.py by making the pad differ from the pack
+    #: reference. So the flag defaults to False (not chosen) and
+    #: `recipe_from_dict` raises it when a name is actually supplied. The
+    #: conservative default is the correct one: an unset flag means "inert".
+    #: Same discipline as `Wafer.film_was_defaulted`, opposite polarity, for
+    #: exactly that reason.
+    name_was_chosen: bool = False
     shore_d: Optional[float] = None
     youngs_modulus_pa: Optional[float] = None
     porosity: Optional[float] = None

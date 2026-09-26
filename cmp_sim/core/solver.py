@@ -88,6 +88,8 @@ class ResolvedRecipe:
     situation: Any = None
     #: what the abrasive TYPE in this recipe does (AbrasiveResolution)
     abrasive_resolution: Any = None
+    #: what the named pad/disk supplied (ConsumableResolution)
+    consumables: Any = None
 
     # ── pack access ────────────────────────────────────────────
     def p(self, key: str) -> Any:
@@ -302,8 +304,20 @@ def resolve(recipe: Recipe) -> ResolvedRecipe:
         else:
             warnings.extend(estimate.warnings)
 
+    # Named pad/disk -> properties, from the sourced consumables catalogue.
+    # Done here, before any physics layer reads the pad, so every layer sees the
+    # same pad. Explicit values on the Pad/Disk object keep priority; a property
+    # the catalogue does not publish stays None and is disclosed rather than
+    # invented.
+    from cmp_sim.pad.catalog import apply_catalog
+
+    consumables = apply_catalog(recipe.pad, recipe.disk)
+    notes.extend(consumables.notes)
+    warnings.extend(consumables.warnings)
+
     rr = ResolvedRecipe(recipe=recipe, pack=pack,
                         formulation_notes=notes, formulation_warnings=warnings)
+    rr.consumables = consumables
     rr.calibration = calibration
     rr.estimate = estimate
     rr.factor_fit = factor_result if recipe.measurements else None
@@ -403,7 +417,25 @@ def _kappa_contact_hook(rr: ResolvedRecipe) -> Dict[str, Any]:
     """P2 — pad contact mechanics."""
     if not rr.profile.enabled("contact"):
         return {}
+    from cmp_sim.pad.catalog import pad_equals_pack_reference
     from cmp_sim.pad.material import contact_factor_for
+
+    # Selecting the pad the pack was CALIBRATED on must not rescale the rate.
+    # kappa is a ratio against the pack's reference pad, so if the catalogue's
+    # published Shore D is pushed through the Qi correlation while the reference
+    # pad's E* was measured directly on that same physical pad, the two numbers
+    # disagree by construction and kappa moves the rate by nothing but that
+    # disagreement. Measured on oxide_silica_calibrated_pad: 1.9x for choosing
+    # IC1000, the very pad its Kp is anchored to.
+    if pad_equals_pack_reference(rr):
+        name = rr.consumables.pad_name
+        return {"name": "kappa_contact", "value": 1.0, "notes": [
+            f"GW contact: '{name}' IS the pad this pack's Kp was calibrated on "
+            f"(reference_pad_name), so kappa = 1.0 exactly. Applying the "
+            f"correlation-derived modulus against the pack's directly measured "
+            f"reference pad would rescale the rate by the disagreement between "
+            f"two descriptions of the same pad, not by any physical difference."]}
+
     out = contact_factor_for(rr.recipe, rr)
     out.pop("state", None)
     return out
@@ -900,6 +932,12 @@ def simulate(recipe: Recipe) -> Result:
     # Is the absolute number even plausible for this film?
     from cmp_sim.core.sanity import check_rate
     warnings.extend(check_rate(recipe.wafer.film, mean_nm * 10.0))
+
+    # What the NAMED pad/disk actually supplied, so the UI can show which
+    # selections reached the physics and which were only recorded.
+    if rr.consumables is not None and (rr.consumables.pad_name
+                                       or rr.consumables.disk_name):
+        extras["consumables"] = rr.consumables.as_dict()
 
     notes.append(f"pressure profile: {p_label}")
     notes.append(f"parameter pack: {' -> '.join(rr.pack.lineage)}")
