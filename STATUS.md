@@ -4,7 +4,23 @@
 
 ### 1차 완성 — 모델링 정확도
 - **목표: 예측 오차 median ≤ 10.0%** (이력서에 쓸 수 있는 수준)
-- **현재: median 19.5% shape / 21.8% LOO** (코퍼스 46/50, 427점) — **880 tests**.
+- **현재: median 19.5% shape / 21.8% LOO** (코퍼스 46/50, 427점) — **891 tests**.
+  2026-09-28(5회차): **19.5%의 정체를 분해했다 — 완성 기준 논쟁의 답이 나왔다.**
+  `tools/residual_census.py`가 채점된 46개를 원인별로 한 버킷씩 배정한다(반응성은
+  선언이 아니라 **실측** — 첫 행을 각 축의 min/max로 재구성해 실제 시뮬레이터를
+  돌려 rate가 0.5% 넘게 움직이는지 본다):
+  noise_floor(원리적 불가) 3개/59점 26.8% · no_constant(선언된 공백) 4개/14점
+  27.7% · **responsive_miss(더 좋은 법칙이 먹히는 유일한 버킷) 35개/342점 20.2%**
+  · few_levels 4개/12점 7.1%.
+  **결론: ≤15% 완화는 아직 정당화되지 않는다.** 측정점의 80%가 개선 가능한
+  버킷에 있으므로 19.5%는 측정 노이즈나 데이터 공백으로 막힌 수치가 아니다
+  (테스트가 이 다수성을 assert — 뒤집히면 시끄럽게 실패한다).
+  같은 실행에서 **압력 포화 법칙도 반증**(네 번째 법칙 기각):
+  `1/RR = 1/(kPV) + 1/RR_chem`(Kaufman 1991)은 팩당 상수 1개를 요구하는데,
+  잔차 기울기 중앙값이 **+0.08**(10개 중 음수 5개)이고 **압력대가 겹치는
+  데이터셋들이 부호가 반대**다(같은 특허 ep3161098b1의 teos -0.06 vs w +1.04).
+  공통 곡률로는 같은 압력에서 반대 부호가 나올 수 없다 → Preston의 P 선형성 유지,
+  상수 추가 없음.
   2026-09-28(4회차): **농도 지수의 피팅 상수를 유도식으로 제거했다**(상수 감소).
   `tools/conc_derived_probe.py`로 농도 스윕 18개(r2≥0.5는 16개)를 측정한 결과:
   (1) size축에서 통했던 **재질 가설은 반증** — between/within 1.6x로 사전에 정한
@@ -427,10 +443,79 @@
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
-**Find out WHY the corpus median sits at 19.5% while every axis probe succeeds —
-decompose the residual by cause, before touching another constant.**
+**Attack the `responsive_miss` bucket by CAUSE, one law per run — starting with
+the pH-dominated oxide subset (5 datasets, 25-49% shape, all oxide/ceria).**
 
-Rationale (this is now the highest-value item, ahead of any further axis work).
+The census (below) named the bucket: 35/46 datasets, 342/427 points, median
+20.2%. Inside it the misses are NOT spread evenly — they cluster:
+* **pH-dominated oxide/ceria** (netzband2020 49.2, cn109609035b 32.1,
+  dandu2009 31.5, us9422456b2 25.3, son2021 25.6): the pH axis moves the
+  predicted rate 52-89%, so a constant exists and is WRONG, not missing. The pH
+  axis is CLOSED to further closed-form attempts by the 2026-09-27 rule (two
+  falsifications). What is NOT closed: these five are all **ceria or
+  ceria-adjacent on oxide**, where the mechanism is chemical-tooth
+  (Ce3+ site density), not electrostatic. Measure whether the residual orders by
+  **Ce3+ fraction / dissolved-Ce proxy** before proposing any functional form.
+* **velocity-bearing L25/L16 DOEs** (yang2023 69.0, us6564116b2 20.3,
+  mariscal2020 12.9, us6918821b2 44.1): pressure AND velocity both respond, and
+  the pressure-residual probe (this run) showed yang2023 alone at -1.28 while
+  the others sit near 0 — i.e. yang2023 is an outlier to explain, not a shared
+  curvature.
+* **two INERT axes inside otherwise-responsive datasets** are worth more than
+  any new law: `ep3161098b1_w` (54.9%) varies `fe_ppm` and `inhibitor_ppm` and
+  the model answers with the SAME rate for both — the Fenton term never reaches
+  the rate. Same for `jani2025_cu_rsm` (`chelator_M`, `promoter_M`, 51.2%) and
+  `yang2023` (`dispersant_wt_pct`, `slurry_ph` both inert under its pack).
+  These are the two worst-scoring responsive datasets and the cause is a
+  plumbing gap, not physics. **Check the wiring before deriving anything.**
+
+Rule kept from earlier runs: do not fit. Measure first, one axis per run.
+
+### Closed 2026-09-28 (2nd run): the residual is DECOMPOSED — 80% of points are improvable
+`tools/residual_census.py` + `tests/test_residual_census.py` (7 tests).
+Each scored dataset lands in exactly one bucket, with responsiveness MEASURED
+(rebuild the first row at each axis' min and max, run the real simulator, ask
+whether the rate moved >0.5%) rather than declared by a YAML field:
+
+| bucket | datasets | points | median shape |
+|---|---|---|---|
+| noise_floor (irreducible) | 3 | 59 | 26.8% |
+| no_constant (declared gap, no law can fix) | 4 | 14 | 27.7% |
+| **responsive_miss (a better law helps)** | **35** | **342** | **20.2%** |
+| few_levels (<=2 levels, one reading dominates) | 4 | 12 | 7.1% |
+
+**Verdict: the ≤15% allowance is NOT justified yet.** The census was built to
+test exactly that, and it came back the other way: 80% of measured points sit in
+the bucket a better law can move, so the 19.5% median is not floored by
+measurement noise or declared gaps. The allowance may only be invoked when this
+table says otherwise — the test asserts the improvable bucket is a majority and
+fails loudly if that flips.
+Two traps avoided: buckets are assigned in priority order (a floored dataset is
+never also counted as improvable, so the shares cannot exceed 100%), and
+`no_constant` is decided by RUNNING the simulator — four datasets
+(lee2021 inhibitor, kenchappa2021 pad hardness, bae2022 Si pH, phm2016 dresser
+usage) have a populated axis that provably never reaches the rate, and grading
+them as model error would have inflated the improvable bucket.
+
+### Closed 2026-09-28 (2nd run): rate saturation in PRESSURE is FALSIFIED
+`tools/pressure_saturation_probe.py` +
+`tests/test_pressure_saturation_falsified.py` (4 tests). The standard proposal
+for the responsive_miss bucket is the two-resistance form
+`1/RR = 1/(k·P·V) + 1/RR_chem` (Kaufman 1991 passivation), which costs one new
+per-pack constant. It makes a sharp prediction: after one fitted scale, the
+residual ln(measured/predicted) must fall with ln P on every ladder. Over the 10
+datasets with >=3 pressure levels the median slope is **+0.08**, only 5/10 are
+negative, and pressure-OVERLAPPING datasets disagree in SIGN
+(us9499721b2 -0.17 vs us8142675b2 +0.19; ep3161098b1_teos -0.06 vs
+ep3161098b1_w +1.04 — the same patent, same pressures, opposite trends).
+A shared curvature cannot produce opposite signs at the same pressures, so the
+misses belong to the datasets (scale/chemistry/tool), not to the P dependence.
+**Preston's linearity in P is kept and no constant was added** — a fourth
+derived-law rejection, and the fourth time refusing a handle the data do not
+demand.
+
+### Closed 2026-09-28 (was the previous NEXT): decompose the residual
+Rationale it was chosen on (kept for the record).
 Four consecutive runs improved the model's HONESTY and reduced its constant count
 (pH law falsified, size exponent re-attributed to material, conc exponent
 replaced by a derived +1/3) and the corpus median did not move once — 19.5% after
