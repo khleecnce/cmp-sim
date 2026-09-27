@@ -1,0 +1,158 @@
+# Fujimi -- DLC (amorphous carbon) CMP, colloidal-zirconia LOADING ladder
+# reaching the EXTREME dilute band. Patent example, printed table.
+#
+# WHY THIS DATASET WAS ADDED
+# --------------------------
+# `docs/limits.md` §30 closed the general refutation of the load-sharing onset
+# but kept a SCOPED refusal, whose stated weakness was that the extreme-dilute
+# band (chi < 0.2), where the correction acts hardest and fails worst, was
+# supplied by exactly ONE source -- the US2011/0186542A1 DIAMOND series at
+# 0.01-0.04 wt%. `test_the_extreme_dilute_evidence_still_rests_on_a_single_dataset`
+# was written to fail the moment a second source reached that band. This is the
+# candidate §30 itself named as the most promising one.
+#
+# It is deliberately NOT another diamond slurry and NOT another SiC or oxide
+# one: a second source that shared the first's abrasive or film could not
+# separate "the law fails at extreme dilution" from "that one patent behaves
+# oddly", which is the whole point of the exit condition.
+#
+# source: US 2023/0081442 A1, "POLISHING COMPOSITION CONTAINING ZIRCONIA
+#   PARTICLES AND AN OXIDIZER" (Fujimi Incorporated), Example 3 / TABLE 3.
+#   Published application, free full text, no copyright issue.
+#   Read 2026-09-27 from the FreePatentsOnline full text (Google Patents and
+#   patentimages both return 403 to this host).
+#
+# TRANSCRIPTION CHECK (arithmetic, not a re-read)
+#   Tables 2, 3 and 4 each contain the SAME composition -- 1 wt% zirconia,
+#   25 mM permanganate, pH 3.6 -- and all three independently print 151 A/min
+#   for it. Three separately typeset tables agreeing on the shared point is a
+#   stronger check on the transcription than reading Table 3 twice. That row is
+#   also this pack's Kp anchor.
+#
+# CONDITIONS (US20230081442A1, Example 1 footnote; Table 3 states "the same
+# polishing conditions as in Table 1"):
+#   - benchtop polisher Multiprep (Allied High Tech Products)
+#   - pad Fujibo H7000, pressure 2 psi, platen/head 200/23 rpm
+#   - slurry flow 50 mL/min
+#   - wafer: amorphous carbon, 300 mm (DK Nanotechnology), cut to 1.5 x 1.5 in
+#   - Table 3 fixes slurry pH 3.6, permanganate 25 mM, acetic acid 3.5 g/L
+#   - zirconia: average primary size < 5 nm, average secondary size 48 nm
+#
+# ⚠ THE CONTROL ROW PROBLEM DOES NOT ARISE HERE. Unlike US9422456B2 Table 1
+#   (§27), every row of this table is the same colloidal zirconia; only the
+#   weight percent changes. No morphology or material swap is hiding in the
+#   ladder.
+#
+# ⚠ THE 3.0 wt% ROW IS A GENUINE TURNOVER, NOT AN OUTLIER. 0.1 -> 1.0 wt%
+#   rises 59 -> 151 A/min and then FALLS to 96 at 3.0. The patent states the
+#   same reading in its own words: "wt. % of the zirconia particles within the
+#   range of more than 0.1 wt. % to less than 3 wt. % has a meaningful effect
+#   on removal rates". It is kept. Dropping the row that disagrees with a
+#   monotonic power law is exactly the selection this repository forbids, and
+#   the curvature it carries is the quantity §28/§30 are about.
+
+doi: "US20230081442A1 (FreePatentsOnline full text, Example 3 / Table 3)"
+source: >
+  Fujimi Incorporated, US 2023/0081442 A1, Example 3 / TABLE 3 -- DLC
+  (amorphous carbon) removal rate vs colloidal-zirconia loading
+  0.1/0.3/0.5/1.0/3.0 wt% at fixed pH 3.6, 25 mM KMnO4, 2 psi, 200/23 rpm,
+  Fujibo H7000 pad, 50 mL/min.
+read_method: table
+film: dlc  # source: Example 1 footnote, 'Wafer = amorphous carbon (300 mm wafer, DK Nanotechnology)'
+pack: dlc_zirconia_permanganate
+in_scope: true
+used_for_calibration: false
+
+# ── ABSOLUTE COMPARISON IS FORBIDDEN, AND NOT BECAUSE IT WOULD FAIL ────────
+# The pack's kp_m_per_pa is back-solved from the 1 wt% row OF THIS TABLE, so a
+# measured/predicted ratio here would be ~1.0 by construction at that row and
+# would be reporting the anchoring, not a prediction. The shape score is
+# unaffected: it fits one free scale per dataset anyway, so the anchor cancels
+# out of it entirely.
+rank_only: true
+rank_only_ruling: >
+  절대값 판정 면제 — 이 팩의 Kp 가 바로 이 표의 1 wt% 행(151 A/min)에서
+  역산됐기 때문이다. 같은 행으로 앵커를 잡고 같은 행으로 절대값을 채점하면
+  자기 답안지 채점이다. shape 점수는 데이터셋마다 자유 스케일 1개를 이미
+  적합하므로 앵커가 상쇄되어 영향을 받지 않는다. 데이터가 나빠서 빼는 것이
+  아니라 구조적으로 무의미하므로 빼는 것이다.
+notes: >
+  절대값 비교 금지 — Kp 가 이 표에서 역산됐다(위 rank_only_ruling). 1.00x 는
+  측정이 아니라 앵커링의 산물이다.
+
+  This ladder exists in the corpus to answer ONE question: does the
+  load-sharing onset chi(theta) = 1 - exp(-theta) still fail in the extreme
+  dilute band when the band is supplied by something other than the
+  US2011/0186542A1 diamond series? At 0.1 wt% zirconia this table sits in that
+  band, with a completely different abrasive (zirconia, 5.68 g/cm3, 48 nm
+  secondary), a different oxidiser (permanganate, not H2O2) and a different
+  film (amorphous carbon, not tungsten).
+
+  Measured direction: 59 -> 132 -> 149 -> 151 -> 96 A/min over
+  0.1 -> 0.3 -> 0.5 -> 1.0 -> 3.0 wt%. Note the SHAPE: the rise is steep at
+  the dilute end (0.1 -> 0.3 wt% is a log-log slope of +0.73) and has
+  essentially flattened by 0.5-1.0 wt% (+0.02), then turns over. That is
+  curvature of the sign §28 identified as missing from the power law -- and it
+  is what makes this table informative about the onset law rather than merely
+  compatible with it.
+
+conditions:
+  - label: "Table3-1: colloidal zirconia 0.1 wt% (pH 3.6, 25 mM KMnO4)"
+    mrr_a_per_min: 59.0
+    pressure_psi: 2.0
+    rpm_platen: 200
+    rpm_wafer: 23
+    read_method: table
+    overrides:
+      abrasive_wt_pct: 0.1
+      abrasive_size_nm: 48.0
+      slurry_ph: 3.6
+      sfr_ml_min: 50
+
+  - label: "Table3-2: colloidal zirconia 0.3 wt% (pH 3.6, 25 mM KMnO4)"
+    mrr_a_per_min: 132.0
+    pressure_psi: 2.0
+    rpm_platen: 200
+    rpm_wafer: 23
+    read_method: table
+    overrides:
+      abrasive_wt_pct: 0.3
+      abrasive_size_nm: 48.0
+      slurry_ph: 3.6
+      sfr_ml_min: 50
+
+  - label: "Table3-3: colloidal zirconia 0.5 wt% (pH 3.6, 25 mM KMnO4)"
+    mrr_a_per_min: 149.0
+    pressure_psi: 2.0
+    rpm_platen: 200
+    rpm_wafer: 23
+    read_method: table
+    overrides:
+      abrasive_wt_pct: 0.5
+      abrasive_size_nm: 48.0
+      slurry_ph: 3.6
+      sfr_ml_min: 50
+
+  - label: "Table3-4: colloidal zirconia 1.0 wt% (pH 3.6, 25 mM KMnO4) — pack reference / Kp anchor"
+    mrr_a_per_min: 151.0
+    pressure_psi: 2.0
+    rpm_platen: 200
+    rpm_wafer: 23
+    read_method: table
+    overrides:
+      abrasive_wt_pct: 1.0
+      abrasive_size_nm: 48.0
+      slurry_ph: 3.6
+      sfr_ml_min: 50
+
+  - label: "Table3-5: colloidal zirconia 3.0 wt% (pH 3.6, 25 mM KMnO4) — turnover"
+    mrr_a_per_min: 96.0
+    pressure_psi: 2.0
+    rpm_platen: 200
+    rpm_wafer: 23
+    read_method: table
+    overrides:
+      abrasive_wt_pct: 3.0
+      abrasive_size_nm: 48.0
+      slurry_ph: 3.6
+      sfr_ml_min: 50

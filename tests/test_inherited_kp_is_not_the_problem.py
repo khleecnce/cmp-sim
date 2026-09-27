@@ -57,7 +57,7 @@ a few per cent, but two orders.
 
 EXCLUSIONS
 
-Eleven datasets are excluded because their own notes forbid absolute comparison —
+Thirteen datasets are excluded because their own notes forbid absolute comparison —
 `in_scope: false`, benchtop coupons, scaled units, shear-rheological polishing
 rather than CMP. Excluding them is not cherry-picking: including a dataset whose
 source says its absolute values are meaningless would corrupt the very quantity
@@ -90,6 +90,9 @@ EXCLUDED = {
     "phm2016_dresser_usage_mrr": "스케일된 단위",
     "sic2023_shear_rheological_L9": "절대값 비교 부적합 (SRP, not CMP)",
     "us20110165777a1_cu_h2o2_series": "절대값 비교 부적합",
+    # Kp back-solved from this table's own 1 wt% row (limits.md §31), so its
+    # absolute rate is an anchoring artefact, not a measurement to score.
+    "us20230081442a1_dlc_zirconia_dilute_loading": "절대값 비교 금지",
     "us9200180b2_cu_benzenesulfonic_series": "in_scope: false",
     "yang2023_quartz_ceria_L25": "in_scope: false",
 }

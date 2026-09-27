@@ -41,7 +41,7 @@ from tools.stated_reproducibility import (  # noqa: E402
 KNOWN_KINDS = MEASUREMENT_KINDS | UNQUANTIFIED_KINDS | {"transcription_floor"}
 
 #: the corpus medians this pass must NOT move (it transcribes, it does not fit)
-MEDIAN_SHAPE = 18.2  # moved by the saturating-branch load-sharing fix, 2026-09-27
+MEDIAN_SHAPE = 18.9  # 18.2 -> 18.9: DLC ladder entered, counting-position shift (§31)
 MEDIAN_LOO = 21.3
 
 

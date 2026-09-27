@@ -199,18 +199,46 @@ def test_the_concentration_axis_stopped_disagreeing_in_sign_when_the_model_did()
     tests/test_predictive_accuracy.py). That is "indistinguishable from zero",
     not the sign disagreement section 14 rested on. The assertions below pin
     exactly that distinction, so a genuine return of sign scatter still fails.
+
+    UPDATED 2026-09-27: it fired, and the answer was the second branch of its
+    own error message -- "a newly added dataset genuinely disagrees".
+    ``us20230081442a1_dlc_zirconia_dilute_loading`` (limits.md §31) enters at
+    **-0.198**, past the 0.15 band, and it is not a regression: no constant
+    changed and no existing dataset's exponent moved. The physical reason is
+    printed in the patent. That ladder rises 0.1 -> 1.0 wt% and then **turns
+    over**, 151 -> 96 A/min at 3.0 wt%. A single power law cannot represent a
+    non-monotonic series at all, so the best-fit residual exponent is dragged
+    negative by the turnover row -- it is measuring "this series is not a power
+    law", not "the model over-responds to loading here". Dropping that row
+    would remove the disagreement and is exactly the selection this repository
+    forbids, so the row stays and the test is re-stated instead.
+
+    The axis-level conclusion did not merely survive, it got STRONGER: the
+    shared-exponent gain fell 1.50 -> **0.61 pp**, further below the 2.0 pp
+    bar, because the new member pulls the best shared offset toward zero. An
+    axis whose members disagree in sign is closed to any single closed-form
+    law -- which is reading 2 of the pre-registration, now supported by a
+    disagreement with a known mechanism rather than by near-zero noise.
     """
     bound = _bound("abrasive_wt_pct")
     assert bound is not None, "abrasive_wt_pct is no longer swept by 2+ datasets"
     exponents = bound["exponents"]
     negatives = [e for e in exponents if e < 0.0]
-    assert all(abs(e) <= 0.15 for e in negatives), (
-        f"the concentration residual exponents disagree in SIGN again "
-        f"({exponents}); the negatives are no longer within the 0.15 "
-        "magnitude that counts as indistinguishable from zero. Either a "
-        "regression re-introduced an over-steep concentration term, or a "
-        "newly added dataset genuinely disagrees -- find out which before "
-        "touching this test.")
+
+    # At most one member may disagree in sign BEYOND the noise band, and it must
+    # be the known turnover case. Anything more is scatter this test must catch.
+    strong_negatives = [e for e in negatives if abs(e) > 0.15]
+    assert len(strong_negatives) <= 1, (
+        f"more than one concentration residual exponent disagrees in SIGN "
+        f"beyond the 0.15 noise band ({exponents}). One such member is "
+        "accounted for (the DLC ladder's printed 3 wt% turnover); a second "
+        "means either a regression re-introduced an over-steep concentration "
+        "term, or another dataset genuinely disagrees -- find out which "
+        "before touching this test.")
+    if strong_negatives:
+        assert min(strong_negatives) >= -0.30, (
+            f"the sign disagreement deepened to {min(strong_negatives)}; the "
+            "turnover explanation covers about -0.2, not this")
     assert max(exponents) >= 0.5, (
         f"the axis lost its positive signal entirely ({exponents}); the "
         "model under-responding to loading somewhere is the finding this "
@@ -218,9 +246,10 @@ def test_the_concentration_axis_stopped_disagreeing_in_sign_when_the_model_did()
     assert bound["shared_gain_pp"] < 2.0, (
         f"a shared concentration exponent now buys "
         f"{bound['shared_gain_pp']:.2f} pp, back over the 2.0 pp bar. "
-        "Withdrawing abrasive_conc_half_wt_pct put it at 1.50 pp; if it has "
-        "risen again, either the constant came back or a new dataset carries "
-        "residual loading response. Do NOT fit a shared exponent to close it.")
+        "Withdrawing abrasive_conc_half_wt_pct put it at 1.50 pp and the DLC "
+        "ladder took it to 0.61 pp; if it has risen again, either the "
+        "constant came back or a new dataset carries residual loading "
+        "response. Do NOT fit a shared exponent to close it.")
     assert bound["shared_gain_pp"] < bound["oracle_gain_pp"], (
         "sharing a constant cannot beat a per-dataset fit; if it does, the "
         "oracle is mis-measured")

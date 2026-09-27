@@ -185,7 +185,9 @@ def test_refusing_the_term_keeps_the_corpus_median_where_it_was():
 
     errs = sorted(s.shape_mape for s in score_all() if s.shape_mape is not None)
     median = errs[len(errs) // 2]
-    assert 17.9 <= median <= 18.5, median
+    # 18.9 since 2026-09-27: the DLC ladder (limits.md §31) entered above the
+    # old median and moved the counting position. No constant changed.
+    assert 18.6 <= median <= 19.2, median
 
 
 # ── the scan itself, so the next wiring fault cannot be silent ───────────

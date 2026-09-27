@@ -1,0 +1,194 @@
+# DLC / amorphous-carbon CMP with COLLOIDAL ZIRCONIA + PERMANGANATE.
+#
+# Why this pack exists
+# --------------------
+# `docs/limits.md` §30 left one exit condition open: the surviving refusal of
+# the load-sharing onset rests on a single source in the EXTREME dilute band
+# (chi < 0.2), and that source is one diamond patent. A second, non-diamond
+# system whose loading ladder reaches below 0.5 wt% is what decides whether the
+# failure there belongs to the law or to that one patent.
+#
+# US 2023/0081442 A1 (Fujimi Inc.) Example 3 / Table 3 is such a ladder:
+# colloidal zirconia at 0.1 / 0.3 / 0.5 / 1.0 / 3.0 wt% against a DLC film,
+# every other axis printed and fixed. It is not a SiC or an oxide slurry, so it
+# cannot be attached to any existing pack: the abrasive is zirconia, the
+# oxidizer is a metal-containing permanganate, and the workpiece is amorphous
+# carbon. A new film and a new pack are the honest home for it.
+#
+# WHAT THIS PACK DOES AND DOES NOT CLAIM
+# --------------------------------------
+# It claims ONE thing: the mechanical abrasive-loading response of this system,
+# at fixed pH and fixed oxidizer. Everything else is null:
+#   - no pH term      (Table 2 measures one, but fitting it here and scoring
+#                      Table 3 against it would be the same experiment twice)
+#   - no oxidizer term(same objection, Table 4)
+#   - no hardness     (the patent states no film hardness, and DLC spans
+#                      ~10-80 GPa with sp3 fraction, so any value would be
+#                      invented; regime.py will report film_class unknown,
+#                      which is the correct answer)
+#   - no size term    (Table 5 varies the particle but changes its TYPE as well
+#                      as its size -- a swap, not a size sweep, cf. §27)
+#
+# NOR does it claim an absolute rate. `kp_m_per_pa` is back-calculated from the
+# patent's own reference row, so the dataset scored against it may only be used
+# for SHAPE; its file forbids absolute comparison for exactly that reason.
+#
+# TRANSCRIPTION VERIFIED ARITHMETICALLY, not just re-read
+# ------------------------------------------------------
+# Tables 2, 3 and 4 share one composition (1 wt% zirconia, 25 mM permanganate,
+# pH 3.6) and all three print 151 A/min for it. Three independently typeset
+# tables agreeing on the common point is a stronger check on the transcription
+# than reading any one of them twice.
+
+base: base
+description: "DLC / amorphous carbon CMP with colloidal zirconia + KMnO4 (loading response only; pH and oxidizer terms deliberately absent)"
+
+params:
+  film:
+    value: dlc
+    note: >
+      Diamond-like carbon / amorphous carbon blanket film on a 300 mm wafer
+      (DK Nanotechnology), coupon-cut to 1.5 x 1.5 inch for a benchtop polisher.
+    source: "US20230081442A1 Example 1, polishing-conditions footnote to Table 1"
+    confidence: literature
+
+  material_family:
+    value: null
+    unit: "-"
+    note: >
+      TODO(owner): NOT FILLED, deliberately. `cmp_sim/core/regime.py` knows
+      metal / dielectric / semiconductor; amorphous carbon is none of them. It
+      is a covalently bonded ceramic whose removal here is explicitly
+      chemomechanical (the patent's own mechanism: permanganate oxidises the
+      carbon surface and forms a C-O-Mn bond, and the zirconia then abrades the
+      oxidised layer -- neither the particle nor the oxidiser alone removes
+      anything, 4 and 17 A/min respectively against 121 together). Declaring
+      one of the three existing families would route the run through contact
+      physics chosen for a different bonding type. Left null so the classifier
+      says `unknown` and reports the axis as undetermined.
+    source: "US20230081442A1 Example 1 and its discussion ('synergistic effect')"
+    confidence: unverified
+
+  film_bulk_hardness_pa:
+    value: null
+    unit: Pa
+    note: >
+      TODO(owner): NOT FILLED. The patent states no hardness, and DLC is not one
+      material: hardness runs from roughly 10 GPa for hydrogenated a-C:H to
+      80 GPa for ta-C, set by the sp3 fraction and the deposition route, neither
+      of which this patent reports. A value picked from that range would decide
+      the contact branch by assumption. WHAT WOULD FILL THIS: nanoindentation of
+      the same DK Nanotechnology film, or a stated sp3 fraction plus a published
+      hardness-vs-sp3 correlation.
+    source: "TODO - not stated in US20230081442A1"
+    confidence: unverified
+
+  # ── the abrasive ──────────────────────────────────────────────────────
+  abrasive:
+    value: zirconia
+    unit: abrasive database key
+    note: >
+      Colloidal zirconia, average primary particle size < 5 nm, average
+      secondary particle size 48 nm by Malvern Zetasizer Nano ZS (mean of three
+      measurements, undiluted, 25 C). The patent uses "zirconia" to mean
+      colloidal zirconia throughout the examples and says so explicitly.
+    source: "US20230081442A1 Examples 1-4, table footnotes"
+    confidence: literature
+
+  reference_abrasive:
+    value: zirconia
+    unit: abrasive database key
+    note: >
+      Same material as `abrasive` -- the two keys must name one thing or the
+      abrasive-swap detector fires against the wrong reference (the accident
+      recorded in sic_alumina_kmno4). kp_m_per_pa below is back-calculated from
+      a zirconia row of this same patent.
+    source: "US20230081442A1 Table 3 (all rows colloidal zirconia)"
+    confidence: literature
+
+  abrasive_density_kg_m3:
+    value: 5680.0
+    unit: kg/m^3
+    note: >
+      ZrO2 5.68 g/cm3 -- the handbook density of zirconium(IV) oxide, the same
+      class of citation this repository already uses for alpha-Al2O3 (3.95) in
+      sic_alumina_kmno4 and CeO2 (7.22) in sti_ceria.
+      ⚠ This is the density of dense monoclinic ZrO2. Stabilised (Y-doped)
+      zirconia is quoted up to 6.10 g/cm3, and the patent does not say whether
+      its colloidal particles are doped, so treat this as +-8%. It enters only
+      through the volume fraction phi = (wt%/100)/rho, i.e. through the
+      occupancy theta, never through the rate directly.
+    source: "CRC Handbook of Chemistry and Physics, zirconium(IV) oxide (baddeleyite) density"
+    confidence: literature
+
+  abrasive_size_nm:
+    value: 48.0
+    unit: nm
+    note: >
+      Average SECONDARY particle size (the aggregate that actually contacts the
+      film), 48 nm, measured by dynamic light scattering. The primary size is
+      stated only as "less than 5 nm", i.e. a bound rather than a value, so it
+      is not entered anywhere.
+    source: "US20230081442A1, footnotes to Tables 1-4"
+    confidence: literature
+
+  abrasive_ref_size_nm:
+    value: 48.0
+    unit: nm
+    note: >
+      Equal to abrasive_size_nm by convention, so the size factor is exactly 1.0
+      at the reference and cannot silently rescale the anchored Kp. This pack
+      declares no size exponent; Table 5 varies the particle TYPE as well as its
+      size, which is a swap rather than a sweep.
+    source: "this pack's abrasive_size_nm"
+    confidence: literature
+
+  abrasive_wt_pct:
+    value: 1.0
+    unit: "wt%"
+    note: "Reference composition -- the 1 wt% row Tables 2, 3 and 4 share."
+    source: "US20230081442A1 Tables 2/3/4 (common composition, 151 A/min)"
+    confidence: measured
+
+  abrasive_ref_wt_pct:
+    value: 1.0
+    unit: "wt%"
+    note: >
+      Loading-axis reference. Set to the composition kp_m_per_pa was
+      back-calculated at, so the concentration factor is exactly 1.0 there.
+    source: "US20230081442A1 Tables 2/3/4 (common composition)"
+    confidence: measured
+
+  # NOTE: `abrasive_conc_exponent` is DELIBERATELY NOT DECLARED here.
+  # The engine then uses its derived +1/3 surface-area default
+  # (legacy/sim/factors.py:686), and the Table 3 ladder becomes a genuine
+  # held-out test of that derivation. Fitting an exponent to Table 3 and then
+  # scoring Table 3 with it would be interpolation reported as physics.
+
+  kp_m_per_pa:
+    value: 4.1044e-15
+    unit: m^2/N
+    note: >
+      BACK-CALCULATED from the patent's own reference row, not measured: the
+      composition Tables 2, 3 and 4 share (1 wt% colloidal zirconia, 25 mM
+      permanganate, pH 3.6) polished at 2 psi, 200/23 rpm on a Fujibo H7000 pad
+      with 50 mL/min flow removes 151 A/min. Solved so the shipping engine
+      reproduces exactly that row, which makes every composition factor 1.0
+      there and stops the anchor being counted twice.
+
+      ⚠ ONE OPERATING POINT. Every row of this patent uses the same pressure
+      and the same speeds -- there is no P or V sweep anywhere in it -- so this
+      Kp is a single-point anchor and the Preston form is ASSUMED here, not
+      tested. That is why `cmp_maturity` is left to the engine's own 'emerging'
+      grade and why the dataset scored against this pack forbids absolute
+      comparison: the pack can rank loadings, and it cannot be used to claim a
+      DLC removal rate at a pressure nobody published.
+
+      ⚠ Not cross-checkable. Unlike the SiC packs, where three independent
+      sources could be Preston-normalised against each other, this is the only
+      DLC CMP rate located with a stated pressure and velocity, so there is no
+      second source to tell an outlier from a norm. WHAT WOULD RESOLVE IT: any
+      second amorphous-carbon CMP rate published with its down force and
+      platen speed.
+    source: "US20230081442A1 (Fujimi Inc.) Tables 2/3/4 common row (151 A/min) plus the Example 1 polishing-conditions footnote (2 psi, 200/23 rpm, Fujibo H7000, 50 mL/min)"
+    confidence: owner-provided

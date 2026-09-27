@@ -33,10 +33,15 @@ from cmp_sim.core.predictive_score import report, score_all
 #: not a reporting one; the contract this file pins (a *column* must not move a
 #: score) is untouched, and the shape median staying at 19.5 across it is the
 #: evidence that the fix was the pure scale factor it claimed to be.
-MEDIAN_SHAPE = 18.2  # moved by the saturating-branch load-sharing fix, 2026-09-27
+MEDIAN_SHAPE = 18.9  # 18.2 -> 18.9: 2026-09-27, us20230081442a1 DLC ladder entered
+                     # ⚠ NOT a regression: no constant changed and no existing
+                     # dataset's score moved. The new dataset scores 36.4%, above
+                     # the old median, so it shifts the COUNTING POSITION (§26/§31).
+                     # This is the upper-median convention, sorted(e)[n//2]; the
+                     # corpus is now even, so statistics.median reads 18.6%.
 MEDIAN_LOO = 21.3  # moved by the W passivation threshold (physics), 2026-09-26
-SCORED = 47  # 46 -> 47: us9422456b2_teos_silica_dilute_loading added 2026-09-27
-POINTS = 435  # 427 -> 435: the 8-point dilute loading ladder added 2026-09-27
+SCORED = 48  # 47 -> 48: us20230081442a1_dlc_zirconia_dilute_loading added 2026-09-27
+POINTS = 440  # 435 -> 440: the 5-point DLC zirconia loading ladder, 2026-09-27
 
 
 def _scores():

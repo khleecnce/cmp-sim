@@ -2,7 +2,7 @@
 
 [![tests](https://img.shields.io/badge/tests-898%20passing-brightgreen)](#)
 [![validation](https://img.shields.io/badge/literature%20gate-4%20datasets%20within%20%C2%B115%25-brightgreen)](#validation)
-[![accuracy](https://img.shields.io/badge/trend-18.2%25%20median%2C%20435%20points-blue)](#2-how-accurate-is-it-on-every-axis-cmp-sim-accuracy)
+[![accuracy](https://img.shields.io/badge/trend-18.9%25%20median%2C%20440%20points-blue)](#2-how-accurate-is-it-on-every-axis-cmp-sim-accuracy)
 [![scale](https://img.shields.io/badge/absolute%20rate-24%2F35%20within%203x-yellow)](#2-how-accurate-is-it-on-every-axis-cmp-sim-accuracy)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -228,23 +228,31 @@ entirely. A mechanical `P·V` law cannot explain it, whatever `Kp` you choose.
 The gate above only admits datasets that sweep pressure or speed — 6 of 49
 files here, about 40% of the measured points. That left the slurry axes this
 simulator exists to predict (pH, oxidizer, loading, particle size) **never
-scored against a measurement at all**. `cmp-sim accuracy` scores all 435
+scored against a measurement at all**. `cmp-sim accuracy` scores all 440
 points on whichever axis each dataset varies:
 
 | axis | datasets | median error |
 |---|---:|---:|
 | abrasive particle size | 11 | **11.2%** |
 | oxidizer | 12 | 21.3% |
-| abrasive loading | 12 | 21.5% |
+| abrasive loading | 13 | 22.4% |
 | pressure | 15 | 20.6% |
 | pH | 15 | 25.3% |
 | velocity | 6 | 39.0% |
 
-**Overall: median 18.2% shape error, 21.3% leave-one-out**, over 47 of 51
-datasets and 435 measured points. 37 of 47 beat "predict this dataset's
+**Overall: median 18.9% shape error, 21.3% leave-one-out**, over 48 of 52
+datasets and 440 measured points. 37 of 48 beat "predict this dataset's
 average" — the baseline that says whether the physics contributed anything.
 
-> **⚠ Read the 18.2% as a ranking claim, not a rate claim.** It says the model
+> The corpus now has an **even** number of scored datasets, so the two usual
+> median conventions no longer coincide: 18.9% taking the upper of the two
+> middle datasets (`sorted(e)[n//2]`, quoted here and pinned by the regression
+> tests) versus 18.6% interpolating between them (`statistics.median`, printed
+> by `tools/readme_numbers.py`). Both are stated rather than one being chosen,
+> because quoting whichever reads lower is exactly the selection this
+> repository forbids.
+
+> **⚠ Read the 18.9% as a ranking claim, not a rate claim.** It says the model
 > follows the *trend* to about 20%. It does **not** say it predicts absolute
 > removal rate to 20%. Those fail independently, and on this corpus the second
 > one often fails: `cmp-sim accuracy` now prints a `scale` column (median

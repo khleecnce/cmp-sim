@@ -34,6 +34,10 @@ FILM_PACK: Dict[str, str] = {
     "poly_si": "poly_si_alkaline",
     "si": "si_substrate_alkaline",
     "snag": "snag_solder",
+    # Amorphous carbon / diamond-like carbon. Not a metal, not a dielectric and
+    # not a semiconductor in the regime classifier's sense -- see the pack's
+    # material_family note, which is deliberately null.
+    "dlc": "dlc_zirconia_permanganate",
 }
 
 #: fitted factor name -> the pack key the solver reads it from

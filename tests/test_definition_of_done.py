@@ -154,10 +154,16 @@ def test_the_completion_bar_is_met():
     CURRENTLY FAILING BY DESIGN, AND LEFT FAILING ON PURPOSE.
 
     Redefining completion at 15% is what exposed the gap: the corpus sits at
-    18.2%, so the project is 3.2 points short, not done. Marking this xfail
+    18.9%, so the project is 3.9 points short, not done. Marking this xfail
     would convert a measured shortfall into a green tick, which is the exact
     dishonesty the bar was written to prevent. It turns green when the modelling
     work lands — and the day it does, that is the completion signal.
+
+    ⚠ The shortfall grew 3.2 -> 3.9 points on 2026-09-27 WITHOUT the model
+    getting worse: a new dataset (limits.md §31) entered above the median and
+    moved the counting position, while no constant changed and no existing
+    dataset's score moved. Read this gap as "which dataset is in the middle",
+    never as a trend.
     """
     out = subprocess.run(
         [sys.executable, "-m", "cmp_sim.cli", "accuracy", "--json"],

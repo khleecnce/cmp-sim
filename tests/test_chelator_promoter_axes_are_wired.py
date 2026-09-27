@@ -190,4 +190,5 @@ def test_wiring_these_terms_did_not_move_the_corpus_median():
 
     shape = sorted(s.shape_mape for s in score_all()
                    if s.shape_mape is not None)
-    assert shape[len(shape) // 2] == pytest.approx(18.2, abs=0.35)
+    # 18.9 since 2026-09-27 (DLC ladder entered the corpus, limits.md §31)
+    assert shape[len(shape) // 2] == pytest.approx(18.9, abs=0.35)

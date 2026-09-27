@@ -238,4 +238,6 @@ def test_declaring_the_gaps_did_not_move_the_score():
 
     errs = sorted(s.shape_mape for s in score_all() if s.shape_mape is not None)
     median = errs[len(errs) // 2]
-    assert 17.9 <= median <= 18.5, median
+    # 18.9 since 2026-09-27 (DLC ladder, limits.md §31) -- the same parity /
+    # counting step this docstring describes, not a change in any fitted value.
+    assert 18.6 <= median <= 19.2, median

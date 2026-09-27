@@ -36,7 +36,9 @@ from cmp_sim.core.validation import dataset_paths
 #: 19.5 because the change is a pure per-dataset scale factor, which divides out
 #: of the shape metric — that invariant is the reason this file still guards
 #: something after the re-baseline.
-MEDIAN_SHAPE = 18.2  # moved by the saturating-branch load-sharing fix, 2026-09-27
+MEDIAN_SHAPE = 18.9  # 18.2 -> 18.9: 2026-09-27, us20230081442a1 DLC ladder entered
+                     # (counting-position shift, not a regression — see §31 and
+                     # the matching note in test_scale_column_is_reporting_only)
 MEDIAN_LOO = 21.3  # moved by the W passivation threshold (physics), 2026-09-26
 #: 36 since 2026-09-28, up from 34, and the two additions are a REAL gain, not
 #: a relabelling: withdrawing `abrasive_conc_half_wt_pct` from every pack that
@@ -55,8 +57,11 @@ MEDIAN_LOO = 21.3  # moved by the W passivation threshold (physics), 2026-09-26
 #: and the strict `<` counted it as a win, afterwards at exactly 0.0 and it did
 #: not. A comparison decided at 1e-15 is not a claim anyone should rely on
 #: either way -- it is back in the count now for a reason unrelated to that tie.
-BEATS_MEAN = 37  # 36 -> 37: the corpus gained a dataset (2026-09-27), not a behaviour
-SCORED = 47      # 46 -> 47: us9422456b2_teos_silica_dilute_loading added 2026-09-27
+BEATS_MEAN = 37  # unchanged across the 2026-09-27 DLC addition: the new dataset
+                 # does NOT beat its own mean, so the corpus grew without the
+                 # count growing — which is what a genuinely held-out ladder
+                 # scoring 36.4% should look like.
+SCORED = 48      # 47 -> 48: us20230081442a1_dlc_zirconia_dilute_loading, 2026-09-27
 
 
 def _accuracy_json():

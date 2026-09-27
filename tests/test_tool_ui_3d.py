@@ -277,23 +277,49 @@ def test_the_picker_only_offers_abrasives_that_can_move_the_answer(page, server)
     on oxide), so any other swap leaves the rate anchored to the pack's own
     abrasive, and a control that cannot move the answer looks broken.
 
-    The fix is a rule, not a blocklist: offer an abrasive when it has a published
+    The fix is a RULE, not a blocklist: offer an abrasive when it has a published
     ratio on that film, or when it IS that film's pack reference (the anchored
-    1.0x choice). So zirconia disappears everywhere, and alumina survives only on
-    Cu and W — the two packs actually calibrated with it.
+    1.0x choice). This test asserts the rule, evaluated against the packs at
+    test time, rather than the abrasive list that happened to satisfy it — an
+    earlier version hard-coded "zirconia must never appear" and fired the day a
+    zirconia pack was added, which the rule always intended to allow.
     """
     import json
     import urllib.request
     with urllib.request.urlopen(f"{server}/api/meta") as fh:
         meta = json.load(fh)
 
-    offered = set(meta["abrasives"])
-    assert "zirconia" not in offered, (
-        "zirconia has no published rate ratio on any film, so selecting it "
-        "cannot change the prediction and it must not be offered")
+    from cmp_sim.api import _abrasive_ratio_targets, _pack_reference_abrasives
+    from cmp_sim.core.solver import FILM_PACK
+    from cmp_sim.slurry.abrasive_effects import _db
 
+    offered = set(meta["abrasives"])
+    admissible = _abrasive_ratio_targets() | set(
+        _pack_reference_abrasives().values())
+    assert offered <= admissible, (
+        "the picker offers an abrasive with neither a published rate ratio nor "
+        f"a pack anchoring it: {sorted(offered - admissible)}")
+    assert offered, "the picker offers nothing at all"
+
+    # Per film, the same rule: reference OR a ratio published on THAT film.
+    ratio_table = (_db().get("relative_rate", {}) or {})
+    pack_ref = _pack_reference_abrasives()
     by_film = meta["abrasives_by_film"]
-    assert by_film["oxide"] == ["ceria", "colloidal_silica"], by_film["oxide"]
+    for film, listed in by_film.items():
+        allowed = set()
+        ref = pack_ref.get(FILM_PACK.get(film, ""))
+        if ref:
+            allowed.add(ref)
+        for kind, spec in (ratio_table.get(film, {}) or {}).items():
+            if isinstance(spec, dict) and spec.get("value") is not None:
+                allowed.add(kind)
+        assert set(listed) <= allowed, (
+            f"{film} offers {sorted(set(listed) - allowed)}, which is neither "
+            "its pack reference nor a published ratio on that film")
+
+    # The two cases the rule exists to separate, still asserted concretely:
+    # alumina IS the Cu/W anchor and is NOT admissible on oxide, where no
+    # alumina/silica ratio has ever been published.
     assert by_film["cu"] == ["alumina"], (
         f"alumina is the copper pack's reference abrasive, so it is the anchored "
         f"choice on Cu: {by_film['cu']}")
@@ -304,12 +330,16 @@ def test_the_picker_only_offers_abrasives_that_can_move_the_answer(page, server)
 
 
 def test_withholding_from_the_picker_did_not_delete_the_evidence(page, server):
-    """alumina must stay in the database and in the scored corpus.
+    """A withheld abrasive must stay in the database and in the scored corpus.
 
-    It is the reference abrasive of the Cu and W packs, the source of the measured
-    size exponent +0.29, and six validation datasets score against it (su2011 SiC
-    4.4%, lai2001 Cu 8.7%, gong2024, entegris2022, us8142675b2 Pt, su2011 6H-SiC).
-    Narrowing a dropdown must never cost real evidence.
+    alumina is the reference abrasive of the Cu and W packs, the source of the
+    measured size exponent +0.29, and six validation datasets score against it
+    (su2011 SiC 4.4%, lai2001 Cu 8.7%, gong2024, entegris2022, us8142675b2 Pt,
+    su2011 6H-SiC). Narrowing a dropdown must never cost real evidence.
+
+    The withheld example is DERIVED rather than named: zirconia used to be the
+    stock illustration and stopped being withheld the day it became a pack's
+    reference abrasive, which is the rule working, not breaking.
     """
     import json
     import urllib.request
@@ -321,8 +351,14 @@ def test_withholding_from_the_picker_did_not_delete_the_evidence(page, server):
         assert kind in everything, (
             f"{kind} was deleted from the abrasive database; it should only be "
             f"withheld from the picker")
-    assert "zirconia" in meta["abrasives_withheld"], (
-        "a withheld abrasive must carry the reason it is not offered")
+    withheld = meta["abrasives_withheld"]
+    assert withheld, (
+        "nothing is withheld at all, so this guard is vacuous — either every "
+        "abrasive now has an anchor (record that) or the split has broken")
+    for name, reason in withheld.items():
+        assert name in everything, (
+            f"{name} is reported as withheld but is not in the database")
+        assert reason, f"{name} is withheld with no reason given"
 
 
 def test_a_config_file_may_still_name_a_withheld_abrasive(page, server):
