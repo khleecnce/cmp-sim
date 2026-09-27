@@ -1480,3 +1480,66 @@ Six of six get worse or cannot be computed; not one block survives its own expon
 **What would resolve it:** one size sweep per material from a publication not already in the corpus — specifically a second pure-ceria sweep (which would make `son2021` computable at all) and a silica sweep from any group other than Bouvet's. Two independent donors per material is the threshold at which a leave-one-out exponent stops being a transplant, and the probe reports donor counts per publication so that threshold is checkable rather than asserted.
 
 **Enforced by** `tests/test_size_exponent_loo_is_refused.py` (5 tests, every number re-measured at test time): the holdout unit is publications, not files (a dataset-level holdout must report strictly more donors for bouvet, so the distinction cannot be quietly dropped); no implicated block improves under leave-one-out; ceria is unidentifiable and the test names the exit condition; the between/within ratio survives collapsing to publications (so the material attribution is not silently withdrawn along with the repair); and an **expiry** that fails the moment any material reaches two independent donor publications, because at that point the repair becomes possible and this refusal is stale.
+
+## 34. The pH-response self-grade has no path to a held-out value at all: the optimum is not a property of film or abrasive, and two ceria slurries disagree by 3.8 pH units
+
+§32 left eleven pH-response citations across three packs — the largest self-graded family — and §33 measured the size family and refused the repair after doing the work. The instruction for this family was different and deliberately cheaper: **check whether outcome (b) exists STRUCTURALLY before pricing it.** The size family had a path to (b) only because `SIZE_EXPONENT_BY_ABRASIVE` had already established the exponent as a property of the abrasive material, making a material value an average over publications with one available to hold out. A pH peak has no such table, and this asks whether it could have one. That is the §19/§26 discipline — identifiability before law-hunting — applied before a single fit is priced.
+
+`tools/ph_holdout_reachability_probe.py` re-fits every usable pH sweep's optimum from the raw rows (the pack values are the constants under audit, so reading them would be circular) and asks, for each candidate grouping, whether the optimum is a **property** of it: between-group spread against within-group spread, with each publication collapsed to one observation first (§33).
+
+| dataset | film | abrasive | fitted optimum | fit % |
+|---|---|---|---|---|
+| `cn109609035b_oxide_anionic_silica_ph` * | oxide | silica | pH 1.2 | 5.0 |
+| `us9422456b2_teos_silica_ph_pressure` * | oxide | aminosilane-silica | pH 4.3 | 8.3 |
+| `us9422456b2_teos_silica_ph_pressure` * | oxide | aminosilane-silica | pH 4.3 | 9.6 |
+| `dandu2009_sio2_ceria_ph_sweep` * | oxide | ceria | pH 5.4 | 5.4 |
+| `netzband2020_thermal_oxide_ceria_ph` | oxide | ceria | pH 9.2 | 12.3 |
+| `li2021_oxide_silica_ph` | oxide | silica | pH 11.0 | 0.0 |
+
+(* = flagged self-graded)
+
+**Donors exist and are worthless.** Every implicated block has at least one other publication sharing its film, and two of the three share an abrasive as well — so the naive reachability check passes. The property check fails, and fails hard:
+
+| grouping | between-group | within-group | ratio |
+|---|---|---|---|
+| film | — (one group) | 3.50 pH | undefined |
+| abrasive | 1.51 pH | 3.72 pH | **0.41×** |
+| film + abrasive | 1.51 pH | 3.72 pH | **0.41×** |
+
+A ratio below 1.0 means the grouping explains **less than nothing**: two members of the same group differ more than two groups do. Against the 2× bar this repository uses to license a group-scoped constant (the material split cleared 3.2×, and 3.8× after §33's correction), the pH optimum misses by nearly an order of magnitude. The single most damaging pair is within one grouping and one film: **`dandu2009` and `netzband2020` are both ceria on oxide and their optima sit at pH 5.4 and 9.2** — 3.8 units apart, on opposite sides of neutral, i.e. on opposite sides of the silica isoelectric point that any electrostatic reading of the axis turns on. The full within-film span is 9.8 pH units, which is the entire measured range.
+
+**So a "held-out" pH optimum would be a transplant of up to 9.8 pH units, and outcome (b) is unreachable by structure.** This is not a statement that the corpus is too small. Adding pH sweeps cannot help unless they collapse the within-group spread, and the existing within-group disagreement is between two published, independently-measured ceria-on-oxide systems that genuinely optimise at different pH — a real difference in slurry chemistry (dispersant, ionic strength, ceria surface state), not scatter. The quantity being averaged is not shared.
+
+**The decision, and what it is NOT.** The repair for all eleven pH citations is **(a)**: the flag is wrong, these blocks were calibration evidence, and they do not belong in the scored corpus — which is already how §32's held-out **19.5%** counts them, so nothing about the reported number changes. No constant is withdrawn, no citation is deleted (§27), and **no attempt is made to find a better pH grouping or functional form** — that was rejected before starting, because the failure is in evidence sharing, not in the shape of the law. `tools/ph_derived_probe.py` separately records that the derived electrostatic+kinetic form scores 60.4% against the per-group Gaussian's 11.0%, so the free constants here are not removable either; this entry adds that they are not even *shareable*.
+
+**What this closes.** §32 named two repair families and required each to be measured rather than chosen. Both are now measured and both refuse: the size family on price (§33), the pH family on structure (§34). Together they cover 17 of the 18 self-graded citations, and the conclusion is that the held-out median **19.5%** is not a temporary accounting state to be repaired away — it is the honest figure, and the published 18.9% is the one that needs the caveat.
+
+**What would resolve it:** two pH sweeps of the *same* abrasive-and-dispersant system from different publications, agreeing on an optimum to within ~1 pH unit. That would establish a grouping the optimum is genuinely a property of, and the probe reports the ratio per grouping so the threshold is checkable rather than asserted.
+
+**Enforced by** `tests/test_ph_holdout_is_structurally_unreachable.py` (5 tests, every number re-measured at test time): donors exist (so the refusal cannot be mistaken for "no data"), no grouping clears the 2× property bar, the named ceria pair really is same-film-same-abrasive and really does disagree by more than 2 pH units, the verdict is invariant to the peak-grid resolution (so a speed choice cannot be load-bearing), and an **expiry** that fails the moment any grouping clears the bar.
+
+## 35. The last self-graded citation closes the same way: the oxidiser shape constant K spans 3.6 decades inside one film, so no held-out value exists — all 18 are now measured and none is repairable
+
+§32 listed eighteen self-graded pack-constant citations. §33 closed the six `abrasive_size_exponent` ones on **price** (every implicated block scores worse under a leave-one-out exponent). §34 closed the eleven pH-response ones on **structure** (the optimum is not a property of film or abrasive). This is the eighteenth and last: `cu_h2o2_bta.oxidizer_peak_shape_K = 8.0`, fitted to Du 2004's H2O2 series, which is then scored as a held-out block at 6.2%.
+
+One citation, so only the reachability question needs asking — can K come from a sweep other than Du 2004? `tools/oxidizer_k_holdout_probe.py` re-fits K per oxidiser sweep from the raw rows, each sweep's peak pinned to its own argmax so that K is the only free parameter (the pack's note is explicit that a free peak *and* a free shape is degenerate when the data lie on one side of the maximum). K is the Langmuir constant of the promotion limb in `peaked_oxidizer_response`, a property of the oxidant-surface pair, so independent sweeps on the same film should return the same value if the mechanism is shared.
+
+**Thirteen groups from seven datasets, and K spans four orders of magnitude.**
+
+| grouping | between-group | within-group | ratio |
+|---|---|---|---|
+| film | 0.89 decades | 1.28 decades | **0.70×** |
+| oxidant | 0.88 | 1.28 | **0.69×** |
+| film + oxidant | 1.01 | 1.43 | **0.71×** |
+
+Every ratio is below 1.0 — the same signature as §34, and against the same 2× bar. The worst within-group disagreement is **3.58 decades**, and it is inside Cu alone: `us20110165777a1` fits K = 190 while `us8501625b2` fits K = 0.05 on the same film. Du 2004's own 11.65 sits in the middle of that range and is reproduced to 2.4%, so the constant is well determined *by its own block* and completely undetermined by anyone else's. A held-out K would be a transplant of up to three and a half decades. Outcome **(a)**.
+
+**Two limits of the table are stated by the probe before its verdict, because each could otherwise be mistaken for the finding.** Seven of thirteen groups pin K at a grid edge; six are at the LOW edge, which is not a fit failure but a result — as K → 0 the promotion limb is linear across the measured range, meaning those sweeps never reach a peak and carry no curvature for the peaked form to fit. They are kept, because dropping the blocks that disagree with the model's own functional form is precisely the selection this repository forbids. And twelve of thirteen groups carry oxidant `unknown`, because only Du 2004 uses the species-naming override key, so the by-oxidant row is nearly the same partition as by-film and must not be read as an independent third test.
+
+**This closes §32 completely: 18 of 18 citations measured, 0 repairable.** The three closures have different reasons — price, structure, structure — and that matters more than the count, because each was measured rather than assumed, and each has its own exit condition. What they establish jointly is that the **held-out median 19.5% is not a temporary accounting artefact awaiting repair**. It is the honest figure. The published 18.9% is the number that needs the footnote, and the completion bar must be read against 19.5%.
+
+**What this does NOT license, and the decision taken.** No constant is withdrawn, no flag is flipped in a pack file and no citation is deleted (§27 — deleting the citation passes the audit while restoring the undetectable state). Refitting K on the pooled corpus was **rejected** before it was attempted: a pooled value would be a mean over a 3.6-decade spread and would fit no block, including the one it was meant to free, and pooling data that disagree by four orders of magnitude to make an audit pass is fitting dressed as evidence. Searching for a fourth grouping until one clears the bar was **rejected** for the same reason as §34 (§28's rule: trying forms until one scores). The scored corpus is unchanged; what changed across §§33–35 is that the *reason* the held-out figure stands is now measured three times over instead of asserted once.
+
+**What would resolve it:** a second H2O2 sweep on Cu that reaches and passes its peak — three or more concentrations either side — from a publication other than Du's. Two such sweeps agreeing on K to within a factor of ~3 would make K a property of the oxidant-film pair and reopen outcome (b). The pack's own note already asks for this in the same words ("replace it with your own H2O2 sweep... and the shape becomes calibrated rather than borrowed").
+
+**Enforced by** `tests/test_oxidizer_k_holdout_is_unreachable.py` (5 tests, every number re-measured at test time): a non-vacuity guard on the number of fittable sweeps, no grouping clears the 2× property bar, the Cu within-film span exceeds 2 decades (the quoted example must stay true), grid-edge fits are reported rather than silently dropped (so the verdict can never be bought by excluding the blocks that refuse the peaked form), and an **expiry** firing when the worst within-group span falls below 1 decade.

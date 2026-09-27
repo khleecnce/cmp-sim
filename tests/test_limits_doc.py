@@ -38,6 +38,14 @@ LIMITS = DOCS / "limits.md"
 #: Tests that enforce a decided refusal to predict. A test added here MUST be
 #: cited by docs/limits.md — that is the point of the registry.
 LIMIT_ENFORCING_TESTS = {
+    # limit 35: the last self-graded citation (oxidizer_peak_shape_K) is
+    # unrepairable too — K spans 3.6 decades inside one film, so no held-out
+    # value exists; all 18 of §32's citations are now measured, none fixable
+    "test_oxidizer_k_holdout_is_unreachable.py",
+    # limit 34: the pH-response self-grade has no path to a held-out value at
+    # all — the optimum is not a property of film or abrasive (within-group
+    # spread EXCEEDS between-group), so the repair is (a) by structure
+    "test_ph_holdout_is_structurally_unreachable.py",
     # limit 33: the size-exponent self-grade cannot be repaired by leave-one-
     # out: every implicated block is worse, ceria is unidentifiable, and the
     # donor counts collapse to k<=1 once the holdout unit is the publication
