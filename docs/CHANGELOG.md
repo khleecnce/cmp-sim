@@ -4,6 +4,47 @@ All notable changes to CMP-Sim. Newest first.
 
 ## Unreleased
 
+### Measured — the perturbation is part of the instrument: §42's own probe filed the repository's strongest pH constants under `silent` (2026-09-28)
+- `tools/declared_key_response_census.py` (added last session to ask *does every
+  key a pack DECLARES move anything?*) had one half of its instrument fixed:
+  **where** it stands, displaced off every reference condition. The other half
+  — **how hard it pushes** — was a single large one-sided factor (x3), and that
+  manufactured silence twice on `oxide_silica`, by two different mechanisms.
+- **(a) x3 pushes a key out of its own validity window, where the model
+  correctly refuses.** `ph_peak` is 11.0 with a width of 3.1 measured over
+  pH 10–12.5; x3 puts the optimum at pH 33, seven widths from the query, where
+  the §34 clamp holds the term at the nearest measured edge, rests the rate on
+  the mechanical floor and warns. Measured at pH 11.5: **x3 → 0.00%,
+  x1.25 → 54.81%** — the response is non-monotonic in the perturbation, so an
+  honest out-of-domain refusal was being graded as a forgotten wire.
+- **(b) the displacement landed exactly on a symmetry point.** `ph_ref` is 10.5
+  and `ph_peak` 11.0, and `PH_DISPLACEMENT` was 1.0 — exactly twice that
+  distance — so the query sat at pH 11.5, mirror-symmetric to the reference
+  about the optimum, where `exp(-(x/w)²)/exp(-(x_ref/w)²)` is **1 for every w**.
+  Measured: 0.00% on the point, 6.62% one unit off it. This is the previous
+  session's own cancellation class recurring *inside the tool built to find it*.
+- Fixed: `PERTURBATION_FACTORS` sweeps both directions, small factors first, and
+  a key is inert only if no admissible perturbation reaches it; the displacement
+  breaks symmetry about every declared optimum while staying inside
+  `ph_valid_range`; every reported response records the perturbation that
+  produced it; and `INSTRUMENT_CONTROLS` requires the census to recover keys
+  known to be read, flagging its whole output when it cannot — without that, the
+  census can silently decay into "nothing moves anything", which reads as a
+  clean bill of health for the repository and which nothing else here would
+  contradict.
+- `reads` **147 → 157**, `silent` **584 → 574** of 1275 pack keys.
+  **Median unchanged at 18.9%** (440 points, 48/52) — the correct outcome: no
+  constant, pack, model term or prediction changed, only the instrument that
+  judges them.
+- Rejected: relaxing `INERT_TOLERANCE` (the x3 response really is 0.00%;
+  loosening the bar would hide genuine silence everywhere else), dropping x3
+  (the only factor that reaches a weakly-coupled key), and special-casing the pH
+  keys by name (the defect is in the perturbation design, and a name list leaves
+  every future key with a validity window exposed to it).
+- `docs/limits.md` §43; `tests/test_perturbation_is_part_of_the_instrument.py`
+  (8 tests, every number re-measured at run time, including a negative control
+  on the instrument check itself; reverting the fix fails 6 of the 8).
+
 ### Measured — the completion bar is NOT floored: input degeneracy is an exact lower bound, and every genuine instance of it sits below 15% (2026-09-28)
 - Answers the owner's standing precondition for relaxing the 10% bar toward
   15%: *write down what creates the lower bound on the error first*. Two

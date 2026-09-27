@@ -1791,3 +1791,53 @@ A 14.5x rate multiplier past full summit contact is not a prediction: the expone
 **The generalisable rule.** An audit has a direction, and the opposite direction can be the one with no reporter at all. When every existing check reads the engine's *requests*, the unexamined set is the packs' *offers* — and there the two possible verdicts, "correct cancellation" and "forgotten wire", produce **byte-identical** output. Separate them by deriving the cancellation on the model in isolation, and never grade a "put it here instead" path by whether the value was parsed; grade it by whether the **rate moves**.
 
 **Enforced by** `tests/test_gw_summit_density_cancels_by_derivation.py` (7 tests, every number re-measured at run time — a literal would go stale the moment a pack gains a measured reference pad, and going stale silently is the failure these tests exist to prevent): the η cancellation is re-derived on `PadContactState` directly and must hold to 1e-6; a **non-vacuity guard** requires `E*`, `R` and `σ` to still move the same quantity, so the cancellation test cannot pass on a dead model; both η keys must be inert **and** carry `[DECLINES_AXIS: ...]`; η must still move the saturation diagnostic; the recommended pad path must move the rate on at least one pack, and if it is inert on any the declaration must say **CONDITIONAL**; and the soft-pad case must emit the saturation warning while the declaration names both the saturation bound and `ContactSolverOutOfRange`. Calibrated against the bug: reverting `formulation.py` alone fails 4 of the 7.
+
+---
+
+## 43. The perturbation is part of the instrument: §42's own probe filed this repository's strongest pH constants under `silent`
+
+§42 built `tools/declared_key_response_census.py` to ask *does every key a pack DECLARES move anything?*, and it fixed one half of the instrument: **where** the probe stands, displacing the base run off every reference condition so a factor that is 1.0 at reference is not mistaken for a dead wire. It did not fix the other half — **how hard the probe pushes**, and in which direction. A single large one-sided factor (x3) manufactured silence twice on one pack, and the two mechanisms are different:
+
+### (a) x3 pushes a key OUT OF ITS OWN VALIDITY WINDOW, where the model correctly refuses
+
+`ph_peak` on `oxide_silica` is 11.0 with a width of 3.1 measured over pH 10–12.5. Multiplying it by 3 puts the optimum at **pH 33**, seven widths from the query — and there the model does exactly what §34's clamp was built to do: it holds the pH term at the nearest measured edge, rests the rate on the mechanical floor, and **warns**. Measured at the original probe point (pH 11.5):
+
+| perturbation of `ph_peak` | rate response |
+|---|---|
+| x3 | **0.00%** |
+| x1.25 | **54.81%** |
+| x1.05 | 10.52% |
+
+The response is **non-monotonic in the perturbation**, so the probe was grading an honest out-of-domain refusal as a forgotten wire. The census now sweeps `PERTURBATION_FACTORS = (1.05, 0.95, 1.25, 0.80, 3.0, 1/3)` — small first, both directions — and a key is inert only when **no** admissible perturbation reaches it.
+
+### (b) the DISPLACEMENT landed exactly on a symmetry point, where the width cancels by derivation
+
+`ph_response_width` was reported silent for a second, unrelated reason, and it is §42's own finding recurring inside §42's own tool. `oxide_silica` has `ph_ref = 10.5` and `ph_peak = 11.0`; `PH_DISPLACEMENT` was **1.0**, exactly twice the ref-to-peak distance, so the query landed at pH 11.5 — mirror-symmetric to the reference about the optimum. The factor is normalised to the reference:
+
+```
+f(pH) = exp(-(x/w)²) / exp(-(x_ref/w)²),   x = pH − ph_peak
+```
+
+and with `|x| = |x_ref|` that is **exactly 1 for every w**. An exact cancellation, by derivation, at that single point:
+
+| query pH | \|pH − peak\| | width x1.25 response |
+|---|---|---|
+| 11.5 (symmetry point) | 0.50 | **0.00%** |
+| 12.1 | 1.10 | 3.17% |
+| 12.5 | 1.50 | 6.62% |
+
+The displacement now **breaks symmetry about every declared optimum** (`PH_SYMMETRY_BREAK`, stepping outward so it cannot re-enter the reference's mirror image) while staying inside `ph_valid_range` — otherwise the fix would swap one artefact for another.
+
+### The measured effect, and the honest reading of it
+
+`reads` goes **147 → 157** and `silent` **584 → 574** across 1275 pack keys. The ten recovered keys are pH and reference-normalised terms on the packs that own them. **The median is unchanged at 18.9%** (440 points, 48/52 datasets), and that is the correct outcome: no constant, pack, model term or prediction changed — only the instrument that judges them. A session reading that zero as failure would try to "improve" it.
+
+The remaining 574 is still a **shortlist of questions, not a bug count**, for the reasons §42 gives (inherited keys, correct gates off at the probe's operating point).
+
+**The decision taken, and what was rejected.** Widening `INERT_TOLERANCE` so the x3 response counted was **rejected**: the response really is 0.00% there, and loosening the bar would hide genuine silence everywhere else to paper over one artefact. Removing the x3 factor entirely was **rejected** too — a large factor is the only one that reaches a weakly-coupled key, so the set needs both ends. Special-casing the pH keys by name was **rejected**: the bug is in the perturbation design, and a name list would leave every future key with a validity window exposed to the same error.
+
+**The generalisable rule.** *A perturbation magnitude and a displacement position are both part of the measuring instrument, not neutral choices.* A probe that reports zero response has to publish **which perturbations it tried** — a bare "silent" verdict is unquotable without them — and it must be held to recovering keys that are **known** to be read, or the whole census can silently decay into "nothing moves anything", which reads as a clean bill of health for the entire repository and which nothing else here would contradict. This is the instrument-control principle the repository already applies to non-vacuity guards, applied to a probe's own sensitivity. Note also that (b) is §42's derivation-cancellation class *inside the tool built to find it*: a tool is a model too, and a model's exact cancellations are invisible until someone derives them.
+
+**What would resolve it.** Nothing external — this is an instrument defect that has been **measured** and corrected. The exit condition is a **mutation guard**: the enforcing test reproduces the bug at the original probe point, so if the out-of-domain refusal or the reference normalisation is ever re-derived such that x3 stops being inert there, the test fails and demands the limit be re-derived rather than the prose edited.
+
+**Enforced by** `tests/test_perturbation_is_part_of_the_instrument.py` (8 tests, every number re-measured at run time — pinning `54.81%` as a literal would go stale the moment a pack's pH constants are re-sourced, and inviting a session to edit the claim instead of the code is how §40's stale correlation string happened): `ph_peak` and `ph_response_width` must both classify as `reads`; the **bug is reproduced** at the original probe point, where x3 must still be inert while x1.25 reaches past 10%, and at the current point a small factor must still out-reach x3; the width's cancellation is re-derived on the shipping solver at the mirror point and must vanish one step off it; **no pack** may be probed on its own pH symmetry point, derived from `available_packs()` at test time with a non-vacuity guard so a new pack is covered with no test edit; every reported response must carry the perturbation that produced it; the instrument controls must pass; and a **negative control** feeds a fabricated silent `ph_peak` through `instrument_control_failures` and requires it to trip, and to say that the census's own verdicts are suspect rather than merely that one key did not move. Calibrated against the bug: reverting the perturbation set and the symmetry break fails **6 of the 8**.

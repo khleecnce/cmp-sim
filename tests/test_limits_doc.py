@@ -38,6 +38,11 @@ LIMITS = DOCS / "limits.md"
 #: Tests that enforce a decided refusal to predict. A test added here MUST be
 #: cited by docs/limits.md — that is the point of the registry.
 LIMIT_ENFORCING_TESTS = {
+    # limit 43: §42's own probe filed the repository's strongest pH constants
+    # under `silent` — a x3 perturbation pushes `ph_peak` out of its validity
+    # window (x1.25 moves the rate 54.8%), and the displacement landed exactly
+    # on the pH symmetry point where the normalised width cancels for every w
+    "test_perturbation_is_part_of_the_instrument.py",
     # limit 42: the REVERSE wiring question — a pack key that is DECLARED and
     # read by nothing. Two opposite answers: the GW summit density is inert by
     # DERIVATION (eta cancels, 1.1e-10 over 16x), while pad_hardness_shore_d's
