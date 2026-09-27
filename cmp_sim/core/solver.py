@@ -661,6 +661,9 @@ def _defect_diagnostic(rr: ResolvedRecipe) -> Dict[str, Any]:
         d50_nm=rr.p_or("abrasive_size_nm", None),
         pad_hardness_pa=rr.p_or("pad_asperity_hardness_max_pa", None),
         film_hardness_pa=rr.p_or("film_bulk_hardness_pa", None),
+        # Every pack declares this with its own citation; until now the model
+        # hardcoded 680 nm and the pack key could not reach any output.
+        scratch_threshold_nm=rr.p_or("scratch_threshold_nm", None),
         film=rr.recipe.wafer.film,
     )
     return {"name": "_defect", "value": None, "notes": risk.notes,

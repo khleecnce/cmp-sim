@@ -62,8 +62,20 @@ import math
 
 NAME = "defect_proxy"
 
-#: critical particle size for scratching [nm] (Remsen 2006; Kwon 2023 700 nm;
-#: Eusner 2009 aggregates 610/762 nm)
+#: FALLBACK critical particle size for scratching [nm] (Remsen 2006; Kwon 2023
+#: 700 nm; Eusner 2009 aggregates 610/762 nm).
+#:
+#: This is the value used ONLY when the caller supplies none. Every shipped
+#: pack declares its own ``scratch_threshold_nm`` with the same citation, and
+#: ``evaluate`` now reads that. Before it did not: the module constant shadowed
+#: the pack key entirely, so twelve packs carried a sourced number that could
+#: not reach any output — the same failure mode as the withdrawn acid floor
+#: (STATUS §26), and harder to see, because here the shadowed key and the
+#: hardcoded value happened to be EQUAL. Nothing was wrong with any prediction;
+#: what was wrong is that no future disagreement could have shown up. A
+#: threshold is a property of the film and the abrasive (610 nm for one
+#: aggregate population, 762 for another in the same paper), so it belongs to
+#: the pack, and the constant here must be only the last resort.
 SCRATCH_THRESHOLD_NM = 680.0
 
 #: typical D99/D50 ratio when only D50 is known (Levitronix/Silco 2008,
@@ -142,11 +154,24 @@ def evaluate(*, d99_nm: Optional[float], d99_ref_nm: Optional[float],
              d50_nm: Optional[float] = None,
              pad_hardness_pa: Optional[float] = None,
              film_hardness_pa: Optional[float] = None,
+             scratch_threshold_nm: Optional[float] = None,
              film: str = "") -> DefectRisk:
     """Scratch-risk index relative to the pack's reference slurry."""
     notes: List[str] = []
     warnings: List[str] = []
     terms: Dict[str, float] = {}
+
+    # The pack's own threshold wins; the module constant is the last resort.
+    # See SCRATCH_THRESHOLD_NM for why this indirection exists.
+    threshold_nm = (float(scratch_threshold_nm)
+                    if scratch_threshold_nm and float(scratch_threshold_nm) > 0
+                    else SCRATCH_THRESHOLD_NM)
+    if scratch_threshold_nm is None:
+        notes.append(
+            f"no scratch_threshold_nm supplied: using the fallback "
+            f"{SCRATCH_THRESHOLD_NM:.0f} nm (Remsen 2006 / Kwon 2023 / "
+            "Eusner 2009). The threshold depends on film and abrasive, so a "
+            "pack that declares its own overrides this")
 
     if d99_nm is None and d50_nm is not None:
         d99_nm = d99_from_d50_nm(d50_nm)
@@ -163,7 +188,7 @@ def evaluate(*, d99_nm: Optional[float], d99_ref_nm: Optional[float],
             warnings=["defect proxy inactive: no large-particle tail (D99) and no "
                       "D50 to estimate it from. Mean size alone cannot predict "
                       "scratching — the 50-150 nm D50 of a normal slurry is far "
-                      f"below the {SCRATCH_THRESHOLD_NM:.0f} nm scratch threshold"])
+                      f"below the {threshold_nm:.0f} nm scratch threshold"])
 
     if exponent is None:
         return DefectRisk(
@@ -192,13 +217,13 @@ def evaluate(*, d99_nm: Optional[float], d99_ref_nm: Optional[float],
     for v in terms.values():
         delta *= v
 
-    threshold_ratio = float(d99_nm) / SCRATCH_THRESHOLD_NM
+    threshold_ratio = float(d99_nm) / threshold_nm
     notes.append(
         f"D99 / scratch threshold = {threshold_ratio:.2f} "
-        f"(threshold {SCRATCH_THRESHOLD_NM:.0f} nm, Remsen 2006 / Kwon 2023 / Eusner 2009)")
+        f"(threshold {threshold_nm:.0f} nm, Remsen 2006 / Kwon 2023 / Eusner 2009)")
     if threshold_ratio > 1.0:
         warnings.append(
-            f"D99 {d99_nm:.0f} nm exceeds the ~{SCRATCH_THRESHOLD_NM:.0f} nm scratch "
+            f"D99 {d99_nm:.0f} nm exceeds the ~{threshold_nm:.0f} nm scratch "
             "threshold: this slurry has particles large enough to scratch, and "
             "filtration or better colloidal stability matters more than any rate tuning")
     if abs(math.log10(max(threshold_ratio, 1e-9))) < 0.2:
