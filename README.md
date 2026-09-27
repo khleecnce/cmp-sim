@@ -252,6 +252,20 @@ average" — the baseline that says whether the physics contributed anything.
 > because quoting whichever reads lower is exactly the selection this
 > repository forbids.
 
+> **⚠ And 11 of those 48 datasets were partly graded on their own fit.** A pack
+> constant records its provenance in `source:`; when that string names a scored
+> dataset whose own pack it belongs to, on an axis that dataset sweeps, the
+> constant came from those rows. Eleven datasets declare
+> `used_for_calibration: false` while being cited that way — and they sit at
+> the good end of the table (the 2nd, 3rd and 5th best blocks are among them).
+> Excluding them, plus the four that already admit calibration, leaves **33
+> datasets at a held-out median of 19.5%**. That is the number to judge the
+> model by. Note that this exclusion moves the headline the *wrong* way, which
+> is why it is permitted here: dropping datasets to lower a median is
+> forbidden, declining to count the ones the model was fitted to is not.
+> Measured by `tools/calibration_flag_audit.py`, documented in
+> `docs/limits.md` §32.
+
 > **⚠ Read the 18.9% as a ranking claim, not a rate claim.** It says the model
 > follows the *trend* to about 20%. It does **not** say it predicts absolute
 > removal rate to 20%. Those fail independently, and on this corpus the second

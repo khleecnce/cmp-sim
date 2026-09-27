@@ -31,12 +31,12 @@ import pytest
 
 from tools.calibration_flag_audit import collect, headline_effect
 
-#: Datasets whose header says `used_for_calibration: false` while a pack
-#: constant's `source:` names them on an axis they sweep. Pinned so that a new
-#: fitted constant citing a "held-out" dataset fails here instead of quietly
-#: improving the headline. Shrinking this list is progress; do it by correcting
-#: the dataset's flag (and re-scoring), never by deleting the citation, which
-#: would restore the undetectable state (docs/limits.md §27).
+#: Datasets whose header says `used_for_calibration: false` while a constant
+#: in THEIR OWN pack names them in `source:` on an axis they sweep. Pinned so
+#: that a new fitted constant citing a "held-out" dataset fails here instead of
+#: quietly improving the headline. Shrinking this list is progress; do it by
+#: correcting the dataset's flag (and re-scoring), never by deleting the
+#: citation, which would restore the undetectable state (docs/limits.md §27).
 KNOWN_SELF_GRADED = {
     "bouvet2002_oxide_silica_size_sweep",
     "bouvet2002_ti_silica_size_sweep",
@@ -47,10 +47,17 @@ KNOWN_SELF_GRADED = {
     "lai2001_cu_alumina_size_sweep",
     "son2021_oxide_ceria_size_sweep",
     "su2011_sic_alumina_size_sweep",
-    "tw202115224a_cu_abrasive_size_pressure",
     "us9422456b2_teos_silica_ph_pressure",
     "wei2026_sic_silica_size_sweep",
 }
+
+#: Datasets cited ONLY by a pack that does not predict them. This is ordinary
+#: cross-pack evidence reuse and must never be counted as self-grading: the
+#: constant the citation fed is not evaluated on this block at all. Pinned
+#: separately because the first version of this audit conflated the two and
+#: condemned `tw202115224a`, which is scored under `cu_h2o2_bta` while being
+#: cited by `oxide_silica` and `cu_alkaline_benzenesulfonic`.
+KNOWN_CROSS_PACK_ONLY = {"tw202115224a_cu_abrasive_size_pressure"}
 
 
 @pytest.fixture(scope="module")
@@ -116,10 +123,41 @@ def test_the_held_out_median_is_worse_than_the_published_one(citations):
         "exclusion set is wrong" % (held_out, published))
 
 
+def test_a_foreign_packs_citation_is_not_self_grading(citations):
+    """The filter that stopped this audit condemning a clean block.
+
+    A dataset is predicted by exactly ONE pack. When a different pack's
+    constant cites it, that constant is never evaluated on this block, so the
+    score is not circular -- it is cross-pack evidence reuse, which is how a
+    corpus of 15 packs and 48 datasets is supposed to work.
+
+    Asserted in BOTH directions, because a one-sided check would pass if
+    `own_pack` were hard-wired to True (restoring the bug) or to False
+    (emptying the audit).
+    """
+    by_dataset = {}
+    for c in citations:
+        if c.governed and c.has_value and c.in_source_field and c.numeric:
+            by_dataset.setdefault(c.dataset, set()).add(c.own_pack)
+
+    for name in KNOWN_CROSS_PACK_ONLY:
+        flags = by_dataset.get(name, set())
+        assert flags == {False}, (
+            "%s is cited only by packs that do not predict it, so it must not "
+            "be counted as self-graded; got own_pack flags %s" % (name, flags))
+        assert name not in {c.dataset for c in citations if c.implicated}
+
+    # and the converse: the self-graded set really is cited by its own pack
+    for name in KNOWN_SELF_GRADED:
+        assert True in by_dataset.get(name, set()), (
+            "%s is pinned as self-graded but no constant in its OWN pack cites "
+            "it; the audit has stopped resolving pack ownership" % name)
+
+
 def test_size_exponents_are_the_dominant_family(citations):
     """WHICH constants do this, because that names the next piece of work.
 
-    Nine of the implicated citations are `abrasive_size_exponent` on five
+    Six of the implicated citations are `abrasive_size_exponent` on four
     packs: that single constant family is the corpus's main self-grading
     surface, and it is also the one the repository already knows is not
     transferable across abrasives (sic_ceria_h2o2's own note). The pH-response

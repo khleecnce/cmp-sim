@@ -93,6 +93,7 @@ class Citation:
     in_source_field: bool            # named by `source:`, not merely by `note:`
     has_value: bool                  # a live constant, not a withdrawn null
     numeric: bool                    # a fitted number, not a documentation flag
+    own_pack: bool                   # this IS the pack that predicts the block
     dataset_axes: Set[str] = field(default_factory=set)
     shape: float | None = None
 
@@ -104,7 +105,7 @@ class Citation:
     def implicated(self) -> bool:
         """The constant's VALUE was fitted on an axis this dataset sweeps.
 
-        Four conditions, and dropping any one of them produces a false
+        Five conditions, and dropping any one of them produces a false
         positive that this repository actually contains:
 
         * ``in_source_field`` -- a `note:` may merely cite a dataset as
@@ -117,8 +118,15 @@ class Citation:
           is_not`, `oxidizer_peak_is_pressure_dependent_unresolved`). They
           record a known limitation rather than carry a fitted degree of
           freedom, so citing the dataset that revealed the limitation is
-          honesty, not circularity. Counting them would have inflated this
-          report by a third.
+          honesty, not circularity.
+        * ``own_pack`` -- the decisive one, and the one this probe got wrong
+          first. A dataset is predicted by ONE pack. When a DIFFERENT pack
+          cites it, that citation cannot touch this block's score: the
+          constant it fed is never evaluated here. `tw202115224a` is cited by
+          `oxide_silica` and `cu_alkaline_benzenesulfonic` while being scored
+          under `cu_h2o2_bta`, whose size exponent comes from Lai 2001
+          instead -- cross-pack evidence reuse, which is legitimate, not self
+          grading. Counting it would have condemned a clean block.
         * ``governed`` -- a pack may cite a paper for a quantity that paper
           does not vary; then the score does not touch the fit.
         """
@@ -126,6 +134,7 @@ class Citation:
                 and self.in_source_field
                 and self.has_value
                 and self.numeric
+                and self.own_pack
                 and not self.declared_calibration)
 
 
@@ -178,6 +187,7 @@ def collect() -> List[Citation]:
                     numeric=isinstance(getattr(param, "value", None),
                                        (int, float))
                     and not isinstance(getattr(param, "value", None), bool),
+                    own_pack=str(doc.get("pack") or "") == pack_name,
                     dataset_axes=set(getattr(score, "axes", []) or []),
                     shape=getattr(score, "shape_mape", None),
                 ))
@@ -196,6 +206,9 @@ def report() -> str:
     flags = [c for c in cites
              if not c.declared_calibration and c.governed
              and c.has_value and c.in_source_field and not c.numeric]
+    foreign = [c for c in cites
+               if not c.declared_calibration and c.governed and c.has_value
+               and c.in_source_field and c.numeric and not c.own_pack]
     cited_only = [c for c in cites
                   if not c.declared_calibration and not c.governed]
     honest = [c for c in cites if c.declared_calibration]
@@ -206,7 +219,16 @@ def report() -> str:
     lines.append("  named by note: only, not by source:  : %d" % len(note_only))
     lines.append("  constant withdrawn (value null)      : %d" % len(withdrawn))
     lines.append("  non-numeric (flag / declared window) : %d" % len(flags))
+    lines.append("  cited by a pack that is not this     : %d" % len(foreign))
     lines.append("  cited only, axis not swept           : %d" % len(cited_only))
+
+    if foreign:
+        lines.append("")
+        lines.append("CROSS-PACK -- legitimate evidence reuse, NOT self-grading")
+        lines.append("  (the citing pack does not predict this block)")
+        for c in sorted(foreign, key=lambda c: c.dataset):
+            lines.append("  %-42s fed %s.%s"
+                         % (c.dataset, c.pack, c.constant))
 
     if implicated:
         lines.append("")
