@@ -1421,3 +1421,29 @@ Both worsen, both where the correction is largest, on two applicants sharing no 
 **The term stays out, and this is the decision taken:** wiring `chi(theta)` was **rejected** a second time, now on two-source evidence rather than one. Refitting it, narrowing it to a chi range that excludes the datasets it fails on, or dropping the DLC turnover row were each considered and refused — the first two would fit the refutation away, the third is the dataset selection this repository forbids.
 
 **Enforced by** `tests/test_load_sharing_onset_is_refuted_by_the_data.py` (11 tests, all re-measured at test time; the single-source assertion is replaced by the row-vs-midpoint one).
+
+## 32. `used_for_calibration` is a self-declaration, and twelve datasets contradict their own packs — the honest headline is 20.2%, not 18.9%
+
+Every admissibility filter in this repository decides whether a dataset may testify by reading **one boolean out of that dataset's own header**: `used_for_calibration`. `absolute_scale_audit` (question S4), `ce3_residual_probe`, `oxidizer_order_probe` and `ph_derived_probe` all gate on it, and not one of them had ever checked it against anything. A dataset that declares itself held out is held out, by assertion.
+
+It is checkable, and cheaply. A pack constant records where its value came from in `source:`. When that string **names a dataset in the scored corpus**, and the dataset **sweeps an axis that constant governs**, then the constant was fitted on those rows — so scoring the model against them grades it on its own answer key, whatever the header says. `tools/calibration_flag_audit.py` performs that cross-check across all 15 packs and the whole corpus.
+
+**Twelve datasets are self-graded** while declaring `used_for_calibration: false`, across 23 pack-constant citations. They are, unhelpfully, concentrated at the good end of the score table: the corpus's 2nd, 3rd and 5th best blocks are all in this set.
+
+| family | citations | example |
+|---|---|---|
+| `abrasive_size_exponent` (5 packs) | 9 | `sic_ceria_h2o2.abrasive_size_exponent` cites `su2011` (+0.24) and `wei2026` (+0.10) and **is their mean**; those two blocks then score 4.4% and 3.2% |
+| pH-response quartets (3 packs) | 11 | `oxide_silica_anionic`'s peak, width, floor and valid range all cite `cn109609035b`, which scores 32.1% |
+| oxidiser peak shape | 1 | `cu_h2o2_bta.oxidizer_peak_shape_K` cites `du2004` (6.2%) |
+
+**Three filters were needed to keep this measurement honest, and dropping any one of them inflates the count — it read 36 before they were added.** A `note:` that merely mentions a dataset is not a fit, and several notes cite the dataset that **refuted** a constant (counting those would report honesty as circularity), so only `source:` is admitted. A constant whose value is `null` was withdrawn and changes no prediction, so its citation is inert. And seven of the keys are **documentation flags**, not degrees of freedom — `ph_response_is_unimodal_but_this_system_is_not`, `oxidizer_peak_is_pressure_dependent_unresolved` — whose value is a sentence or a bool recording a known limitation; citing the data that exposed the limitation is the correct behaviour.
+
+**The held-out headline.** Removing every block the model was fitted on — the 12 above plus the 4 that already admit calibration — leaves 32 datasets at an upper median of **20.2%**, against the published **18.9%**. Note the direction: this is the one dataset exclusion the repository's own rule permits, because it moves the number the **wrong** way. Dropping datasets to lower a median is forbidden; declining to count the ones the model was fitted to is the opposite act. The 20.2% figure is the number a reviewer should be shown, and the completion bar should be read against it.
+
+**What this does NOT claim, and the decision taken.** No constant is withdrawn here and no dataset's flag is flipped. A blanket repair was **rejected**, because the two possible repairs are not equivalent and the choice is per-constant: either the flag is wrong (the dataset *was* calibration evidence and should say so, at the cost of that block leaving the scored corpus), or the constant is over-claimed (it should be refitted on other evidence, or withdrawn). Deleting the citation "fixes" the audit while restoring exactly the undetectable state — the same error §27 records for the abrasive-identity keys. A repair made without measuring which of the two applies would be unattributable, so it is **deliberately *not* a gate** on this run and is left to be taken one constant at a time.
+
+The `abrasive_size_exponent` family is the natural first target: it is nine of the 23 citations, it spans five packs, and this repository already knows the constant is **not transferable across abrasives** — `sic_ceria_h2o2`'s own note says so while holding the mean of an alumina and a silica sweep.
+
+**What would resolve it:** for each implicated constant, one independent measurement of the same quantity that is not in the scored corpus — then the constant stands on that, the citing dataset is genuinely held out, and its score becomes evidence. Until then the two medians must be quoted together.
+
+**Enforced by** `tests/test_calibration_flags_match_the_packs.py` (5 tests, all re-measured at test time): a non-vacuity guard that fails if the stem matching ever stops finding citations, an upper bound that fails when a **new** self-graded dataset appears, an expiry that fails when one is corrected (so the list of 12 cannot become permanent), a direction check that fails if the held-out median ever beats the published one, and a claim about which constant family dominates — because that names the next piece of work, and a bare count would read as a uniform problem.

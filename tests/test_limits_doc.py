@@ -38,6 +38,9 @@ LIMITS = DOCS / "limits.md"
 #: Tests that enforce a decided refusal to predict. A test added here MUST be
 #: cited by docs/limits.md — that is the point of the registry.
 LIMIT_ENFORCING_TESTS = {
+    # limit 32: `used_for_calibration` is a self-declaration and 12 datasets
+    # contradict their own packs; the held-out median is 20.2%, not 18.9%
+    "test_calibration_flags_match_the_packs.py",
     # limit 29: the load-sharing ONSET has the sign §28's derivation lacked and
     # repairs the binding dataset (18.2% -> 1.9%), and is refuted anyway — by
     # the measured dilute slope, not by the corpus median
