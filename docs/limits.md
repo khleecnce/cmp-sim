@@ -1939,3 +1939,78 @@ Adding a `direction` column to `ladder_span_probe` itself was **rejected**: §37
 **What would resolve it.** For the `netzband2020` block, a non-unimodal pH form with a source, which is the open question `sti_ceria` already declares. Nothing external is needed for the reader.
 
 **Enforced by** `tests/test_span_ratio_is_blind_to_direction.py` (9 tests, all re-measured at run time — pinning today's 2/6/5/7 counts would go stale the moment a pH constant is re-sourced, and a stale literal invites editing the claim instead of re-running the probe, which is how §40's correlation string happened): the blindness is **proved as arithmetic** on a reversed series (identical span ratio, `r_log` +1 → −1), so no corpus change can retire the motivation; `r_log` is asserted invariant under the scorer's free scale over three decades, or it would be reporting the calibration; **the exit condition** — an `anti` block that beats its own measured mean must not exist, and that test is the one allowed to fail, with the repair named as the peaked term rather than the statistic; declined axes must receive **no** direction verdict, with a non-vacuity guard on that side of the split; both readers must select the **same blocks** with the same axis, n and span ratio, since two readers of one population drifting apart would be invisible; at least one block must still hide a direction defect behind a span ratio inside 0.5x–2.0x, or the finding has gone stale; `ANTI_BAR` is pinned at exactly 0.0; and the classifier must be able to **return every class** from synthetic input, because a classifier collapsed to one answer passes every corpus-level test here. Calibrated against the bug: deleting the `anti` branch fails 2 of the 9.
+
+---
+
+## 46. The axis oracle spans the MONOTONE POWER LAWS only — "the most any law could buy" was measured with a statistic that cannot bend
+
+§45's generalisable rule was to ask of every reduction *what it throws away*. The next reduction in line carries more weight than the span ratio did. `tools/axis_error_census.py` prices an axis by granting the model one free exponent,
+
+```
+predicted' = predicted * (x / x_ref) ** b        b fitted per dataset, in log space
+```
+
+and calls the resulting MAPE drop "the MOST any closed-form law on that axis could buy, because a real law has to use ONE exponent for every dataset while the oracle gets a fresh one". The second half of that sentence is sound. The first half is not, and three published conclusions rest on it: §14 ("the improvable error is DISTRIBUTED: no single-axis law reaches 10%"), §16 ("≤ 10% is outside the reach of any shared-constant model"), and the `OWNERSHIP_MIN_GAIN = 2 pp` bar that routes each dataset's points to an axis or to `distributed`, which is what the pre-registered READING 1 / READING 2 verdict counts.
+
+`(x/x_ref)**b` is a **straight line in log–log**. Its span is the monotone power laws. The model it prices is not confined to those: the pH term is a Gaussian in pH, the oxidiser term is a Langmuir saturation, the zeta terms are referenced to an isoelectric point. Those **bend**. So an axis whose real law saturates or peaks can be priced at ≈ 0 pp — and filed as closed.
+
+### The blindness is arithmetic, not statistical
+
+Let `u = log(x/x_ref)` and let the log-residual be purely quadratic, `ly = c·u²`. The oracle's slope is the OLS estimate `b = Σ(u−ū)(ly−l̄y) / Σ(u−ū)²`. For levels laid out **symmetrically in `u`** — a geometric ladder, 1/2/4/8/16 wt%, which is the layout experimenters habitually choose for a concentration or size sweep — the odd moments vanish (`ū = 0`, `Σu³ = 0`) and therefore
+
+```
+b = 0 exactly, while one curved constant explains the residual completely.
+```
+
+This is the same class of fact as §45's reversed series and §44's mirrored pH pair: a property of the statistic, not of this corpus, so no dataset or constant change can retire it. The better the experiment spaced its levels, the more exactly the blindness holds.
+
+### Measured (`tools/oracle_curvature_blindness_probe.py`, 34 (dataset, axis) pairs at ≥ 4 levels)
+
+Each pair is priced twice on the shipping model's own per-row predictions: `ly ~ b1·u` (the shipping oracle) and `ly ~ b1·u + b2·u²` (this probe). Two guards keep the comparison honest, because a second free parameter buys error reduction from noise alone:
+
+1. `MIN_LEVELS_CURVE = 4` — the same rule `MIN_LEVELS = 3` already applies to the linear oracle. With as many parameters as levels the "gain" is interpolation.
+2. A **permutation null control**: the axis values are shuffled against the residuals and both oracles refitted 200 times (fixed seed). The median curved-minus-linear gain under shuffling is the price of the extra degree of freedom with no signal present, and every real gain is reported net of it. The null is non-vacuous — it reaches **+13.05 pp** on `netzband2020` (4 levels, n = 4), which is exactly the case where a quadratic should not be trusted.
+
+**Net of its own null, curvature buys more than the slope oracle on 12 of 34 pairs, and 4 cross the 2 pp ownership bar *only* when a bend is allowed:**
+
+| dataset | axis | levels | linear oracle | curved, net of null | per-dataset `b2` |
+|---|---|---|---|---|---|
+| `entegris2022_us20220315802a1_sic_alumina_conc` | `abrasive_wt_pct` | 5 | **−0.00 pp** | **+10.16 pp** | −0.09 |
+| `dandu2009_sio2_ceria_ph_sweep` | `slurry_ph` | 9 | **−0.26 pp** | **+9.41 pp** | −0.79 |
+| `us20190127607a1_hdpoxide_ceriasilica_size_sweep` | `abrasive_size_nm` | 4 | −0.13 pp | +3.79 pp | −1.02 |
+| `bouvet2002_oxide_silica_size_sweep` | `abrasive_size_nm` | 4 | +0.43 pp | +5.10 pp | −0.31 |
+
+The first two are the instructive ones: a **negative** linear price — the slope oracle reports that a free exponent on this axis makes the dataset *worse* — while a single curvature constant buys 9–10 pp. `entegris2022`'s loading ladder (0.1/0.2/0.5/1/5 wt%, log-spacing CV 0.38) and `dandu2009`'s 9-level pH sweep are precisely the well-spaced sweeps the arithmetic above predicts the slope cannot read.
+
+### What a LAW can buy, which is much less
+
+A law carries one constant into every dataset, so the shared-curvature bound is the number that matters (one `b2` scanned across all members, each keeping its own free scale and its own refitted slope):
+
+| axis | datasets | best shared `b2` | mean shape | shared gain | per-dataset `b2` |
+|---|---|---|---|---|---|
+| `abrasive_wt_pct` | 8 | **−0.15** | 25.2% → 20.9% | **+4.2 pp** | −0.41 … +0.18 (6 of 8 negative) |
+| `slurry_ph` | 7 | −0.54 | 27.1% → 25.9% | +1.3 pp | −0.79 … +5.29 (signs disagree) |
+| `oxidizer_wt_pct` | 3 | +0.04 | 17.8% → 17.4% | +0.4 pp | −0.07 … +0.45 |
+| `pressure` | 5 | +0.18 | 28.5% → 28.2% | +0.3 pp | −2.21 … +5.67 (signs disagree) |
+| `abrasive_size_nm` | 9 | −0.01 | 8.7% → 8.6% | +0.1 pp | −1.02 … +0.07 |
+| `velocity` | 2 | −0.19 | 36.1% → 36.1% | +0.0 pp | −0.29, +0.57 |
+
+**Only `abrasive_wt_pct` survives as a law**: one shared saturating curvature, sign-consistent on 6 of 8 ladders, worth 4.2 pp of mean shape on the datasets that sweep it. Every other axis's per-dataset curvatures **disagree in sign**, so the best shared value collapses toward zero — those axes are closed to a curved law exactly as they were closed to a power law, and now that is measured rather than assumed.
+
+### The honest reading: no verdict changes today, and the target is one §28 already named
+
+**The median is unchanged at 18.9% / 19.5% held out, and no constant, term or prediction was touched** — the correct outcome for an instrument repair (§36, §44, §45). What this removes is the *possibility* of a verdict nobody could check: an axis whose real law bends was priced at ≈ 0 pp, filed under `distributed`, and counted into the 30% reading, and no device in this repository would have contradicted it.
+
+Crucially, the one axis that survives as a law is **not a new opening**. The sign is saturating, and that is §28's finding reached by an independent reduction — §28 measured successive-slope differences (median residual curvature −0.432, 14 of 17 still flattening after the model), this probe fits a quadratic to the log-residual (6 of 8 negative, shared `b2` = −0.15). The two agree, and §28's amendment has already **priced and refused** the admissible zero-constant form of that saturation (monolayer occupancy `θ = φ/(A_r/A_0)`, measured reachable, then refuted on the corpus), while §14's second amendment withdrew `abrasive_conc_half_wt_pct` from every pack on **necessity**. So the 4.2 pp is not available: what is available is the knowledge that the axis was never closed by the oracle argument, only by those two independent refutations. §14's and §16's conclusions therefore stand — but they now stand on the necessity and reachability evidence, **not** on "the oracle says the axis is worth 0 pp".
+
+### What was rejected
+
+Replacing the linear oracle inside `axis_error_census.py` with the quadratic was **rejected**: §14's and §16's published figures are quoted from that tool's output, and silently changing what it prints makes the quoted numbers unattributable — a separate reader keeps the audit trail, the same decision §45 took about `ladder_span_probe`. Pricing the curvature without the permutation null was **rejected**: an extra degree of freedom always reduces error, and `netzband2020`'s +13.05 pp null is the proof that the uncontrolled number would be mostly dof. Lowering `MIN_LEVELS_CURVE` to 3 to widen the population was **rejected** for the reason `MIN_LEVELS` exists. Choosing the axis for the shared-constant bound by which answer looked largest was **rejected**: the test selects it by member count. And restoring a fitted saturation constant on `abrasive_wt_pct` because a shared bend scores 4.2 pp is **rejected twice over** — on necessity (§14's second amendment) and because the derived zero-constant version was already priced and refused (§28's amendment); a median-improving constant with neither a derivation nor a necessity case is the debt this repository exists to avoid.
+
+### The generalisable rule
+
+§43 asked who chooses the perturbation; §44, who chooses the evaluation points; §45, what the reduction throws away. This one asks **what family the reduction can represent**. An oracle bounds only the hypotheses it spans, so "the most any law could buy" is always shorthand for "the most any law *of this shape* could buy" — and when the model under test contains peaked and saturating terms, a monotone bound is not a bound on the model at all.
+
+**What would resolve it.** Nothing external for the reader. For `abrasive_wt_pct`, a *derived* saturation scale with no new free constant, which §28's amendment already tried and refused — so the axis stays closed, on that evidence rather than on this one.
+
+**Enforced by** `tests/test_oracle_cannot_see_a_law_that_bends.py` (8 tests, all re-measured at run time — pinning today's 12-of-34 or the +10.16 pp would go stale the moment a pack constant is re-sourced, and a stale literal invites editing the claim instead of re-running the probe, which is how §40's correlation string happened): the blindness is **proved as arithmetic** on a symmetric log ladder with a planted pure bend (`b_linear = 0` to 1e-9, `b2` recovered exactly, linear MAPE ≫ 0 while curved MAPE ≈ 0), so no corpus change can retire the motivation; a second, **asymmetric** ladder plants *both* constants and requires both back, so a fit that silently dropped the linear column could not pass the first test on a triviality; `MIN_LEVELS_CURVE > MIN_LEVELS` is pinned; the permutation null must be **non-vacuous** (max > 0.5 pp) or it is decoration, and at least one pair must clear its own null by > 1 pp, with the failure text naming "§14/§16 stand as written — record that instead of deleting the test" as the honest alternative outcome; at least one pair must cross the ownership bar **only** with curvature, and every flipping dataset must appear in the printed report, since a finding absent from the report is unauditable; the shared-constant bound is computed on the axis with the **most members**, chosen by count and not by prettiness; §28's flattening sign is **re-derived through this independent route** and must still be the majority, with the failure text pointing at re-reading §28 rather than at this assertion; and the shipping median is read from the CLI (not a second copy of the scorer) to prove no pack was written to. Calibrated against the bug: forcing `b2 = 0` in `_oracle_curved` — i.e. reverting the probe to the shipping oracle — fails **4 of the 8**.

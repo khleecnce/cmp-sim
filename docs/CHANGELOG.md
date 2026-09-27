@@ -4,6 +4,49 @@ All notable changes to CMP-Sim. Newest first.
 
 ## Unreleased
 
+### Measured — the axis oracle spans the MONOTONE POWER LAWS only, so "the most any law could buy" was measured with a statistic that cannot bend (2026-09-28)
+- §45 asked what a reduction *throws away*; this asks what family it can
+  **represent**. `tools/axis_error_census.py` prices an axis by granting one
+  free exponent, `predicted*(x/x_ref)**b`, and calls the drop "the MOST any
+  closed-form law on that axis could buy". Three published conclusions rest on
+  that sentence: §14 ("the improvable error is DISTRIBUTED"), §16 ("≤ 10 % is
+  outside reach"), and the `OWNERSHIP_MIN_GAIN = 2 pp` bar behind the
+  pre-registered READING 1 / READING 2 verdict.
+- **The blindness is arithmetic.** `(x/x_ref)**b` is a straight line in log–log.
+  With a purely quadratic log-residual and levels spaced symmetrically in
+  `log x` — a geometric ladder, the layout experimenters habitually choose — the
+  odd moments vanish and the fitted slope is **exactly 0**, while one curvature
+  constant explains the residual completely. The better the sweep's spacing, the
+  more exactly it holds. The model being priced is not monotone: Gaussian pH,
+  Langmuir oxidiser, IEP-referenced zeta all bend.
+- **Measured** (`tools/oracle_curvature_blindness_probe.py`, new, 34
+  (dataset, axis) pairs at ≥ 4 levels, each priced linear vs quadratic with a
+  200-trial permutation null controlling the extra degree of freedom): curvature
+  beats its own null on **12 of 34**, and **4 pairs cross the ownership bar only
+  with a bend** — `entegris2022` loading −0.00 → **+10.16 pp** and `dandu2009`
+  pH −0.26 → **+9.41 pp**, both with a *negative* linear price.
+- **Only one axis survives as a LAW**: a single shared curvature on
+  `abrasive_wt_pct` (`b2` = −0.15, sign-consistent on 6 of 8 ladders, mean shape
+  25.2 % → 20.9 %). Every other axis's curvatures disagree in sign, so the best
+  shared value collapses to ~0 — those axes are closed to a curved law too, now
+  by measurement rather than assumption.
+- ⚠ **No verdict changes and the median is unchanged at 18.9 % / 19.5 % held
+  out** (the correct outcome for an instrument repair touching no constant). The
+  surviving axis is **not a new opening**: its saturating sign re-derives §28
+  through an independent reduction, and §28's amendment already priced and
+  refused the zero-constant form while §14's second amendment withdrew
+  `abrasive_conc_half_wt_pct` on necessity. §14/§16 stand — on that evidence
+  rather than on the oracle argument.
+- Rejected: swapping the quadratic into `axis_error_census` (§14/§16's quoted
+  numbers become unattributable), pricing curvature without the permutation null
+  (`netzband2020`'s null alone is +13.05 pp), `MIN_LEVELS_CURVE` = 3
+  (interpolation), choosing the shared-bound axis by prettiest answer (the test
+  picks it by member count), and restoring a fitted saturation constant on the
+  strength of the 4.2 pp.
+- `docs/limits.md` §46 + `tests/test_oracle_cannot_see_a_law_that_bends.py`
+  (8 tests, every number re-measured at run time). Calibrated against the bug:
+  forcing `b2 = 0` in `_oracle_curved` fails 4 of the 8.
+
 ### Measured — an axis's response was read from its ENDPOINTS, and a peaked term cancels exactly on an endpoint pair (2026-09-28)
 - §43 fixed the probe whose perturbation it chose. It could not reach the two
   readers most of this repository's closure arguments rest on:

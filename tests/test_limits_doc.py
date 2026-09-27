@@ -207,6 +207,10 @@ LIMIT_ENFORCING_TESTS = {
     # identified in dataset prose the scorer cannot read, and sti_ceria's own
     # excluded composite Kp predicts the scale of the two blocks it excluded
     "test_kp_provenance_is_identified.py",
+    # limit 46: the axis oracle `predicted*(x/x_ref)**b` spans only the MONOTONE
+    # POWER LAWS, so "the most any law could buy" was measured with a statistic
+    # that cannot bend -- and §14/§16 plus the 2pp ownership bar rested on it
+    "test_oracle_cannot_see_a_law_that_bends.py",
 }
 
 
