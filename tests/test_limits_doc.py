@@ -38,6 +38,11 @@ LIMITS = DOCS / "limits.md"
 #: Tests that enforce a decided refusal to predict. A test added here MUST be
 #: cited by docs/limits.md — that is the point of the registry.
 LIMIT_ENFORCING_TESTS = {
+    # limit 45: a span RATIO cannot see DIRECTION — §37's veto statistic scores
+    # a prediction that moves BACKWARDS as agreement (reverse the series and
+    # max/min is unchanged while r_log flips +1 -> -1). 2 anti blocks, both
+    # already failing beats_predicting_the_mean; median unchanged.
+    "test_span_ratio_is_blind_to_direction.py",
     # limit 44: the two readers behind most closure arguments here read an
     # axis's response from its ENDPOINTS, and a peaked term cancels exactly on
     # an endpoint pair mirrored about its optimum — §43's identity arriving

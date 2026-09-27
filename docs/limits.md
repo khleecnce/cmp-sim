@@ -1887,3 +1887,55 @@ Zero axes were misclassified. Every understated axis was already far above the 0
 **What would resolve it.** Nothing external.
 
 **Enforced by** `tests/test_axis_response_is_not_read_from_endpoints.py` (7 tests, every number re-measured through the shipping solver at run time — pinning `98.20%` as a literal would go stale the moment a pH constant is re-sourced, and a stale literal invites editing the claim instead of the code, which is how §40's correlation string happened): the probe must recover an **endpoint-responsive** axis or its whole output is disowned (§43's instrument control); at least one axis must still be measurably understated, by more than x1.1, or the restricted dataset list has gone stale; `residual_census._axis_response` — the function every admissibility filter consumes — must return **≥** the endpoint reading on every understated axis and strictly more on at least one; `inert_axis_scan`, which keeps its **own copy** of the comparison, must read the repaired response too, because a fix applied to one of two duplicated readers is how a closed limit reopens; the cancellation is re-derived on `ph_response` itself in the equal-floor case (exact to 1e-12, with the optimum required to sit above the mirror pair so a flat term cannot pass) and in the unequal-floor case (the packs disagree on their acid floors, and the residual must stay below a fifth of the interior response); two-level axes must be excluded **and** counted, so the section's counts are about the reader rather than about how many sweeps are short; and every reading must publish the levels it used, because §43 requires a zero response to be unquotable without what was tried. Calibrated against the bug: reverting either tool fails 2 of the 7.
+
+## 45. A span RATIO cannot see DIRECTION: §37's veto statistic scores a prediction that moves backwards as agreement
+
+§44 fixed readers whose evaluation POINTS were chosen by the publication. This section asks the same question one level up, about a reader's *reduction* rather than its sampling: `tools/ladder_span_probe.py` collapses each single-axis block to
+
+```
+span_ratio = (max/min PREDICTED) / (max/min MEASURED)
+```
+
+and docs/limits.md §37 uses the population of those ratios to **veto** deriving a corpus-wide steepening term ("geo-mean 0.98x, 8 of 13 under, sign test p = 0.581"). The reduction's advertised virtue is real: the shape score's one free multiplicative scale cancels out of a ratio of ratios, so no fit is involved. Its defect is that a span is a **magnitude**, and a magnitude cannot distinguish a prediction that moves the right amount the right way from one that moves the right amount **backwards**.
+
+### The blindness is arithmetic, not statistical
+
+Reverse a predicted series against the same measured series. Every predicted value still occurs, so `max/min` is unchanged and the span ratio is **identical**, while the log-space correlation flips from **+1 to −1**. That holds for any series, so — unlike §43's perturbation constants and unlike §44's evaluation points — no corpus change and no constant can retire it. It is a property of the statistic.
+
+And this repository is exactly the kind that reaches it: the chemistry layer's peaked terms (the Gaussian pH response, the oxidiser Langmuir) can descend where a sweep straddling their declared optimum climbs.
+
+### Measured (`tools/span_direction_probe.py`, the same 20 blocks §37 reads)
+
+`r_log` = Pearson correlation of log(predicted) against log(measured) over the block's rows — logs because the scorer's error is multiplicative and its free scale is an additive offset there, so `r_log` is invariant to calibration exactly as the span ratio is. `pair` = whether the prediction's argmax/argmin rows are the measurement's.
+
+| class | count | meaning |
+|---|---|---|
+| `anti` (`r_log` < 0) | **2** | the prediction moves against the data |
+| `non-monotonic` (`r_log` ≥ 0, extremes do not pair) | 6 | the two spans are excursions between *different* condition pairs |
+| `agrees` | 5 | extremes pair, direction positive |
+| `declined` | 7 | the run declined the swept axis — no direction to read (§37's own rule) |
+
+| dataset | axis | span ratio | `r_log` | already published as a failure? |
+|---|---|---|---|---|
+| `jani2025_cu_h2o2_acidic_chelator` | `oxidizer_wt_pct` | **0.90x** | −0.73 | yes — `beats_predicting_the_mean = False` |
+| `netzband2020_thermal_oxide_ceria_ph` | `slurry_ph` | 2.98x | −0.19 | yes — same |
+
+`jani2025` is the instructive one: measured rates climb 22820 → 25330 → 25780 Å/min over H2O2 3–6 wt% while the prediction falls 10783 → 10748 → 10572, and its span ratio of **0.90x** reads in §37's table as a block the model tracks to within 10%.
+
+### The honest reading: a mechanism, not a defect count
+
+**Both `anti` blocks already fail `beats_predicting_the_mean` in `score_report`,** so this reader adds no unreported failure and **the median is unchanged at 18.9% / 19.5% held out** — the correct outcome for an instrument repair that touches no constant, term or prediction (§44, §36). Re-running §37's sign test with the `anti` blocks removed moves it from 0.98x / p = 0.581 to 0.89x / p = 0.549: **§37's verdict does not depend on them**, which is worth stating because the opposite would have retracted a limit.
+
+What the reader removes is the *possibility* of a verdict nobody could check. An `anti` block that still beat its own measured mean would be invisible to every existing device here — the median would see a modest shape error, `flat_prediction_census` a genuine non-flat prediction, `ladder_span_probe` a span ratio near 1 — and nothing in this repository would contradict it. The count of such blocks is **0 measured today**, not proven impossible.
+
+### What was rejected
+
+Adding a `direction` column to `ladder_span_probe` itself was **rejected**: §37's verdict is quoted from that tool's pooled output, and silently changing what it prints makes the quoted numbers unattributable — a separate reader keeps the audit trail. Excluding the two `anti` blocks from §37's population was **rejected**: they are predictions, not refusals, and this repository's rule is that dropping data to move a statistic is forbidden even when the statistic improves (the exclusion is *reported* above instead). Defining `anti` at some negative bar (e.g. `r_log < −0.3`) to "avoid noise" was **rejected**: the claim is a sign claim, and a threshold chosen to make a classification come out is a constant fitted to its own answer (§39). Fixing `netzband2020`'s pH optimum so the term climbs across pH 4–10 was **rejected as out of scope here** and is genuinely refuted elsewhere: `sti_ceria` already declares `ph_response_is_unimodal_but_this_system_is_not`, because the same pack must serve `dandu2009`'s 81x monotone sweep and this paper's V-shaped one (pH 4 = 198, pH 6 = 113, pH 8 = 200, pH 10 = 213 Å/min) — a *fall-then-rise* shape a unimodal term cannot produce at any peak or width. The direction failure is therefore a known functional-form gap, newly visible in the span statistic.
+
+### The generalisable rule
+
+*A fit-free reduction is not a neutral one.* §43 asked who chooses the perturbation, §44 who chooses the evaluation points; this asks **what the reduction throws away**. `max/min` discards the pairing between prediction and measurement, so it can only ever answer "how much", never "which way" — and a reader that cannot be wrong in a given direction will never report that direction.
+
+**What would resolve it.** For the `netzband2020` block, a non-unimodal pH form with a source, which is the open question `sti_ceria` already declares. Nothing external is needed for the reader.
+
+**Enforced by** `tests/test_span_ratio_is_blind_to_direction.py` (9 tests, all re-measured at run time — pinning today's 2/6/5/7 counts would go stale the moment a pH constant is re-sourced, and a stale literal invites editing the claim instead of re-running the probe, which is how §40's correlation string happened): the blindness is **proved as arithmetic** on a reversed series (identical span ratio, `r_log` +1 → −1), so no corpus change can retire the motivation; `r_log` is asserted invariant under the scorer's free scale over three decades, or it would be reporting the calibration; **the exit condition** — an `anti` block that beats its own measured mean must not exist, and that test is the one allowed to fail, with the repair named as the peaked term rather than the statistic; declined axes must receive **no** direction verdict, with a non-vacuity guard on that side of the split; both readers must select the **same blocks** with the same axis, n and span ratio, since two readers of one population drifting apart would be invisible; at least one block must still hide a direction defect behind a span ratio inside 0.5x–2.0x, or the finding has gone stale; `ANTI_BAR` is pinned at exactly 0.0; and the classifier must be able to **return every class** from synthetic input, because a classifier collapsed to one answer passes every corpus-level test here. Calibrated against the bug: deleting the `anti` branch fails 2 of the 9.
