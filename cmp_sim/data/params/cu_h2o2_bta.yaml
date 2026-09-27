@@ -58,20 +58,37 @@ params:
     confidence: literature
 
   ph_acid_mechanical_floor:
-    value: 0.010
+    value: null
     unit: fraction of peak rate
     note: >
-      Rate BELOW the optimum pH, as a fraction of the peak. Separate from
-      ph_mechanical_floor (which applies above the optimum) because the two
-      sides decay by different mechanisms: below the optimum the abrasive and
-      the film approach the same charge state and particles stop attaching,
-      while above it alkaline hydrolysis keeps softening the film.
+      ** WITHDRAWN 2026-09-27. Was 0.010, confidence low, source
+      "TODO(owner) - order-of-magnitude bound, not a measurement". ** Here the
+      case is stronger than "it barely moves anything": this constant was
+      STRUCTURALLY UNREACHABLE. It could not enter any prediction, at any
+      pressure, speed or formulation.
 
-      NOT a free parameter. The unconstrained fit wants 0.0, which is the
-      setting that made the model return 0.0 A/min at pH 2 -- CN109609035B
-      measures 109 A/min there. An abrasive under load removes material at
-      any pH. 1% of peak. US9200180B2 sweeps only pH 6.2-9.9, entirely above this pack's optimum, so the acid side is unmeasured for copper.
-    source: TODO(owner) - order-of-magnitude bound, not a measurement
+      ph_response selects the acid-side floor only when pH < ph_peak, and
+      chemical_rate clamps the evaluated pH into ph_valid_range BEFORE the
+      bell is evaluated. This pack's ph_peak is 3.0 and its ph_valid_range is
+      [3.0, 6.0] -- the optimum IS the lower edge, because US9200180B2 sweeps
+      pH 6.2-9.9 and the acid limb was never measured for copper. So the
+      clamped pH is never below the peak and the acid branch is dead code for
+      this pack. Confirmed on the shipping solver rather than by reading the
+      source: tools/acid_floor_reachability_probe.py scans pH 1-13 and the
+      largest rate change from replacing the value is 0.000 %.
+
+      That makes it worse than an unused number. It read as a sourced physical
+      property of this copper system ("1% of peak below the optimum") while
+      being incapable of ever being tested, which is the failure mode this
+      repo treats as inventing a value.
+
+      RESTORE ONLY IF: a copper sweep measures below pH 3 at this pack's own
+      chemistry, which would push ph_valid_range below ph_peak and make the
+      acid limb a measured region. Until then the fallback (ph_mechanical_floor
+      = 0.12) is used and is equally inert, for the same structural reason.
+    source: >
+      withdrawn; unreachable given ph_peak 3.0 == ph_valid_range[0]
+      (see tools/acid_floor_reachability_probe.py)
     confidence: low
 
   abrasive_conc_half_wt_pct:

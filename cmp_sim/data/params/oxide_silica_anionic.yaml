@@ -96,9 +96,17 @@ params:
     note: >
       Unconstrained and deliberately left at zero. The sweep's lowest point IS
       the peak, so nothing below it is measured and there is no acid-side limb
-      to floor. Any positive value here would be invented. This means a scan
-      below pH 2 falls away with no support — correct, because the data end
-      there.
+      to floor. Any positive value here would be invented.
+
+      It is also UNREACHABLE, and that is worth stating because a reader would
+      otherwise expect a scan below pH 2 to decay away: ph_peak (2.0) equals
+      ph_valid_range[0], and chemical_rate clamps the evaluated pH into that
+      range BEFORE ph_response picks a side, so no admissible query is ever
+      below the optimum. Measured on the shipping solver over pH 1-13
+      (tools/acid_floor_reachability_probe.py): max rate change 0.000 %. The
+      zero is kept rather than withdrawn because, unlike the order-of-magnitude
+      bounds withdrawn from oxide_silica and cu_h2o2_bta, it is an accurate
+      statement about the data ("nothing measured here") and not a number.
     source: "not measured: pH 2.0 is the lowest point in the source table"
     confidence: low
 

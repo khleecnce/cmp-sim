@@ -37,20 +37,45 @@ params:
     confidence: literature
 
   ph_acid_mechanical_floor:
-    value: 0.010
+    value: null
     unit: fraction of peak rate
     note: >
-      Rate BELOW the optimum pH, as a fraction of the peak. Separate from
-      ph_mechanical_floor (which applies above the optimum) because the two
-      sides decay by different mechanisms: below the optimum the abrasive and
-      the film approach the same charge state and particles stop attaching,
-      while above it alkaline hydrolysis keeps softening the film.
+      ** WITHDRAWN 2026-09-27. Was 0.010, confidence low, source
+      "TODO(owner) - order-of-magnitude bound, not a measurement". ** It is
+      gone because the FAILURE IT WAS INVENTED TO PREVENT can no longer
+      happen, not because a scan preferred a different number. The superseded
+      reasoning is kept below so nobody re-invents it from the same argument.
 
-      NOT a free parameter. The unconstrained fit wants 0.0, which is the
-      setting that made the model return 0.0 A/min at pH 2 -- CN109609035B
-      measures 109 A/min there. An abrasive under load removes material at
-      any pH. 1% of peak. No silica-on-oxide dataset here measures the deep acid side at a fixed alkaline formulation, so this is a floor chosen to keep the prediction finite rather than a fitted value; CN109609035B's acid series is a different (anionic-surfactant) system whose own optimum is near pH 2.
-    source: TODO(owner) - order-of-magnitude bound, not a measurement
+      The argument was: "the unconstrained fit wants 0.0, which is the setting
+      that made the model return 0.0 A/min at pH 2 -- CN109609035B measures
+      109 A/min there; an abrasive under load removes material at any pH."
+      Both halves of that are still true as physics. What changed is that the
+      collapse it guarded against is now structurally impossible here, by two
+      independent mechanisms added since:
+
+      1. ph_valid_range [10.0, 12.5] CLAMPS the evaluated pH to the nearest
+         measured edge before the bell is evaluated, so a query at pH 2 is
+         answered at pH 10, not on a Gaussian tail 9 units out. The model
+         cannot return 0.0 A/min at pH 2 with or without this key.
+      2. When the key is absent, chemical_rate falls back to
+         ph_mechanical_floor (0.12) rather than to zero, which is a MEASURED
+         value on this system.
+
+      What the constant could still reach was measured on the shipping solver
+      (tools/acid_floor_reachability_probe.py): only pH 10.0-11.0 is both
+      admissible and below the optimum, and replacing 0.010 by the fallback
+      moves the rate by at most 0.91 % anywhere in that window. Corpus median
+      is unchanged at 18.2 %; the largest per-dataset move is li2021
+      0.2 % -> 0.7 %, which is the dataset this pack's ph_peak was fitted to.
+
+      RESTORE ONLY IF: a silica-on-oxide sweep measures the acid limb at a
+      fixed alkaline formulation, which would widen ph_valid_range below
+      ph_peak and make the acid side a measured region rather than a clamped
+      one. Then the floor becomes a fitted value with data under it.
+    source: >
+      withdrawn; the superseded value was an order-of-magnitude bound, never a
+      measurement (see tools/acid_floor_reachability_probe.py for the
+      reachability and rate-sensitivity numbers quoted above)
     confidence: low
 
   abrasive_conc_half_wt_pct:

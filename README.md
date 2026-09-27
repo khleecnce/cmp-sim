@@ -234,7 +234,7 @@ points on whichever axis each dataset varies:
 | axis | datasets | median error |
 |---|---:|---:|
 | abrasive particle size | 11 | **11.2%** |
-| oxidizer | 12 | 21.4% |
+| oxidizer | 12 | 21.3% |
 | abrasive loading | 11 | 20.6% |
 | pressure | 14 | 20.4% |
 | pH | 15 | 25.3% |
