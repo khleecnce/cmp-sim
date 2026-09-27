@@ -231,6 +231,35 @@ def _grid(pack_name: str, film: str) -> List[Dict[str, Any]]:
              variant(ph=phs[-1], ox=0.0, pressure_psi=1.0),
              variant(ph=phs[len(phs) // 2], platen_temp_c=60.0,
                      rpm_platen=120.0)]
+
+    # Axes the first two revisions never moved, each of which made a whole
+    # family of constants look dead. See "KNOWN LIMITS" in the module
+    # docstring -- these are the fixes for blind spots 1 and 2 listed there.
+    d99_ref = pv("abrasive_d99_nm")
+    if d99_ref:
+        # Held at the pack reference, the tail ratio is exactly 1.0 and
+        # damage_exponent is raised to a power of one at every point, i.e.
+        # invisible. It is live; only the grid was blind.
+        for f in (0.5, 3.0):
+            g = variant(rich)
+            g["slurry"].setdefault("abrasive", {})["d99_nm"] = float(d99_ref) * f
+            grid.append(g)
+    for hours in (0.05, 0.15):
+        # Ageing the pad is what switches on the pad-life layer; a fresh pad at
+        # t=0 cannot show a drift constant. The wear layer keys off
+        # Pad.use_hours / Disk.hours_used -- NOT a params override, which is
+        # why the first attempt here changed nothing.
+        #
+        # The hours must be SMALL. Jeong 2024 covers 10 minutes; at 200 h the
+        # exponential decay has saturated to contact_count_ratio = 0.0 exactly,
+        # and a saturated output cannot respond to any constant, so a large
+        # value reintroduces the very blindness this axis was added to remove.
+        g = variant(rich)
+        g["pad"] = dict(g.get("pad") or {})
+        g["pad"]["use_hours"] = hours
+        g["disk"] = dict(g.get("disk") or {})
+        g["disk"]["hours_used"] = hours
+        grid.append(g)
     return grid
 
 

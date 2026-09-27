@@ -686,8 +686,16 @@ def _pad_life_diagnostic(rr: ResolvedRecipe) -> Dict[str, Any]:
         pressure_psi=rr.recipe.tool.pressure_psi,
         polish_minutes=float(pad.use_hours) * 60.0,
         disk_hours=float(disk.hours_used),
-        glazing_rate=rr.p_or("pad_glazing_rate", None),
-        conditioning_rate=rr.p_or("pad_conditioning_rate", None),
+        # The packs name these `stab_*`; asking for `pad_glazing_rate` /
+        # `pad_conditioning_rate` -- which no pack has ever defined -- meant
+        # the steady-state balance below has NEVER executed, and every run
+        # emitted "rate constants were not supplied" while twelve packs
+        # carried them with a citation. The legacy accessor names are kept as
+        # a fallback so an external pack using them still works.
+        glazing_rate=rr.p_or("stab_glaze_rate_per_min",
+                             rr.p_or("pad_glazing_rate", None)),
+        conditioning_rate=rr.p_or("stab_cond_recovery_rate_per_min",
+                                  rr.p_or("pad_conditioning_rate", None)),
     )
     return {"name": "_pad_life", "value": None, "notes": state.notes,
             "warnings": state.warnings, "pad_life": state.as_dict()}

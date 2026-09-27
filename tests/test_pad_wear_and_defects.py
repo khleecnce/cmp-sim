@@ -89,6 +89,43 @@ def test_missing_rate_constants_are_reported_rather_than_assumed():
     assert any("not supplied" in w for w in state.warnings)
 
 
+def test_the_packs_glazing_constants_actually_reach_the_balance():
+    """The steady-state balance must RUN on a shipped pack.
+
+    Every pack carries ``stab_glaze_rate_per_min`` and
+    ``stab_cond_recovery_rate_per_min`` with a citation, but the solver used to
+    ask for ``pad_glazing_rate`` / ``pad_conditioning_rate`` — names no pack
+    has ever defined. The balance was therefore never computed on any run, and
+    the output said so every time ("rate constants were not supplied") while
+    the sourced constants sat unused in twelve pack files. The unit tests above
+    passed throughout, because they call ``wear.evaluate`` directly and hand it
+    the numbers the solver was failing to find.
+    """
+    from cmp_sim.core.solver import simulate
+    from cmp_sim.core.state import Disk, Pad, Recipe, Slurry, Tool, Wafer
+
+    def run(disk_hours):
+        return simulate(Recipe(
+            model="pad_life_study",
+            wafer=Wafer(film="w", n_radial=11),
+            slurry=Slurry(pack="w_fe_oxidizer"),
+            pad=Pad(name="IC1010", use_hours=0.1),
+            disk=Disk(hours_used=disk_hours),
+            tool=Tool(pressure_psi=4.0, rpm_platen=60.0, rpm_head=57.0,
+                      time_s=60.0))).extras["pad_life"]
+
+    fresh_disk = run(0.0)
+    assert "steady_state_contact_ratio" in fresh_disk, (
+        "the pack's glazing constants never reached wear.evaluate")
+    assert not any("not supplied" in w for w in fresh_disk["warnings"])
+
+    # Physics, not a magic number: a blunt conditioner regenerates fewer
+    # asperities, so the pad settles at a lower contact fraction.
+    assert (run(300.0)["steady_state_contact_ratio"]
+            < run(100.0)["steady_state_contact_ratio"]
+            < fresh_disk["steady_state_contact_ratio"])
+
+
 # ══════════════════════════════════════════════════════════════════
 # P8 — defect proxy
 # ══════════════════════════════════════════════════════════════════
