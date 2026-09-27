@@ -3226,3 +3226,92 @@ artefact from it. `tools/velocity_pressure_interaction_probe.py`.
 Nothing was adopted. The corpus median stays **18.9% / 21.3%** by choice, as it
 must when a run produces a negative shape result.
 `tests/test_velocity_exponent_is_not_constant.py` (8 tests).
+
+## The SUPPLY axis was never decided — and the obvious fix would have been wrong (2026-09-27, 28th run)
+
+Luo-Dornfeld here decomposes both abrasive exponents into three measurable
+questions (`legacy/sim/abrasive_mechanics.py`):
+
+```
+    n_C = p (1 - alpha*chi)          concentration exponent
+    n_d = -q (1 - alpha*chi) + beta  size exponent
+```
+
+* **chi** — who carries the load, from the measured area-pressure exponent.
+* **alpha, beta** — elastic or plastic single-particle law, from the
+  pad-limited load criterion (`core/regime.py`).
+* **p, q** — does the gap admit ONE layer of particles or several.
+
+The third question was answered from `gap_m / d_p`, and the solver supplies it
+`pad_wafer_gap_m` — a key **no pack declares and no caller sets**, listed in
+`tests/test_pack_key_wiring.KNOWN_NON_PACK_KEYS` as a "solved quantity". So in
+every run of this corpus the decision was never made. The inherited layer took
+its `None` branch, returned the monolayer pair `p=1, q=2`, graded itself
+`estimated`, and every result carried the warning that the supply geometry
+"was not determined from data". That warning was **false**, and it had been
+false in every run ever scored here.
+
+### Why the obvious fix is a bug, and how that was established BEFORE wiring
+
+The same run already solves a mean fluid film thickness `h` and publishes it
+under `slurry_supply`. Handing that to `gap_m` closes the loop in one line —
+and it is wrong. `decide_supply` means the clearance where a particle is
+**loaded**: between a pad asperity summit and the wafer. `h` is averaged over
+the whole wafer including grooves and un-contacted valleys. They are the same
+quantity only when asperities carry the load.
+
+That condition is exactly the lambda ratio (`lambda = h / sigma_pad`, Bhushan),
+which the run also already computes:
+
+* `lambda < 1` (boundary) — the film is thinner than the roughness, asperities
+  touch, and a loaded particle sits in a contact whose clearance is one
+  particle diameter **by definition**. Monolayer, derived.
+* `lambda >= 1` (mixed / full film) — load is partly hydrodynamic, the
+  clearance at a loaded site is no longer pinned to the particle, and the
+  argument gives no verdict. The axis stays open and says so.
+
+`tools/supply_gap_probe.py` measured both quantities on every dataset. All 49
+runnable ones are boundary (`lambda` 0.002..0.148, every one below 1 by at
+least 6.7x), so the monolayer branch is decided everywhere in this corpus and
+the "unknown gap" note was never true. **But `h/d` exceeds `decide_supply`s
+1.5 threshold on 20 of those 49** (up to 26x on son2021). The naive wiring
+would therefore have cut `p` from 1.0 to 0.46 and HALVED the derived
+concentration exponent on a third of the corpus, on the strength of a length
+measured in the wrong place.
+
+### Why it would have been nearly impossible to find afterwards
+
+`tools/supply_gap_reachability_probe.py` forces the gap to 10x the diameter
+and re-runs the shipping solver: **only 5 of 49 predicted rates move at all**,
+because each pack own measured exponent overrides the derived one in
+`mechanical_factor`. A wrong number that changes almost nothing is the hardest
+kind to find later — it cannot be caught by the median, by a dataset score, or
+by any reachability census keyed on the rate. This is the same shape as the
+27th run `scratch_threshold_nm` finding (the hard-coded value happened to
+equal the pack value, so nothing was wrong and nothing could ever be found
+wrong), and it is why the probe was written before the wiring rather than
+after.
+
+### What was adopted
+
+`models/luo_dornfeld._supply_from_lubrication` decides the axis from the
+lubrication regime. **Zero new constants, and zero change to any exponent** —
+`p=1, q=2` either way. What changes is that they are now a derived result
+instead of a stated assumption, so:
+
+* the regime no longer floors its confidence on an axis it has in fact
+  decided (`estimated` -> `literature` when the other two axes permit);
+* the warning names only the axes actually open, and says explicitly that the
+  supply geometry is not among them.
+
+The corpus median is **18.2% unchanged**, and that is the correct outcome: this
+closure buys honesty, not accuracy. A test asserts the invariance directly, so
+a future change that moves the exponents under this banner fails.
+
+`tests/test_supply_axis_decided_from_lubrication.py` (7 tests) pins the
+physics claims: boundary decides, hydrodynamic does NOT (a closure that fires
+everywhere is not a closure), the derived verdict agrees with the inherited
+pair (so if that pair ever changes the claim fails loudly), no exponent moves,
+no run still reports the axis as open, and — the guard that matters — no
+boundary-lubricated run may report `p != 1`, which is what would happen the
+moment someone wires the mean film into the contact gap.

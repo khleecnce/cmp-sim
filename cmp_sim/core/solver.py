@@ -583,6 +583,8 @@ def _abrasive_hook(rr: ResolvedRecipe) -> Dict[str, Any]:
         detected_branch = getattr(situation, "contact_branch", None)
     regime = ld.resolve_regime(
         contact_branch=detected_branch,
+        lubrication=(getattr(situation, "lubrication", None)
+                     if situation is not None else None),
         area_pressure_exponent=area_pressure_exponent,
         contact_stress_pa=rr.p_or("particle_contact_stress_pa", None),
         surface_hardness_pa=rr.p_or("film_surface_hardness_pa", None),

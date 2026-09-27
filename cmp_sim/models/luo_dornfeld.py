@@ -151,6 +151,12 @@ class AbrasiveRegime:
     n_conc: float
     n_size: float
     confidence: str
+    #: True when the supply question (p, q) was DECIDED rather than defaulted.
+    #: Kept separate from ``confidence``, which is the minimum over all three
+    #: axes: a decided supply must not be able to raise an overall grade that
+    #: chi or alpha is still holding down, and an undecided chi must not make
+    #: the run claim the supply axis is open when it is not.
+    supply_decided: bool = False
     notes: List[str] = field(default_factory=list)
 
     def as_dict(self) -> Dict[str, Any]:
@@ -158,7 +164,8 @@ class AbrasiveRegime:
                 "beta": round(self.beta, 4), "p": round(self.p, 4),
                 "q": round(self.q, 4),
                 "n_conc": round(self.n_conc, 4), "n_size": round(self.n_size, 4),
-                "confidence": self.confidence, "notes": self.notes}
+                "confidence": self.confidence,
+                "supply_decided": self.supply_decided, "notes": self.notes}
 
 
 def beta_for_alpha(alpha: float) -> float:
@@ -202,12 +209,93 @@ def _english_summary(reg, alpha_source: str) -> List[str]:
     ]
 
 
+def _supply_from_lubrication(lubrication: Optional[str]
+                             ) -> Tuple[Optional[str], str]:
+    """Decide the SUPPLY question from the lubrication regime, not from a gap.
+
+    The third regime question (``legacy/sim/abrasive_mechanics.decide_supply``)
+    asks whether the pad-wafer gap admits ONE layer of particles or several,
+    because that sets ``p`` and ``q`` in
+
+        n_C = p (1 - alpha*chi),    n_d = -q (1 - alpha*chi) + beta
+
+    It is answered from ``gap_m / d_p``, and the solver hands it
+    ``pad_wafer_gap_m`` — a key no pack declares and no caller sets (it is in
+    ``tests/test_pack_key_wiring.KNOWN_NON_PACK_KEYS`` as "solved quantity").
+    So the decision was NEVER MADE in any run of this corpus: every call took
+    the ``None`` branch, which returns the monolayer values with confidence
+    ``estimated`` and announces "the pad-wafer gap is unknown".
+
+    THE MEAN FLUID FILM IS NOT THAT GAP, and substituting it would be a bug
+    -----------------------------------------------------------------------
+    The same run already solves a mean fluid film thickness ``h`` from sourced
+    lubrication physics and publishes it under ``slurry_supply``. It is
+    tempting to feed that to ``gap_m``, and it is wrong. ``decide_supply``'s
+    gap is the clearance at the place where particles are LOADED — between a
+    pad asperity summit and the wafer — whereas ``h`` is averaged over the
+    whole wafer including the grooves and the un-contacted valleys.
+
+    Which of the two applies is exactly what the lambda ratio decides
+    (``lambda = h / sigma_pad``, Bhushan):
+
+    * ``lambda < 1`` (boundary): the fluid film is THINNER than the pad
+      roughness. Asperities touch the wafer and carry the load, and a particle
+      is only loaded where it is trapped in such a contact — so the local
+      clearance there is one particle diameter by definition and the supply is
+      a MONOLAYER. ``p = 1, q = 2`` is then a derived result, not an
+      assumption, and the confidence is that of the lubrication solve.
+    * ``lambda >= 1`` (mixed / full film): part or all of the load is carried
+      hydrodynamically, the clearance at a loaded site is no longer pinned to
+      the particle, and this argument does NOT license a verdict. The axis
+      stays undetermined and says so.
+
+    Measured on this corpus (``tools/supply_gap_probe.py``): all 49 runnable
+    datasets are boundary, ``lambda`` 0.002..0.148, every one below 1 by at
+    least a factor of 6.7 — so the monolayer branch is decided everywhere here,
+    and the "unknown gap" note was never true.
+
+    What would have happened with the naive wiring is worth recording, because
+    it is the failure this function exists to avoid: ``h/d`` exceeds
+    ``decide_supply``'s 1.5 threshold on 20 of those 49 datasets (up to 26x),
+    which would have cut ``p`` from 1.0 to 0.46 and HALVED every derived
+    concentration exponent on a third of the corpus — on the strength of a
+    quantity measured in the wrong place. And it would have been nearly
+    invisible: only 5 of 49 predicted rates move at all when the supply branch
+    is forced, because each pack's own measured exponent overrides the derived
+    one (``tools/supply_gap_reachability_probe.py``). A wrong number that
+    changes almost nothing is the hardest kind to find later.
+
+    Returns ``(verdict, why)`` where ``verdict`` is ``"monolayer"`` or ``None``.
+    """
+    lub = str(lubrication or "").lower()
+    if lub == "boundary":
+        return ("monolayer",
+                "supply DECIDED as monolayer from the lubrication regime: "
+                "lambda = h/sigma < 1, so the fluid film is thinner than the "
+                "pad roughness, asperities carry the load, and a particle is "
+                "loaded only where it is trapped in an asperity contact — "
+                "where the clearance is one particle diameter by definition. "
+                "p = 1, q = 2 is therefore derived, not assumed. The MEAN "
+                "fluid film is deliberately not used as the gap: it is "
+                "averaged over grooves and un-contacted valleys, and on this "
+                "corpus it would wrongly report multilayer on 20 of 49 runs")
+    if lub in ("mixed", "full_film", "full-film", "fullfilm"):
+        return (None,
+                f"supply still UNDETERMINED: lubrication is '{lub}', so part "
+                "or all of the load is carried hydrodynamically and the "
+                "clearance at a loaded site is no longer pinned to the "
+                "particle diameter. The monolayer argument is licensed only "
+                "in boundary lubrication and is not extrapolated here")
+    return (None, "")
+
+
 def resolve_regime(*, area_pressure_exponent: Optional[float] = None,
                    contact_stress_pa: Optional[float] = None,
                    surface_hardness_pa: Optional[float] = None,
                    gap_m: Optional[float] = None,
                    particle_diameter_m: Optional[float] = None,
-                   contact_branch: Optional[str] = None
+                   contact_branch: Optional[str] = None,
+                   lubrication: Optional[str] = None,
                    ) -> AbrasiveRegime:
     """Answer the three questions -> exponents. Inherited implementation.
 
@@ -218,6 +306,10 @@ def resolve_regime(*, area_pressure_exponent: Optional[float] = None,
     ``core.regime`` decides the same branch from the measured pad hardness, the
     film modulus and the film hardness, with particle size cancelling out. When
     it has reached a verdict, that verdict sets alpha directly.
+
+    ``lubrication`` is the same kind of route to the SUPPLY question (p, q).
+    See ``_supply_from_lubrication`` for the derivation and for why the mean
+    fluid film must NOT be handed to ``gap_m`` instead.
     """
     branch_alpha = {"plastic": ALPHA_PLASTIC, "elastic": ALPHA_ELASTIC}
     from_branch = branch_alpha.get(str(contact_branch or "").lower())
@@ -258,6 +350,31 @@ def resolve_regime(*, area_pressure_exponent: Optional[float] = None,
         beta=beta_for_alpha(alpha_probe),
     )
     notes = _english_summary(reg, alpha_source)
+
+    # ── the SUPPLY question, answered where the gap is unknown ───────────
+    # The inherited layer takes the gap route and, with no gap, returns the
+    # monolayer values while declaring the axis undecided. The lubrication
+    # regime decides the SAME question from a quantity the run does solve.
+    # See _supply_from_lubrication for the derivation and for why the mean
+    # fluid film must not simply be substituted for the gap.
+    supply_verdict = None
+    if gap_m is None:
+        supply_verdict, supply_why = _supply_from_lubrication(lubrication)
+        if supply_why:
+            notes.append(supply_why)
+        if supply_verdict == "monolayer":
+            # The VALUES do not change (p=1, q=2 either way); what changes is
+            # that they are now a derived result rather than a stated
+            # assumption, so the regime no longer floors its own confidence on
+            # an axis it has in fact decided. Nothing else may be upgraded
+            # here: chi and alpha have their own evidence.
+            import dataclasses as _dc
+            assert reg.p == am.P_MONOLAYER and reg.q == am.Q_MONOLAYER, (
+                "the inherited no-gap fallback is no longer the monolayer "
+                f"pair (p={reg.p}, q={reg.q}); the derivation in "
+                "_supply_from_lubrication agrees with p=1, q=2 only")
+            if reg.confidence == "estimated":
+                reg = _dc.replace(reg, confidence="literature")
 
     # The inherited resolve_regime recomputes alpha internally from the contact
     # stress (legacy/sim/abrasive_mechanics.py, decide_alpha), so it discards
@@ -326,6 +443,7 @@ def resolve_regime(*, area_pressure_exponent: Optional[float] = None,
     return AbrasiveRegime(
         chi=reg.chi, alpha=reg.alpha, beta=reg.beta, p=reg.p, q=reg.q,
         n_conc=reg.n_conc, n_size=reg.n_size, confidence=reg.confidence,
+        supply_decided=(supply_verdict is not None or gap_m is not None),
         notes=notes)
 
 
@@ -509,8 +627,21 @@ def mechanical_factor(*, conc: Optional[float], conc_ref: Optional[float],
             f"MRR ~ H^-1.5 -> {ratio:.4f} (chemistry enters mechanics only here)")
 
     if regime.confidence in ("unverified", "estimated"):
+        # Name only the axes that are ACTUALLY open. The blanket wording
+        # ("load sharing, elastic/plastic branch or supply geometry") was
+        # accurate when none of the three could be decided; now that the
+        # supply axis is derived from the lubrication regime, listing it
+        # anyway would report a gap that has been closed — the same class of
+        # untrue statement that the gap wiring itself fixed.
+        open_axes = ["load sharing", "elastic/plastic branch"]
+        if not regime.supply_decided:
+            open_axes.append("supply geometry")
         warnings.append(
             f"abrasive regime confidence is '{regime.confidence}': at least one of "
-            "load sharing, elastic/plastic branch or supply geometry was not "
-            "determined from data, so the exponents are structural estimates")
+            + ", ".join(open_axes[:-1]) + f" or {open_axes[-1]}"
+            + " was not determined from data, so the exponents are structural "
+              "estimates"
+            + ("" if not regime.supply_decided else
+               ". The supply geometry is NOT among them: it was decided as a "
+               "monolayer from the lubrication regime"))
     return factor, notes, warnings

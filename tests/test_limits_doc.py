@@ -38,6 +38,10 @@ LIMITS = DOCS / "limits.md"
 #: Tests that enforce a decided refusal to predict. A test added here MUST be
 #: cited by docs/limits.md — that is the point of the registry.
 LIMIT_ENFORCING_TESTS = {
+    # limit 24: the supply axis (p, q) was never decided — closed from the
+    # lubrication regime with zero constants, and the naive gap wiring
+    # rejected because the MEAN fluid film is measured in the wrong place
+    "test_supply_axis_decided_from_lubrication.py",
     "test_velocity_exponent_unresolvable.py",
     "test_lubrication_gate_is_wrong_not_premature.py",
     "test_contact_metrics_do_not_separate_the_inversion.py",

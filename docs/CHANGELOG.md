@@ -4,6 +4,34 @@ All notable changes to CMP-Sim. Newest first.
 
 ## Unreleased
 
+### Fixed — the SUPPLY axis was never decided, and the obvious fix would have been a silent bug (2026-09-27)
+- Luo-Dornfeld's third regime question (`p`, `q`: monolayer or multilayer
+  particle supply) is answered from `gap_m / d_p`, and the solver hands it
+  `pad_wafer_gap_m` — a key **no pack declares and no caller sets**. So the
+  decision was never made in any run of this corpus: the inherited layer
+  returned the monolayer pair, graded itself `estimated`, and every result
+  warned that the supply geometry "was not determined from data". That warning
+  was false in every run ever scored here.
+- **The one-line fix was rejected on measurement.** The same run already solves
+  a mean fluid film `h`, but that is averaged over grooves and un-contacted
+  valleys, whereas `decide_supply` means the clearance where a particle is
+  *loaded*. `tools/supply_gap_probe.py`: `h/d` exceeds the 1.5 threshold on
+  **20 of 49 datasets** (up to 26x), so feeding it to `gap_m` would have cut
+  `p` from 1.0 to 0.46 and halved the derived concentration exponent on a third
+  of the corpus. `tools/supply_gap_reachability_probe.py` shows only **5 of 49**
+  predicted rates move when the branch is forced, so the error would have been
+  nearly undetectable afterwards.
+- **Adopted instead**: `_supply_from_lubrication` decides the axis from the
+  lubrication regime — `lambda < 1` means asperities carry the load, so a
+  loaded particle sits in a contact whose clearance is its own diameter. All 49
+  runnable datasets are boundary (`lambda` 0.002–0.148). **Zero new constants
+  and zero exponent change**; the median stays 18.2%, which a test asserts.
+  `lambda >= 1` deliberately gets no verdict: a closure that fires everywhere
+  is not a closure.
+- `docs/limits.md` §24, `tests/test_supply_axis_decided_from_lubrication.py`
+  (7 tests). Reused legacy `sim/abrasive_mechanics.decide_supply`,
+  `P_MONOLAYER`, `Q_MONOLAYER`.
+
 ### Changed — completion redefined at the measured ceiling, which exposed a 3.2-point gap (2026-09-27)
 - The owner redefined done as "the minimum you actually found", after the search
   for a 10% median was closed by measurement rather than by effort. Completion is
