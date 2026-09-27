@@ -38,6 +38,10 @@ LIMITS = DOCS / "limits.md"
 #: Tests that enforce a decided refusal to predict. A test added here MUST be
 #: cited by docs/limits.md — that is the point of the registry.
 LIMIT_ENFORCING_TESTS = {
+    # limit 25: the load-sharing axis (chi) is closed on identifiability —
+    # its only input is analytically pinned at 1, it reaches almost no rate,
+    # and the grade it was blamed for is really a discarded MEASURED alpha
+    "test_chi_axis_closed_on_identifiability.py",
     # limit 24: the supply axis (p, q) was never decided — closed from the
     # lubrication regime with zero constants, and the naive gap wiring
     # rejected because the MEAN fluid film is measured in the wrong place
