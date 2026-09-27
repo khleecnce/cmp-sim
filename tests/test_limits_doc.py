@@ -38,6 +38,10 @@ LIMITS = DOCS / "limits.md"
 #: Tests that enforce a decided refusal to predict. A test added here MUST be
 #: cited by docs/limits.md — that is the point of the registry.
 LIMIT_ENFORCING_TESTS = {
+    # limit 39: the completion bar is NOT floored — input degeneracy is an
+    # exactly computable lower bound, but the MEDIAN dataset's floor is 0.0%
+    # and no must-cross dataset is floored above the 15% bar
+    "test_completion_bar_is_not_floored.py",
     # limit 38: the second-cheapest crosser needs a PSD-WIDTH term, and the
     # axis is unidentifiable — ONE source reports a width at all, and inside
     # it the two oxide films give residual slopes of OPPOSITE sign

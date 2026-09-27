@@ -4,6 +4,55 @@ All notable changes to CMP-Sim. Newest first.
 
 ## Unreleased
 
+### Measured — the completion bar is NOT floored: input degeneracy is an exact lower bound, and every genuine instance of it sits below 15% (2026-09-28)
+- Answers the owner's standing precondition for relaxing the 10% bar toward
+  15%: *write down what creates the lower bound on the error first*. Two
+  earlier candidates were already refuted (replicate scatter — no corpus-wide
+  floor, 1.5–37%; "these blocks are hard" — not a bound). This measures a
+  third and reports that it **does not justify a relaxation either**.
+- **Mechanism.** The prediction is a deterministic function of the input
+  vector. When a table sweeps a quantity the recipe schema has no field for,
+  two rows arrive at the solver identically and leave identically while the
+  measurements differ — irreducible for this schema, and unlike a noise floor
+  it is computable **exactly**.
+- `tools/input_degeneracy_floor_probe.py` (nothing fitted): rows are grouped
+  by identical prediction and each group gets its **own** free constant —
+  strictly more freedom than the scorer's one scale per dataset, so the number
+  is a genuine bound. The optimum is a weighted median, found by enumeration.
+- **Verdict, three ways.** The median dataset's floor is **0.0%** (over half
+  the corpus has none), so the attainable median is 0.0%. On the held-out
+  corpus **no genuine bound reaches the 15% bar at all** (worst 9.9%,
+  `us9200180b2`). And since the bar is a counting statistic, the decisive
+  question — is a *must-cross* dataset floored above it? — answers no for all
+  six on the shortlist (0.0–7.4%). The three crossers §38 left outstanding are
+  missing physics or missing data, not structural impossibility.
+- **Two false bounds had to be removed, and that is the substance of the
+  change.** Both are the model's own declared silence arguing that the model
+  cannot do better, and together they inflated the worst bound 9.9% → 67.2%:
+  (a) a **gated row** is not degenerate — `ihnfeldt2008` led the first draft at
+  67.2% but is not scored at all (6 of 7 rows gated outside the pack's pH 6.25
+  oxidizer window), so the probe now mirrors the scorer's gate exactly; (b) a
+  **flat block** is a declared refusal (§36), reported by name but excluded —
+  `lee2021` 36.4, `kenchappa2021` 29.8, `hong2007` 14.7, `bae2022` 11.8,
+  `phm2016` 7.0%.
+- **The useful half.** `tw202115224a`'s 7.4% prices, for the first time, the
+  cost of a refusal the dataset header already made correctly: the patent
+  polishes Nalco and Fuso silica at the same *nominal* 15/27/50 nm and the
+  pairs differ up to **1.9x** (4414 vs 8453 A/min at 50 nm). A vendor is not a
+  physical quantity, so a key for it would be a dataset fingerprint — and the
+  block can still reach the bar without one.
+- **Unchanged by design:** no pack, constant or prediction was touched;
+  published median 18.9%, held-out 19.5%. Standing still is the correct
+  outcome for a bound-hunting entry, and the tests assert it.
+- Also blocked this session, recorded rather than worked around: §38's exit
+  condition (a second source printing a PSD width) could not be opened —
+  `patentimages` 403s, EPO's publication server carries bibliographic data
+  only, FreePatentsOnline's full text has the example tables as images, and a
+  full scan of all 411 PDFs in `~/fab-sim/papers/` still finds exactly one
+  publication reporting a width alongside removal rate.
+- New: `tools/input_degeneracy_floor_probe.py`, `tools/degeneracy_groups.py`,
+  `tests/test_completion_bar_is_not_floored.py` (7), `docs/limits.md` §39.
+
 ### Rejected — the PSD-width term the second-cheapest crosser needs is unidentifiable: one source, and inside it the two films disagree in SIGN (2026-09-27)
 - `tools/median_crossing_probe.py --held-out` puts
   `us20190127607a1_teos_ceriasilica_size_sweep` (18.9%) second on the list of
