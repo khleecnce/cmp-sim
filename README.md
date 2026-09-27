@@ -307,6 +307,25 @@ genuine replicates, so for the rest the achievable floor is **unknown**. A 15%
 error against an unmeasured floor is not the same claim as a 15% error against a
 measured 2%.
 
+### What "done" means here, and why the bar is 15%
+
+Completion is defined as **median shape error ≤ 15%**, and the project is not
+there yet: the corpus sits at **18.2%**, so a check in
+`tests/test_definition_of_done.py` is deliberately red. It is not marked xfail,
+because a green tick would hide a measured shortfall.
+
+The bar is not a round number. Grant every scored dataset a free exponent on its
+own best axis, fitted on the very rows being scored, with no requirement that
+datasets agree — something no physical model can do, since a model *shares* its
+constants. That oracle reaches only **11.9%**, and lifts datasets at or below 10%
+from 15 to 20 of 46. So **≤10% sits above the ceiling of the entire "add another
+law" programme**, and 15% is the narrow band a shared-constant model can occupy.
+
+This is a *modelling* ceiling, not a noise floor. Published reproducibility in
+this corpus spans 1.5% to 37%, which makes 15% lenient against jani2025 and
+strict against miranda2004; the two arguments are kept apart on purpose, and
+tests enforce the separation.
+
 **How much of the model the data actually reaches.** A median says nothing about
 which constants were tested. Counting, per pack, the parameters whose axis some
 dataset actually sweeps:

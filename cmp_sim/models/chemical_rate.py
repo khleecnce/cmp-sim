@@ -513,7 +513,17 @@ def chemical_factor(resolved, temp_c: Optional[float] = None) -> ChemicalEffect:
         except ValueError as exc:
             warnings.append(f"peaked oxidizer term skipped: {exc}")
         else:
-            floor = float(resolved.p_or("oxidizer_mechanical_floor", 0.0) or 0.0)
+            # The inherited packs spell this `oxidizer_mech_floor` (legacy
+            # chemistry.py reads that name, and w_fe_oxidizer carries a
+            # MEASURED 0.14 from US20110186542A1 under it). Reading only the
+            # long name meant that measurement could never reach the peaked
+            # branch, which would then invent the provisional 0.10 below --
+            # a guess standing in front of a citation. Same failure class as
+            # the pad glazing constants (STATUS §27).
+            floor = float(
+                resolved.p_or("oxidizer_mechanical_floor",
+                              resolved.p_or("oxidizer_mech_floor", 0.0))
+                or 0.0)
             # The floor is the abrasive-only rate: at zero oxidizer removal does
             # not stop, so a purely multiplicative term would predict zero.
             #

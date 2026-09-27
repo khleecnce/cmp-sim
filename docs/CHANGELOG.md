@@ -4,6 +4,30 @@ All notable changes to CMP-Sim. Newest first.
 
 ## Unreleased
 
+### Changed — completion redefined at the measured ceiling, which exposed a 3.2-point gap (2026-09-27)
+- The owner redefined done as "the minimum you actually found", after the search
+  for a 10% median was closed by measurement rather than by effort. Completion is
+  now **median shape error ≤ 15%**, pinned in `tests/test_definition_of_done.py`
+  as `COMPLETION_MEDIAN_PCT`.
+- The bar rests on one measured bound: an oracle that grants every dataset a free
+  exponent on its own best axis — impossible for a real model, which shares its
+  constants — still reaches only **11.9%**, lifting datasets at or below 10% from
+  15 to 20 of 46. So ≤10% is above the ceiling of the whole "add another law"
+  programme, and 15% is the only band a shared-constant model can occupy.
+- **The bar is not a noise-floor claim.** Published reproducibility in this corpus
+  spans 1.5%–37%, so 15% is lenient against jani2025 and strict against
+  miranda2004. A test now enforces that the two arguments stay apart, and another
+  re-derives the oracle bound so the justification cannot silently rot.
+- **Setting the bar made the project fail its own check.** The corpus sits at
+  18.2%, so `test_the_completion_bar_is_met` is red. It is deliberately not
+  xfail: marking it would convert a measured shortfall into a green tick. That
+  test turning green is the completion signal.
+- Rejected levers, all closed by measurement, recorded so they are not retried:
+  a pairwise interaction term (all 9 recurring axis pairs flip sign across
+  datasets), flipping the concentration exponent's sign (Dandu 2009 measured both
+  signs in one paper — the Luo–Dornfeld size crossover), and gating out-of-range
+  pH rows (0.5 points gained, 12 datasets lost including four of the best).
+
 ### Fixed — a signal tower was floating above the platens, invisible to 1070 green tests (2026-09-27, 22nd run)
 - The polisher-side signal tower was placed at `0.74 * BAY_R` = 1.44 while the
   roof it stands on is an **annulus** whose inner edge is `R_DECK + PLATEN_R +
