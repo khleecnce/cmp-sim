@@ -1284,3 +1284,34 @@ The model's own curvature is `|curv| < 0.01` on **every** ladder — it is a pur
 **What would resolve it, and what would reopen it.** What would resolve it: deriving the saturation scale from the monolayer/contact-area geometry above, so the curvature is produced with no new free constant. What would reopen it: a signed dilute residual returning (the rejected reading), the flattening majority disappearing, or the model acquiring curvature of its own — each of which fails a test below rather than quietly ageing into a stale memo.
 
 **Enforced by** `tests/test_the_gap_to_the_bar_is_one_dataset.py` (6 tests), all re-measured from the shipping solver and the dataset files at test time, never from numbers copied out of this page: the gap stays a small integer number of datasets and the bar is **imported** from `test_definition_of_done.py` rather than retyped, so a re-derived bound cannot leave this entry asserting a stale one; the binding dataset stays close to the bar; the dilute population stays centred, with a non-vacuity guard so a probe that collects nothing cannot "pass"; the model's curvature stays below 0.05 on every ladder, so a future curvature term fails loudly instead of leaving this claim silently false; the flattening majority holds across at least three **distinct** datasets, because one curved ladder plus one constant is interpolation of a single experiment; and the withdrawn constant is asserted absent from every pack, which is the exit this limit must not be taken through.
+
+### ⚠ AMENDED same day: the derived saturation §28 named as "the next piece of work" is PRICED AND REFUTED
+
+§28 closed by naming the admissible fix: derive the saturation scale from geometry the model already carries, so the curvature appears with **no new free constant**. That derivation has now been written down, priced, and **rejected on measurement** — it is recorded here rather than attempted again.
+
+**The derivation.** Particles remove material only where they are loaded, and they are loaded only inside the real pad–wafer contact. The Luo-Dornfeld layer supplies a monolayer areal count `N_supply ∝ φ/d²` per unit *nominal* area (`particles_per_unit_area`), while the number of monolayer sites lying inside the real contact is `N_sites ∝ (A_r/A_0)/d²`, with `A_r/A_0` the GW area fraction the contact layer already computes from the pad's own asperity statistics. The diameter cancels exactly and the occupancy is a ratio of two quantities the model already holds:
+
+    theta = phi / (A_r / A_0),     N_active = N_sites * (1 - exp(-theta))
+
+Normalised to the pack's own reference composition at the same pad and pressure, the correction to a prediction is `[((1-e^-θ)/θ) / ((1-e^-θ_ref)/θ_ref)]^n_eff`, which is **exactly 1.0 at every pack's reference composition** (the invariant every factor here must satisfy) and bends the response downward as loading rises. No constant is introduced.
+
+**It is reachable — that was checked first** (`tools/monolayer_occupancy_reachability_probe.py`, 375 rows / 38 datasets, `A_r/A_0` read from the same `pad_state` the solver's kappa hook uses). The GW area fraction runs 4.6e-4 … 6.4e-3 (median 1.7e-3, spread 13.8x) and θ runs **0.018 … 97.9, median 4.9**, spanning up to 400x within a single pack. θ therefore crosses order 1: the filling law is neither linear everywhere (which would reproduce the present power law and change nothing) nor saturated everywhere (which would flatten every ladder). On reachability grounds this derivation deserved to be tried.
+
+**Priced before wiring, and refused** (`tools/derived_saturation_counterfactual.py`, which applies the correction to the shipping model's own per-row predictions and measures `n_eff` **by perturbation** so a pack carrying a measured exponent is priced with the exponent it actually applies):
+
+| | |
+|---|---|
+| datasets touched | 11 |
+| improved / worsened | **3 / 8** |
+| corpus median | **18.17% → 18.95%** |
+| the binding dataset (liang2026) | **18.2% → 30.5%** |
+| entegris2022 | 14.1% → **53.0%** |
+| gong2024 (the one large win) | 24.9% → **12.3%**, scale 0.070 → 0.048 |
+
+The term makes the **binding** dataset — the entire reason §28 exists — substantially worse, and moves the corpus median the wrong way. A physically clean, constant-free derivation that is reachable and has the right qualitative sign still does not describe this corpus.
+
+**What this does and does not license.** It does *not* license restoring `abrasive_conc_half_wt_pct` under a new name, and it does not license searching functional forms until one scores: trying filling laws until a median drops is fitting with extra steps, and the derivation's failure is information, not an obstacle to route around. The honest reading is that loading-response curvature in this corpus is **not** set by monolayer site filling against the GW contact area. The one large win (gong2024, an alumina/KMnO₄ L25 whose absolute scale is 0.07x and therefore already flagged) is not evidence for the term; it is a block whose scale is so far off that almost any multiplicative bend improves its trend.
+
+**What would resolve it** remains unchanged in kind but is now narrower: a mechanism that makes the response curve which is *not* site filling — agglomeration above a loading threshold (which would make the curvature depend on zeta potential and ionic strength, both of which the packs carry and neither of which the loading term reads) is the standing candidate, and it is testable because it predicts curvature that varies with dispersant, not merely with loading. **What would reopen the rejected derivation**: an `A_r/A_0` that comes from measured asperity statistics rather than the Qi correlation, since the refutation above inherits whatever error that correlation carries into θ.
+
+**Enforced by** the same `tests/test_the_gap_to_the_bar_is_one_dataset.py`: its "the model produces no concentration curvature at all" test is what keeps this refusal honest — if a future session wires a curvature term, that test fails loudly and this amendment must be re-measured rather than quietly inherited.
