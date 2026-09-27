@@ -25,6 +25,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
 
+from cmp_sim.core.declined_axes import DECLINES_AXIS
 from cmp_sim.core.params import OWN_PACK_DIR, Param, ParamPack
 from cmp_sim.core.state import Additive, Slurry
 
@@ -225,8 +226,16 @@ CONSUMED_BY_THE_ENGINE = frozenset({
 #:
 #: Each entry costs ZERO constants: nothing here is a claim about physics, only
 #: a statement of which path the value has to travel to reach a term.
+#:
+#: Each message carries the machine-readable ``[DECLINES_AXIS: ...]`` marker
+#: (``core.declined_axes``) as well as its prose. The prose alone was not
+#: enough: the validation scorer recognised only the word "GATED", so a block
+#: sweeping one of these keys was scored as an ordinary prediction that
+#: happened to be constant -- reproducing the `flat` baseline exactly and
+#: counting toward the headline median as though physics had been tested.
 UNREAD_BY_THE_RATE: Dict[str, str] = {
     "pad_hardness_shore_d": (
+        f"{DECLINES_AXIS}pad_hardness_shore_d] "
         "'pad_hardness_shore_d' was set on the PACK, and no physics term reads "
         "it there: pad stiffness reaches the model only through the GW "
         "contact layer, which takes the hardness from the Pad OBJECT "
@@ -235,12 +244,28 @@ UNREAD_BY_THE_RATE: Dict[str, str] = {
         "factor at the pack's reference pad, so the predicted rate does not "
         "move with pad hardness. Put the value on the pad to reach the term."),
     "abrasive_d99_nm": (
+        f"{DECLINES_AXIS}abrasive_d99_nm] "
         "'abrasive_d99_nm' does not enter the removal rate and no physics term "
         "reads it for the rate, by design: the large-particle tail is read only "
         "by the defect-risk proxy (scratch width and depth). Removal is carried "
         "by the D50 population, while the tail makes scratches, so changing D99 "
         "alone moves defect_risk and leaves the rate unchanged. Vary "
         "abrasive_size_nm / abrasive_d50_nm to move the rate."),
+    "cond_disk_usage_hours": (
+        f"{DECLINES_AXIS}cond_disk_usage_hours] "
+        "'cond_disk_usage_hours' is declared by several packs and no "
+        "removal-rate term reads it: conditioner ageing reaches the model "
+        "only through the P7 pad-life DIAGNOSTIC, which is reported and "
+        "deliberately NOT applied to Kp -- the inherited MRR proxy peaks at "
+        "~7 min against a measured ~3 min, so using it as a rate multiplier "
+        "would claim a precision the data does not support. Unusually there "
+        "is no 'put it here instead' path: moving the value onto the disk "
+        "object (disk: {hours_used: ...}) populates pad_life in the result "
+        "but leaves the rate equally unchanged, and recommending it would "
+        "swap one silent inertness for another. Read pad_life for the drift. "
+        "Unblock the rate path with a pad-life series measuring removal rate "
+        "against disk hours at one pad and one slurry, which would give the "
+        "proxy a time constant rather than only a shape."),
 }
 
 

@@ -69,6 +69,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
+from cmp_sim.core.declined_axes import DECLINES_AXIS
 from cmp_sim.core.legacy_bridge import install  # noqa: F401
 
 from sim import chemistry as legacy_chemistry  # legacy/sim/chemistry.py
@@ -397,7 +398,14 @@ def chemical_factor(resolved, temp_c: Optional[float] = None) -> ChemicalEffect:
         notes.append(f"{name} = {value:.4f} — {TERM_MEANING.get(name, 'see pack')}")
 
     if not eff.active:
+        # Every chemistry axis is declined at once here, so the marker names
+        # them: a pH sweep run against such a pack returns ONE rate for every
+        # row, which the validation scorer would otherwise read as a flat but
+        # genuine prediction. The list is the chemistry inputs this module
+        # would consume were the pack to declare the constants.
         warnings.append(
+            f"{DECLINES_AXIS}slurry_ph, oxidizer_wt_pct, h2o2_vol_pct, "
+            "inhibitor_mM, oxidizer_vol_pct] "
             "chemistry layer inactive: this pack declares no oxidizer/inhibitor/"
             "ceria/pH-softening parameters, so slurry chemistry is still lumped "
             "inside Kp and changing the formulation will not change the result")
@@ -449,6 +457,7 @@ def chemical_factor(resolved, temp_c: Optional[float] = None) -> ChemicalEffect:
         if not (lo <= ph_now <= hi):
             ox_gated = True
             warnings.append(
+                f"{DECLINES_AXIS}oxidizer_wt_pct, h2o2_vol_pct] "
                 f"oxidizer term GATED at pH {ph_now:g}: this pack's oxidizer "
                 f"constants were measured between pH {lo:g} and {hi:g}, and the "
                 "SIGN of the oxidizer response is known to flip across the "
@@ -741,6 +750,7 @@ def chemical_factor(resolved, temp_c: Optional[float] = None) -> ChemicalEffect:
             # exact failure mode this gate exists to prevent.
             factor /= float(_applied)
         warnings.append(
+            f"{DECLINES_AXIS}inhibitor_mM] "
             f"inhibitor term REFUSED at {float(_inhib_mM):g} mM (reference "
             f"{float(_inhib_ref_mM):g} mM). This pack declares "
             "inhibitor_K_ads_L_per_mol null, so the only constant reachable "

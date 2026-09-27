@@ -19,12 +19,30 @@ It fits nothing and changes no pack.  Run:  python tools/median_crossing_probe.p
 from __future__ import annotations
 
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from cmp_sim.core.predictive_score import score_all
 
 
-def crossing_report(bar: float = 15.0, scores=None):
+def crossing_report(bar: float = 15.0, scores=None, held_out: bool = False):
+    """Which datasets must cross `bar` for the upper median to meet it.
+
+    `held_out=True` counts on the corpus the honest headline is quoted on:
+    blocks the model was FITTED on are removed (`calibration_flag_audit`).
+    That matters here for a reason beyond honesty -- the median is a COUNTING
+    statistic, so removing 15 blocks moves WHICH dataset sits at the median
+    position, and the shortlist of cheapest crossers is a different list.
+    Choosing work off the published-corpus list can therefore spend a session
+    on a block that moves the honest number by exactly zero.
+    """
     rows = [r for r in (scores or score_all()) if r.shape_mape is not None]
+    if held_out:
+        from tools.calibration_flag_audit import tainted_datasets
+
+        tainted = tainted_datasets()
+        rows = [r for r in rows if r.dataset not in tainted]
     errs = sorted(r.shape_mape for r in rows)
     n = len(errs)
     median_idx = n // 2
@@ -56,9 +74,12 @@ def crossing_report(bar: float = 15.0, scores=None):
 
 
 def main() -> int:
-    bar = float(sys.argv[1]) if len(sys.argv) > 1 else 15.0
-    rep = crossing_report(bar)
-    print(f"corpus            : {rep['n']} scored datasets")
+    argv = [a for a in sys.argv[1:] if a != "--held-out"]
+    held_out = "--held-out" in sys.argv
+    bar = float(argv[0]) if argv else 15.0
+    rep = crossing_report(bar, held_out=held_out)
+    print("corpus            : %d scored datasets%s"
+          % (rep["n"], "  (HELD OUT: fitted blocks removed)" if held_out else ""))
     print(f"median (upper)    : {rep['median']:.1f}%")
     print(f"completion bar    : {rep['bar']:.1f}%")
     print(f"already <= bar    : {rep['under_bar']}")

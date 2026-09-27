@@ -66,7 +66,7 @@ def _isolated_groups():
 def _shape_error(doc: dict, rows: list) -> float | None:
     measured, predicted = [], []
     for row in rows:
-        value, gate = _predict_with_gate(doc, row)
+        value, gate, _declined = _predict_with_gate(doc, row)
         if value is None:
             return None
         if gate:
@@ -118,7 +118,8 @@ def test_no_isolated_pH_group_is_silently_unrunnable():
     """A group that cannot run must be a declared gate, not a quiet failure."""
     for stem, doc, rows in _isolated_groups():
         if _shape_error(doc, rows) is None:
-            gates = [g for _, g in (_predict_with_gate(doc, r) for r in rows) if g]
+            gates = [g for _v, g, _d in
+                     (_predict_with_gate(doc, r) for r in rows) if g]
             missing_force = not any(r.get("pressure_psi") for r in rows)
             assert gates or missing_force, (
                 f"{stem} silently fails to score on an isolated pH sweep")

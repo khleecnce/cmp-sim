@@ -66,7 +66,7 @@ def _ratios(stem: str) -> list[tuple[float, float]]:
     rows = [r for r in doc["conditions"] if _measured(r) is not None]
     phs, meas, pred = [], [], []
     for row in rows:
-        value, _gate = _predict_with_gate(doc, row)
+        value, _gate, _declined = _predict_with_gate(doc, row)
         if value is None:
             continue
         phs.append(row["overrides"]["slurry_ph"])

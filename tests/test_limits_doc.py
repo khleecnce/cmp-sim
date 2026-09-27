@@ -38,6 +38,10 @@ LIMITS = DOCS / "limits.md"
 #: Tests that enforce a decided refusal to predict. A test added here MUST be
 #: cited by docs/limits.md — that is the point of the registry.
 LIMIT_ENFORCING_TESTS = {
+    # limit 36: a refusal only counts if the SCORER can read it — four of five
+    # flat-scoring blocks were graded as predictions because the scorer knew
+    # only the word "GATED"; markers added, median unchanged at 18.9%
+    "test_flat_predictions_are_declared.py",
     # limit 35: the last self-graded citation (oxidizer_peak_shape_K) is
     # unrepairable too — K spans 3.6 decades inside one film, so no held-out
     # value exists; all 18 of §32's citations are now measured, none fixable

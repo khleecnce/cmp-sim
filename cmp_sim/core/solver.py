@@ -682,7 +682,17 @@ def _pad_life_diagnostic(rr: ResolvedRecipe) -> Dict[str, Any]:
     The drift is reported rather than applied to Kp: the inherited MRR proxy
     peaks at ~7 min against a measured ~3 min, so using it as a multiplier
     would claim a precision the data does not support.
+
+    That is a defensible refusal, and it was MUTE on the rate path. A dataset
+    sweeping conditioner-disk hours therefore received one identical rate for
+    every row and was scored as an ordinary prediction that happened to be
+    flat -- reproducing the `flat` baseline exactly (7.2% == 7.2%) while
+    counting toward the headline median. The marker below states the refusal
+    in the machine-readable form the validation scorer reads
+    (`core.declined_axes`); the diagnostic itself is unchanged, and no
+    constant is added.
     """
+    from cmp_sim.core.declined_axes import DECLINES_AXIS
     from cmp_sim.pad import wear
 
     pad, disk = rr.recipe.pad, rr.recipe.disk
@@ -704,7 +714,18 @@ def _pad_life_diagnostic(rr: ResolvedRecipe) -> Dict[str, Any]:
                                   rr.p_or("pad_conditioning_rate", None)),
     )
     return {"name": "_pad_life", "value": None, "notes": state.notes,
-            "warnings": state.warnings, "pad_life": state.as_dict()}
+            "warnings": list(state.warnings) + [
+                f"{DECLINES_AXIS}cond_disk_usage_hours, pad_use_hours] "
+                "pad life and conditioner ageing are reported as a DIAGNOSTIC "
+                "and are not applied to Kp, so the predicted removal rate does "
+                "not move with disk hours or pad hours. The inherited MRR "
+                "proxy peaks at ~7 min against a measured ~3 min; using it as "
+                "a rate multiplier would claim a precision the data does not "
+                "support. Read pad_life in the result for the drift. Unblock "
+                "with a pad-life series measuring removal rate against disk "
+                "hours on one pad and one slurry, which would give the proxy "
+                "a time constant rather than a shape"],
+            "pad_life": state.as_dict()}
 
 
 def _pattern_diagnostic(rr: ResolvedRecipe) -> Dict[str, Any]:

@@ -190,7 +190,7 @@ def test_the_gated_rows_are_counted_in_the_scored_datasets_too():
     doc = yaml.safe_load(_path("lai2001_cu_alumina_size_sweep")
                          .read_text(encoding="utf-8"))
     for row in doc["conditions"]:
-        value, gate = _predict_with_gate(doc, row)
+        value, gate, _declined = _predict_with_gate(doc, row)
         assert value is not None
         assert gate and "GATED" in gate
         _ = _recipe_for(doc, row)

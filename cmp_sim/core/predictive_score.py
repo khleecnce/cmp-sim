@@ -30,10 +30,11 @@ import re
 import statistics
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import yaml
 
+from cmp_sim.core.declined_axes import declined_axes
 from cmp_sim.core.validation import dataset_paths
 
 #: Inherited datasets identify the film only by the pack they target. The
@@ -103,6 +104,16 @@ class Score:
     #: rewards a future edit that removes the gate and guesses instead.
     gated: int = 0
     gated_reason: Optional[str] = None
+    #: Axes the run explicitly DECLINED to predict (`core.declined_axes`), and
+    #: which of them this dataset actually sweeps. When the second set is
+    #: non-empty, the shape score is not a test of the physics on that axis --
+    #: the prediction is constant along it by declaration, so the free scale
+    #: fits the measured mean and the block reproduces the `flat` baseline
+    #: exactly. Recorded rather than acted on: dropping such a block would be
+    #: the forbidden selection, while silently scoring it asserts a refusal as
+    #: a prediction.
+    declined_axes: List[str] = field(default_factory=list)
+    declined_axes_swept: List[str] = field(default_factory=list)
     #: Mean |deviation from group mean| / group mean over rows that are
     #: IDENTICAL in every condition, as a percentage — the dataset's own
     #: reproducibility, and therefore a FLOOR on the error any model can
@@ -176,6 +187,8 @@ class Score:
             "scale_is_calibrated": self.scale_is_calibrated,
             "gated_points": self.gated,
             "gated_reason": self.gated_reason,
+            "declined_axes": self.declined_axes,
+            "declined_axes_this_dataset_sweeps": self.declined_axes_swept,
             "error": self.error,
         }
 
@@ -347,30 +360,39 @@ def _recipe_for(doc: Dict[str, Any], row: Dict[str, Any]) -> Dict[str, Any]:
 
 def _predict(doc: Dict[str, Any], row: Dict[str, Any]) -> Optional[float]:
     """Model rate in A/min at Kp = pack default, or None if it cannot run."""
-    value, _ = _predict_with_gate(doc, row)
+    value, _, _ = _predict_with_gate(doc, row)
     return value
 
 
-def _predict_with_gate(doc: Dict[str, Any],
-                       row: Dict[str, Any]) -> Tuple[Optional[float], Optional[str]]:
-    """Rate in A/min, plus the reason if the model DECLINED to predict.
+def _predict_with_gate(
+    doc: Dict[str, Any], row: Dict[str, Any]
+) -> Tuple[Optional[float], Optional[str], Set[str]]:
+    """Rate in A/min, the reason if the model DECLINED, and which axes it
+    declined.
 
     A regime gate is not a failure and not a prediction: the pack is stating
     that its constants were never measured in this regime, so the returned
     rate does not respond to the gated axis at all. Scoring such a row as a
     wrong answer would make silence look like error and would reward removing
     the gate in favour of an extrapolation with a known-wrong sign.
+
+    The third return value is the machine-readable form of that statement
+    (`core.declined_axes`). The prose reason is not enough on its own: this
+    scorer recognised only the word "GATED" and therefore read an inhibitor
+    term that was REFUSED -- with a citation and a measured refutation -- as an
+    ordinary prediction that happened to be flat.
     """
     from cmp_sim.api import run_recipe
 
     try:
         result = run_recipe(_recipe_for(doc, row))
     except Exception:
-        return None, None
+        return None, None, set()
     value = result.get("removal_rate_A_per_min")
     value = None if value in (None, 0) else float(value)
-    gate = next((w for w in (result.get("warnings") or []) if "GATED" in w), None)
-    return value, gate
+    warns = result.get("warnings") or []
+    gate = next((w for w in warns if "GATED" in w), None)
+    return value, gate, declined_axes(warns)
 
 
 def _why_unscorable(doc: Dict[str, Any], rows: List[Dict[str, Any]]) -> str:
@@ -414,8 +436,10 @@ def score_dataset(path: Path) -> Score:
     # an axis they never probe.
     gate_matters = any(a in score.axes for a in
                        ("oxidizer_wt_pct", "h2o2_vol_pct"))
+    all_declined: Set[str] = set()
     for row in rows:
-        value, gate = _predict_with_gate(doc, row)
+        value, gate, declined = _predict_with_gate(doc, row)
+        all_declined |= declined
         if value is None:
             score.error = _why_unscorable(doc, rows)
             return score
@@ -429,6 +453,8 @@ def score_dataset(path: Path) -> Score:
         measured.append(_measured(row))
         predicted.append(value)
     score.gated = gated_rows
+    score.declined_axes = sorted(all_declined)
+    score.declined_axes_swept = sorted(all_declined & set(score.axes))
 
     if gate_matters and len(measured) < 3:
         score.error = (

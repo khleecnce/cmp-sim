@@ -250,6 +250,21 @@ def report() -> str:
     return "\n".join(lines)
 
 
+def tainted_datasets(cites: List[Citation] | None = None) -> Set[str]:
+    """Datasets the model was fitted on, and therefore cannot be scored on.
+
+    Two sources, deliberately unioned: blocks whose own header DECLARES
+    `used_for_calibration`, and blocks the pack sources CONTRADICT (a pack
+    constant that names this dataset on an axis this dataset sweeps came from
+    these rows).  Every admissibility filter in the repository reads the
+    declaration alone; that boolean is a self-report, so the audit's measured
+    set is the one to hold out.  Exported so the median probes count on the
+    same corpus the honest headline is quoted on.
+    """
+    cites = collect() if cites is None else cites
+    return {c.dataset for c in cites if c.implicated or c.declared_calibration}
+
+
 def headline_effect(cites: List[Citation]) -> List[str]:
     """What does the corpus median read once self-graded blocks are removed?
 
@@ -262,8 +277,7 @@ def headline_effect(cites: List[Citation]) -> List[str]:
     (`sorted(e)[n//2]`), because `statistics.median` reads ~1.7 points lower
     on this corpus and the two have been confused before.
     """
-    tainted = {c.dataset for c in cites
-               if c.implicated or c.declared_calibration}
+    tainted = tainted_datasets(cites)
     errs_all, errs_clean = [], []
     for s in score_all():
         if s.shape_mape is None:
