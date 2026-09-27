@@ -101,7 +101,45 @@ def _residual_slope(doc: Dict, rows: List[Dict]) -> Optional[Dict]:
     if sxx <= 0:
         return None
     slope = sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / sxx
-    return {"n": n, "slope": slope, "width_span": max(xs) - min(xs)}
+
+    # STANDARD ERROR -- the number whose absence let §38 assert a "disagreement
+    # in sign" between two slopes, one of which is not distinguishable from
+    # zero.  A sign is only a claim if the slope carrying it is a measurement:
+    # with n=4 there are 2 residual degrees of freedom, so the uncertainty is
+    # large and has to be quoted alongside the point estimate.  Nothing is
+    # fitted into any pack here; this is the ordinary OLS slope error.
+    intercept = my - slope * mx
+    resid = [y - (intercept + slope * x) for x, y in zip(xs, ys)]
+    dof = n - 2
+    stderr = None
+    if dof > 0:
+        s2 = sum(r * r for r in resid) / dof
+        stderr = math.sqrt(s2 / sxx) if s2 > 0 else 0.0
+
+    # Is the width axis CONFOUNDED with the size axis the model already reads?
+    # A width slope measured while D50 moves with it is partly a relabelled
+    # size exponent, which is the second thing that has to be true before a
+    # width term means anything.
+    ds = []
+    for r in rows:
+        ov = r.get("overrides") or {}
+        d50 = ov.get("abrasive_d50_nm") or ov.get("abrasive_size_nm")
+        if d50 in (None, 0):
+            ds = []
+            break
+        ds.append(math.log(float(d50)))
+    corr = None
+    if len(ds) == n:
+        md = sum(ds) / n
+        sdd = sum((d - md) ** 2 for d in ds)
+        if sdd > 0:
+            corr = (sum((x - mx) * (d - md) for x, d in zip(xs, ds))
+                    / math.sqrt(sxx * sdd))
+
+    return {"n": n, "slope": slope, "stderr": stderr,
+            "t": (slope / stderr) if stderr else None,
+            "width_size_corr": corr,
+            "width_span": max(xs) - min(xs)}
 
 
 def report() -> Dict:
@@ -124,7 +162,40 @@ def report() -> Dict:
     blocks = {}
     for stem, rows in sorted(by_ds.items()):
         blocks[stem] = _residual_slope(docs[stem], rows)
-    return {"blocks": blocks, "sources": sources, "rows": len(found)}
+    return {"blocks": blocks, "sources": sources, "rows": len(found),
+            "external": external_sign_sources()}
+
+
+#: Sign evidence that lives OUTSIDE the scored corpus.
+#:
+#: §38 required "a second, independent applicant" before the width axis could
+#: be discussed at all, and looked for it among scored datasets only.  That is
+#: the wrong place: a publication can establish the SIGN of an axis while being
+#: unscorable for a reason that has nothing to do with the axis.  Basim 2000 is
+#: exactly that case -- it varies PSD width at fixed D50 more cleanly than
+#: anything in the corpus, and it cannot be scored because it prints the same
+#: six removal rates three times with mutually inconsistent absolute values.
+#:
+#: The file is parsed rather than hard-coded so that the claim and its evidence
+#: cannot drift apart: if the research note is edited or deleted, this reports
+#: what the note now says, not what it said when this was written.
+_EXTERNAL = Path(__file__).resolve().parents[1] / "research" / "psd_width_sign_evidence.yaml"
+
+
+def external_sign_sources() -> List[Dict]:
+    """Independent sign evidence for the width axis, read from research/."""
+    if not _EXTERNAL.exists():
+        return []
+    doc = yaml.safe_load(_EXTERNAL.read_text(encoding="utf-8")) or {}
+    if doc.get("axis") != "psd_width" or not doc.get("independent_of_corpus"):
+        return []
+    return [{
+        "source": str(doc.get("source") or "")[:100],
+        "direction": doc.get("direction"),
+        "magnitude": doc.get("magnitude"),
+        "evidence_lines": len(doc.get("direction_evidence") or []),
+        "path": str(_EXTERNAL),
+    }]
 
 
 def main() -> None:
@@ -139,21 +210,46 @@ def main() -> None:
     print()
     print("Q2  residual slope d ln(meas/pred) / d ln((D99-D50)/D50)")
     print("    (the scorer's free scale cancels out of a slope -- nothing fitted)")
+    print("    +/- is the OLS standard error on n-2 dof: a SIGN is only a claim")
+    print("    if the slope carrying it is distinguishable from zero.")
     for stem, res in rep["blocks"].items():
         if res is None:
             print(f"  {stem:58s}  unscorable")
             continue
-        print(f"  {stem:58s}  n={res['n']}  slope={res['slope']:+.3f}"
-              f"  ln-span={res['width_span']:.2f}")
+        se = res.get("stderr")
+        t = res.get("t")
+        corr = res.get("width_size_corr")
+        print(f"  {stem:50s}  n={res['n']}  slope={res['slope']:+.3f}"
+              + (f" +/- {se:.3f}" if se is not None else "")
+              + (f"  t={t:+.2f}" if t is not None else "")
+              + (f"  corr(width,D50)={corr:+.3f}" if corr is not None else ""))
     slopes = [r["slope"] for r in rep["blocks"].values() if r]
+    measured = [r for r in rep["blocks"].values()
+                if r and r.get("t") is not None and abs(r["t"]) >= 2.0]
     if len(slopes) >= 2:
         same = all(s > 0 for s in slopes) or all(s < 0 for s in slopes)
         print()
-        print(f"  signs agree: {same}")
-        if not same:
-            print("  => no shared width constant is even the right DIRECTION")
-            print("     (§14): the same four abrasives, the same polishing runs,")
-            print("     two oxide films, opposite residual signs.")
+        print(f"  point-estimate signs agree : {same}")
+        print(f"  blocks measuring ANY slope : {len(measured)} of "
+              f"{len([r for r in rep['blocks'].values() if r])}  (|t| >= 2)")
+        if not same and not measured:
+            print("  => the 'films disagree in SIGN' reading is NOT supported:")
+            print("     no block here measures a width slope at all, so two")
+            print("     point estimates of opposite sign are two draws from")
+            print("     noise, not a contradiction. (limits.md §40)")
+
+    ext = rep.get("external") or []
+    print()
+    print(f"independent sign evidence OUTSIDE the scored corpus : {len(ext)}")
+    for e in ext:
+        print(f"  - direction={e['direction']}  magnitude={e['magnitude']}"
+              f"  ({e['evidence_lines']} cited readings)")
+        print(f"    {e['source']}")
+        print(f"    {e['path']}")
+    if ext:
+        print("  => §38's exit condition ('a second, independent applicant')")
+        print("     has fired. The axis now has a KNOWN SIGN and still no")
+        print("     magnitude -- a sign is not a constant.")
 
 
 if __name__ == "__main__":

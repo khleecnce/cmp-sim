@@ -38,13 +38,24 @@ LIMITS = DOCS / "limits.md"
 #: Tests that enforce a decided refusal to predict. A test added here MUST be
 #: cited by docs/limits.md — that is the point of the registry.
 LIMIT_ENFORCING_TESTS = {
+    # limit 40 (amendment): the ZERO-CONSTANT lognormal width factor
+    # f(sigma)=exp(-4.5 sigma^2) is derived and PRICED — and refused, because
+    # neither residual slope is distinguishable from zero and the term pays
+    # for one oxide film with the other inside a single experiment
+    "test_lognormal_width_is_priced_not_wired.py",
+    # limit 40: §38's "the two films disagree in SIGN" is RETRACTED — neither
+    # slope is distinguishable from zero (t = +0.09 and -1.76 on 2 dof), and a
+    # second independent source (Basim 2000) settles the sign as NEGATIVE while
+    # supplying no magnitude. The refusal to wire a width term survives, on
+    # identifiability alone.
+    "test_psd_width_axis_is_unidentifiable.py",
     # limit 39: the completion bar is NOT floored — input degeneracy is an
     # exactly computable lower bound, but the MEDIAN dataset's floor is 0.0%
     # and no must-cross dataset is floored above the 15% bar
     "test_completion_bar_is_not_floored.py",
     # limit 38: the second-cheapest crosser needs a PSD-WIDTH term, and the
-    # axis is unidentifiable — ONE source reports a width at all, and inside
-    # it the two oxide films give residual slopes of OPPOSITE sign
+    # axis is unidentifiable — ONE scored source reports a width at all.
+    # ⚠ Its sign-disagreement half is superseded by §40 above.
     "test_psd_width_axis_is_unidentifiable.py",
     # limit 37: the "model responds too weakly" signal (pooled span geo-mean
     # 0.80x, p=0.041) was the DECLINED blocks counted as answers; excluding

@@ -1,0 +1,136 @@
+# PSD-WIDTH SIGN EVIDENCE — the second, independent source limits.md §38 asked for.
+#
+# §38 refused to derive a PSD-width term on two grounds:
+#   (1) exactly ONE publication in the scored corpus reports a PSD width at all
+#       (Versum US 2019/0127607 A1, whose two files are the same four polishing
+#       runs measured on two oxide films, so the holdout unit is one), and
+#   (2) inside that one experiment "the two oxide films disagree in SIGN".
+#
+# This file supplies a second source for (1). §40 in docs/limits.md retracts (2)
+# on measurement: the two films never disagreed significantly — one of them
+# measured nothing at all (slope +0.024 +/- 0.280, t = +0.09).
+#
+# ⚠ THIS FILE IS NOT A SCORED DATASET AND MUST NOT BECOME ONE.
+#   It lives in research/ rather than cmp_sim/data/validation/datasets/ for a
+#   specific, measured reason recorded below: the publication reports the same
+#   removal rates THREE times with mutually inconsistent absolute values. Only
+#   its DIRECTION is transcribable. Turning a direction into a scored block
+#   would require choosing one of three contradictory absolute scales, which is
+#   the invented number this repository forbids.
+
+axis: psd_width
+question: >
+  At FIXED D50, does broadening the particle size distribution raise or lower
+  the oxide removal rate?
+
+source: >
+  G. B. Basim, J. J. Adler, U. Mahajan, R. K. Singh and B. M. Moudgil,
+  "Effect of Particle Size of Chemical Mechanical Polishing Slurries for
+  Enhanced Polishing with Minimal Defects",
+  J. Electrochem. Soc. 147 (9) 3523-3528 (2000).
+  Local PDF: ~/fab-sim/papers/basim2000-jes-particle-size-cmp-defects.pdf
+  (full text extracted; Fig. 4 read from the embedded raster on page 5,
+  xref 15, 639x373 px).
+
+independent_of_corpus: true
+why_independent: >
+  Different applicant (University of Florida, not Versum), different abrasive
+  (fumed silica, not ceria-coated silica), different film (PECVD SiO2, not
+  TEOS/HDP), different tool (Struers Rotopol 31 benchtop, not AM Mirra),
+  different decade. Nothing about it is a re-measurement of US 2019/0127607 A1.
+
+# ── Why this experiment is CLEANER than the corpus one ────────────────────
+#
+# The patent's four abrasives vary D50 AND width together (ln-width and ln-D50
+# correlate at r = -0.372 across its four points), so any width slope read
+# there is partly a relabelled size exponent. Basim varies width at
+# ESSENTIALLY FIXED D50 by design: a 0.14 um fumed-silica baseline at 12 wt%
+# is spiked with 0.2-1.3 wt% of 0.5/1.0/1.5 um sol-gel silica. The coarse
+# addition is at most 1.3/12 = 11% of the solids by weight, so the
+# volume-median diameter stays inside the fine population and D50 is unmoved,
+# while D99 moves by up to an order of magnitude. That is the pure width axis.
+conditions_fixed:
+  baseline_abrasive: "Rodel 1200 fumed silica, mean 0.14 um"
+  solids_wt_pct: 12.0
+  ph: 10.5
+  pressure_psi: 7.0
+  rpm_pad: 150
+  rpm_wafer: 150
+  flow_ml_min: 100
+  pad: "Rodel IC1000/Suba IV stacked"
+  film: "1.5 um PECVD SiO2 on p-Si, 1x1 inch coupons"
+  time_s: 30
+  replicates: 5
+  source_detail: "p.3523-3524, Experimental, verbatim conditions"
+
+# ── THE DIRECTION: unanimous ──────────────────────────────────────────────
+# Every representation in the paper agrees that spiking a coarse tail onto a
+# fixed-D50 slurry LOWERS the oxide removal rate.
+direction: negative
+direction_evidence:
+  - where: "p.3525 text, verbatim"
+    quote: >
+      "As the coarser particles were spiked into the Rodel slurry, the removal
+      rate decreased consistently, except for the slurries spiked with 1.5 mm
+      particles at 1.1 wt % concentration for which the removal rate was
+      10,300 A/min."
+    reading: "5 of 6 spiked points below baseline; the paper names its own exception."
+  - where: "TABLE II, p.3526"
+    reading: >
+      All five spiked rows (17913, 18797, 17874, 16771, 10308 A/min) fall below
+      that table's own baseline of 19993 A/min. 5/5 below.
+  - where: "FIG. 4, p.3526 (bar chart, read from the raster)"
+    reading: >
+      Baseline bar and five spiked bars; four spiked bars sit clearly below the
+      baseline and one (1.5 um at 1.1 wt%) sits marginally above it, matching
+      the text's stated exception exactly.
+  - where: "p.3527, the authors' own mechanism"
+    quote: >
+      "the coarser particles tend to hold the wafer away from the pad reducing
+      the pressure on the smaller size abrasive particles resulting in
+      decreased interaction of the Rodel particles with the substrate. The
+      decrease in the total contact area between the wafer and the abrasive
+      particles results in reduced removal rates."
+    reading: >
+      This is a LOAD-SHARING statement, and it is a DIFFERENT mechanism from
+      the Luo-Dornfeld fraction-loaded argument §38 quoted — the coarse tail
+      carries load that the working population then does not carry. Both
+      predict the same sign, which is why the sign is well supported and the
+      MAGNITUDE is not: two mechanisms with different size dependences.
+
+# ── THE MAGNITUDE: NOT transcribable. Measured contradiction. ─────────────
+# The same six removal rates appear three times with values that cannot all be
+# right. This is recorded rather than resolved: picking one would be inventing
+# a number, and the sign argument above does not need any of them.
+magnitude: null
+magnitude_blocked_by: >
+  The publication states the baseline oxide removal rate as 10,000 A/min in
+  the text (p.3525) and as 19993 +/- 380 A/min in TABLE II (p.3526) — a factor
+  of 2.0 on the SAME quantity. FIG. 4's y-axis is labelled "Removal Rate
+  (A/min)" with the baseline bar at ~1000, a factor of 10 below the text and
+  20 below the table; multiplying the figure by 10 reproduces the text's
+  10,000 and its 10,300 exception to within 0.3%, so the figure axis appears
+  to be mislabelled by a decade. But that reconciliation then puts every other
+  TABLE II row roughly 2x above the figure, and it makes the table's baseline
+  contradict the text's. Exactly one point is consistent across all three
+  representations: 1.5 um at 1.1 wt%, quoted as 10,300 (text), 10308 (table)
+  and ~1030x10 (figure).
+  => the DIRECTION is supported by all three; no absolute scale is.
+confidence: high          # refers to the DIRECTION only, per the field above.
+
+# ── What this does and does not unblock ──────────────────────────────────
+unblocks: >
+  §38's exit condition, on both of its clauses: a second independent source now
+  reports a PSD width against removal rate, and the "two films disagree in
+  sign" finding is retracted as noise (§40). The width axis therefore has a
+  KNOWN SIGN (negative) from two unrelated applicants on three oxide films.
+does_not_unblock: >
+  Wiring a width term into the rate. A sign is not a constant. The two
+  candidate mechanisms (Luo-Dornfeld fraction-loaded vs the load-sharing this
+  paper's own authors propose) carry different exponents, no source in the
+  corpus supplies a usable magnitude, and fitting one on the single block it
+  would be scored on is the self-grading §32 forbids. The derivable form —
+  a lognormal PSD whose sigma follows from D50 and D99 with NO free constant,
+  feeding the existing active-count term — is written up as the next step in
+  STATUS.md NEXT because it is a PREDICTION that these eight points can then
+  falsify, not a fit to them.

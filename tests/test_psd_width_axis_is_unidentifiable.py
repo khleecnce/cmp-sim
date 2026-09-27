@@ -56,34 +56,94 @@ def test_the_width_driver_is_present_on_the_rows(rep):
         assert rep["blocks"][stem]["n"] >= 4, rep["blocks"][stem]
 
 
-def test_the_axis_still_rests_on_a_single_publication(rep):
-    """EXIT CONDITION.
+def test_the_axis_still_rests_on_a_single_SCORED_publication(rep):
+    """The corpus-internal half of §38's identifiability argument.
 
-    This fails the moment a second applicant reports a PSD width, which is
-    the event that makes the axis testable.  Read a failure here as an
-    instruction to RE-MEASURE the sign question on the enlarged evidence --
-    never as a test to relax.  The unit is the publication, not the file:
-    two files from the same four polishing runs are one experiment (§33).
+    This still holds and is still the reason no width CONSTANT can be fitted:
+    the two files are the same four polishing runs on two films, so the
+    holdout unit is one publication (§33).
+
+    ⚠ This is no longer §38's exit condition. §40 retired that role: the exit
+    condition was written as "a second applicant appears IN THE CORPUS", and
+    that was the wrong place to look — a publication can settle the SIGN of an
+    axis while being unscorable for reasons unrelated to it. The live exit
+    condition is now `test_a_second_independent_source_reports_the_sign`.
     """
     assert len(rep["sources"]) == 1, (
-        "a second source now reports a PSD width -- re-run "
-        "tools/psd_width_identifiability_probe.py and rewrite limits §38 from "
-        f"its output: {rep['sources']}")
+        "a second SCORED source now reports a PSD width -- re-run "
+        "tools/psd_width_identifiability_probe.py and rewrite limits §38/§40 "
+        f"from its output: {rep['sources']}")
 
 
-def test_the_two_films_disagree_in_sign(rep):
-    """The killing fact, and the one that no amount of data from this source fixes.
+def test_neither_film_actually_measures_a_width_slope(rep):
+    """§40 — the retraction, kept as a live measurement.
 
-    Same abrasives, same runs, two oxide films.  A particle-count mechanism
-    cannot know how the oxide was deposited, so opposite residual slopes mean
-    no shared width constant is even the right DIRECTION.
+    §38 rested its refusal on "the two oxide films disagree in SIGN", which
+    would be a genuine refutation of a mechanical term: a particle-count
+    mechanism cannot know how the oxide underneath was deposited. The claim
+    was read off two point estimates with no uncertainty attached. With the
+    standard error computed (n=4, so 2 residual dof) NEITHER slope is
+    distinguishable from zero, so the two signs are two draws from noise
+    rather than a contradiction.
+
+    The refusal to wire a width term SURVIVES this — one publication still
+    cannot supply a magnitude — but it now rests on identifiability alone,
+    and this test exists so the retracted reason cannot creep back in.
     """
-    teos = rep["blocks"][TEOS]["slope"]
-    hdp = rep["blocks"][HDP]["slope"]
-    assert teos < 0 < hdp or hdp < 0 < teos, (teos, hdp)
-    # And the disagreement must be substantive, not a sign flip on noise: the
-    # films must differ by more than the smaller slope's own magnitude.
-    assert abs(teos - hdp) > 0.3, (teos, hdp)
+    ts = [rep["blocks"][s]["t"] for s in (TEOS, HDP)]
+    assert all(t is not None for t in ts), ts
+    assert all(abs(t) < 2.0 for t in ts), (
+        "a film now measures a width slope significantly different from zero "
+        f"(t = {ts}). §40 retracted the sign-disagreement claim BECAUSE both "
+        "were consistent with noise; if that has changed, re-measure the sign "
+        "question and rewrite §40 rather than relaxing this bound.")
+
+
+def test_the_width_axis_is_confounded_with_the_size_axis_here(rep):
+    """Why the corpus block is the WRONG experiment for this axis.
+
+    Width and D50 move together across the patent's four abrasives, so any
+    slope read here is partly a relabelled size exponent -- the model already
+    reads D50. This is the measured reason the external source (which varies
+    width at essentially fixed D50) is the better evidence, and it is asserted
+    rather than asserted-in-prose so the comparison stays honest.
+    """
+    for stem in (TEOS, HDP):
+        corr = rep["blocks"][stem]["width_size_corr"]
+        assert corr is not None, stem
+        assert abs(corr) > 0.2, (
+            f"{stem}: width and D50 are now nearly orthogonal (r = {corr:+.3f}), "
+            "so this block has become a clean width experiment -- re-measure "
+            "the axis instead of inheriting §38/§40's refusal")
+
+
+def test_a_second_independent_source_reports_the_sign(rep):
+    """EXIT CONDITION (live), and the fact §38 was missing.
+
+    §38 asked for "a second, independent applicant" reporting a PSD width
+    against removal rate, and looked only among SCORED datasets. Basim 2000
+    is that source: a different applicant, abrasive, film, tool and decade,
+    varying width at fixed D50 more cleanly than anything in the corpus.
+
+    It is deliberately NOT a scored dataset -- it prints the same six removal
+    rates three times with mutually inconsistent absolute values, so only its
+    DIRECTION is transcribable. That is exactly why it settles the sign and
+    still supplies no constant.
+    """
+    ext = rep.get("external") or []
+    assert ext, (
+        "the independent sign evidence for the width axis has disappeared; "
+        "research/psd_width_sign_evidence.yaml is the file §40 rests on")
+    assert any(e["direction"] == "negative" for e in ext), ext
+    for e in ext:
+        assert e["magnitude"] is None, (
+            "the external source now claims a MAGNITUDE. A sign is not a "
+            "constant, and this source cannot supply one -- its own absolute "
+            "rates disagree by 2x between text and table. If a magnitude has "
+            f"genuinely arrived, it needs its own entry, not this one: {e}")
+        assert e["evidence_lines"] >= 3, (
+            "the direction must rest on several independently cited readings "
+            f"(text, table, figure), not one: {e}")
 
 
 def test_the_width_span_is_wide_enough_that_the_axis_could_have_been_read(rep):
