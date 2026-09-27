@@ -38,6 +38,10 @@ LIMITS = DOCS / "limits.md"
 #: Tests that enforce a decided refusal to predict. A test added here MUST be
 #: cited by docs/limits.md — that is the point of the registry.
 LIMIT_ENFORCING_TESTS = {
+    # limit 26: the alpha-chi veto is a SCOPE statement, not an undetermined
+    # axis — the substituted +1/3 is the exponent the measurements support,
+    # and the evidence's own limits (transition-only, one dataset) are pinned
+    "test_vetoed_branch_is_a_scope_claim.py",
     # limit 25: the load-sharing axis (chi) is closed on identifiability —
     # its only input is analytically pinned at 1, it reaches almost no rate,
     # and the grade it was blamed for is really a discarded MEASURED alpha

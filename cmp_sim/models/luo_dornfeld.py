@@ -157,6 +157,14 @@ class AbrasiveRegime:
     #: chi or alpha is still holding down, and an undecided chi must not make
     #: the run claim the supply axis is open when it is not.
     supply_decided: bool = False
+    #: True when a MEASURED contact branch was refused because alpha*chi > 1
+    #: put it outside the decomposition's validity, and the inherited elastic
+    #: exponents were substituted. This is a DIFFERENT state from "alpha could
+    #: not be decided": alpha was decided and then declared out of scope. The
+    #: two produce the same `unverified` grade, so they must be distinguishable
+    #: to anyone reading the result, or the warning lies about which axis is
+    #: open (it did, in 33 of 49 corpus runs).
+    branch_outside_scope: bool = False
     notes: List[str] = field(default_factory=list)
 
     def as_dict(self) -> Dict[str, Any]:
@@ -165,7 +173,9 @@ class AbrasiveRegime:
                 "q": round(self.q, 4),
                 "n_conc": round(self.n_conc, 4), "n_size": round(self.n_size, 4),
                 "confidence": self.confidence,
-                "supply_decided": self.supply_decided, "notes": self.notes}
+                "supply_decided": self.supply_decided,
+                "branch_outside_scope": self.branch_outside_scope,
+                "notes": self.notes}
 
 
 def beta_for_alpha(alpha: float) -> float:
@@ -358,6 +368,7 @@ def resolve_regime(*, area_pressure_exponent: Optional[float] = None,
     # See _supply_from_lubrication for the derivation and for why the mean
     # fluid film must not simply be substituted for the gap.
     supply_verdict = None
+    outside_scope = False
     if gap_m is None:
         supply_verdict, supply_why = _supply_from_lubrication(lubrication)
         if supply_why:
@@ -404,6 +415,7 @@ def resolve_regime(*, area_pressure_exponent: Optional[float] = None,
         # exponent, so the two cannot simply be overridden independently.
         product = corrected.alpha * corrected.chi
         if product > 1.0 + 1e-9:
+            outside_scope = True
             notes.append(
                 f"the pad-limited criterion says {contact_branch} "
                 f"(alpha = {corrected.alpha:.3f}) but the measured load sharing "
@@ -417,6 +429,43 @@ def resolve_regime(*, area_pressure_exponent: Optional[float] = None,
                 "area-pressure exponent, and a plastic branch with near-total "
                 "load sharing is outside the model's validity. Resolving it "
                 "needs a measured concentration sweep for this film")
+            # MEASURED (30th run, tools/plastic_branch_exponent_probe.py): the
+            # substitution is not a guess and it is not neutral -- it asserts
+            # n_C = p(1-alpha*chi) = +1/3 on every vetoed run, against the
+            # -0.5 the plastic branch would give if the bound were lifted.
+            # Every iso-condition abrasive-loading series in the corpus that
+            # sits on a vetoed branch was fitted: slopes +0.145, +0.303,
+            # +0.350, +0.534 (median +0.350, 4/4 closer to +1/3 than to -0.5,
+            # 3/4 within 2 SE of +1/3, and NOT ONE negative). So the
+            # measurements refuse the literal plastic exponent and land on the
+            # substituted one. The refusal is therefore a SCOPE statement --
+            # this combination is outside the decomposition's validity and the
+            # elastic pair is the supported number there -- not an admission
+            # that alpha is unknown. It was reported as the latter in every
+            # run ever scored, which is the same class of untrue warning the
+            # 28th run removed from the supply axis. No constant changes and
+            # no exponent changes; only the claim does.
+            notes.append(
+                "MEASURED: the substituted elastic exponent is the one the "
+                "data support here. Every iso-condition abrasive-loading "
+                "series in the corpus on a vetoed branch has a POSITIVE "
+                "log-log slope (+0.145, +0.303, +0.350, +0.534; median "
+                "+0.350) against the +1/3 this substitution asserts and the "
+                "-0.5 the literal plastic branch would require. So this is a "
+                "statement of SCOPE -- plastic indentation with near-total "
+                "load sharing is outside the N_a*F^alpha decomposition -- and "
+                "not a statement that the contact branch is unknown. It WAS "
+                "measured. SCOPE of that evidence, stated rather than implied: "
+                "those four ladders are all on the TRANSITION branch and all "
+                "from ONE dataset (US9499721B2, silica on TEOS). No "
+                "plastic-branch dataset in this corpus yields an "
+                "iso-condition loading ladder at all (they are all copper, "
+                "all inside RSM/L-array designs where no other axis is held), "
+                "so the plastic runs inherit the verdict from the same "
+                "decomposition rather than from their own measurement. What "
+                "would reopen it: a loading sweep on a vetoed branch with a "
+                "slope at or below zero "
+                "(tools/plastic_branch_exponent_probe.py)")
             corrected = dataclasses.replace(
                 corrected, alpha=reg.alpha, beta=reg.beta,
                 confidence="unverified")
@@ -444,6 +493,7 @@ def resolve_regime(*, area_pressure_exponent: Optional[float] = None,
         chi=reg.chi, alpha=reg.alpha, beta=reg.beta, p=reg.p, q=reg.q,
         n_conc=reg.n_conc, n_size=reg.n_size, confidence=reg.confidence,
         supply_decided=(supply_verdict is not None or gap_m is not None),
+        branch_outside_scope=outside_scope,
         notes=notes)
 
 
@@ -613,10 +663,21 @@ def mechanical_factor(*, conc: Optional[float], conc_ref: Optional[float],
                 "outside the model (aggregation, size-dependent chemistry, or a "
                 "different contact branch).")
         if regime.confidence == "unverified":
-            warnings.append(
-                "the particle-size term rests on an undetermined contact branch; "
-                "supply the per-particle contact stress and the softened surface "
-                "hardness to decide elastic vs plastic, which is what sets n_d's sign")
+            if regime.branch_outside_scope:
+                warnings.append(
+                    "the particle-size term uses the elastic exponents because "
+                    "the MEASURED contact branch is outside this "
+                    "decomposition's validity (alpha*chi > 1), not because the "
+                    "branch is unknown. The corpus supports the substituted "
+                    "exponent: every abrasive-loading sweep on a vetoed branch "
+                    "has a positive log-log slope near the +1/3 it asserts "
+                    "(tools/plastic_branch_exponent_probe.py)")
+            else:
+                warnings.append(
+                    "the particle-size term rests on an undetermined contact "
+                    "branch; supply the per-particle contact stress and the "
+                    "softened surface hardness to decide elastic vs plastic, "
+                    "which is what sets n_d's sign")
 
     # chemically softened surface hardness — the chemistry coupling channel
     if hardness_pa and hardness_ref_pa:
@@ -633,15 +694,31 @@ def mechanical_factor(*, conc: Optional[float], conc_ref: Optional[float],
         # supply axis is derived from the lubrication regime, listing it
         # anyway would report a gap that has been closed — the same class of
         # untrue statement that the gap wiring itself fixed.
-        open_axes = ["load sharing", "elastic/plastic branch"]
-        if not regime.supply_decided:
-            open_axes.append("supply geometry")
-        warnings.append(
-            f"abrasive regime confidence is '{regime.confidence}': at least one of "
-            + ", ".join(open_axes[:-1]) + f" or {open_axes[-1]}"
-            + " was not determined from data, so the exponents are structural "
-              "estimates"
-            + ("" if not regime.supply_decided else
-               ". The supply geometry is NOT among them: it was decided as a "
-               "monolayer from the lubrication regime"))
+        #
+        # The same correction is now owed to the BRANCH. When the grade comes
+        # from `branch_outside_scope`, alpha was measured and then refused as
+        # out of scope; calling it "not determined from data" was false in 33
+        # of 49 corpus runs, and the measurement backs the substitution (see
+        # the note attached in resolve_regime).
+        if regime.branch_outside_scope:
+            warnings.append(
+                f"abrasive regime confidence is '{regime.confidence}' because "
+                "the MEASURED contact branch is OUTSIDE this decomposition's "
+                "validity (alpha*chi > 1), not because any axis is "
+                "undetermined. The elastic exponents are substituted and the "
+                "corpus supports them there: every abrasive-loading sweep on a "
+                "vetoed branch has a positive log-log slope near the +1/3 they "
+                "assert. Load sharing and supply geometry are both decided")
+        else:
+            open_axes = ["load sharing", "elastic/plastic branch"]
+            if not regime.supply_decided:
+                open_axes.append("supply geometry")
+            warnings.append(
+                f"abrasive regime confidence is '{regime.confidence}': at least one of "
+                + ", ".join(open_axes[:-1]) + f" or {open_axes[-1]}"
+                + " was not determined from data, so the exponents are structural "
+                  "estimates"
+                + ("" if not regime.supply_decided else
+                   ". The supply geometry is NOT among them: it was decided as a "
+                   "monolayer from the lubrication regime"))
     return factor, notes, warnings

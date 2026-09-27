@@ -1211,3 +1211,30 @@ STATUS.md named `chi` the only remaining undecided question of the Luo-Dornfeld 
 **What would resolve it.** Not more data on chi — a pad model with a non-exponential summit-height distribution (Gaussian or measured), under which `m` would vary with pressure and pad state and chi would become a real axis. And separately, for the veto: a **measured concentration sweep on a film whose contact branch is plastic**, which is the one observation that could say whether `n_C` there is genuinely near zero (as plastic + full load sharing implies) or whether the load sharing is partial. **That observation EXISTS here** — `tools/plastic_branch_answerability_probe.py` finds 5 plastic/transition datasets carrying a >=3-level abrasive loading sweep (`jani2025_cu_rsm_composition_heldout` plastic at 1/3/4/6 wt%, `us9499721b2` 6 levels, `us6564116b2` 5 levels, `yang2023_quartz_ceria_L25` 5 levels, `carbide2023_L9` 3 levels) — so the veto is **falsifiable on this corpus**, and `us9499721b2`'s measured log-slope of +0.15..+0.53 already sits badly with the `n_C ≈ 0` that plastic plus full load sharing requires. That is the next run's target, not chi. **A caution recorded with it**: this probe's first cut read only the condition's top level, missed that swept values live under `overrides:`, and reported ZERO such datasets — a plausible negative that would have closed the line of work. In this repo a negative result retires a question, so it is the most expensive kind of reader bug; suspect the reader before writing the conclusion.
 
 **Enforced by** `tests/test_chi_axis_closed_on_identifiability.py` (4 tests): the exponent's corpus-wide constancy (fails if a future pad model makes chi informative — the intended exit condition), the accounting that every `unverified` grade is one of exactly two alpha causes with the veto in the majority, the zero price of the rejected alternative, and the reachability ceiling. Probe: `tools/chi_reachability_probe.py`.
+
+## 26. The alpha-chi veto is a statement of SCOPE, not of ignorance — and the substituted exponent is the one the data support
+
+§25 found that `resolve_regime` measures a contact branch in **33 of 49** corpus runs and then discards it: the plastic `alpha = 3/2` against the measured `chi = 1.0` gives `alpha*chi = 1.5 > 1`, breaking the structural bound `0 <= 1 - alpha*chi <= 1` that the exponent relations rest on, so the code substitutes the inherited elastic pair and grades the regime `unverified`. Every such run then warned that "the elastic/plastic branch **was not determined from data**". That sentence was false in all 33, and it had been false in every run ever scored: alpha *was* determined, and then refused.
+
+**The substitution is not neutral, which is what makes it testable.** It asserts
+
+    n_C = p * (1 - alpha*chi) = 1 * (1 - 2/3) = +1/3
+
+on every vetoed run, against the `-0.5` the plastic branch would give if the bound were simply lifted. So the veto is a choice between two numbers, and the corpus can score it.
+
+**Measured** (`tools/plastic_branch_exponent_probe.py`, zero fitting in the model, zero constants touched): every iso-condition abrasive-loading series on a vetoed branch, log-log slope of the **measurements** with all other process axes held —
+
+| slope | SE | r2 |
+|---|---|---|
+| +0.145 | 0.015 | 0.96 |
+| +0.303 | 0.052 | 0.89 |
+| +0.350 | 0.059 | 0.92 |
+| +0.534 | 0.108 | 0.89 |
+
+Median **+0.350** against the substitution's **+0.333** and the literal plastic **-0.500**. 4/4 closer to the substituted value, 3/4 within 2 SE of it, and **not one negative slope**. The measurements therefore refuse the literal plastic exponent and land on the one the veto substitutes.
+
+**The decision.** The refusal stays exactly as it is — no constant, no exponent, no pack changed, corpus median **unmoved at 18.2%** — but it is now reported as what it is: this combination is **outside the `N_a·F^alpha` decomposition's validity**, and the elastic pair is the supported number there. The `unverified` grade is kept (the regime genuinely is not verified) but the two populations it covers are now distinguishable through `abrasive_regime.branch_outside_scope`, so a reader can tell "alpha was never decided" (16 runs) from "alpha was decided and is out of scope" (33). A zero median change is the correct outcome for an honesty fix and is asserted directly; had it moved, this work would have touched the physics.
+
+**The scope of the evidence, stated rather than implied.** All four ladders are on the **transition** branch and all four come from **one dataset** (US9499721B2, silica on TEOS). No plastic-branch dataset in this corpus yields an iso-condition loading ladder at all — the plastic runs are entirely copper, and copper's loading sweeps sit inside RSM / L-array designs where no other axis is held, so nothing survives the grouping. The 11 plastic runs therefore **inherit** this verdict from the shared decomposition; they do not measure it. **What would resolve it**: a copper abrasive-loading ladder at frozen chemistry, pressure and speed. **What would reopen the whole limit**: any vetoed-branch ladder with a slope at or below zero, which is the observation the literal plastic exponent predicts.
+
+**Enforced by** `tests/test_vetoed_branch_is_a_scope_claim.py` (7 tests): the run says "outside this decomposition's validity" and no longer says "was not determined from data"; the refusal names both its evidence and its exit condition; the supporting slopes are **re-derived from the dataset files at test time**, so a future dataset with a non-positive vetoed-branch slope fails the suite instead of quietly contradicting a memo; both caveats (transition-only, single-dataset) are asserted to be *facts* and fail the moment a plastic ladder or a second source appears; the two `unverified` populations both still exist, so the flag cannot have been set too widely; and alpha and `n_C` are pinned to the substituted values, so the honesty fix provably moved no number.
