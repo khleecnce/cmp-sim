@@ -1315,3 +1315,43 @@ The term makes the **binding** dataset — the entire reason §28 exists — sub
 **What would resolve it** remains unchanged in kind but is now narrower: a mechanism that makes the response curve which is *not* site filling — agglomeration above a loading threshold (which would make the curvature depend on zeta potential and ionic strength, both of which the packs carry and neither of which the loading term reads) is the standing candidate, and it is testable because it predicts curvature that varies with dispersant, not merely with loading. **What would reopen the rejected derivation**: an `A_r/A_0` that comes from measured asperity statistics rather than the Qi correlation, since the refutation above inherits whatever error that correlation carries into θ.
 
 **Enforced by** the same `tests/test_the_gap_to_the_bar_is_one_dataset.py`: its "the model produces no concentration curvature at all" test is what keeps this refusal honest — if a future session wires a curvature term, that test fails loudly and this amendment must be re-measured rather than quietly inherited.
+
+## 29. The load-sharing ONSET has the sign §28's derivation lacked, repairs the binding dataset — and is still refuted, by the data rather than by the median
+
+§28's amendment rejected a monolayer-occupancy saturation built on `theta = phi / (A_r/A_0)` and named the next candidate as something other than site filling. Before going there, this session asked a different question: **was theta refuted, or was its placement?** The answer is the placement — and the replacement is still refused, on evidence that does not run through the corpus median at all.
+
+**The sign error was knowable without computing anything.** Session 32 applied theta to the particle COUNT, `N_active = N_sites (1 - e^-theta)`, making `N` sub-linear in `C`; raised to the sub-unity load-sharing exponent the model applies (`n_eff ~ 0.23`), that correction *raises* the dilute prediction. The measurements want the opposite: on the binding dataset the measured log-log slope is **+0.532** from 1→5 wt% and **+0.244** from 5→9 wt%, i.e. steeper than the model at dilute and in agreement above the pack reference. A term that flattens the dilute end cannot repair a ladder that is too steep to be flat.
+
+**The placement with the right sign, and no new constant.** `core/regime.py` resolves the load-sharing fraction `chi = 1.0` on all 49 datasets with a spread of 1.3e-10 — an analytic property of the exponential GW summit distribution, not an observation (§21, §25). `chi = 1` asserts that particles intercept the whole applied load at *every* loading, which cannot hold as `C → 0`: with no particles in the contact the pad touches the wafer directly. Poisson occupancy of the contact sites gives the covered fraction directly,
+
+    chi(theta) = 1 - exp(-theta),     theta = phi / (A_r / A_0)
+
+and with `N` particles each indenting under the load they actually carry, `rate ~ N^(1-alpha) (chi L)^alpha`, so relative to the pack's own reference composition the correction is `[(1-e^-theta)/(1-e^-theta_ref)]^alpha`. Here `alpha = 1 - n_eff` is **read off the shipping model per row by perturbation**, because the model already applies `n_eff = 1 - alpha*chi` with `chi ≡ 1`. It is **exactly 1.0 at every pack reference**, tends to the model's own exponent for `theta >> 1`, and tends to a LINEAR dilute response — the measured direction.
+
+**One pricing bug found on the way, which the §28 run also carried.** The solver normalises against `abrasive_ref_wt_pct` (`solver.py:546`), which a *row* may override; both counterfactuals initially read the pack's own `abrasive_wt_pct`. On `us20110186542a1` that put `theta_ref` at a composition the shipping factor never used, and the correction stopped being 1.0 where the model is anchored — absolute scale 1.87x → **17.5x**. Correcting it restores 1.90x. A reference-normalised factor is only as good as its reference lookup.
+
+**Priced** (`tools/load_sharing_onset_counterfactual.py`, 11 datasets, 8 inside the premise):
+
+| | |
+|---|---|
+| improved / worsened (in premise) | **5 / 2** |
+| **the binding dataset (liang2026)** | **18.2% → 1.9%** |
+| corpus median | 18.17% → **18.95%** |
+
+The term **repairs the dataset the entire completion criterion hangs on**, by an order of magnitude, and the headline still moves the wrong way. That is §26's counting-statistic lesson arriving from the other side, and it is the reason the median could not settle this question either way.
+
+**So it was settled on the data instead** (`tools/load_sharing_slope_probe.py`, 51 iso-condition adjacent loading pairs, 47 in premise, nothing fitted — there is no free parameter to fit). The derivation forces the local slope `s(theta) = (1-alpha) + alpha·theta·e^-theta/(1-e^-theta)`, which **must approach +1 as theta → 0**. Measured:
+
+| | |
+|---|---|
+| spearman(theta, measured slope) | −0.249 (right direction, weak) |
+| **theta < 1** | n=9, median slope **+0.277** |
+| theta ≥ 1 | n=38, median slope +0.231 |
+
+The dilute group is supposed to be near +1.0 and clearly above the dense group. It is at +0.277, statistically indistinguishable from the dense group. **The corpus does not show the load-sharing onset.**
+
+**The refutation's own weakness is stated rather than hidden:** all nine `theta < 1` pairs come from a **single** source, one patent's diamond series at 0.01–0.04 wt%. So this says *this corpus gives no support*, not *the physics is wrong* — the same distinction §21 draws between an unidentifiable axis and a false one. The rejected term is also the one that fixes the binding dataset, so this is a refusal that costs something, which is precisely when the temptation to wire it anyway is strongest.
+
+**What would resolve it:** a second dilute-loading ladder (`theta < 1`) from a different abrasive system, at fixed pressure, velocity and chemistry. One dataset decides this axis today, and `test_the_dilute_evidence_rests_on_a_single_dataset` fails the moment a second arrives — the refutation is built to expire rather than to age into fact. **What this does NOT license:** trying further filling laws until a median drops (fitting with extra steps, §28), or wiring the term on the strength of liang2026 alone (§22: a lone large win is not evidence).
+
+**Enforced by** `tests/test_load_sharing_onset_is_refuted_by_the_data.py` (8 tests, all re-measured from the solver and the datasets at test time — no number copied from this document). It pins the structural invariants (factor ≡ 1.0 at reference, concave bend, no free argument), the fact that the median verdict alone would NOT have settled it, the dilute-slope refutation, its single-source weakness, and that the premise filter genuinely excludes datasets in both directions so the reading cannot be an artefact of an empty filter.

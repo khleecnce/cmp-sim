@@ -38,6 +38,10 @@ LIMITS = DOCS / "limits.md"
 #: Tests that enforce a decided refusal to predict. A test added here MUST be
 #: cited by docs/limits.md — that is the point of the registry.
 LIMIT_ENFORCING_TESTS = {
+    # limit 29: the load-sharing ONSET has the sign §28's derivation lacked and
+    # repairs the binding dataset (18.2% -> 1.9%), and is refuted anyway — by
+    # the measured dilute slope, not by the corpus median
+    "test_load_sharing_onset_is_refuted_by_the_data.py",
     # limit 28: the distance to the completion bar is ONE dataset, the low-
     # loading reading is rejected, and what remains is a CURVATURE the model's
     # power law structurally cannot produce
