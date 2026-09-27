@@ -242,7 +242,41 @@ UNREAD_BY_THE_RATE: Dict[str, str] = {
         "(pad: {shore_d: ...}, or youngs_modulus_pa) and converts it with the "
         "Qi correlation. Setting the pack key instead leaves the contact "
         "factor at the pack's reference pad, so the predicted rate does not "
-        "move with pad hardness. Put the value on the pad to reach the term."),
+        "move with pad hardness. Put the value on the pad to reach the term. "
+        "⚠ That recommended path is CONDITIONAL, measured: kappa is applied "
+        "only when the pack declares its OWN reference pad with a real source "
+        "(pad/material.py::reference_pad_is_trustworthy). On a pack that "
+        "inherits the generic base pad the Pad object is converted and then "
+        "kappa is WITHHELD as a diagnostic, so the rate does not move there "
+        "either -- read the diagnostic kappa in the notes. And where it IS "
+        "applied the response is only bounded above ~55 Shore D: at 3 psi the "
+        "summits saturate (51.6% at 55D, 100% at 45D), which voids the "
+        "exponential-tail result kappa rests on, and below ~35D the GW solver "
+        "has no solution at all and raises ContactSolverOutOfRange."),
+    "asperity_density_per_m2": (
+        f"{DECLINES_AXIS}asperity_density_per_m2] "
+        "'asperity_density_per_m2' does not move the removal rate, and this is "
+        "GW physics rather than a missing wire -- the summit density CANCELS "
+        "exactly. In Greenwood-Williamson with exponential summit heights the "
+        "load balance fixes the separation d so that adding summits both adds "
+        "contacts and shares the same total load among more of them: the real "
+        "area fraction A_r/A_0, the mean real pressure p_r and the contact "
+        "count at a given nominal pressure are all independent of eta "
+        "(measured over a 16x range: relative spread 1.1e-10, i.e. float "
+        "noise). Since kappa = A_r(pad)/A_r(reference), eta cancels a second "
+        "time in the ratio. What DOES move the contact factor is E* "
+        "(pad modulus), the summit radius R and the height spread sigma -- put "
+        "those on the Pad object. eta is still read for the SATURATION "
+        "diagnostic (the fraction of summits in contact), which is the "
+        "validity boundary of everything above, so it is not ignored."),
+    "asperity_ref_density_per_m2": (
+        f"{DECLINES_AXIS}asperity_ref_density_per_m2] "
+        "'asperity_ref_density_per_m2' is the reference partner of "
+        "'asperity_density_per_m2' and is inert for the same structural "
+        "reason: the summit density cancels out of the GW real-area fraction, "
+        "so a RATIO of two densities cancels twice over. See the declaration "
+        "for asperity_density_per_m2 for the measurement and for the pad "
+        "properties that do reach the rate."),
     "abrasive_d99_nm": (
         f"{DECLINES_AXIS}abrasive_d99_nm] "
         "'abrasive_d99_nm' does not enter the removal rate and no physics term "

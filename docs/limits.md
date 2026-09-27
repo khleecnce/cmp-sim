@@ -1742,3 +1742,52 @@ Every number in (W) is a definition — `z₉₉` is a standard-normal quantile 
 **What would resolve it.** Flow: a removal-rate-versus-flow series at one pad, one slurry and one *P·V*, which would give the starvation decay a length instead of only a direction. Zeta: a removal-rate-versus-zeta series at **fixed pH**, which does not exist in this corpus and without which the axis is not separable from pH. **The decision taken** was to publish both axes and declare both refusals rather than wire either — the flow-exponent refit was **rejected** even though it is worth 9.8 percentage points on that block, because an oracle exponent is not a length constant and fitting one per dataset is the thing this repository does not do.
 
 **Enforced by** `tests/test_row_level_axes_are_visible.py` (9 tests, all re-measured at run time, so a new dataset carrying a row-level axis is covered with no test edit): every row-level key whose value varies must appear in the published axis list; a **non-vacuity guard** fails if the corpus stops containing such sweeps, because the first test passes trivially otherwise; no row-level axis may be `silent`, `prose-only` or `dropped`; the flow refusal must name **where** the value would have to live, **what measurement** unblocks it and the honest consequence, and the scorer must actually read it as a declined axis; a measured zeta must **arrive** in the recipe; the zeta refusal's identifiability claim is **re-measured** and fails the moment a dataset varies zeta at fixed pH; the "it goes to the defect proxy instead" half is tested in **both** directions, so the excuse fails unless D99 really does move `defect_risk`; and the median is pinned at 18.9%, because **zero movement is the correct outcome for an honesty fix** and a session reading that zero as failure would try to "improve" it.
+
+---
+
+## 42. The reverse wiring question: a pack key that is DECLARED and reads nothing — and the two answers are opposite
+
+§41 fixed the enumeration of axes the corpus *sweeps*. This section asks the other direction, and it needs no corpus at all: **does every key a pack DECLARES move anything?** `tools/pack_key_wiring_audit.py` has always asked the mirror question — does every key the *engine* reads exist in some pack — which finds misspellings and declared gaps. It is structurally blind to §20's hardest case, because nothing in the system can report it: `apply_overrides` warns only when a key is **undeclared** (`'x' is not declared by pack ...`), `inert_axis_scan` enumerates only axes some dataset happens to sweep, and the run prints a plausible number either way. A key with a sourced value, a unit and a confidence grade that no line of code consumes therefore ages into fact.
+
+`tools/declared_key_response_census.py` perturbs every numeric key of every pack by 3x through the **shipping solver** (reading the source would miss keys consumed via the inherited `legacy/` dispatchers, which is exactly where §18's silent terms were hiding) and classifies the response. Two findings came out of it, and **they are opposite in kind** — which is the point of the section, because both look identical from outside.
+
+**The probe's own first answer was nonsense, and the reason is this repository's central rule.** Run at each pack's own reference composition it reported **1077 of 1275 keys silent**. Every factor is `Kp_eff = kp * prod(factor_i)` with each factor *exactly 1.0 at its pack's reference condition*; at `C == C_ref` the concentration factor is `(C/C_ref)^n = 1` for **every** n, so perturbing `abrasive_conc_exponent` cannot move the rate no matter how it is wired. The probe was measuring the normalisation contract and calling it inertness. The base run is now **displaced off every reference axis first**, and a key whose driving variable sits on the reference is reported `unreachable-here` — a statement about the probe's operating point, not about the pack. This is §21's rule (*a constant the model computes is not evidence*) applied to a perturbation: ask whether the input VARIES before reading anything out of the output.
+
+### (a) `asperity_density_per_m2` is inert BY DERIVATION — declared, not wired
+
+All fourteen packs declare a summit density (2e8 /m², literature-sourced) and a reference partner, and both move the predicted rate by **exactly nothing**. That is **correct Greenwood–Williamson physics**. With exponential summit heights the load balance fixes the separation `d` so that adding summits both adds contacts and shares the same total load among more of them:
+
+| summit density η varied 16x | response |
+|---|---|
+| real area fraction `A_r/A_0` | relative spread **1.1e-10** (float noise) |
+| mean real pressure `p_r` | **1.1e-10** |
+| contact count at fixed nominal pressure | **1.1e-10** |
+| `E*` ×3 / `σ` ×3 / `R` ×3 (non-vacuity) | −67% / −42% / +73% |
+
+η then cancels a **second** time inside `kappa = A_r(pad)/A_r(reference)`. So the right action is a declaration, **not a wire**: `formulation.UNREAD_BY_THE_RATE` now carries the cancellation, names the pad properties that *do* reach the rate (`E*`, `R`, `σ` on the `Pad` object), and states where η **is** still read — the **saturation** diagnostic, i.e. the validity boundary of everything above. Per §20's both-halves rule that second claim is tested too: saturation must respond to η, or "not ignored" is an excuse rather than a location.
+
+### (b) `pad_hardness_shore_d`'s "put it here instead" advice was itself inert on most packs
+
+§20 established that a declaration recommending another path must prove the recommended path is **not equally inert**, and `test_the_pad_object_is_the_path_that_reaches_the_contact_layer` was written to do that. It asserted that a Shore D given on the `Pad` object was **converted** to a modulus. **Conversion is not reach.** Measured end to end on the packs that declare the key, the recommended path moves the rate on **one** of them; the others convert the value and then **withhold kappa**, because their reference pad is inherited from `base` rather than measured (`reference_pad_is_trustworthy`) — so the advice was, for most callers, a second silent failure wearing a green test.
+
+And where kappa *is* applied it is only bounded over part of the range. On `oxide_silica_calibrated_pad` at 3 psi:
+
+| `Pad.shore_d` | kappa | summit saturation |
+|---|---|---|
+| 60 | 1.90x | 30.1% |
+| 55 | 3.25x | 51.6% (warned) |
+| 45 | 9.34x | 100% |
+| 40 | 14.55x | 100% |
+| 30 | — | `ContactSolverOutOfRange` |
+
+A 14.5x rate multiplier past full summit contact is not a prediction: the exponential-tail result kappa rests on is void there. The run already warns, and the declaration now states the bound and the crash class so a caller reading only the returned number cannot miss it.
+
+**Zero median movement is the correct outcome** — 18.9% before and after (440 points, 48/52), no constant, pack or prediction changed. Only declarations and tests were added.
+
+**What would resolve it (a):** nothing, and that is deliberate — it is a derivation, not a data gap, so a magnitude for η is not merely *unknown*, it does not exist to be measured. The exit condition is instead a **mutation guard**: `test_the_gw_real_area_fraction_does_not_depend_on_summit_density` re-measures the cancellation at test time, so if the contact layer ever gains a term in which η survives, the declaration fails loudly rather than asserting a cancellation that stopped happening. **What would resolve it (b):** a pack whose reference pad comes with its own **measured** asperity statistics, which would let kappa be applied on more than one pack; until then the advice is honest only because it says it is conditional.
+
+**The decision taken, and what was rejected.** Wiring an η term into the rate was **rejected** — it would reproduce a quantity the contact model proves cancels, i.e. a free constant dressed as a pad property. Deleting η from the packs was also **rejected**: it is a real measured pad property and it is read by the saturation boundary, so removing it would restore the undetectable state (the same error class as §27's abrasive-identity keys). Relaxing `reference_pad_is_trustworthy` so kappa applies everywhere was **rejected** as well, because kappa against an inherited reference measures the distance from a guess (§22). Only declarations and tests were added.
+
+**The generalisable rule.** An audit has a direction, and the opposite direction can be the one with no reporter at all. When every existing check reads the engine's *requests*, the unexamined set is the packs' *offers* — and there the two possible verdicts, "correct cancellation" and "forgotten wire", produce **byte-identical** output. Separate them by deriving the cancellation on the model in isolation, and never grade a "put it here instead" path by whether the value was parsed; grade it by whether the **rate moves**.
+
+**Enforced by** `tests/test_gw_summit_density_cancels_by_derivation.py` (7 tests, every number re-measured at run time — a literal would go stale the moment a pack gains a measured reference pad, and going stale silently is the failure these tests exist to prevent): the η cancellation is re-derived on `PadContactState` directly and must hold to 1e-6; a **non-vacuity guard** requires `E*`, `R` and `σ` to still move the same quantity, so the cancellation test cannot pass on a dead model; both η keys must be inert **and** carry `[DECLINES_AXIS: ...]`; η must still move the saturation diagnostic; the recommended pad path must move the rate on at least one pack, and if it is inert on any the declaration must say **CONDITIONAL**; and the soft-pad case must emit the saturation warning while the declaration names both the saturation bound and `ContactSolverOutOfRange`. Calibrated against the bug: reverting `formulation.py` alone fails 4 of the 7.

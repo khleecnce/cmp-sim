@@ -38,6 +38,12 @@ LIMITS = DOCS / "limits.md"
 #: Tests that enforce a decided refusal to predict. A test added here MUST be
 #: cited by docs/limits.md — that is the point of the registry.
 LIMIT_ENFORCING_TESTS = {
+    # limit 42: the REVERSE wiring question — a pack key that is DECLARED and
+    # read by nothing. Two opposite answers: the GW summit density is inert by
+    # DERIVATION (eta cancels, 1.1e-10 over 16x), while pad_hardness_shore_d's
+    # "put it on the Pad object instead" advice was itself inert on most packs
+    # because kappa is withheld unless the reference pad is measured.
+    "test_gw_summit_density_cancels_by_derivation.py",
     # limit 41: the corpus-wide "0 silent inert axes" verdict was reached
     # without enumerating two swept axes — a validation row can carry a process
     # input and `_varying_axes` only read `overrides:`. Flow was silent (5
