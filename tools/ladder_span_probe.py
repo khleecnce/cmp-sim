@@ -30,6 +30,7 @@ Run: .venv/bin/python tools/ladder_span_probe.py
 
 from __future__ import annotations
 
+import math
 import statistics
 import sys
 from pathlib import Path
@@ -52,6 +53,21 @@ def _load(name: str):
         if p.exists():
             return yaml.safe_load(p.read_text(encoding="utf-8"))
     return None
+
+
+def sign_test_p(n: int, k: int) -> float:
+    """Two-sided sign test: P(at least as lopsided as k of n) under a fair coin.
+
+    The span question is a SIGN question -- "does the model respond less than
+    the experiment more often than chance?" -- so the honest summary is a sign
+    test, not a median.  A median of 0.95x reads like a finding; with n=13 the
+    same numbers are a coin.
+    """
+    if n <= 0:
+        return 1.0
+    k = max(k, n - k)
+    tail = sum(math.comb(n, i) for i in range(k, n + 1))
+    return min(2.0 * tail / (2 ** n), 1.0)
 
 
 def span_report(name: str):
@@ -86,29 +102,58 @@ def span_report(name: str):
 
 def main() -> int:
     scored = [s for s in score_all() if s.shape_mape is not None]
-    out = [b for b in (span_report(s.dataset) for s in scored) if b]
+    out = []
+    for s in scored:
+        b = span_report(s.dataset)
+        if not b:
+            continue
+        # A block whose swept axis the run DECLINED is not a span measurement:
+        # the prediction is constant by construction, so its ratio is bounded
+        # below 1 no matter what the physics does.  Counting those alongside
+        # real predictions is how "the model is too flat" got manufactured.
+        b["declined"] = b["axis"] in set(s.declined_axes_swept)
+        out.append(b)
     out.sort(key=lambda b: -b["ratio"])
 
     print("single-axis blocks measured: %d\n" % len(out))
-    print("%-46s %-20s %4s %9s %9s %7s"
-          % ("dataset", "axis", "n", "meas span", "pred span", "ratio"))
+    print("%-42s %-20s %4s %9s %9s %7s %s"
+          % ("dataset", "axis", "n", "meas span", "pred span", "ratio",
+             "declined"))
     for b in out:
-        print("%-46s %-20s %4d %8.2fx %8.2fx %6.2fx"
-              % (b["dataset"][:46], b["axis"][:20], b["n"],
-                 b["meas_span"], b["pred_span"], b["ratio"]))
+        print("%-42s %-20s %4d %8.2fx %8.2fx %6.2fx %s"
+              % (b["dataset"][:42], b["axis"][:20], b["n"],
+                 b["meas_span"], b["pred_span"], b["ratio"],
+                 "DECLINED" if b["declined"] else ""))
 
-    ratios = [b["ratio"] for b in out]
-    over = sum(1 for r in ratios if r > 1.0)
+    predicting = [b for b in out if not b["declined"]]
+    declined = [b for b in out if b["declined"]]
+
     print()
-    print("median span ratio : %.2fx" % statistics.median(ratios))
-    print("over-spread (>1)  : %d of %d" % (over, len(ratios)))
-    print("under-spread (<1) : %d of %d" % (len(ratios) - over, len(ratios)))
+    for tag, grp in (("ALL blocks       ", out),
+                     ("DECLINED axes    ", declined),
+                     ("PREDICTING blocks", predicting)):
+        r = [b["ratio"] for b in grp]
+        if not r:
+            continue
+        k = sum(1 for x in r if x < 1.0)
+        gm = math.exp(statistics.fmean(math.log(x) for x in r))
+        print("%s n=%2d  median %.2fx  geo-mean %.2fx  under %d/%d  "
+              "sign-test p=%.3f"
+              % (tag, len(r), statistics.median(r), gm, k, len(r),
+                 sign_test_p(len(r), k)))
+
     print()
-    print("DISSENTERS (ratio < 1 -- the model responds LESS than the data):")
-    for b in out:
+    print("READ THIS BEFORE DERIVING A DAMPING TERM:")
+    print("  The 'model is too flat' claim must be made on the PREDICTING row")
+    print("  only.  Blocks that declined their own swept axis predict a")
+    print("  constant, so they contribute ratio < 1 by construction and would")
+    print("  import a refusal into the corpus as if it were a measurement.")
+    print()
+    print("DISSENTERS among PREDICTING blocks (model responds LESS than data):")
+    for b in predicting:
         if b["ratio"] < 1.0:
-            print("  %-46s %-20s %.2fx"
-                  % (b["dataset"][:46], b["axis"][:20], b["ratio"]))
+            print("  %-42s %-20s %.2fx"
+                  % (b["dataset"][:42], b["axis"][:20], b["ratio"]))
     return 0
 
 

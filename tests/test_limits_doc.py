@@ -38,6 +38,10 @@ LIMITS = DOCS / "limits.md"
 #: Tests that enforce a decided refusal to predict. A test added here MUST be
 #: cited by docs/limits.md — that is the point of the registry.
 LIMIT_ENFORCING_TESTS = {
+    # limit 37: the "model responds too weakly" signal (pooled span geo-mean
+    # 0.80x, p=0.041) was the DECLINED blocks counted as answers; excluding
+    # them it is a coin (0.98x, p=0.58) under either exclusion rule
+    "test_span_evidence_excludes_declined_axes.py",
     # limit 36: a refusal only counts if the SCORER can read it — four of five
     # flat-scoring blocks were graded as predictions because the scorer knew
     # only the word "GATED"; markers added, median unchanged at 18.9%
