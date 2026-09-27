@@ -38,6 +38,10 @@ LIMITS = DOCS / "limits.md"
 #: Tests that enforce a decided refusal to predict. A test added here MUST be
 #: cited by docs/limits.md — that is the point of the registry.
 LIMIT_ENFORCING_TESTS = {
+    # limit 28: the distance to the completion bar is ONE dataset, the low-
+    # loading reading is rejected, and what remains is a CURVATURE the model's
+    # power law structurally cannot produce
+    "test_the_gap_to_the_bar_is_one_dataset.py",
     # limit 27: the abrasive-swap detector is inert in 49/49 scored runs, and
     # the one pack it could have fired on named two different abrasives in its
     # two identity keys (alumina pack inheriting a ceria reference)
