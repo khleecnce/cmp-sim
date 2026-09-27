@@ -38,6 +38,10 @@ LIMITS = DOCS / "limits.md"
 #: Tests that enforce a decided refusal to predict. A test added here MUST be
 #: cited by docs/limits.md — that is the point of the registry.
 LIMIT_ENFORCING_TESTS = {
+    # limit 27: the abrasive-swap detector is inert in 49/49 scored runs, and
+    # the one pack it could have fired on named two different abrasives in its
+    # two identity keys (alumina pack inheriting a ceria reference)
+    "test_pack_abrasive_identity_is_consistent.py",
     # limit 26: the alpha-chi veto is a SCOPE statement, not an undetermined
     # axis — the substituted +1/3 is the exponent the measurements support,
     # and the evidence's own limits (transition-only, one dataset) are pinned

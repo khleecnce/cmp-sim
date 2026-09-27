@@ -58,4 +58,45 @@
 
 base: sic_alumina_kmno4
 
-params: {}
+params:
+  # ── the abrasive-SWAP detector was reading the parent's abrasive ─────────
+  # This pack already declares `abrasive: alumina` (inherited file, with two
+  # citations: US20220315802A1 Table 1 alpha-alumina, and Gong 2024 Table 1
+  # Al2O3 500 nm). It did NOT declare `reference_abrasive`, so that key was
+  # inherited from the ceria parent (sic_ceria_h2o2) and said `ceria`.
+  #
+  # Those two keys are supposed to name the same physical material: `abrasive`
+  # is what the slurry contains, `reference_abrasive` is what the pack's
+  # kp_m_per_pa was back-calculated from -- and this pack's Kp was anchored on
+  # Wang 2021 / US20220315802A1, both ALUMINA. The pack was therefore stating
+  # two different abrasive identities in two different keys, and
+  # `slurry/abrasive_effects.resolve` reads the wrong one.
+  #
+  # Consequence, measured with tools/abrasive_declaration_probe.py: declaring
+  # this pack's own abrasive on its own dataset was scored as an abrasive SWAP
+  # (alumina into a "ceria" pack), which withdrew the pack's MEASURED loading
+  # exponent (-0.406, Entegris Table 1, n=5) and substituted the derived +1/3.
+  # On entegris2022 -- the very dataset that exponent was measured from -- that
+  # took the shape error 14.1% -> 101.5%. The correction is not a new number:
+  # it is the identity the pack has always declared one key over.
+  #
+  # This is the same inheritance-accident class already recorded twice in this
+  # pack's family: sti_ceria inheriting silica's C_half, and sic_ceria_h2o2
+  # inheriting the oxide pH optimum. A child that differs from its parent in
+  # MATERIAL must re-declare every key that names the material.
+  reference_abrasive:
+    value: alumina
+    unit: abrasive database key
+    note: >
+      Overrides the parent's `ceria`. Identical in meaning and in source to
+      this pack's existing `abrasive` key -- both name alpha-alumina -- and
+      consistent with kp_m_per_pa, which was back-calculated from Wang 2021
+      (4H-SiC, Al2O3 + KMnO4) cross-checked against US20220315802A1 Table 1
+      (alpha-alumina). No measured value changes; this makes the two keys
+      agree so an abrasive swap is detected against the right material.
+    source: >
+      US20220315802A1 Table 1 (alpha-alumina); Gong et al. 2024,
+      DOI 10.3390/ma17030679 Table 1 (Al2O3 500 nm) -- the same two citations
+      this pack's `abrasive` key already carries.
+    confidence: literature
+
