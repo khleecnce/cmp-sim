@@ -4,6 +4,47 @@ All notable changes to CMP-Sim. Newest first.
 
 ## Unreleased
 
+### Rejected — the PSD-width term the second-cheapest crosser needs is unidentifiable: one source, and inside it the two films disagree in SIGN (2026-09-27)
+- `tools/median_crossing_probe.py --held-out` puts
+  `us20190127607a1_teos_ceriasilica_size_sweep` (18.9%) second on the list of
+  datasets that must cross the 15% bar. Its cause is explicit and physical:
+  the TEOS rate is **non-monotonic** in D50 (875 → 1828 → 1311 → 2223 A/min)
+  and the dip is the one abrasive with a broad 4-peak distribution
+  (`(D99−D50)/D50 = 0.939` vs 0.503–0.787). A single power law cannot produce
+  a reversal at all; per-row errors are 17.4 / 28.4 / 28.1 / **1.9%**.
+- Luo–Dornfeld gives the mechanism and its sign for free: only particles in
+  the top `~delta` of the distribution are indented, so at fixed D50 a broader
+  PSD loads a smaller **fraction** of the abrasive. The driver
+  (`abrasive_d99_nm`) is already transcribed on every row of both files, and
+  the term would be a dimensionless ratio — so it cannot be a relabelled size
+  exponent.
+- **Measured and rejected** (`tools/psd_width_identifiability_probe.py`,
+  nothing fitted — the residual slope `d ln(meas/pred) / d ln((D99−D50)/D50)`
+  is immune to the scorer's one free scale because a scale cancels out of a
+  slope): 8 rows, 2 datasets, **1 independent publication**, and within that
+  single experiment the residual width slopes are **+0.024 (HDP)** against
+  **−0.688 (TEOS)**. A mechanical particle-count term cannot know how the
+  oxide underneath was deposited, so no shared width constant is even the
+  right **direction** (§14). The two files are the same four polishing runs on
+  two films, so the holdout unit is one (§33).
+- Three weaker variants rejected with it: fitting on TEOS alone (forbidden
+  dataset selection, and self-grading besides), a film-specific width exponent
+  (two constants on four points each, attached to an axis the mechanism says
+  cannot depend on the film), and routing D99 into the rate through the defect
+  proxy's existing `tail_term` (same one-source problem through an existing key).
+- **The corpus median is unchanged at 18.9% and that is the correct outcome** —
+  no pack, constant or prediction was touched. The refusal leaves the project
+  further from its own bar, which is exactly why it is written down.
+- New: `docs/limits.md` §38, `tools/psd_width_identifiability_probe.py`,
+  `tests/test_psd_width_axis_is_unidentifiable.py` (6 tests, all re-measured
+  at test time). The exit condition is a **transcription** question rather
+  than a new-physics one: several corpus size sweeps report a D50 and nothing
+  else, so a second source may already exist in the literature already cited.
+  `test_the_axis_still_rests_on_a_single_publication` fails the day one
+  arrives; a mutation guard fails if the rate ever responds to width, and the
+  "it goes somewhere else" claim is pinned by asserting D99 actually MOVES
+  `defect_risk` (§18).
+
 ### Changed — §29's exit condition fired: a verified dilute ladder overturned the refutation, and the term is still refused (2026-09-27)
 - Added `us9422456b2_teos_silica_dilute_loading` — US 9,422,456 B2 Example 1 /
   Table 1, a **printed** patent table: 54 nm aminosilane core-shell colloidal

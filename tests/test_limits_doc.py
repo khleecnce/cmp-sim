@@ -38,6 +38,10 @@ LIMITS = DOCS / "limits.md"
 #: Tests that enforce a decided refusal to predict. A test added here MUST be
 #: cited by docs/limits.md — that is the point of the registry.
 LIMIT_ENFORCING_TESTS = {
+    # limit 38: the second-cheapest crosser needs a PSD-WIDTH term, and the
+    # axis is unidentifiable — ONE source reports a width at all, and inside
+    # it the two oxide films give residual slopes of OPPOSITE sign
+    "test_psd_width_axis_is_unidentifiable.py",
     # limit 37: the "model responds too weakly" signal (pooled span geo-mean
     # 0.80x, p=0.041) was the DECLINED blocks counted as answers; excluding
     # them it is a coin (0.98x, p=0.58) under either exclusion rule
