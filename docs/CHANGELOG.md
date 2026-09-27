@@ -4,6 +4,51 @@ All notable changes to CMP-Sim. Newest first.
 
 ## Unreleased
 
+### Measured — an axis's response was read from its ENDPOINTS, and a peaked term cancels exactly on an endpoint pair (2026-09-28)
+- §43 fixed the probe whose perturbation it chose. It could not reach the two
+  readers most of this repository's closure arguments rest on:
+  `tools/inert_axis_scan.py` and `tools/residual_census.py` decided whether a
+  swept input reaches the rate by running the dataset's first row **twice** —
+  at the axis minimum and maximum the paper ran. That map is consumed by
+  `Census.responsive_axes`, the `silent`/`declared` classification behind the
+  corpus-wide "0 silent inert axes" verdict, and `oxidizer_order_probe`'s
+  confound admissibility test. **Here the two points are chosen by the
+  publication, not by the probe**, so no perturbation constant reaches them.
+- **The cancellation is exact.** `models/chemical_rate.py:ph_response` is
+  `floor + (1 − floor)·exp(−((pH − peak)/w)²)`, so at two levels mirrored about
+  the optimum the exponential is identical **for every width** — §43(b)'s
+  identity arriving through the experiment's design instead of the probe's
+  displacement. Every peaked term inherits it (pH Gaussian, oxidiser Langmuir,
+  IEP-referenced zeta), and the more levels a paper ran, the more of them a
+  two-point reading discards.
+- **Measured** (`tools/interior_level_response_probe.py`, new; 83 axes at ≥ 3
+  levels): `endpoint-blind` **0**, `understated` **4** (worst **x1.9**),
+  `inert` 22, `agrees` 57. Eleven two-level axes counted and excluded — for
+  them the two readings are the same measurement. The four understated axes are
+  all pH or oxidiser sweeps straddling their pack's declared optimum:
+  `us9422456b2` 51.75% → **98.20%** (11 levels), `li2021` 10.59% → 18.37%,
+  `dandu2009` 83.41% → 97.12%, `du2004` 76.78% → 89.00%.
+- **Zero verdicts change, and that is the finding.** All four were already far
+  above the 0.5% inert bar, so no classification, `responsive_axes` list or
+  bucket moves and **the median is unchanged at 18.9% / 19.5% held out** — the
+  correct outcome for an instrument repair touching no constant, term or
+  prediction. What is removed is the *possibility* of a verdict nobody could
+  check: an `endpoint-blind` axis would have been published as inert at 0.00%,
+  indistinguishable from a model that weighed the input and found it
+  unimportant. The 0 measures this corpus's sweep designs, not the reader's
+  safety.
+- Rejected: warning on a straddle instead of reading the interior (the oxidiser
+  and zeta terms are peaked without declaring a peak key, so the straddle is
+  undetectable); sub-sampling endpoints plus a midpoint (the arbitrary choice
+  that produced §43; the levels a paper ran are a bounded set already loaded);
+  special-casing the pH axis by name (§43's reason — the defect is in the
+  reading).
+- `docs/limits.md` §44 and
+  `tests/test_axis_response_is_not_read_from_endpoints.py` (7 tests, every
+  number re-measured through the shipping solver; both duplicated readers
+  asserted, since fixing one of two copies is how a closed limit reopens).
+  Reverting either tool fails 2 of the 7. Suite: 1233 pass.
+
 ### Measured — the perturbation is part of the instrument: §42's own probe filed the repository's strongest pH constants under `silent` (2026-09-28)
 - `tools/declared_key_response_census.py` (added last session to ask *does every
   key a pack DECLARES move anything?*) had one half of its instrument fixed:

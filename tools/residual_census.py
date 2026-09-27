@@ -109,20 +109,33 @@ def _predict(doc: Dict[str, Any], row: Dict[str, Any]) -> Optional[float]:
 
 def _axis_response(doc: Dict[str, Any], rows: List[Dict[str, Any]],
                    axis: str) -> Optional[float]:
-    """End-to-end % change in predicted rate across this axis' own range.
+    """Widest % change in predicted rate across this axis' own range.
 
     The baseline is the dataset's FIRST row, so every other input stays at a
     combination the paper actually ran; only the axis under test is swapped.
+
+    Every level the paper ran is evaluated, not only the two ENDPOINTS
+    (docs/limits.md §44). The endpoint pair is an unsafe reading for a peaked
+    response: for any `f` with an interior optimum, two levels placed
+    symmetrically about that optimum give `f(lo) == f(hi)` exactly, for every
+    width -- so the endpoint difference can be 0.00 % while the interior of the
+    same sweep moves the rate as much as the term can. This repository models
+    several such responses (the Gaussian pH term, the oxidiser Langmuir, the
+    IEP-referenced zeta terms), and unlike §43 the two evaluation points are
+    not the probe's to choose: they are the first and last level of the
+    PUBLICATION's design, so no perturbation constant can avoid the
+    cancellation. Measured on this corpus the endpoint reading understates the
+    response by up to 1.9x (`tools/interior_level_response_probe.py`).
     """
     values = sorted({v for v in (_axis_value(r, axis) for r in rows)
                      if isinstance(v, (int, float))})
     if len(values) < 2:
         return None
-    lo = _predict(doc, _with_axis(rows[0], axis, values[0]))
-    hi = _predict(doc, _with_axis(rows[0], axis, values[-1]))
-    if lo is None or hi is None:
+    rates = [_predict(doc, _with_axis(rows[0], axis, v)) for v in values]
+    rates = [r for r in rates if r is not None]
+    if len(rates) < 2:
         return None
-    return 100.0 * abs(hi - lo) / max(hi, lo)
+    return 100.0 * (max(rates) - min(rates)) / max(rates)
 
 
 def _levels(rows: List[Dict[str, Any]], axes: List[str]) -> int:

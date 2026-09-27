@@ -1841,3 +1841,49 @@ The remaining 574 is still a **shortlist of questions, not a bug count**, for th
 **What would resolve it.** Nothing external — this is an instrument defect that has been **measured** and corrected. The exit condition is a **mutation guard**: the enforcing test reproduces the bug at the original probe point, so if the out-of-domain refusal or the reference normalisation is ever re-derived such that x3 stops being inert there, the test fails and demands the limit be re-derived rather than the prose edited.
 
 **Enforced by** `tests/test_perturbation_is_part_of_the_instrument.py` (8 tests, every number re-measured at run time — pinning `54.81%` as a literal would go stale the moment a pack's pH constants are re-sourced, and inviting a session to edit the claim instead of the code is how §40's stale correlation string happened): `ph_peak` and `ph_response_width` must both classify as `reads`; the **bug is reproduced** at the original probe point, where x3 must still be inert while x1.25 reaches past 10%, and at the current point a small factor must still out-reach x3; the width's cancellation is re-derived on the shipping solver at the mirror point and must vanish one step off it; **no pack** may be probed on its own pH symmetry point, derived from `available_packs()` at test time with a non-vacuity guard so a new pack is covered with no test edit; every reported response must carry the perturbation that produced it; the instrument controls must pass; and a **negative control** feeds a fabricated silent `ph_peak` through `instrument_control_failures` and requires it to trip, and to say that the census's own verdicts are suspect rather than merely that one key did not move. Calibrated against the bug: reverting the perturbation set and the symmetry break fails **6 of the 8**.
+
+## 44. An axis's response was read from its ENDPOINTS, and a peaked term cancels exactly on an endpoint pair
+
+§43 established that *the perturbation is part of the instrument* and repaired the probe whose displacement it controlled. It could not repair the two readers that most of this repository's closure arguments actually rest on. `tools/inert_axis_scan.py` and `tools/residual_census.py` decide whether a swept input reaches the rate by running the dataset's own first row **twice** — at the axis minimum and at the axis maximum the paper ran — and comparing the two predicted rates. That map is consumed by `Census.responsive_axes`, the `silent`/`declared`/`aliased` classification behind the corpus-wide "0 silent inert axes" verdict (§17/§18, and its enumeration repair in §41), and `tools/oxidizer_order_probe.py`'s confound admissibility test.
+
+**Here the two evaluation points are not the probe's to choose.** They are the first and last level of the *publication's* design, so unlike §43 no change to a perturbation constant can avoid the cancellation — it arrives through the data.
+
+### The cancellation is exact, not statistical
+
+`models/chemical_rate.py:ph_response` is
+
+```
+f(pH) = floor_side + (1 − floor_side) · exp( −((pH − ph_peak)/w)² )
+```
+
+For two levels mirrored about `ph_peak` the exponential is **identical for every width w**, so at equal floors the endpoint difference is exactly zero while the interior of the same sweep moves the rate as much as the term can. This is §43(b)'s identity reached from the other side: there the probe's own displacement landed on the symmetry point, here the experiment's design does. This repository models several peaked responses that inherit the property — the Gaussian pH term, the oxidiser Langmuir saturation, the IEP-referenced zeta terms. And the *better* the experiment — the more levels it ran — the more of them a two-point reading discards.
+
+### Measured (`tools/interior_level_response_probe.py`, 83 axes at ≥ 3 levels)
+
+| class | count | reading |
+|---|---|---|
+| `endpoint-blind` (endpoints agree, an interior level does not) | **0** | no axis changes class |
+| `understated` (endpoints disagree by less than the sweep does) | **4** | worst **x1.9** |
+| `inert` (no level moves the rate) | 22 | the incumbent reading was right |
+| `agrees` | 57 | the endpoints already spanned the response |
+
+| dataset | axis | levels | endpoint | full sweep |
+|---|---|---|---|---|
+| `us9422456b2_teos_silica_ph_pressure` | `slurry_ph` | 11 | 51.75% | **98.20%** |
+| `li2021_oxide_silica_ph` | `slurry_ph` | 3 | 10.59% | **18.37%** |
+| `dandu2009_sio2_ceria_ph_sweep` | `slurry_ph` | 9 | 83.41% | **97.12%** |
+| `du2004_cu_h2o2_concentration_sweep` | `h2o2_vol_pct` | 6 | 76.78% | **89.00%** |
+
+All four are pH or oxidiser sweeps, i.e. precisely the peaked terms the derivation predicts, and every one of them straddles its pack's declared optimum. Eleven two-level axes are counted and **excluded**: for them the two readings are the same measurement, so they can neither confirm nor refute anything.
+
+### The honest reading: this fixes no verdict, and that is the point
+
+Zero axes were misclassified. Every understated axis was already far above the 0.5% inert bar, so no `silent`/`declared` verdict, no `responsive_axes` list and no bucket changes, and **the median is unchanged at 18.9% / 19.5% held out** — the correct outcome for an instrument repair that touches no constant, term or prediction. What the repair removes is the *possibility* of a verdict nobody could have checked: an `endpoint-blind` axis would have been reported as inert with a 0.00% response, indistinguishable from a model that weighed the input and found it unimportant, and the corpus contains no device that would have contradicted it. The count of 0 is a measurement of this corpus's sweep designs, not a proof that the reader was safe — a single future dataset placing its extreme levels symmetrically about a declared optimum would have produced one.
+
+**What was rejected.** Keeping the endpoint reading and merely *warning* when a sweep straddles a declared optimum was **rejected**: the straddle is detectable only for terms whose optimum a pack declares, and the oxidiser Langmuir's saturation and the zeta terms' IEP references are peaked without a declared peak key. Sub-sampling the interior (endpoints plus the midpoint) was **rejected**: it is the same class of arbitrary choice that produced §43, and the levels a paper ran are a bounded, already-loaded set — the honest reading costs one solver call per extra level. Special-casing the pH axis by name was **rejected** for §43's reason: the defect is in the reading, and a name list leaves every future peaked term exposed.
+
+**The generalisable rule.** *When a probe's evaluation points are chosen by the DATA rather than by the probe, the §43 repair does not reach it — and the same exact cancellation can arrive through the experiment's design.* Read a response over every level that exists, not over the extremes of the range; the extremes are a summary, and a summary of a non-monotone function is not a measurement of it.
+
+**What would resolve it.** Nothing external.
+
+**Enforced by** `tests/test_axis_response_is_not_read_from_endpoints.py` (7 tests, every number re-measured through the shipping solver at run time — pinning `98.20%` as a literal would go stale the moment a pH constant is re-sourced, and a stale literal invites editing the claim instead of the code, which is how §40's correlation string happened): the probe must recover an **endpoint-responsive** axis or its whole output is disowned (§43's instrument control); at least one axis must still be measurably understated, by more than x1.1, or the restricted dataset list has gone stale; `residual_census._axis_response` — the function every admissibility filter consumes — must return **≥** the endpoint reading on every understated axis and strictly more on at least one; `inert_axis_scan`, which keeps its **own copy** of the comparison, must read the repaired response too, because a fix applied to one of two duplicated readers is how a closed limit reopens; the cancellation is re-derived on `ph_response` itself in the equal-floor case (exact to 1e-12, with the optimum required to sit above the mirror pair so a flat term cannot pass) and in the unequal-floor case (the packs disagree on their acid floors, and the residual must stay below a fifth of the interior response); two-level axes must be excluded **and** counted, so the section's counts are about the reader rather than about how many sweeps are short; and every reading must publish the levels it used, because §43 requires a zero response to be unquotable without what was tried. Calibrated against the bug: reverting either tool fails 2 of the 7.

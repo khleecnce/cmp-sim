@@ -22,10 +22,18 @@ that check.
 Method (measurement only -- nothing is fitted, no pack is modified)
 -------------------------------------------------------------------
 For every scored dataset and every axis it varies, take the dataset's own
-first row, rebuild it at the axis minimum and at the axis maximum the paper
-actually ran, run the real simulator on both, and compare the predicted rates.
-A change below ``INERT_TOLERANCE`` (0.5 %, shared with residual_census) means
-the input does not reach the output.
+first row, rebuild it at EVERY level the paper actually ran, run the real
+simulator on each, and compare the widest pair of predicted rates. A change
+below ``INERT_TOLERANCE`` (0.5 %, shared with residual_census) means the input
+does not reach the output.
+
+Until §44 this used only the two ENDPOINT levels. That reading is unsafe for
+any peaked response: two levels placed symmetrically about an interior optimum
+give the same factor for every width, so the endpoint difference is exactly
+0.00 % while interior levels of the same sweep move the rate. Unlike §43's
+probe, the two points here belong to the publication's design and cannot be
+re-tuned, so the interior has to be run
+(``tools/interior_level_response_probe.py`` measures the gap: up to 1.9x).
 
 Each inert axis is then classified into exactly one of three kinds, and the
 classification -- not the count -- is the product of this tool:
@@ -228,10 +236,24 @@ def scan(scores=None) -> ScanResult:
             if lo is None or hi is None:
                 out.response[score.dataset][axis] = None
                 continue
-            resp = 100.0 * abs(hi - lo) / max(hi, lo)
+            # Every INTERIOR level too (docs/limits.md §44). A peaked response
+            # returns f(lo) == f(hi) exactly when the two endpoints straddle
+            # its optimum symmetrically, for every width -- so an endpoint-only
+            # reading can report 0.00 % on an axis the model reads. Unlike §43
+            # these two points are not chosen by this probe but by the
+            # publication's design, so the cancellation cannot be avoided by
+            # re-tuning a perturbation; it has to be measured around.
+            rates = [lo, hi]
+            warns = list(w_lo) + list(w_hi)
+            for value in values[1:-1]:
+                mid, w_mid = _run(doc, _with_axis(rows[0], axis, value))
+                if mid is not None:
+                    rates.append(mid)
+                    warns += list(w_mid)
+            resp = 100.0 * (max(rates) - min(rates)) / max(rates)
             out.response[score.dataset][axis] = resp
             if resp < INERT_TOLERANCE:
-                pending.append((axis, len(values), w_lo + w_hi))
+                pending.append((axis, len(values), warns))
         # Pass 2 -- classify.
         for axis, levels, warns in pending:
             kind, evidence = _classify(axis, warns, out.response[score.dataset])
@@ -243,7 +265,8 @@ def scan(scores=None) -> ScanResult:
 
 def report(result: Optional[ScanResult] = None) -> str:
     result = result if result is not None else scan()
-    lines = ["INERT AXES — every swept input whose 2-point perturbation moves "
+    lines = ["INERT AXES — every swept input whose perturbation across EVERY "
+             "level the paper ran moves "
              f"the predicted rate by < {INERT_TOLERANCE}%", "-" * 110]
     for kind, blurb in (("wiring", "A BUG — the term exists and was handed "
                                    "the value in a form it cannot read"),

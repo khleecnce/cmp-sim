@@ -38,6 +38,12 @@ LIMITS = DOCS / "limits.md"
 #: Tests that enforce a decided refusal to predict. A test added here MUST be
 #: cited by docs/limits.md — that is the point of the registry.
 LIMIT_ENFORCING_TESTS = {
+    # limit 44: the two readers behind most closure arguments here read an
+    # axis's response from its ENDPOINTS, and a peaked term cancels exactly on
+    # an endpoint pair mirrored about its optimum — §43's identity arriving
+    # through the PUBLICATION's design, where no perturbation constant reaches.
+    # 4 of 83 axes understated, worst x1.9; 0 misclassified, median unchanged.
+    "test_axis_response_is_not_read_from_endpoints.py",
     # limit 43: §42's own probe filed the repository's strongest pH constants
     # under `silent` — a x3 perturbation pushes `ph_peak` out of its validity
     # window (x1.25 moves the rate 54.8%), and the displacement landed exactly
