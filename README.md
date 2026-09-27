@@ -2,8 +2,8 @@
 
 [![tests](https://img.shields.io/badge/tests-898%20passing-brightgreen)](#)
 [![validation](https://img.shields.io/badge/literature%20gate-4%20datasets%20within%20%C2%B115%25-brightgreen)](#validation)
-[![accuracy](https://img.shields.io/badge/trend-18.2%25%20median%2C%20427%20points-blue)](#2-how-accurate-is-it-on-every-axis-cmp-sim-accuracy)
-[![scale](https://img.shields.io/badge/absolute%20rate-23%2F34%20within%203x-yellow)](#2-how-accurate-is-it-on-every-axis-cmp-sim-accuracy)
+[![accuracy](https://img.shields.io/badge/trend-18.2%25%20median%2C%20435%20points-blue)](#2-how-accurate-is-it-on-every-axis-cmp-sim-accuracy)
+[![scale](https://img.shields.io/badge/absolute%20rate-24%2F35%20within%203x-yellow)](#2-how-accurate-is-it-on-every-axis-cmp-sim-accuracy)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 A physics-based simulator for **Chemical Mechanical Planarization**. Given a
@@ -228,20 +228,20 @@ entirely. A mechanical `P·V` law cannot explain it, whatever `Kp` you choose.
 The gate above only admits datasets that sweep pressure or speed — 6 of 49
 files here, about 40% of the measured points. That left the slurry axes this
 simulator exists to predict (pH, oxidizer, loading, particle size) **never
-scored against a measurement at all**. `cmp-sim accuracy` scores all 427
+scored against a measurement at all**. `cmp-sim accuracy` scores all 435
 points on whichever axis each dataset varies:
 
 | axis | datasets | median error |
 |---|---:|---:|
 | abrasive particle size | 11 | **11.2%** |
 | oxidizer | 12 | 21.3% |
-| abrasive loading | 11 | 20.6% |
-| pressure | 14 | 20.4% |
+| abrasive loading | 12 | 21.5% |
+| pressure | 15 | 20.6% |
 | pH | 15 | 25.3% |
 | velocity | 6 | 39.0% |
 
-**Overall: median 18.2% shape error, 21.3% leave-one-out**, over 46 of 50
-datasets and 427 measured points. 36 of 46 beat "predict this dataset's
+**Overall: median 18.2% shape error, 21.3% leave-one-out**, over 47 of 51
+datasets and 435 measured points. 37 of 47 beat "predict this dataset's
 average" — the baseline that says whether the physics contributed anything.
 
 > **⚠ Read the 18.2% as a ranking claim, not a rate claim.** It says the model
@@ -249,10 +249,10 @@ average" — the baseline that says whether the physics contributed anything.
 > removal rate to 20%. Those fail independently, and on this corpus the second
 > one often fails: `cmp-sim accuracy` now prints a `scale` column (median
 > measured ÷ predicted absolute rate) beside it, and
-> **11 of 34 comparable datasets are off by more than 3×** —
+> **11 of 35 comparable datasets are off by more than 3×** —
 > `lai2001_cu_alumina` scores an excellent 8.7% shape while over-predicting
-> absolute rate by **17.5×**. 23 of 34 are calibrated within 3×; the remaining
-> 11 datasets print `-` because their own notes forbid absolute comparison
+> absolute rate by **17.5×**. 24 of 35 are calibrated within 3×; the remaining
+> 12 datasets print `-` because their own notes forbid absolute comparison
 > (benchtop coupons, scaled units, shear-rheological polishing). Use this
 > simulator to rank and optimise conditions; re-anchor `Kp` against your own
 > tool with `cmp-sim fit` (one wafer is enough — see below) before trusting an

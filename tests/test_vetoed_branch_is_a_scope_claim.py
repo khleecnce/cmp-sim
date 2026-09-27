@@ -100,11 +100,11 @@ def test_the_scope_claim_names_what_would_reopen_it(vetoed):
         assert "at or below zero" in blob, (
             f"{name}: the refusal does not state the observation that "
             "would reopen the axis")
-        assert "ONE dataset" in blob, (
-            f"{name}: the refusal quotes four ladders without saying they all "
-            "come from a single dataset. Four ladders from one patent is not "
-            "corpus-wide evidence, and a claim that hides that reads as "
-            "stronger than it is.")
+        assert "TWO datasets" in blob, (
+            f"{name}: the refusal quotes six ladders without saying how many "
+            "sources they come from. Six ladders from two patents by one "
+            "applicant on one film is not corpus-wide evidence, and a claim "
+            "that hides that reads as stronger than it is.")
         assert "TRANSITION branch" in blob, (
             f"{name}: the refusal quotes evidence without stating that the "
             "evidence covers only the transition branch. The plastic runs "
@@ -112,8 +112,21 @@ def test_the_scope_claim_names_what_would_reopen_it(vetoed):
             "hides its own scope is how a caveat gets lost.")
 
 
-def test_the_single_dataset_caveat_is_a_fact(vetoed):
-    """If a second dataset ever supplies a vetoed ladder, rewrite the claim."""
+def test_the_two_dataset_caveat_is_a_fact(vetoed):
+    """The exit condition fired once and must keep working, not be retired.
+
+    This asserted "exactly ONE source" until 2026-09, when US9422456B2's
+    dilute loading table entered the corpus and it failed -- which is what it
+    was for. The claim in `models/luo_dornfeld.py` was then re-MEASURED
+    (`tools/vetoed_branch_widening_probe.py`: 6 ladders, 2 sources, slopes
+    +0.145 .. +0.831, all positive) rather than edited to match, and the
+    caveat widened to "TWO datasets".
+
+    The guard is kept at the new count for the same reason it existed at the
+    old one: the evidence is still one applicant, one film, one abrasive
+    family, so the next source that arrives must force the same deliberate
+    re-measurement instead of quietly making the claim stale.
+    """
     from plastic_branch_exponent_probe import dataset_branches, loading_groups
 
     branches = dataset_branches()
@@ -121,10 +134,35 @@ def test_the_single_dataset_caveat_is_a_fact(vetoed):
                       if branches.get(g["dataset"]) in ("plastic",
                                                         "transition")})
     assert sources, "no vetoed-branch ladder exists at all"
-    assert len(sources) == 1, (
-        f"the vetoed-branch evidence now spans {sources}, so the 'ONE "
-        "dataset' caveat in models/luo_dornfeld.py understates it. Widen the "
-        "claim deliberately rather than leaving it stale.")
+    assert len(sources) == 2, (
+        f"the vetoed-branch evidence now spans {sources}, so the 'TWO "
+        "datasets' caveat in models/luo_dornfeld.py is stale. Re-measure with "
+        "tools/vetoed_branch_widening_probe.py and widen the claim "
+        "deliberately -- including whether the slopes are still all positive.")
+
+
+def test_the_vetoed_branch_slopes_are_all_positive_as_the_claim_says():
+    """The substance of the claim, re-measured rather than quoted.
+
+    The scope note asserts that EVERY vetoed-branch loading ladder has a
+    positive log-log slope; that is the whole argument for substituting the
+    elastic +1/3 rather than declaring the branch unknown. A single negative
+    ladder would reopen the axis, so it is measured here instead of trusted.
+    """
+    from plastic_branch_exponent_probe import (dataset_branches,
+                                               loading_groups, slope_with_se)
+
+    branches = dataset_branches()
+    slopes = [slope_with_se(g["points"])[0] for g in loading_groups()
+              if branches.get(g["dataset"]) in ("plastic", "transition")]
+    assert len(slopes) >= 4, (
+        "too few vetoed-branch ladders to make the claim at all; the scope "
+        "note must be withdrawn rather than left standing on nothing")
+    negative = [s for s in slopes if s <= 0.0]
+    assert not negative, (
+        "a vetoed-branch loading ladder has a slope at or below zero "
+        f"({negative}), which is the stated reopening condition: the elastic "
+        "substitution can no longer be called the exponent the data support.")
 
 
 def test_the_evidence_really_is_transition_only(vetoed):

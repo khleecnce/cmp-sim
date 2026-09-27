@@ -83,14 +83,22 @@ def test_the_derivation_introduces_no_free_constant():
 
 # ── the median verdict (weak evidence, recorded as such) ────────────────────
 
-def test_the_median_verdict_alone_would_not_have_settled_it(priced):
-    """The counterfactual FIXES the binding dataset and still loses on median.
+def test_the_median_verdict_alone_still_must_not_settle_it(priced):
+    """The median FLIPPED when one dataset arrived, which is why it decides nothing.
 
-    That combination is exactly why the median could not settle this: the
-    headline is a counting statistic, so a term can repair the dataset the
-    whole completion criterion hangs on and still be scored down by other
-    blocks crossing the middle. Recorded so nobody re-runs the counterfactual,
-    sees liang2026 collapse to single digits, and wires the term on that.
+    §29 originally recorded the counterfactual repairing the binding dataset
+    (18.2% -> 1.9%) while the corpus median moved the WRONG way, 18.17% ->
+    18.95%. Adding one verified dilute ladder reversed that headline to
+    18.17% -> 14.82% -- i.e. across the completion bar -- without a single
+    physical claim changing. Nine measured points cannot be the difference
+    between a right and a wrong law, so the reversal is evidence about the
+    STATISTIC, not about the term.
+
+    This test therefore no longer pins the direction of the median. It pins
+    the thing that makes the median untrustworthy here: the verdict is
+    hostage to a handful of datasets near the middle. If the term is ever
+    wired, it must be on the dilute-band slope evidence measured below, and
+    the record must say so.
     """
     rows, summary = priced
     by_name = {r["dataset"]: r for r in rows}
@@ -101,21 +109,30 @@ def test_the_median_verdict_alone_would_not_have_settled_it(priced):
     assert binding["shape_after"] < binding["shape_before"] / 3.0, (
         "§29 records that the load-sharing onset repairs the binding dataset "
         f"(got {binding['shape_before']:.1f}% -> {binding['shape_after']:.1f}%)")
-    assert summary["median_in_premise"] > summary["median_before"], (
-        "§29 records the corpus median moving the WRONG way despite that "
-        "repair; if this now improves, the refutation must be re-measured")
+    # The median's own instability, asserted rather than described: the
+    # in-premise and all-dataset readings of the SAME counterfactual disagree
+    # by more than a point, so quoting either alone is a choice.
+    assert abs(summary["median_in_premise"] - summary["median_all"]) > 1.0, (
+        "the two median readings have converged; §29's argument that the "
+        "headline cannot settle this must then be re-made on other grounds")
 
 
 # ── the refutation: a statement about the DATA ──────────────────────────────
 
-def test_the_dilute_slope_does_not_approach_one(pairs):
-    """The derivation's sharpest prediction, and the corpus says no.
+def test_the_dilute_slope_does_not_approach_one_at_the_theta_cut(pairs):
+    """The original refutation, kept — and now known to be a knife-edge artefact.
 
     chi = 1 - exp(-theta) forces the local log-log slope of rate against
     loading to (1-alpha) + alpha * theta*e^-theta/(1-e^-theta), which tends to
-    +1 as theta -> 0: with the contact nearly empty each particle carries its
-    own load independently and removal is linear in count. The measured dilute
-    group does not do this -- it sits near the same value as the dense group.
+    +1 as theta -> 0. Split at theta = 1, the measured dilute group does NOT
+    do this -- it sits near the dense group. That reading is preserved here
+    because it is still true of the split it names.
+
+    What the next test shows is that the split itself is the problem: at
+    theta = 1 the corpus has essentially nothing, so the "dilute" bucket is
+    one diamond patent at theta ~ 0.03 and the "dense" bucket silently
+    contains pairs at theta = 1.4 where a quarter of the load is still on
+    bare pad. Both tests are kept so the contradiction stays visible.
     """
     kept = [p for p in pairs if p["in_premise"]]
     dilute = [p["s_meas"] for p in kept if p["theta"] < 1.0]
@@ -123,24 +140,141 @@ def test_the_dilute_slope_does_not_approach_one(pairs):
     assert dilute and dense, "the split has no evidence on one side"
     m_dilute = statistics.median(dilute)
     assert m_dilute < 0.6, (
-        "§29 is refuted BY THIS: the dilute median slope must approach +1 for "
+        "at the theta = 1 cut the dilute median slope must approach +1 for "
         f"the load-sharing onset to describe the corpus, and it is {m_dilute:+.3f}")
 
 
-def test_the_dilute_evidence_rests_on_a_single_dataset(pairs):
-    """And the refutation's own weakness is stated, not hidden.
+def test_the_refutation_does_not_survive_dropping_its_single_source():
+    """§29's exit condition FIRED. The refutation is now scoped, not general.
 
-    Every theta < 1 pair in the corpus comes from one patent's diamond series
-    at 0.01-0.04 wt%. So the refutation is as narrow as the claim it refutes:
-    it says this corpus gives no support, NOT that the physics is wrong. That
-    distinction is the exit condition -- a second dilute dataset from a
-    different abrasive system reopens §29.
+    §29 refused the term and named its own weakness: all nine theta < 1 pairs
+    came from one diamond patent, so the verdict was "this corpus has no
+    evidence", not "the physics is wrong". A verified colloidal-silica ladder
+    (US9422456B2 Example 1, printed table) has since entered the corpus.
+
+    Re-measured with that diamond source DROPPED entirely, and with the band
+    defined on chi -- the physically meaningful statement "the derivation
+    claims >=10% of the load is not on particles here" -- rather than on a
+    theta cut the corpus has no data near:
+
+        chi <  0.9   n=14   median measured slope  ~ +0.83
+        chi >= 0.9   n=30   median measured slope  ~ +0.22
+
+    The dilute band is where the derivation says it should be and the dense
+    band sits at the model's own exponent. Five independent datasets supply
+    the dilute band, so it is no longer single-sourced.
+
+    This does NOT wire the term -- see the next test for what still refuses
+    it. It records that the general refutation is dead and only a scoped one
+    survives.
+    """
+    from tools.dilute_ladder_reopens_sec29_probe import analyse
+    a = analyse()
+    assert len(a["dilute_sets"]) >= 3, (
+        "the dilute band has collapsed back to one or two sources, so §29's "
+        f"single-source weakness has returned: {a['dilute_sets']}")
+    m_dil = statistics.median(p["s_meas"] for p in a["dilute"])
+    m_den = statistics.median(p["s_meas"] for p in a["dense"])
+    assert m_dil > m_den + 0.3, (
+        "with the diamond source dropped the dilute band must still sit "
+        "clearly above the dense band for the onset law to be described as "
+        f"supported; got {m_dil:+.3f} vs {m_den:+.3f}")
+    assert m_dil > 0.6, (
+        "the dilute band must approach +1, the law's sharpest prediction; "
+        f"got {m_dil:+.3f}")
+
+
+def test_the_dilute_band_is_not_an_artefact_of_where_the_cut_was_put():
+    """A band chosen to make a law pass is the finding, not the law.
+
+    The separation must survive moving the threshold, so it is measured at
+    every sane value of chi rather than at the one that reads best. It holds
+    from chi = 0.80 to chi = 0.99 and weakens monotonically as the cut is
+    pushed up into the saturated region -- which is the behaviour the
+    derivation predicts, since raising the cut dilutes the band with pairs
+    the term barely acts on.
+    """
+    import math as _m
+
+    from tools.dilute_ladder_reopens_sec29_probe import SINGLE_SOURCE
+    rows = [p for p in slope_pairs()
+            if p["in_premise"] and p["dataset"] != SINGLE_SOURCE]
+    gaps = {}
+    for cut in (0.80, 0.85, 0.90, 0.95, 0.99):
+        lo = [p["s_meas"] for p in rows if 1 - _m.exp(-p["theta"]) < cut]
+        hi = [p["s_meas"] for p in rows if 1 - _m.exp(-p["theta"]) >= cut]
+        assert len(lo) >= 3 and len(hi) >= 3, (
+            f"chi = {cut} leaves too few pairs to read; the sweep has lost "
+            "its non-vacuity guard")
+        gaps[cut] = statistics.median(lo) - statistics.median(hi)
+    for cut, gap in gaps.items():
+        assert gap > 0.1, (
+            f"the dilute/dense separation vanishes at chi = {cut} "
+            f"(gap {gap:+.3f}), so the chi < 0.9 reading is a cut artefact")
+
+
+def test_the_law_is_still_refused_because_it_breaks_at_the_dilute_extreme(priced):
+    """The reason the term is NOT wired, now that the corpus supports its shape.
+
+    The onset law is supported in the band the new ladder reaches
+    (chi 0.75-0.99, i.e. 0.5-9 wt% of ordinary abrasives). It is refuted at
+    the extreme: on the diamond series at 0.01-0.04 wt%, where chi ~ 0.03 and
+    the correction is largest, applying it takes the dataset from 8.7% to
+    34.2% -- it makes the one place its effect is dominant substantially
+    worse.
+
+    A law cannot be wired on the strength of the region where it barely acts
+    while failing the region where it acts most. Either the occupancy theta is
+    mis-scaled at very low loading (the pack's particle density and the GW
+    contact area both extrapolate three orders down there), or a second
+    mechanism takes over. Both are measurable; neither is measured yet.
+
+    EXIT CONDITION: an iso-condition loading ladder below ~0.5 wt% from a
+    NON-diamond abrasive. That would put a second source in the extreme band
+    and settle whether the failure belongs to the law or to the one patent.
+    """
+    rows, _ = priced
+    by_name = {r["dataset"]: r for r in rows}
+    extreme = by_name.get("us20110186542a1_w_diamond_h2o2_ph")
+    assert extreme is not None, (
+        "the extreme-dilute dataset left the pricing set; the refusal above "
+        "has lost its evidence and must be re-measured")
+    assert extreme["shape_after"] > extreme["shape_before"] * 2.0, (
+        "§29's surviving refusal rests on the onset law badly damaging the "
+        "most dilute dataset in the corpus; it no longer does "
+        f"({extreme['shape_before']:.1f}% -> {extreme['shape_after']:.1f}%), "
+        "so the refusal must be re-argued or the term wired")
+
+
+def test_the_extreme_dilute_evidence_still_rests_on_a_single_dataset(pairs):
+    """The exit condition, moved to where the question is now open.
+
+    The original form of this test asserted that every theta < 1 pair came
+    from one diamond patent, and it was written to FAIL when a second dilute
+    system arrived. It did its job: US9422456B2 Example 1 arrived, the band
+    now has five sources, and the general refutation fell (see above).
+
+    The question that remains open is one band further down -- the EXTREME
+    dilute region, chi < 0.2, where the onset correction is largest and where
+    applying it makes the prediction much worse. That region is still supplied
+    by exactly one source, which is precisely why the surviving refusal cannot
+    yet be promoted into a statement about the physics.
+
+    So the exit condition moves rather than disappears: this fails the moment
+    a second source reaches chi < 0.2, and at that point the refusal in
+    `test_the_law_is_still_refused_because_it_breaks_at_the_dilute_extreme`
+    must be re-argued on two sources instead of one.
     """
     kept = [p for p in pairs if p["in_premise"]]
-    sources = {p["dataset"] for p in kept if p["theta"] < 1.0}
-    assert len(sources) <= 1, (
-        "a second dilute-loading dataset has entered the corpus, so the §29 "
-        f"refutation is no longer single-sourced and must be re-measured: {sources}")
+    extreme = {p["dataset"] for p in kept
+               if 1.0 - math.exp(-p["theta"]) < 0.2}
+    assert extreme, (
+        "no pair reaches the extreme-dilute band at all, so the surviving "
+        "refusal has no evidence behind it and must be withdrawn")
+    assert len(extreme) <= 1, (
+        "a second EXTREME-dilute source has entered the corpus, so the "
+        "scoped §29 refusal is no longer single-sourced and must be "
+        f"re-measured: {extreme}")
 
 
 def test_the_premise_is_a_scope_claim_and_excludes_datasets_both_ways(pairs):

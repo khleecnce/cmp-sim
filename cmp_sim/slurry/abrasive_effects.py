@@ -164,12 +164,19 @@ DERIVED_CONC_EXPONENT_WHY = (
     "derived surface-area-limited concentration exponent m = +1/3 "
     "(MRR ~ C**(1/3); Li 2021 branch, Cook 1990 supply limit): the gap admits "
     "a monolayer so n_gap ~ C**(2/3), and load per particle falls as 1/n_gap, "
-    "leaving C**(1/3) with NO fitted constant. Measured corpus median is +0.33 "
-    "over 16 sweeps (13/16 within 0.25); unlike the size exponent this one is "
+    "leaving C**(1/3) with NO fitted constant. Measured corpus median is +0.37 "
+    "over 18 sweeps (14/18 within 0.25); unlike the size exponent this one is "
     "NOT a material property (between/within 1.6x, below the 2x bar) and "
-    "saturation is falsified (corr of slope with mean wt% = +0.06). Dissenters "
-    "are all SiC, where indentation rather than reacted-layer supply may set "
-    "the rate")
+    "saturation is falsified (corr of slope with mean wt% = +0.07). SCOPE of "
+    "the dissenters, corrected 2026-09: they are NOT all SiC. Three are (two "
+    "ceria, one alumina, where indentation rather than reacted-layer supply "
+    "may set the rate), but a dilute colloidal-silica ladder on OXIDE "
+    "(US9422456B2 Example 1, 0.5-3 wt%) dissents at m = +0.83 — i.e. it is "
+    "STEEPER than the derived law, not flatter, and it is the most dilute "
+    "oxide ladder in the corpus. That direction is the load-sharing-onset "
+    "signal of docs/limits.md §30 rather than a supply effect, so the "
+    "'indentation on hard films' reading does not cover it and is no longer "
+    "claimed to")
 
 
 def _db() -> Dict[str, Any]:

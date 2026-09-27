@@ -35,8 +35,8 @@ from cmp_sim.core.predictive_score import report, score_all
 #: evidence that the fix was the pure scale factor it claimed to be.
 MEDIAN_SHAPE = 18.2  # moved by the saturating-branch load-sharing fix, 2026-09-27
 MEDIAN_LOO = 21.3  # moved by the W passivation threshold (physics), 2026-09-26
-SCORED = 46
-POINTS = 427
+SCORED = 47  # 46 -> 47: us9422456b2_teos_silica_dilute_loading added 2026-09-27
+POINTS = 435  # 427 -> 435: the 8-point dilute loading ladder added 2026-09-27
 
 
 def _scores():

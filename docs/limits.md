@@ -1355,3 +1355,36 @@ The dilute group is supposed to be near +1.0 and clearly above the dense group. 
 **What would resolve it:** a second dilute-loading ladder (`theta < 1`) from a different abrasive system, at fixed pressure, velocity and chemistry. One dataset decides this axis today, and `test_the_dilute_evidence_rests_on_a_single_dataset` fails the moment a second arrives — the refutation is built to expire rather than to age into fact. **What this does NOT license:** trying further filling laws until a median drops (fitting with extra steps, §28), or wiring the term on the strength of liang2026 alone (§22: a lone large win is not evidence).
 
 **Enforced by** `tests/test_load_sharing_onset_is_refuted_by_the_data.py` (8 tests, all re-measured from the solver and the datasets at test time — no number copied from this document). It pins the structural invariants (factor ≡ 1.0 at reference, concave bend, no free argument), the fact that the median verdict alone would NOT have settled it, the dilute-slope refutation, its single-source weakness, and that the premise filter genuinely excludes datasets in both directions so the reading cannot be an artefact of an empty filter.
+
+> **⚠ SUPERSEDED IN PART — see §30.** The exit condition above FIRED. A second dilute ladder arrived, the general refutation did not survive it, and what remains is a narrower refusal about the extreme-dilute band. §29 is kept in full because the reasoning that produced it is sound and the way it failed is the lesson; read §30 before acting on anything here.
+
+---
+
+## 30. §29's exit condition fired, and the refutation did not survive it — the cut was at a value the corpus had no data near
+
+§29 refused the load-sharing onset `chi(theta) = 1 - exp(-theta)` — a zero-constant term that repairs the binding dataset from 18.2% to 1.9% — because the measured dilute slope did not approach +1. It also named its own weakness and built a test to expire: all nine `theta < 1` pairs came from one diamond patent, and `test_the_dilute_evidence_rests_on_a_single_dataset` was written to FAIL when a second dilute system arrived. **It arrived, and it failed.**
+
+**The new evidence.** `us9422456b2_teos_silica_dilute_loading` — US 9,422,456 B2 Example 1 / Table 1, a printed patent table: 54 nm aminosilane core-shell colloidal silica at **0.5 / 1.0 / 2.0 / 3.0 wt%**, each measured at 4.0 and 5.0 psi, pH buffered at 4.7, one tool, one pad, one speed, one flow. Verified value-by-value against the cached patent text in the session that added it, not copied from a summary. The fumed-silica "Control" row was **excluded**: it is a different abrasive morphology, and putting an abrasive swap inside a loading ladder attributes a morphology change to concentration (§27).
+
+**The refutation was an artefact of the cut, and the cut was inherited from a corpus that had nothing near it.** §29 split at `theta = 1`. The new ladder's most dilute pair sits at `theta = 1.38`, where `chi = 0.75` — a quarter of the load is still going to bare pad, unambiguously inside the regime the law makes a claim about — and it lands in the `>= 1` bucket, averaged with pairs at `theta = 18` where the term does essentially nothing. When the only datum was at `theta ≈ 0.03`, two orders below the cut, the knife edge was harmless. The first datum to land near it was silently discarded by it.
+
+Re-measured with the band defined on **chi** — the physical statement "the derivation claims ≥10% of the load is not on particles here" — and with the original diamond source **dropped entirely**, so the reading stands on the rest of the corpus alone (`tools/dilute_ladder_reopens_sec29_probe.py`, 44 pairs):
+
+| | |
+|---|---|
+| spearman(theta, slope), diamond source dropped | **−0.381** (was −0.287 with it) |
+| **chi < 0.9** (dilute) | n=14, median measured slope **+0.826** |
+| chi ≥ 0.9 (dense) | n=30, median measured slope **+0.220** |
+| sources supplying the dilute band | **5** (was 1) |
+
+The dilute band is near +1 where the derivation says it must be; the dense band sits at the model's own exponent. **The cut is not where the finding lives** — swept from chi 0.80 to 0.99 the gap runs +0.480 / +0.601 / +0.606 / +0.323 / +0.161, positive throughout and decaying monotonically as the cut is pushed into the saturated region, which is what the law predicts.
+
+**The term is still not wired, and the reason changed.** It now fails where it acts *most*. On the diamond series at 0.01–0.04 wt% (`chi ≈ 0.03`), where the correction is largest, applying it takes the dataset from **8.7% → 34.2%**. A law cannot be adopted on the strength of the region where it barely acts while failing the region where it dominates. So the decision taken here is: **§29's general refutation is withdrawn, and wiring the term is rejected anyway** on the extreme-band damage — the term stays out, on new grounds, with a new exit condition. Two explanations are open, both measurable and neither measured: theta may be mis-scaled at very low loading (both the pack particle density and the GW contact area extrapolate three orders down to get there), or a second mechanism takes over below ~0.1 wt%.
+
+**The median is now actively misleading here and must not be quoted as the verdict.** The same counterfactual that read 18.17% → 18.95% in §29 reads **18.17% → 14.82%** after nine measured points entered the corpus — i.e. across the completion bar — with no physical claim changed. Nine points cannot be the difference between a right and a wrong law. The reversal is a fact about the statistic (§26), and the enforcing test was rewritten to stop pinning the median's direction and to pin its **instability** instead.
+
+**What would resolve it:** an iso-condition loading ladder below ~0.5 wt% from a **non-diamond** abrasive, which would put a second source in the extreme band and settle whether the failure belongs to the law or to the one patent. `test_the_extreme_dilute_evidence_still_rests_on_a_single_dataset` fails the moment one arrives — the exit condition moved down a band rather than being retired. **What this does NOT license:** wiring the term because the median now crosses the bar. That is the exact inversion of §29's own argument, and the number moved for a reason that has nothing to do with whether the physics is right.
+
+**The general lesson, which is not about this term.** A threshold chosen while the data sit far from it is untested, and it will not announce itself when the first datum lands near it — it will quietly sort that datum into the wrong bucket and report the old answer. Prefer a cut stated on the **quantity the derivation is about** (here chi, the load fraction) over one stated on a convenient intermediate (theta), and **sweep it** whenever a conclusion depends on which side of it a point falls.
+
+**Enforced by** `tests/test_load_sharing_onset_is_refuted_by_the_data.py` (11 tests, all re-measured at test time): the original theta-cut reading is kept alongside the chi-band reading so the contradiction stays visible; the band must have ≥3 independent sources and must survive dropping the diamond patent; the cut sweep must hold at every threshold; the surviving refusal must keep its evidence (the extreme dataset must still be damaged >2x) or be re-argued; and the exit condition must remain single-sourced.

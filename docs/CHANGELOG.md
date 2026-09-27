@@ -4,6 +4,52 @@ All notable changes to CMP-Sim. Newest first.
 
 ## Unreleased
 
+### Changed — §29's exit condition fired: a verified dilute ladder overturned the refutation, and the term is still refused (2026-09-27)
+- Added `us9422456b2_teos_silica_dilute_loading` — US 9,422,456 B2 Example 1 /
+  Table 1, a **printed** patent table: 54 nm aminosilane core-shell colloidal
+  silica at 0.5 / 1.0 / 2.0 / 3.0 wt%, each at 4.0 and 5.0 psi, pH buffered at
+  4.7, one tool / pad / speed / flow. Verified value-by-value against the
+  cached patent text. The fumed-silica "Control" row is **excluded**: a
+  different abrasive morphology inside a loading ladder would attribute a
+  morphology change to concentration.
+- **§29's refutation of the load-sharing onset did not survive it, and the
+  cause was the cut, not the physics.** §29 split at `theta = 1`; the new
+  ladder's most dilute pair sits at `theta = 1.38` (`chi = 0.75` — a quarter of
+  the load still on bare pad), so the first datum ever to land near that
+  threshold was sorted into the "dense" bucket and averaged with pairs at
+  `theta = 18`. Re-measured on a **chi** band with the original diamond source
+  dropped entirely (`tools/dilute_ladder_reopens_sec29_probe.py`, 44 pairs):
+  `chi < 0.9` gives n=14, median slope **+0.826** against `chi >= 0.9` n=30,
+  **+0.220**, from **5** independent sources (was 1). The separation survives
+  sweeping the cut from 0.80 to 0.99.
+- **The term is still NOT wired — on new grounds.** It fails where it acts
+  most: on the diamond series at 0.01–0.04 wt% (`chi ≈ 0.03`) it takes the
+  dataset from **8.7% → 34.2%**. New exit condition: an iso-condition loading
+  ladder below ~0.5 wt% from a non-diamond abrasive.
+- **The median must not be quoted as the verdict here.** The same
+  counterfactual read 18.17% → 18.95% in §29 and reads 18.17% → **14.82%** now,
+  i.e. across the completion bar, with no physical claim changed — nine
+  measured points cannot decide a law. The enforcing test was rewritten to pin
+  the median's *instability* rather than its direction.
+- Two further exit conditions fired and were answered by **re-measurement, not
+  by editing the claim to match**: the vetoed-branch scope note in
+  `models/luo_dornfeld.py` widened from 4 ladders / 1 dataset to **6 ladders /
+  2 datasets** (slopes +0.145 … +0.831, all positive, median +0.350 → +0.430 —
+  the evidence strengthened), and `DERIVED_CONC_EXPONENT_WHY`'s "dissenters are
+  all SiC" claim was **corrected**: the new oxide ladder dissents at m = +0.83,
+  i.e. *steeper* than the derived +1/3, which is the load-sharing-onset
+  direction rather than the supply-limited one. The enforcing test now asserts
+  the dissenter's **sign** instead of its film, because that is what separates
+  the two mechanisms.
+- Corpus 46 → 47 scored datasets, 427 → 435 points. **Headline median unchanged
+  at 18.2%.** Two invariance guards that asserted `statistics.median` in a
+  16.2–16.8 band were re-expressed on the headline (upper) median: n going
+  46 → 47 flips the symmetric median's parity and moved it to 18.2 with nothing
+  fitted, so a guard against fitting was firing on arithmetic.
+- `docs/limits.md` §30 (§29 kept in full, marked superseded in part — the
+  reasoning was sound and the way it failed is the lesson).
+  `tests/test_load_sharing_onset_is_refuted_by_the_data.py` 8 → 11 tests.
+
 ### Fixed — the SUPPLY axis was never decided, and the obvious fix would have been a silent bug (2026-09-27)
 - Luo-Dornfeld's third regime question (`p`, `q`: monolayer or multilayer
   particle supply) is answered from `gap_m / d_p`, and the solver hands it

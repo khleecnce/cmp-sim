@@ -167,18 +167,25 @@ def test_the_refusal_is_two_sided_because_a_bound_is_not_evidence():
 def test_refusing_the_term_keeps_the_corpus_median_where_it_was():
     """A refusal must cost nothing in score. If it does, something was fitted.
 
-    Re-baselined 2026-09-27 (16.5, was 18.5-19.0) after the saturating branch's
-    load-sharing exponent was corrected in `models/luo_dornfeld`. ⚠ This
-    assertion uses `statistics.median`; the project's HEADLINE median is the
-    upper median `sorted(errors)[n//2]` (18.2), and the two differ by ~1.7
-    points on this corpus. Do not copy either number between conventions.
+    ⚠ Re-expressed 2026-09-27 on the HEADLINE convention. This previously
+    asserted `statistics.median` in a 16.2-16.8 band, and it broke when a new
+    dataset entered the corpus WITHOUT changing any refusal: n went 46 -> 47,
+    even to odd, so the symmetric median stopped averaging the two middle
+    values and jumped to the upper one (16.5 -> 18.2). That is arithmetic
+    about the corpus SIZE, not a cost paid by any refusal, and it is exactly
+    the failure this test exists to detect -- so asserting it that way made
+    the guard fire on the one thing it is not about.
+
+    The upper median `sorted(errors)[n//2]` (the project's headline, and what
+    README and score_report quote) does not have a parity discontinuity, so it
+    is the right statistic for an invariance claim. Do not copy numbers
+    between the two conventions; they differ by ~1.7 points here.
     """
-    import statistics
     from cmp_sim.core.predictive_score import score_all
 
-    scores = [s for s in score_all() if s.shape_mape is not None]
-    median = statistics.median(s.shape_mape for s in scores)
-    assert 16.2 <= median <= 16.8, median
+    errs = sorted(s.shape_mape for s in score_all() if s.shape_mape is not None)
+    median = errs[len(errs) // 2]
+    assert 17.9 <= median <= 18.5, median
 
 
 # ── the scan itself, so the next wiring fault cannot be silent ───────────

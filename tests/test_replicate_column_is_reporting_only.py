@@ -55,8 +55,8 @@ MEDIAN_LOO = 21.3  # moved by the W passivation threshold (physics), 2026-09-26
 #: and the strict `<` counted it as a win, afterwards at exactly 0.0 and it did
 #: not. A comparison decided at 1e-15 is not a claim anyone should rely on
 #: either way -- it is back in the count now for a reason unrelated to that tie.
-BEATS_MEAN = 36
-SCORED = 46
+BEATS_MEAN = 37  # 36 -> 37: the corpus gained a dataset (2026-09-27), not a behaviour
+SCORED = 47      # 46 -> 47: us9422456b2_teos_silica_dilute_loading added 2026-09-27
 
 
 def _accuracy_json():

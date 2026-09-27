@@ -1,0 +1,214 @@
+# Blanket TEOS oxide CMP — a DILUTE abrasive-LOADING ladder (0.5 / 1 / 2 / 3 wt%)
+# measured TWICE, at 4.0 and 5.0 psi, with everything else held fixed.
+#
+# WHY THIS DATASET WAS ADDED — it is the declared exit condition of docs/limits.md §29
+# -----------------------------------------------------------------------------------
+# §29 refused the load-sharing-onset term `chi(theta) = 1 - exp(-theta)` — a term
+# with ZERO free constants that repairs the corpus's binding dataset from 18.2%
+# to 1.9% — because the only evidence bearing on it was dilute: every theta < 1
+# pair in the corpus came from ONE patent's diamond series at 0.01-0.04 wt%.
+# The refusal was therefore "this corpus has no evidence", not "the physics is
+# wrong", and `test_the_dilute_evidence_rests_on_a_single_dataset` was written to
+# FAIL the moment a second dilute ladder from a different abrasive system arrived.
+#
+# This file is that second system: COLLOIDAL SILICA, not diamond; oxide, not W;
+# a different applicant's example table; and low enough in solids (0.5 wt% of a
+# 54 nm particle) to reach the regime the derivation makes a claim about.
+#
+# ⚠ WHAT THIS FILE DOES **NOT** DO. It does not vindicate §29. Whether it
+#   reopens or re-confirms the refusal is decided by re-running the probe
+#   against it, not by the fact that it exists. Recording that here because the
+#   dataset was sourced BY someone looking for a specific answer, and that is
+#   exactly the condition under which a corpus quietly becomes self-serving.
+#
+# THE NON-PRESTONIAN CORNER IS AT THE DILUTE END, AND IT IS KEPT
+# --------------------------------------------------------------
+# Rate ratio from 4.0 -> 5.0 psi, per loading (Preston predicts 1.25x throughout):
+#
+#     0.5 wt%   1350 ->  900   (0.67x)   <-- rate FALLS as down-force rises
+#     1.0 wt%   2300 -> 2500   (1.09x)
+#     2.0 wt%   2800 -> 3700   (1.32x)
+#     3.0 wt%   2950 -> 4050   (1.37x)
+#
+# The 0.5 wt% inversion is the only one in the table and it sits exactly where a
+# load-sharing-onset term makes its claim: too few particles inside the real
+# contact to carry the extra load, so raising the pressure drives pad-wafer
+# contact rather than abrasion. That is a PREDICTION of the refused term, which
+# makes this row the most informative single measurement in the file — and also
+# the one most easily disposed of as "an outlier". It is kept, and any scoring
+# that improves by dropping it must say so.
+#
+# The patent's own prose does not comment on the inversion; it reads the table
+# only as "high removal rates at very low concentrations" (quoted below). So the
+# inversion is a fact of the printed table, not an interpretation borrowed from
+# the authors.
+
+source: >
+  US 9,422,456 B2 (Cabot Microelectronics Corp., now CMC Materials LLC),
+  "Colloidal silica chemical-mechanical polishing composition", granted
+  2016-08-23, priority 2014-06-25. Inventors Grumbine, Dysard, Shen, Cavanaugh.
+  Numbers taken from: EXAMPLE 1, TABLE 1 — columns "Solids (percent)",
+  "Down-force (psi)" and "TEOS Polishing Rate (Å/min)", compositions 1A-1D.
+  PRINTED TABLE, not a digitized figure.
+
+  Read from the full text cached at
+  ~/fab-sim/papers/patents/US9422456B2.html (tags stripped; Table 1 occupies
+  lines 1655-1695 of the flattened text). Verified value-by-value against that
+  text in this session, not copied from a summary.
+
+  Composition (Example 1 text, verbatim): "Each of the polishing compositions
+  included colloidal silica abrasive particles having a core shell structure in
+  which a hydrolyzed or partially hydrolyzed aminopropyl trialkoxysilane (an
+  aminosilane) was incorporated in the shell... The colloidal silica abrasive
+  particles had a mean particle size of 54 nm. Four polishing compositions were
+  prepared. These compositions included 0.5 wt % of the colloidal silica (1A),
+  1.0 wt % of the colloidal silica (1B), 2.0 wt % of the colloidal silica (1C),
+  and 3.0 wt % of the colloidal silica (1D). In each polishing composition the
+  pH was adjusted to and buffered at a value of 4.7 using acetic acid."
+
+  Process (Example 1 text, verbatim): "The TEOS polishing rates were obtained by
+  polishing 200 mm (about 8 inch) diameter wafers having a TEOS layer using a
+  Mirra® CMP tool (available from Applied Materials) and an IC1010 polishing pad
+  at down-forces of 4.0 and 5.0 psi, a platen speed of 100 rpm, and a slurry
+  flow rate of 150 ml/min."
+
+  The patent's own reading of the table: "high TEOS removal rates can be
+  achieved using polishing compositions having very low concentrations of
+  colloidal silica abrasive particles."
+
+  ⚠ EXCLUDED FROM THIS FILE: the Table 1 "Control" row (12.5 wt%, 5 psi,
+  4100 Å/min). That control is Semisperse® SS25, a FUMED silica — a different
+  abrasive morphology from the 54 nm core-shell colloidal particle used in
+  1A-1D. Including it would put an abrasive swap inside a loading ladder and
+  silently attribute a morphology change to concentration. It is a control for
+  the patent's commercial claim, not a fifth point of this series.
+
+film: oxide
+pack: oxide_silica_aminosilane
+in_scope: true
+used_for_calibration: false
+
+# ⚠ CALIBRATION CONTACT DECLARED (self-scoring guard)
+#   This dataset is NOT held out from the pack in the strict sense and must not
+#   be presented as if it were. The pack `oxide_silica_aminosilane` was built
+#   from EXAMPLE 3 / TABLE 3 of THIS SAME PATENT (the 11-level pH sweep at
+#   3 wt%): ph_peak = 4.9, the pH bell width, and the acid/alkaline floors all
+#   come from that table. This file is Example 1, a DIFFERENT table measuring a
+#   DIFFERENT axis (loading, not pH) — but at pH 4.7, i.e. sitting inside the
+#   bell that was fitted to Example 3. The chemistry factor it receives is
+#   therefore near the fitted optimum by construction.
+#
+#   What that does and does not compromise:
+#     - The pH axis is NOT independently tested here. All four compositions are
+#       at one pH, so this file says nothing about the bell's shape.
+#     - The LOADING axis is untouched by that fit. `abrasive_conc_exponent` for
+#       this pack is inherited from `oxide_silica`, whose value was fitted to
+#       US9499721B2 — a different patent. No point of Example 1 entered it.
+#     - The absolute scale is NOT independent: kp_m_per_pa is inherited and
+#       already carries a disclosed mismatch flag in the pack.
+#   So the honest claim is: this is a held-out test of the LOADING RESPONSE
+#   inside a pre-fitted chemistry, and nothing more.
+calibration_contact:
+  - param: ph_peak
+    pack: oxide_silica_aminosilane
+    what: >
+      ph_peak (4.9), ph_width, and both pH floors of this pack were measured on
+      EXAMPLE 3 / TABLE 3 of the same patent (US9422456B2). Example 1 is a
+      separate table on a separate axis, but its single pH of 4.7 lies inside
+      that fitted bell, so the chemistry prefactor this file receives is not
+      independent of the pack. The loading exponent, which is what this file is
+      here to test, came from US9499721B2 and is independent.
+
+wafer_radius_m: 0.100     # 200 mm wafer, stated in the Example 1 text
+center_offset_m: 0.200    # Mirra platen; same value the sibling Example 3 file uses
+
+conditions:
+  # ---- 1A, 0.5 wt% --------------------------------------------------------
+  # ⚠ The 5 psi row here is LOWER than the 4 psi row (900 < 1350). Kept as
+  #   printed. See the header — this is the file's most informative row.
+  - label: "1A TEOS, 0.5 wt% silica, 4 psi"
+    pressure_psi: 4.0
+    rpm_platen: 100
+    mrr_a_per_min: 1350.0
+    read_method: table
+    flow_ml_min: 150
+    overrides:
+      abrasive_wt_pct: 0.5
+      abrasive_d50_nm: 54.0
+      slurry_ph: 4.7
+  - label: "1A TEOS, 0.5 wt% silica, 5 psi"
+    pressure_psi: 5.0
+    rpm_platen: 100
+    mrr_a_per_min: 900.0
+    read_method: table
+    flow_ml_min: 150
+    overrides:
+      abrasive_wt_pct: 0.5
+      abrasive_d50_nm: 54.0
+      slurry_ph: 4.7
+
+  # ---- 1B, 1.0 wt% --------------------------------------------------------
+  - label: "1B TEOS, 1.0 wt% silica, 4 psi"
+    pressure_psi: 4.0
+    rpm_platen: 100
+    mrr_a_per_min: 2300.0
+    read_method: table
+    flow_ml_min: 150
+    overrides:
+      abrasive_wt_pct: 1.0
+      abrasive_d50_nm: 54.0
+      slurry_ph: 4.7
+  - label: "1B TEOS, 1.0 wt% silica, 5 psi"
+    pressure_psi: 5.0
+    rpm_platen: 100
+    mrr_a_per_min: 2500.0
+    read_method: table
+    flow_ml_min: 150
+    overrides:
+      abrasive_wt_pct: 1.0
+      abrasive_d50_nm: 54.0
+      slurry_ph: 4.7
+
+  # ---- 1C, 2.0 wt% --------------------------------------------------------
+  - label: "1C TEOS, 2.0 wt% silica, 4 psi"
+    pressure_psi: 4.0
+    rpm_platen: 100
+    mrr_a_per_min: 2800.0
+    read_method: table
+    flow_ml_min: 150
+    overrides:
+      abrasive_wt_pct: 2.0
+      abrasive_d50_nm: 54.0
+      slurry_ph: 4.7
+  - label: "1C TEOS, 2.0 wt% silica, 5 psi"
+    pressure_psi: 5.0
+    rpm_platen: 100
+    mrr_a_per_min: 3700.0
+    read_method: table
+    flow_ml_min: 150
+    overrides:
+      abrasive_wt_pct: 2.0
+      abrasive_d50_nm: 54.0
+      slurry_ph: 4.7
+
+  # ---- 1D, 3.0 wt% --------------------------------------------------------
+  - label: "1D TEOS, 3.0 wt% silica, 4 psi"
+    pressure_psi: 4.0
+    rpm_platen: 100
+    mrr_a_per_min: 2950.0
+    read_method: table
+    flow_ml_min: 150
+    overrides:
+      abrasive_wt_pct: 3.0
+      abrasive_d50_nm: 54.0
+      slurry_ph: 4.7
+  - label: "1D TEOS, 3.0 wt% silica, 5 psi"
+    pressure_psi: 5.0
+    rpm_platen: 100
+    mrr_a_per_min: 4050.0
+    read_method: table
+    flow_ml_min: 150
+    overrides:
+      abrasive_wt_pct: 3.0
+      abrasive_d50_nm: 54.0
+      slurry_ph: 4.7

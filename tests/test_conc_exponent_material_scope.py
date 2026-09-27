@@ -78,17 +78,42 @@ def test_a_single_derived_third_covers_the_corpus():
 
 
 def test_the_dissenters_are_recorded_not_excluded():
-    """Every group outside the band must be a SiC row, and must be named.
+    """Every dissenter must be NAMED, and its direction must be accounted for.
 
-    If a dissenter ever appears on a film other than SiC, the "indentation-
-    limited on hard films" reading in the module comment is wrong and must be
-    rewritten rather than quietly widened.
+    This asserted "every dissenter is a SiC row", licensing the module
+    comment's "indentation-limited on hard films" reading. That failed in
+    2026-09 when a dilute colloidal-silica ladder on OXIDE (US9422456B2
+    Example 1) dissented -- and the honest reading is that the old claim was
+    over-general rather than that the new datum is an outlier.
+
+    The SIGN is what separates the two explanations, so it is asserted rather
+    than the film list. A supply/indentation dissenter is FLATTER than the
+    derived +1/3 (removal starved relative to the area law). The oxide
+    dissenter is STEEPER (+0.83), which is the load-sharing-onset direction of
+    docs/limits.md §30: at 0.5 wt% the contact is not full, so adding particles
+    buys more than the area law predicts. Two mechanisms, opposite signs, and
+    the module comment must not claim one covers both.
     """
     g = global_law_scope()
-    films = {str(r["film"]) for r in g["dissenters"]}
-    assert films <= {"sic"}, (
-        f"a non-SiC dissenter appeared ({films}); the module comment's regime "
-        "explanation no longer covers the data")
+    assert g["dissenters"], "no dissenters at all; the band claim is vacuous"
+    for r in g["dissenters"]:
+        film, m = str(r["film"]), float(r["m"])
+        if film == "sic":
+            continue
+        assert m > DERIVED_CONC_EXPONENT, (
+            f"a non-SiC dissenter on {film} is FLATTER than the derived "
+            f"exponent (m={m:+.2f}); that is the supply-limited direction on "
+            "a film the 'indentation on hard films' reading does not cover, "
+            "so the module comment is now wrong in a way this test cannot "
+            "excuse. Re-derive rather than widen the wording.")
+    steep = [r for r in g["dissenters"]
+             if str(r["film"]) != "sic" and float(r["m"]) > DERIVED_CONC_EXPONENT]
+    if steep:
+        why = DERIVED_CONC_EXPONENT_WHY
+        assert "NOT all SiC" in why and "§30" in why, (
+            "a steep non-SiC dissenter exists but DERIVED_CONC_EXPONENT_WHY "
+            "still tells the all-SiC story; the provenance string must name "
+            "the exception and where it is explained")
     assert "SiC" in DERIVED_CONC_EXPONENT_WHY
 
 
@@ -115,5 +140,20 @@ def test_derived_and_material_scoped_provenance_stay_distinct():
         "it is no longer a material property either")
     assert isinstance(DERIVED_CONC_EXPONENT, float)
     assert DERIVED_CONC_EXPONENT == pytest.approx(1.0 / 3.0)
-    for must in ("C**(1/3)", "Li 2021", "1.6x", "+0.06"):
+    for must in ("C**(1/3)", "Li 2021", "1.6x"):
         assert must in DERIVED_CONC_EXPONENT_WHY, must
+    # The saturation-falsification correlation is quoted in the provenance
+    # string, so it is RE-MEASURED here rather than pinned as a literal. A
+    # hard-coded "+0.06" went stale the moment a dataset was added, which made
+    # a true statement fail a test and invited editing the string to match a
+    # number nobody had recomputed.
+    corr = conc_range_scope().get("r")
+    assert corr is not None
+    assert f"{corr:+.2f}" in DERIVED_CONC_EXPONENT_WHY, (
+        f"the provenance string quotes a saturation correlation that is no "
+        f"longer what the corpus measures ({corr:+.2f}); re-run "
+        "tools/conc_derived_probe.py and update the claim")
+    assert corr > -0.3, (
+        f"the saturation correlation is now clearly negative ({corr:+.2f}), "
+        "which is the Langmuir signature the provenance string declares "
+        "falsified; the derived exponent's justification must be re-argued")

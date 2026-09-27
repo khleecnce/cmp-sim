@@ -226,13 +226,16 @@ def test_declaring_the_gaps_did_not_move_the_score():
 
     If this moves, something in this change was a fit dressed as a warning.
 
-    Re-baselined 2026-09-27 (16.5, was 18.5-19.0) after the saturating branch's
-    load-sharing exponent was corrected in `models/luo_dornfeld` — a different
-    change, which is allowed to move the median and did. ⚠ `statistics.median`
-    here; the headline median is the upper median (18.2). Different conventions.
+    ⚠ Re-expressed 2026-09-27 on the HEADLINE convention (upper median,
+    `sorted(errors)[n//2]`). It previously asserted `statistics.median` in a
+    16.2-16.8 band and broke when a new dataset entered the corpus without
+    touching any warning: n went 46 -> 47, even to odd, so the symmetric
+    median stopped averaging the two middle values and jumped to the upper one
+    (16.5 -> 18.2). A parity step in the statistic is not a fit, and a guard
+    against fitting must not fire on it. The upper median has no such step.
     """
     from cmp_sim.core.predictive_score import score_all
 
-    scores = [s for s in score_all() if s.shape_mape is not None]
-    median = statistics.median(s.shape_mape for s in scores)
-    assert 16.2 <= median <= 16.8, median
+    errs = sorted(s.shape_mape for s in score_all() if s.shape_mape is not None)
+    median = errs[len(errs) // 2]
+    assert 17.9 <= median <= 18.5, median
