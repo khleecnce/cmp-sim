@@ -17,6 +17,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 import numpy as np
 
+from cmp_sim.core.declined_axes import DECLINES_AXIS
 from cmp_sim.core.params import ParamMissing, ParamPack, load_pack
 from cmp_sim.core.state import Recipe, Result
 from cmp_sim.core.units import psi_to_pa
@@ -874,6 +875,30 @@ def simulate(recipe: Recipe) -> Result:
     notes.extend(rr.formulation_notes)
     warnings.extend(rr.formulation_warnings)
 
+    # A measured zeta potential is accepted, used by the colloidal-stability
+    # diagnostic, and reaches NO rate term. Without saying so the run is inert
+    # and mute on the axis, which reads as "the model weighed your zeta
+    # potential and it did not matter" -- and a scorer counts the flat response
+    # as a prediction. The refusal is a real physics position: |zeta| sets the
+    # electrostatic barrier, i.e. agglomeration and the large-particle tail, and
+    # the tail is read by the defect proxy, not by removal. Turning zeta into a
+    # rate multiplier would need a measured rate-vs-zeta series at fixed pH,
+    # which the corpus does not contain -- the one dataset publishing zeta has
+    # it as a single-valued function of pH (11 pH levels, 11 zeta values), so
+    # the axis is not even separable from the pH term already fitted.
+    if recipe.slurry.zeta_mv is not None:
+        warnings.append(
+            f"{DECLINES_AXIS}zeta_mv] the measured zeta potential "
+            f"({recipe.slurry.zeta_mv} mV) is read by the colloidal-stability "
+            "and defect-risk diagnostics and by NO removal-rate term, so the "
+            "predicted rate does not move with it. That is a position, not an "
+            "omission: zeta sets the electrostatic barrier, hence agglomeration "
+            "and the large-particle tail, and the tail is what scratches. "
+            "Unblocking it needs a rate-vs-zeta series at FIXED pH; in this "
+            "corpus zeta is a single-valued function of pH (us9422456b2: 11 pH "
+            "levels, 11 zeta values), so a fitted zeta term would be the pH "
+            "term under a second name.")
+
     # _abrasive_type_hook must precede _abrasive_hook: it rewrites the
     # concentration and size exponents to the ones scoped to the abrasive
     # actually in the recipe, which is what _abrasive_hook then reads.
@@ -938,12 +963,29 @@ def simulate(recipe: Recipe) -> Result:
                 f"slurry starvation profile applied with starvation length "
                 f"{float(rr.p('starvation_length_m')) * 1e3:.1f} mm: centre/edge "
                 f"supply weighting {weight[0]:.3f}/{weight[-1]:.3f}")
-        elif supply_state.starved:
+        else:
+            # No calibrated starvation length: the supply layer is a pure
+            # diagnostic and the RATE does not respond to slurry flow at all.
+            # That was true in every run ever scored and nothing said it in a
+            # machine-readable form, so the scorer counted a flow sweep
+            # (yang2023, 5 levels) as a prediction that happened to be flat --
+            # the §36 failure, recurring in the row-level axis space that
+            # `_varying_axes` did not look at.
             warnings.append(
-                "the wafer is slurry-starved but this pack has no calibrated "
-                "starvation_length_m, so NO radial correction was applied — the "
-                "profile below is the un-starved one and will look better than "
-                "reality at the centre")
+                f"{DECLINES_AXIS}flow_ml_min] slurry flow reaches the removal "
+                "rate ONLY through the radial starvation weighting, which "
+                "needs a calibrated starvation_length_m; no pack in this "
+                "repository declares one, because the length encodes groove "
+                "pattern and injection geometry and cannot be derived. So the "
+                "supply number, the lambda regime and the starvation risk are "
+                "reported, and the predicted rate does NOT move with flow. "
+                "Unblock it with a flow series at one pad, one slurry and one "
+                "P*V measuring removal rate against flow, which would give the "
+                "decay a length rather than only a direction."
+                + ("" if not supply_state.starved else
+                   " This run IS starved, so the profile below is the "
+                   "un-starved one and will look better than reality at the "
+                   "centre."))
 
     u = preston_model.uniformity(radius_m, mrr)
     mean_nm = float(u["mean"])

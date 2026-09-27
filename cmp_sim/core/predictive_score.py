@@ -280,6 +280,28 @@ def _replicate_scatter(rows: List[Dict[str, Any]]) -> Optional[float]:
     return 100 * sum(deviations) / len(deviations)
 
 
+#: Row-level keys that carry a PROCESS INPUT rather than bookkeeping or an
+#: observation. A validation row is a free-form mapping, so a dataset may sweep
+#: a quantity that lives straight on the row instead of under ``overrides:``.
+#: Those were invisible to this function for the whole life of the corpus, and
+#: therefore invisible to every filter that reads its output --
+#: ``Score.declined_axes_swept``, ``axis_error_census``,
+#: ``flat_prediction_census`` and ``inert_axis_scan``. That is how a corpus-wide
+#: "0 silent inert axes" verdict was reached without looking at a swept axis:
+#: ``yang2023`` varies slurry flow over 5 levels on the row.
+#:
+#: The list is a WHITELIST on purpose. Pattern-matching row keys would sooner or
+#: later treat a measured-rate column or an uncertainty as an axis, and a probe
+#: that perturbs the ANSWER reports nonsense confidently.
+ROW_LEVEL_AXES: Dict[str, str] = {
+    "flow_ml_min": "flow_ml_min",
+    "rpm_wafer": "rpm_wafer",
+    "rpm_head": "rpm_wafer",
+    "zeta_mv": "zeta_mv",
+    "temperature_c": "temperature_c",
+}
+
+
 def _varying_axes(rows: List[Dict[str, Any]]) -> List[str]:
     axes = []
     if len({r.get("pressure_psi") for r in rows}) > 1:
@@ -294,6 +316,14 @@ def _varying_axes(rows: List[Dict[str, Any]]) -> List[str]:
         values = {v for v in values if v is not None}
         if len(values) > 1:
             axes.append(key)
+    for key in sorted(ROW_LEVEL_AXES):
+        name = ROW_LEVEL_AXES[key]
+        if name in axes:
+            continue
+        values = {r.get(key) for r in rows}
+        values = {v for v in values if v is not None}
+        if len(values) > 1:
+            axes.append(name)
     return axes
 
 
@@ -334,6 +364,16 @@ def _recipe_for(doc: Dict[str, Any], row: Dict[str, Any]) -> Dict[str, Any]:
         tool["center_offset_m"] = doc["center_offset_m"]
     if row.get("flow_ml_min") is not None:
         tool["flow_ml_min"] = row["flow_ml_min"]
+    # A measured zeta potential is an INPUT the row carries, and it was being
+    # dropped here: `Slurry` has a `zeta_mv` field and `slurry/rheology.derive`
+    # reads it, but nothing put the row's value into the recipe, so the only
+    # dataset in the corpus that publishes zeta (us9422456b2, 10 levels) was
+    # never asking the model about it. Passing it does NOT move the rate -- the
+    # value reaches the colloidal-stability diagnostic only -- and that is the
+    # point: an axis must be able to be reported as declined, which requires
+    # the model to receive it first.
+    if row.get("zeta_mv") is not None:
+        slurry["zeta_mv"] = float(row["zeta_mv"])
 
     film = doc.get("film")
     if film in (None, "", "other"):
