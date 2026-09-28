@@ -4,6 +4,79 @@ All notable changes to CMP-Sim. Newest first.
 
 ## Unreleased
 
+### Fixed — the published median was computed on a DISPLAY rounding (2026-09-28)
+- **Every error number this repository has ever published was computed on a
+  removal rate quantised to 0.1 Å/min.** `StateResult.summary()` publishes
+  `round(mean_rr_angstrom_per_min, 1)` — correct for a JSON result a person
+  reads — and `cmp_sim/core/predictive_score._predict_with_gate` read that very
+  field. The relative size of the quantisation is set by the *magnitude* of the
+  rate: 3e-5 on a Cu block near 3000 Å/min, and up to **1.45% per row** on
+  4H-SiC, which is chemically inert and polishes at a few Å/min
+  (`sic_ceria_h2o2`'s slowest scored row predicts 3.44 Å/min).
+- Because the quantisation **does not scale with Kp**, it survived the shape
+  score's one free multiplicative scale per block — so a purely multiplicative
+  constant could move a statistic it is mathematically invariant to.
+  `sic_ceria_h2o2.kp_m_per_pa` moved four blocks' `shape_mape` by up to
+  **1.303 pp**; per-row ratios under a ×0.8 perturbation came back
+  0.8235 / 0.7895 / 0.8049 where `cu_h2o2_bta`'s ten blocks all return 0.8000.
+- `summary()` now also publishes `removal_rate_A_per_min_exact` at full
+  precision, and the scorer reads it (falling back to the rounded field, so an
+  older result stays scorable rather than becoming silently unscorable). The
+  rounded field is **unchanged**: it is right for its audience. After the fix
+  every shape delta under a Kp perturbation is **0.000 pp** on every pack.
+- **Median unchanged and asserted** — the SHAPE median, which is the headline:
+  published upper median 18.9%, held-out 19.5%, before and after. The
+  quantisation was symmetric noise on four SiC blocks, none at the centre of a
+  48-block distribution. Zero movement is the correct outcome for an honesty
+  fix, and the test says so.
+- **Leave-one-out moves 20.9% → 21.3%, and the direction matters**: the old
+  number was *flattered* by the rounding. The LOO-median block is the 4H-SiC
+  loading ladder at 3.44 Å/min; un-rounded its own LOO goes 20.90 → 21.32 and
+  it swaps rank with `us6564116b2_oxide_taguchi_L25` (21.28). §55's physics
+  gain is not withdrawn — both sides of that comparison were measured on the
+  same quantised scorer — but the absolute pin is.
+
+### Fixed — `beats_flat` decided exact ties on floating-point noise (2026-09-28)
+- Found by the same measurement. The baseline check that says whether the
+  physics contributed anything was `shape_mape < flat_mape`, a **strict
+  comparison with no margin** — and a flat block (§36) reproduces `flat_mape`
+  *exactly*, because the shape score's free scale fits its constant prediction
+  to the measured mean. Five blocks here agree to within 2e-14 (`bae2022`,
+  `hong2007`, `kenchappa2021`, `lee2021`, `phm2016`), so the published count
+  was being decided on float noise: un-rounding the rate flipped two of them
+  from `False` to `True` while neither score moved by 1e-9.
+- The repository's own test file had **described** this tie in a comment since
+  2026-09-27 and left it live. `beats_flat` now requires
+  `BEATS_FLAT_MARGIN_PP`, and a tie counts as **not** beating the mean: a block
+  that merely reproduces the mean has added nothing. Published count
+  **37 → 36**, now stable under the un-rounding instead of flipping with it.
+
+- `docs/limits.md` §57;
+  `tests/test_published_median_is_not_a_display_rounding.py` (27 pass), whose
+  arithmetic is pinned on synthetic numbers and whose per-pack Kp-invariance
+  check derives its pack list from the corpus at test time. Six mutations run,
+  six caught — including one that escaped the first draft because the guard
+  was a grep of the probe's source rather than a measurement of its behaviour.
+
+### Added — §56's largest class is now measured rather than inferred (2026-09-28)
+- `tools/quiet_constant_response_probe.py` takes the 35 constants §56 filed as
+  `untestable-no-sweep-in-reach` — decided from an *axis name mapping*, a proxy
+  — and answers the question directly: perturb the constant (§43 rules: both
+  directions, small factors first, largest response kept) and re-score the
+  held-out blocks in its reach through the **shipping** scorer. Does the
+  published number move?
+- That separates three states previously conflated: **19 `rate-inert`**
+  (nothing in reach consumes them — the §53/§17 class, unfalsifiable because
+  unreachable; 13 of them `sic_alumina_kmno4`, a pack standing on one source),
+  **14 `scale-only`** (the rate moves up to 60% and the shape score cannot see
+  it, *by the scorer's own construction* — this cannot be fixed by adding
+  data), and **0 `shape-testable`**: all three apparent members were the
+  rounding artefact above.
+- `tools/rate_quantisation_probe.py` re-scores every block against an
+  unrounded rate read from the result object, reporting each block's minimum
+  predicted rate and the quantisation it implies, so the reading can never be
+  quoted without the magnitude that produces it.
+
 ### Added — the orphan class §55 opened is now enumerable, and its next two members are priced and refused (2026-09-28)
 - `tools/departed_evidence_census.py` asks, of every live numeric pack
   constant, **whether anything in the scored corpus could still contradict

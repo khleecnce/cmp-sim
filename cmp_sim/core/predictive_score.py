@@ -85,6 +85,13 @@ ADDITIVE_OVERRIDES: Dict[str, Tuple[str, str, str]] = {
     "inhibitor_mM": ("benzotriazole", "inhibitor", "conc_mM"),
 }
 
+#: Margin, in percentage points, by which a block's shape error must BEAT the
+#: flat baseline to count as beating it. A flat block reproduces the baseline
+#: exactly (§36), so without a margin `beats_flat` decides a mathematical tie
+#: on floating-point noise. Two orders of magnitude below the smallest real
+#: gap in this corpus and many orders above the noise.
+BEATS_FLAT_MARGIN_PP = 1e-6
+
 
 @dataclass
 class Score:
@@ -175,10 +182,22 @@ class Score:
     @property
     def beats_flat(self) -> Optional[bool]:
         """Does the physics beat 'predict the average'? If not, it has added
-        nothing beyond a number someone could have guessed."""
+        nothing beyond a number someone could have guessed.
+
+        A FLAT block (§36) predicts one value for every row, so the shape
+        score's free scale fits that constant to the measured mean and
+        reproduces `flat_mape` EXACTLY. `shape < flat` then decides a
+        mathematical tie on floating-point noise, and the answer is whatever
+        the last arithmetic happened to round to: un-rounding the predicted
+        rate flipped two such blocks from False to True while neither score
+        moved by so much as 1e-9. A tie is not a win -- a block that only
+        reproduces the mean has added nothing -- so the comparison requires a
+        margin. The bar is far below any real difference (the smallest genuine
+        gap in this corpus is ~0.01 pp) and far above float noise.
+        """
         if self.shape_mape is None or self.flat_mape is None:
             return None
-        return self.shape_mape < self.flat_mape
+        return self.shape_mape < self.flat_mape - BEATS_FLAT_MARGIN_PP
 
     def as_dict(self) -> Dict[str, Any]:
         return {
@@ -446,7 +465,16 @@ def _predict_with_gate(
         result = run_recipe(_recipe_for(doc, row))
     except Exception:
         return None, None, set()
-    value = result.get("removal_rate_A_per_min")
+    value = result.get(
+        # The SCORER must read full precision. `removal_rate_A_per_min` is
+        # rounded to 0.1 A/min for display; on a block predicting a few A/min
+        # (4H-SiC) that is up to 1.45% per row, it does not scale with Kp, and
+        # it therefore leaks into the shape score -- which is defined to be
+        # invariant under any multiplicative rescaling of the predictions.
+        # Fall back to the rounded field so a result produced by an older
+        # summary is still scorable rather than silently unscorable.
+        "removal_rate_A_per_min_exact",
+        result.get("removal_rate_A_per_min"))
     value = None if value in (None, 0) else float(value)
     warns = result.get("warnings") or []
     gate = next((w for w in warns if "GATED" in w), None)

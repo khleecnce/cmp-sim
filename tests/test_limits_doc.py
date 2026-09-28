@@ -38,6 +38,14 @@ LIMITS = DOCS / "limits.md"
 #: Tests that enforce a decided refusal to predict. A test added here MUST be
 #: cited by docs/limits.md — that is the point of the registry.
 LIMIT_ENFORCING_TESTS = {
+    # §57 — the published median was computed on `round(rate, 1)`, a DISPLAY
+    # rounding in StateResult.summary() that predictive_score read. Invisible
+    # on Cu (~3000 A/min), up to 1.45% per row on 4H-SiC (a few A/min), and it
+    # does not scale with Kp, so a purely multiplicative constant could move a
+    # shape score the free scale makes it mathematically invariant to. Fixed
+    # with removal_rate_A_per_min_exact; median unchanged, which is asserted.
+    # Added deliberately.
+    "test_published_median_is_not_a_display_rounding.py",
     # §56 — §55's orphan class re-enumerated over EVERY pack: 2 more constants
     # whose cited evidence is scored under another pack and which nothing in
     # reach can refute. §55's repair (withdraw the fit, let the derivation act)

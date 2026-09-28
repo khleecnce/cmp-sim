@@ -2616,3 +2616,151 @@ So §55's adoption rule is applied in its mirror image: a derived value is adopt
 **Enforced by** `tests/test_departed_evidence_orphans_are_priced_and_refused.py`, every number re-measured at run time. An instrument control requires the census to recover a known departed citation and to find at least one *testable* constant, so a broken reach or axis map cannot report a clean bill of health; a non-vacuity guard fails if the reference-condition exemption ever swallows an orphan; the declared-cross-system filter is asserted non-empty, so it cannot be inverted silently; and both packs' notes are checked on the string the **parameter loader** returns, not on the file text, because a `note: >` block wraps on disk (§52).
 
 **What would resolve it.** Per constant, and each its own failing assertion: for W, an `abrasive:` declaration on `bouvet2002_w_silica_size_sweep` *plus* an alumina W size sweep — this pack's declared reference abrasive; for Cu, a size sweep in the benzenesulfonic chemistry itself. More generally, the orphan set is pinned by name, so a constant joining or leaving it fails loudly: joining means a new instance needing its own pricing, leaving means a repair that must be recorded. Deliberately **not** a gate on completion.
+
+---
+
+## 57. The published median was computed on a DISPLAY rounding, and a purely multiplicative constant could move a shape score
+
+**How it was found.** Not by looking for it. §56 left 35 constants classified
+`untestable-no-sweep-in-reach` — home evidence intact, but no scored held-out
+block in reach sweeping the axis they govern — and called that a question
+rather than a bug list. The 59th run answered it the only honest way: the
+census decided "testable" from an *axis name mapping*, which is a proxy, so
+`tools/quiet_constant_response_probe.py` perturbs each constant (§43 rules:
+both directions, small factors first, largest response kept) and re-scores the
+held-out blocks in its reach through the **shipping** scorer, asking whether the
+published number moves.
+
+That separates three states that had been one: `rate-inert` (nothing consumes
+it — the §53/§17 class, unfalsifiable because unreachable), `scale-only` (the
+rate moves and the shape score cannot see it), and `shape-testable` (a census
+false negative). And one row of the answer was **arithmetically impossible**.
+
+**The measurement.** `kp_m_per_pa` multiplies every predicted rate in a block by
+one factor, and the shape score fits one free multiplicative scale per block
+(`predictive_score.score_dataset`), so `shape_mape` must be *exactly* invariant
+under a change of Kp. On `sic_ceria_h2o2` it moved up to **1.303 pp**, and
+`ph_response_width` and `ph_peak` on the same pack moved 3.452 pp and 0.638 pp.
+Per-row ratios under a x0.8 perturbation came back 0.8235 / 0.7895 / 0.8049
+where `cu_h2o2_bta`'s ten blocks all return 0.8000 to four decimals.
+
+The cause is not physics. `StateResult.summary()` publishes
+`round(mean_rr_angstrom_per_min, 1)` — a display rounding, correct for a JSON
+result a person reads — and `predictive_score._predict_with_gate` read that very
+field. **Every error number this repository has ever published was computed on a
+rate quantised to 0.1 Å/min.** The relative size of that quantisation is set by
+the magnitude of the rate, so it is 3e-5 on a Cu block near 3000 Å/min and
+invisible; 4H-SiC is chemically inert and polishes at a few Å/min, and this
+pack predicts 3.44 Å/min at its slowest row, where half a grid step is
+**1.45% per row**. Because the quantisation does not scale with Kp, it survives
+the scorer's free scale — which is exactly how a purely multiplicative constant
+came to change the *shape* of a predicted trend.
+
+`tools/rate_quantisation_probe.py` measures every scored block both ways. Four
+blocks move by more than 0.01 pp, all four `sic_ceria_h2o2`, worst
+−0.336 pp (`su2011_procengr_6hsic_alumina_abrasive_conc`, 13.975 → 14.312%).
+
+**The repair.** `summary()` gains `removal_rate_A_per_min_exact` carrying full
+precision; the rounded field is unchanged, because it is right for its purpose.
+The scorer reads the exact field, falling back to the rounded one so an older
+result stays scorable rather than becoming silently unscorable. After the fix
+every shape delta under a Kp perturbation is **0.000 pp** on every pack, and
+`shape-testable` empties: all three of its members were this artefact.
+
+**A second defect fell out of the same measurement, and it is the sharper
+one.** `beats_flat` — the baseline check that says whether the physics
+contributed anything at all — was `shape_mape < flat_mape`, a **strict
+comparison with no margin**. A FLAT block (§36) predicts one value for every
+row, so the shape score's free scale fits that constant to the measured mean
+and reproduces `flat_mape` *exactly*: five blocks in this corpus agree to
+within 2e-14 (`bae2022`, `hong2007`, `kenchappa2021`, `lee2021`, `phm2016`).
+The published count was therefore being decided on floating-point noise, and
+un-rounding the rate flipped two of them from `False` to `True` while neither
+score moved by so much as 1e-9. The repository's own test file had *described*
+this tie in a comment since 2026-09-27 ("a comparison decided at 1e-15 is not a
+claim anyone should rely on either way") and left it live. It now requires
+`BEATS_FLAT_MARGIN_PP`, and a tie counts as **not** beating the mean, which is
+the only defensible reading: a block that merely reproduces the mean has added
+nothing. Published count **37 → 36**, and it is now stable under the
+un-rounding rather than flipping with it.
+
+**The leave-one-out median moved, and the direction matters: 20.9% → 21.3%,
+i.e. the old number was FLATTERED by the rounding.** The block holding the LOO
+median is `su2011_procengr_6hsic_alumina_abrasive_conc`, 4H-SiC at 3.44 Å/min;
+un-rounded its own LOO goes 20.90 → 21.32 and it swaps rank with
+`us6564116b2_oxide_taguchi_L25`, which then holds the median at 21.28. §55's
+physics gain is **not** withdrawn — both sides of that comparison were measured
+on the same quantised scorer, so it stands — but the absolute pin does move.
+The shape median is 18.9% either way, because no SiC block sits at its centre.
+**The SHAPE median is unchanged, and that is asserted.** Published upper
+median **18.9%** before and after; held-out **19.5%** before and after.
+The quantisation was symmetric noise on four SiC blocks, none of which sits at
+the centre of a 48-block distribution, so the headline cannot move — and a later
+session reading that zero as failure and "improving" it is the failure mode the
+test exists to stop.
+
+**The refit rejected.** Deleting the rounding from `summary()`. The rounded
+field is the right answer for a human-readable JSON result and for the CLI, and
+removing it would trade a scoring defect for a presentation one; the two
+audiences want different things from the same number, so the summary publishes
+both and names which is which.
+
+**The generalisation.** *A number computed for a HUMAN and a number computed
+ON are different numbers, and a single field serving both is a silent
+precision contract.* Nothing failed here for the life of the repository,
+because nothing compared the two — the same shape as §31's hard-coded UI
+groove pitch, one layer down and on the answer rather than on an input. Ask of
+any published quantity which of its readers *computes* on it, and whether its
+formatting was chosen for them.
+
+Second: **when a probe returns an impossible row, the probe is not necessarily
+wrong.** The instinct is to fix the instrument. The rows that were impossible
+were impossible against a derivation (Kp is multiplicative; the scorer fits a
+scale), and that derivation was sound — so the impossibility belonged to
+something both the probe and the scorer trusted.
+
+Third, and the one with teeth: **a defect that has been DESCRIBED is not a
+defect that has been fixed.** The `beats_flat` tie was written down in a test
+file comment a day earlier, correctly diagnosed ("a comparison decided at 1e-15
+is not a claim anyone should rely on either way"), and left live — the session
+that found it updated the pin and moved on. A comment is not a guard. When a
+reading is discovered to rest on noise, change the comparison; if that is not
+done in the same pass, the next session inherits a documented defect and a
+green suite, which is worse than an undocumented one because the documentation
+reads as a decision.
+
+**Enforced by** `tests/test_published_median_is_not_a_display_rounding.py`
+(27 pass). The arithmetic of the defect is pinned on **synthetic** numbers —
+scale invariance holds exactly, quantisation breaks it, and the breakage is
+>100x larger at SiC scale than at Cu scale — so the motivation cannot expire
+with the corpus. The physics claim is re-measured on the real corpus **per
+pack**, with the pack list derived from the datasets at test time so a new pack
+is checked with no test edit, and a skip rather than a silent pass where a pack
+declares no numeric Kp. The `beats_flat` margin is checked from both sides: a
+tie and a 1e-15 nudge must both read `False`, a real 1 pp gap must read `True`,
+and the margin is required to sit two orders below the smallest real gap in the
+corpus *and* above every remaining exact tie — with a non-vacuity guard, since
+a corpus containing no flat block would make the check pass for free. Six
+mutations run against the suite and all six are **caught**: reverting the
+scorer to the rounded field, deleting the exact
+field, removing the `beats_flat` margin, inflating that margin until it decides
+real comparisons, leaving the quiet probe a single large one-sided factor,
+collapsing its
+classifier to one answer, and making the quantisation probe itself read a
+rounded value. The last of these escaped a first draft that asserted the probe's
+source text contained the right attribute name — a grep is not a measurement,
+and a probe reading a rounded value would have reported "no quantisation
+anywhere", a clean bill of health nothing else here would contradict. It is now
+asserted behaviourally: the rates the probe reads must not all sit on the
+published 0.1 Å/min grid.
+
+**What would resolve it.** Nothing — this is a fixed defect, not a standing
+limit, and it is recorded so the reasoning survives. The live question it came
+from is still open and is **deliberately not a gate**: 19 constants are
+`rate-inert` (nothing in reach consumes them; 13 of those are
+`sic_alumina_kmno4`, whose whole pack stands on one source) and 14 are
+`scale-only` — reachable, but invisible to the headline median *by the
+scorer's own construction*, since one free scale per block is what makes the
+score a trend measure. That second class cannot be fixed by adding data. It
+would take a held-out block whose **absolute** rate is comparable (§34's scale
+audit, not the shape median) for a Kp to be gradeable at all.

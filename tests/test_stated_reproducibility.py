@@ -42,9 +42,13 @@ KNOWN_KINDS = MEASUREMENT_KINDS | UNQUANTIFIED_KINDS | {"transcription_floor"}
 
 #: the corpus medians this pass must NOT move (it transcribes, it does not fit)
 MEDIAN_SHAPE = 18.9  # 18.2 -> 18.9: DLC ladder entered, counting-position shift (§31)
-MEDIAN_LOO = 20.9  # 21.3 -> 20.9: 2026-09-28 (§55), the orphaned fitted
+MEDIAN_LOO = 21.3  # 21.3 -> 20.9: 2026-09-28 (§55), the orphaned fitted
                    # `abrasive_conc_exponent` withdrawn from `sic_ceria_h2o2` so
                    # the derived n_C = p*(1-alpha*chi) acts. Physics, not a refit.
+                   # 20.9 -> 21.3: 2026-09-28 (§57), the scorer stopped reading
+                   # a display rounding (`round(rate, 1)`), which was flattering
+                   # the 4H-SiC block that held the LOO median (3.44 A/min at
+                   # its slowest row = 1.45% per row of quantisation).
 
 
 @pytest.fixture(scope="module")

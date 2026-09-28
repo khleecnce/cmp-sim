@@ -207,6 +207,18 @@ class Result:
             "model": self.model,
             "film": self.film,
             "removal_rate_A_per_min": round(self.mean_rr_angstrom_per_min, 1),
+            # FULL PRECISION, for anything that COMPUTES on the rate rather
+            # than displaying it. `removal_rate_A_per_min` is rounded to 0.1
+            # A/min for human reading, and that is correct for a JSON result a
+            # person opens -- but the validation scorer read the same field, so
+            # every published error number was computed on a quantised rate.
+            # The relative size of that quantisation is set by the MAGNITUDE of
+            # the rate: 3e-5 on a Cu block near 3000 A/min, and up to 1.45% per
+            # row on 4H-SiC, which polishes at a few A/min. Because it does not
+            # scale with Kp, it let a purely multiplicative constant appear to
+            # change the SHAPE of a predicted trend, which the one-free-scale
+            # shape score must be invariant to. See tools/rate_quantisation_probe.py.
+            "removal_rate_A_per_min_exact": self.mean_rr_angstrom_per_min,
             "removal_rate_nm_per_min": round(self.mean_rr_nm_per_min, 3),
             "wiwnu_percent": (None if self.wiwnu_percent is None
                               else round(self.wiwnu_percent, 3)),

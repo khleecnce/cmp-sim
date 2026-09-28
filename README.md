@@ -240,9 +240,11 @@ points on whichever axis each dataset varies:
 | pH | 15 | 25.3% |
 | velocity | 6 | 38.8% |
 
-**Overall: median 18.9% shape error, 20.9% leave-one-out**, over 48 of 52
-datasets and 440 measured points. 37 of 48 beat "predict this dataset's
+**Overall: median 18.9% shape error, 21.3% leave-one-out**, over 48 of 52
+datasets and 440 measured points. 36 of 48 beat "predict this dataset's
 average" — the baseline that says whether the physics contributed anything.
+(36, not 37: five blocks reproduce that baseline *exactly*, and a tie is not a
+win. See `docs/limits.md` §57.)
 
 > The corpus now has an **even** number of scored datasets, so the two usual
 > median conventions no longer coincide: 18.9% taking the upper of the two

@@ -39,13 +39,24 @@ from cmp_sim.core.validation import dataset_paths
 MEDIAN_SHAPE = 18.9  # 18.2 -> 18.9: 2026-09-27, us20230081442a1 DLC ladder entered
                      # (counting-position shift, not a regression — see §31 and
                      # the matching note in test_scale_column_is_reporting_only)
-MEDIAN_LOO = 20.9  # 21.3 (W passivation threshold, physics, 2026-09-26)
+MEDIAN_LOO = 21.3  # 21.3 (W passivation threshold, physics, 2026-09-26)
                    # 21.3 -> 20.9: 2026-09-28 (§55), withdrawing the ORPHANED
                    # fitted `abrasive_conc_exponent` from `sic_ceria_h2o2` so the
                    # engine's derived n_C = p*(1-alpha*chi) acts. A CONSTANT WAS
                    # DELETED, not refitted, and 0 blocks got worse. Physics, so
                    # the pin moves; the shape median is unchanged at 18.9 because
                    # no middle dataset moved (§26: it is a counting statistic).
+                   # 20.9 -> 21.3: 2026-09-28 (§57). The 20.9 was FLATTERED by a
+                   # display rounding: the scorer read `round(rate, 1)`, and the
+                   # block that held the LOO median is 4H-SiC predicting 3.44
+                   # A/min at its slowest row, where half a grid step is 1.45%.
+                   # Un-rounded, `su2011_procengr_6hsic_alumina_abrasive_conc`
+                   # scores 20.90 -> 21.32 on its own LOO and swaps rank with
+                   # `us6564116b2_oxide_taguchi_L25`, which then holds the
+                   # median at 21.28. §55's physics gain is NOT withdrawn -- it
+                   # was measured on the same quantised scorer both sides, so
+                   # the comparison stands; what moves is the absolute pin.
+                   # The shape median is unchanged at 18.9 either way.
 #: 36 since 2026-09-28, up from 34, and the two additions are a REAL gain, not
 #: a relabelling: withdrawing `abrasive_conc_half_wt_pct` from every pack that
 #: carried a value moved `jani2025_cu_rsm_composition_heldout` (49.6% -> 47.9%)
@@ -63,10 +74,21 @@ MEDIAN_LOO = 20.9  # 21.3 (W passivation threshold, physics, 2026-09-26)
 #: and the strict `<` counted it as a win, afterwards at exactly 0.0 and it did
 #: not. A comparison decided at 1e-15 is not a claim anyone should rely on
 #: either way -- it is back in the count now for a reason unrelated to that tie.
-BEATS_MEAN = 37  # unchanged across the 2026-09-27 DLC addition: the new dataset
+BEATS_MEAN = 36  # unchanged across the 2026-09-27 DLC addition: the new dataset
                  # does NOT beat its own mean, so the corpus grew without the
                  # count growing — which is what a genuinely held-out ladder
                  # scoring 36.4% should look like.
+                 # 37 -> 36: 2026-09-28 (§57). The tie described in the note
+                 # above was finally FIXED rather than re-described. Five flat
+                 # blocks reproduce `flat_mape` to within 2e-14, so the strict
+                 # `shape < flat` was deciding them on float noise: un-rounding
+                 # the predicted rate flipped two of them (bae2022,
+                 # phm2016) from False to True while neither score moved by
+                 # 1e-9. `beats_flat` now requires BEATS_FLAT_MARGIN_PP, and a
+                 # tie correctly counts as NOT beating the mean — a block that
+                 # only reproduces the mean has added nothing. The three
+                 # remaining exact ties (hong2007, kenchappa2021, lee2021) were
+                 # already outside the count and stay outside it.
 SCORED = 48      # 47 -> 48: us20230081442a1_dlc_zirconia_dilute_loading, 2026-09-27
 
 
