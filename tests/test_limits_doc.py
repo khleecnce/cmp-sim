@@ -38,6 +38,12 @@ LIMITS = DOCS / "limits.md"
 #: Tests that enforce a decided refusal to predict. A test added here MUST be
 #: cited by docs/limits.md — that is the point of the registry.
 LIMIT_ENFORCING_TESTS = {
+    # limit 52: §51's rule applied once more. §49's "these packs sweep the
+    # oxidizer at one level or not at all" is FALSE -- four >=3-level ladders
+    # exist -- but every one is MONOTONE, so none can anchor a peak SHAPE
+    # constant. The decision stands for a stronger, measured reason, and the
+    # exit condition moves from a level count to interior bracketing.
+    "test_absent_data_claim_expires_but_decision_stands.py",
     # limit 51: §50's rule has a third instance (a MAGNITUDE this time), and
     # the refusal's own exit condition ("no such sweep has been located") had
     # already fired INSIDE the corpus -- two alkaline Cu/BTA H2O2 ladders give

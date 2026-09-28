@@ -1,0 +1,111 @@
+# §49's "no such sweep exists" claim, RE-RUN instead of re-read
+#
+# WHY THIS FILE EXISTS
+# --------------------
+# docs/limits.md §51 produced a rule: an exit condition that asserts the
+# ABSENCE of data is itself a MEASUREMENT, and it expires, because the corpus
+# grows and the sentence does not.  §51 found one such sentence false.  This
+# file is the result of applying that rule ONCE MORE, to the next sentence of
+# the same family, in §49:
+#
+#     "both packs' corpora sweep the oxidizer at one level or not at all, so
+#      the experiment needed is a >=3-level oxidizer sweep on those
+#      chemistries"
+#
+# about `cu_alkaline_benzenesulfonic` and `w_fe_oxidizer` -- the two packs that
+# declare `oxidizer_peak_wt_pct` but no `oxidizer_peak_shape_K`, which §49
+# measured as reaching the rate 0.000%.
+#
+# Measured by tools/absent_data_claim_reaudit_probe.py.
+
+claim_under_test: >
+  Neither cu_alkaline_benzenesulfonic nor w_fe_oxidizer has a >=3-level
+  oxidiser sweep in the scored corpus, so the experiment needed to anchor
+  oxidizer_peak_shape_K does not exist here.
+
+verdict_on_the_sentence: FALSE
+
+enumeration:
+  # Every scored dataset under the two packs that varies oxidizer_wt_pct.
+  # Replicates at one level are collapsed to their mean BEFORE asking about
+  # shape -- otherwise within-level scatter reads as curvature.
+  cu_alkaline_benzenesulfonic:
+    - dataset: us20110165777a1_cu_h2o2_series
+      levels_wt_pct: [1, 3, 5, 7]
+      level_means_nm_per_min: [16.0, 15.8, 15.4, 15.7]
+      used_for_calibration: true
+      ph: 11.1
+      interior_maximum: false
+    - dataset: us9200180b2_cu_h2o2_series
+      levels_wt_pct: [0, 1, 2.5, 5]
+      level_means_nm_per_min: [20.8, 11.8, 9.2, 7.7]
+      used_for_calibration: false
+      ph: [8.5, 10.2]          # CONFOUNDED: pH falls as H2O2 rises
+      interior_maximum: false
+    - dataset: us9200180b2_cu_abrasive_series
+      levels_wt_pct: [1]
+    - dataset: us9200180b2_cu_benzenesulfonic_series
+      levels_wt_pct: [5]
+    - dataset: us9200180b2_cu_ph_alkaline_sweep
+      levels_wt_pct: [1]
+  w_fe_oxidizer:
+    - dataset: us8070843b2_w_h2o2_series
+      levels_wt_pct: [0, 2.03, 4.06, 4.07, 6.1]
+      level_means_nm_per_min: [9.6, 150.8, 239.6, 241.0, 296.5]
+      used_for_calibration: false
+      interior_maximum: false
+    - dataset: us20110186542a1_w_diamond_h2o2_ph
+      levels_wt_pct: [0, 1, 3]
+      level_means_nm_per_min: [33.92, 150.0, 236.4]
+      used_for_calibration: true
+      ph: [3, 6]               # CONFOUNDED
+      interior_maximum: false
+    - dataset: ep3161098b1_w_silica_pressure_sweep
+      levels_wt_pct: [2]
+
+what_the_enumeration_shows: >
+  FOUR >=3-level oxidiser ladders exist across the two packs -- one of them
+  five levels and held out (us8070843b2).  The sentence claimed there were
+  none.  Same failure as §51: a sentence about the absence of data was quoted
+  forward across sessions instead of being re-executed.
+
+verdict_on_the_decision: STANDS -- and for a stronger reason than absence
+why: >
+  `oxidizer_peak_shape_K` is a PEAK SHAPE constant.  A ladder can anchor one
+  only if it BRACKETS an interior maximum: if the measured rate is monotone
+  across the whole swept range, no value of K places a peak inside it, so the
+  constant is unidentifiable from that ladder however many levels it has.
+  All four ladders are MONOTONE:
+
+    us20110165777a1  16.0 -> 15.8 -> 15.4 -> 15.7   (flat, span 1.04x)
+    us9200180b2      20.8 -> 11.8 ->  9.2 ->  7.7   (falling, pH confounded)
+    us8070843b2       9.6 -> 150.8 -> 239.6 -> 241.0 -> 296.5  (rising)
+    us20110186542a1  33.9 -> 150.0 -> 236.4         (rising, pH confounded)
+
+  Note the two packs' ladders point in OPPOSITE directions (Cu falling, W
+  rising), which is consistent with each pack's declared peak position sitting
+  outside its own measured window, and inconsistent with any single shared
+  shape constant.
+
+what_changed: >
+  The claim, not the constant.  "We have no data" becomes "the data we have
+  refuse to place a peak" -- a measured statement with a sharper exit
+  condition, and one that no longer decays into fact by being quoted.
+  No constant was added or changed; no pack value moved; no dataset entered or
+  left the corpus; the median is unchanged.
+
+corrected_exit_condition: >
+  An oxidiser sweep on an alkaline benzenesulfonic Cu slurry or on a W/Fe
+  system that BRACKETS ITS OWN MAXIMUM -- at least one level on each side of
+  the peak, so the maximum is strictly interior to the swept range -- with pH
+  held fixed across the ladder, and not already cited by one of that pack's
+  constants.  Level COUNT is not the requirement and never was; interior
+  bracketing is.
+
+general_rule: >
+  When re-running an "absence of data" claim (limits §51), ask what the
+  missing datum was FOR, not only whether something of the right shape exists.
+  §49 asked for ">=3 levels" as a proxy for "enough to fit a peak", and the
+  proxy is what went stale: four ladders satisfy the proxy and none satisfies
+  the purpose.  A re-audit that stops at the proxy would have reported the
+  axis reopened and sent the next session to fit a peak to monotone data.

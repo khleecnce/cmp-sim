@@ -801,3 +801,28 @@ All notable changes to CMP-Sim. Newest first.
   operation, slurry supply, polishing unit) open their intended drawer and
   drive the model (3 psi 1559.6 -> 6 psi 3119.1 A/min; WIWNU 0.0% at matched
   rpm, 23.7% at 120/30).
+
+## [P4] §52 — the next "no such data exists" claim is false too, and the decision survives for a stronger reason
+
+- Applied §51's rule once more, to §49's sentence: "both packs' corpora sweep
+  the oxidizer at one level or not at all". RE-RUN instead of re-read, the
+  corpus holds FOUR >=3-level oxidiser ladders under
+  `cu_alkaline_benzenesulfonic` and `w_fe_oxidizer` -- one five levels and
+  held out. The sentence is false.
+- The DECISION stands, for a better reason: `oxidizer_peak_shape_K` is a peak
+  SHAPE constant and all four ladders are MONOTONE (and the two packs' run in
+  opposite directions). A ladder that does not bracket an interior maximum
+  cannot anchor a peak at any level count. "We have no data" becomes "the
+  data we have refuse to place a peak".
+- The real lesson is the trap in the re-audit itself: "3+ levels" was a PROXY
+  for "enough to fit a peak", and the proxy is what went stale. Stopping at
+  the proxy would have reported the axis reopened and fitted a peak to
+  monotone data.
+- §49's stale sentence is struck through and marked in place, not deleted.
+- New: `tools/absent_data_claim_reaudit_probe.py`,
+  `research/absent_data_claim_reaudit.yaml`,
+  `tests/test_absent_data_claim_expires_but_decision_stands.py` (8 tests,
+  3 mutations verified to bite, including a detector control and an expiry
+  test that fires when a bracketing ladder appears).
+- **Zero constants, zero pack values, zero predictions changed; median
+  unchanged at 18.9% / 19.5% held out.**

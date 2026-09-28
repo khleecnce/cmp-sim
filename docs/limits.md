@@ -2180,7 +2180,7 @@ Moving the peak to 0.66–0.90 wt% "because that one is measured": priced above,
 
 **Enforced by** `tests/test_declared_peak_reaches_nothing_on_two_packs.py` (12 tests, 1 skip, all re-measured at run time): the corrected reason for the species gate is proved as **arithmetic** — both Langmuir branches are asserted monotone over 400 concentrations at six values of K, paired with a non-vacuity guard that the peaked form present in the engine does rise *and* fall, so the structural claim cannot pass on an engine with no peaked capability; the reach/inert split is measured through the shipping solver and must be explained by `oxidizer_peak_shape_K` in **both** directions (a reacher without the selector, or an inert pack with it, fails the stated mechanism); both halves must be non-empty, so the entry cannot pass vacuously once fixed; each inert pack carries §43's control and fails if *no* key moves it; an unreachable value may not carry `confidence: literature`, **and must say in its own note that it is inert** — which is how the `cu_alkaline_benzenesulfonic` mis-statement surfaced, and which fails if either note is trimmed or either value becomes live; the claim that the corpus *can* test the position is asserted first, so the refusal does not rest on an unfalsifiable claim of its own; the declared value must beat every measured alternative **and** the error must be monotone in distance, on at least two blocks; the pack constant is asserted unmoved and specifically not equal to any Lin & Du position (verified by mutation: setting it to 0.9 fails the suite); and the quoted peak positions are read from `research/cu_oxidizer_peak_position_evidence.yaml` rather than restated, so the test and its source record cannot drift apart.
 
-**What would resolve it.** The arithmetic half — that a key-level audit cannot see a per-pack reachability failure — is a property of how the two audits are posed, so no corpus change retires it; the same status as §45 and §48. The two specific dead declarations lift when either pack declares an `oxidizer_peak_shape_K`, which requires an anchor for a peak shape on an alkaline benzenesulfonic Cu slurry or on a W/Fe system — neither exists in the 247 publications indexed here, and both packs' corpora sweep the oxidizer at one level or not at all, so the experiment needed is a ≥3-level oxidizer sweep on those chemistries. The peak **position** on `cu_h2o2_bta` lifts from `literature`-graded-but-transplant-refused to derived when a published Cu H2O2 sweep brackets its own maximum (≥1 level below 0.5 wt%, ≥1 above 2 wt%) **and** discloses the chelator and inhibitor species and concentrations; then the competing-rates balance Lin & Du describe in prose becomes a function of declared quantities rather than a number copied between slurries. None of the three is a gate on completion.
+**What would resolve it.** The arithmetic half — that a key-level audit cannot see a per-pack reachability failure — is a property of how the two audits are posed, so no corpus change retires it; the same status as §45 and §48. The two specific dead declarations lift when either pack declares an `oxidizer_peak_shape_K`, which requires an anchor for a peak shape on an alkaline benzenesulfonic Cu slurry or on a W/Fe system — neither exists in the 247 publications indexed here, and ~~both packs' corpora sweep the oxidizer at one level or not at all, so the experiment needed is a ≥3-level oxidizer sweep on those chemistries~~ **(REFUTED IN PART by §52 — kept in place, not deleted. Re-running that enumeration instead of quoting it finds FOUR ≥3-level ladders under these two packs, one of them five levels and held out. The decision survives for a stronger reason: every one of them is MONOTONE, and a peak SHAPE constant is unidentifiable from a ladder that does not bracket an interior maximum, at any level count. The corrected exit condition is interior bracketing with pH held fixed, NOT a level count — see §52)**. The peak **position** on `cu_h2o2_bta` lifts from `literature`-graded-but-transplant-refused to derived when a published Cu H2O2 sweep brackets its own maximum (≥1 level below 0.5 wt%, ≥1 above 2 wt%) **and** discloses the chelator and inhibitor species and concentrations; then the competing-rates balance Lin & Du describe in prose becomes a function of declared quantities rather than a number copied between slurries. None of the three is a gate on completion.
 
 ## 50. A single-sourced structural refusal named a MECHANISM, and the mechanism is transferable — the second source has it and does not have the effect
 
@@ -2338,3 +2338,84 @@ Cu/BTA slurry with **pH held fixed across the ladder**, published independently
 of those two and not already cited by one of this pack's constants. That would
 supply an alkaline-branch oxidiser constant and replace the gate with a
 prediction. It is deliberately **not** a gate on completion.
+
+---
+
+## 52. §51's rule applied once more: the next "no such data exists" claim is false too — and the decision it guards survives for a *stronger*, measured reason
+
+**Where this came from.** §51 produced a cheap audit: an exit condition that
+asserts the **absence** of data is itself a measurement, and it expires, because
+the corpus grows and the sentence does not. The next sentence of that family
+sits in §49, about the two packs that declare `oxidizer_peak_wt_pct` but no
+`oxidizer_peak_shape_K` — so their declared peak position reaches the rate
+0.000 %:
+
+> "both packs' corpora sweep the oxidizer at one level or not at all, so the
+> experiment needed is a ≥3-level oxidizer sweep on those chemistries"
+
+**Re-run, not re-read** (`tools/absent_data_claim_reaudit_probe.py`). There are
+**four** such ladders, one of them five levels and held out:
+
+| pack | ladder | levels (wt %) | level means | held out |
+|---|---|---|---|---|
+| `cu_alkaline_benzenesulfonic` | `us20110165777a1_cu_h2o2_series` | 1, 3, 5, 7 | 16.0 → 15.8 → 15.4 → 15.7 | no |
+| `cu_alkaline_benzenesulfonic` | `us9200180b2_cu_h2o2_series` | 0, 1, 2.5, 5 | 20.8 → 11.8 → 9.2 → 7.7 | yes (pH confounded) |
+| `w_fe_oxidizer` | `us8070843b2_w_h2o2_series` | 0, 2.03, 4.06, 4.07, 6.1 | 9.6 → 150.8 → 239.6 → 241.0 → 296.5 | **yes** |
+| `w_fe_oxidizer` | `us20110186542a1_w_diamond_h2o2_ph` | 0, 1, 3 | 33.9 → 150.0 → 236.4 | no (pH confounded) |
+
+**The sentence is false. The decision stands anyway, and for a better reason.**
+`oxidizer_peak_shape_K` is a **peak shape** constant, and a ladder can anchor one
+only if it **brackets an interior maximum**: where the measured rate is monotone
+across the whole swept range, no value of K places a peak inside it, so the
+constant is unidentifiable from that ladder at any level count. **All four are
+monotone** — and the two packs' ladders run in **opposite directions** (Cu
+falling, W rising), which no single shared shape constant reconciles.
+
+So "we have no data" becomes "**the data we have refuse to place a peak**". The
+refusal is now a measured statement instead of an absence that decays into fact
+by being quoted.
+
+### What changed, and what did not
+
+A **claim and an exit condition**, not a number. **No constant was added or
+changed, no pack value moved, no dataset entered or left the corpus, and the
+median is unchanged at 18.9 % / 19.5 % held out** — asserted, not hoped for.
+
+### What was rejected
+
+Reopening `oxidizer_peak_shape_K` because ladders were found: that is exactly
+the trap this entry documents — it would fit a peak to monotone data. Deleting
+either pack's dead `oxidizer_peak_wt_pct` declaration: §49's finding depends on
+it remaining detectable. Keeping "≥3 levels" as the exit condition: the level
+count was always a **proxy** for "enough to fit a peak", and the proxy is the
+thing that went stale.
+
+### The generalisable rule
+
+**When re-running an "absence of data" claim, ask what the missing datum was
+FOR, not merely whether something of the right shape exists.** §49 asked for
+"≥3 levels" as a stand-in for "enough to locate a peak"; four ladders satisfy
+the stand-in and none satisfies the purpose. A re-audit that stopped at the
+proxy would have reported the axis reopened and sent the next session to fit a
+peak to monotone data — turning §51's correction into a new error. Pair every
+expiring absence claim with the **identifiability** condition underneath it.
+
+**Enforced by** `tests/test_absent_data_claim_expires_but_decision_stands.py`
+(8 tests, all re-measured at run time): ladders are re-enumerated from the real
+dataset files rather than read from the evidence file, and the evidence file is
+then asserted to agree with that live enumeration, so a stale transcription
+fails instead of passing; the monotonicity of every ladder is the load-bearing
+assertion; an **expiry** test fires the moment any held-out, pH-unconfounded
+ladder brackets an interior maximum, at which point the constant should be
+anchored rather than the test relaxed; both packs' constants are asserted
+unmoved, because finding data is not a licence to fit; a **control** requires
+the interior-maximum detector to answer both ways on synthetic input, so "no
+interior maximum anywhere" cannot be a collapsed detector reporting a clean bill
+of health; and a non-vacuity guard fails if the enumeration stops finding
+ladders at all.
+
+**What would resolve it.** An oxidiser sweep on an alkaline benzenesulfonic Cu
+slurry or on a W/Fe system that **brackets its own maximum** — at least one
+level on each side, so the maximum is strictly interior — with pH held fixed
+across the ladder, and not already cited by one of that pack's constants. Level
+count is not the requirement and never was. Not a gate on completion.
