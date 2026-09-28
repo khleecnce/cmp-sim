@@ -2470,3 +2470,53 @@ The decisive one is `bouvet2002_oxide_silica_size_sweep`. It is the corpus's onl
 **Enforced by** `tests/test_declared_size_peak_is_inert_and_refuted.py` (20 tests, every number re-measured at run time): a non-vacuity guard fails if fewer than four packs declare the triple or if any of the twelve loses its source, so a deleted subject cannot read as a pass; all twelve are re-measured inert through the shipping solver and the test fails the moment one *reaches* the rate, because the pack notes written here would then be false; each pack carries §43's instrument control on the size axis itself; the **displacement** is separately asserted to matter, so a probe standing on the reference (where every exponent is unreachable by the normalisation contract) cannot manufacture this section; the corpus verdicts are recomputed from the datasets' own rows rather than restated, and **both** the refuting and confirming sets must be non-empty, so a collapsed reader cannot pass as a refutation; the decisive row is required to be a same-abrasive same-film match with an **interior** maximum, so the finding cannot quietly degrade into cross-pack laundering (§32/§34) or into a §44 endpoint reading; the declared values are asserted unmoved and specifically **not equal** to any refuting dataset's argmax; and every one of the twelve must say "INERT" in its own note — asserted through the **parameter loader**, not the YAML text, because a `note: >` folded block stores differently from its source lines and a disk-string check passes while the loaded note is untouched (§51's false negative). Calibrated against the bug: re-fitting the silica peak to 25 nm fails 2 tests, and deleting one INERT marker from a folded note fails 1.
 
 **What would resolve it.** A size sweep on colloidal silica over thermal oxide that **brackets** 80 nm — levels both below and above — showing an interior maximum there. This corpus has no silica/oxide sweep above 75 nm, so the declared position has never been tested on its own system by a bracketing design; the six refutations are three below-leg signs, one above-leg sign, and two positions on a *different* abrasive. Not a gate on completion.
+
+## 54. The monotone size FAMILY is not what costs — and the block the median needs cannot cross inside it
+
+§53 closed the packs' declared peaked size curves on two grounds (inert, and refuted fit-free) and opened a question it deliberately did not answer: the shipping size term is a **single power law**, monotone by construction, while at least three sweeps in this corpus reverse direction. Provenance said nothing about how much that functional family costs, and §53's own price column was partly in-sample. This section measures it, and the answer sends the size axis in the opposite direction from the obvious one.
+
+### What was measured
+
+For every **pure size sweep** — size is the only axis the dataset varies, so every other factor in the product is identical across rows and divides out of the single free multiplicative scale the shipping scorer fits — three shape errors, on the same metric the headline median uses:
+
+| column | meaning |
+|---|---|
+| `shipping` | the pack's shipping pooled exponent |
+| `floor` | the **best single exponent fitted on that block itself** — one free parameter per block, far more freedom than the shipping model has. A *lower bound* on what any monotone power law can achieve there. |
+| `flat` | `n = 0`, i.e. one constant for the whole block |
+
+`explained = (flat − floor)/flat` is the share of a block's own spread the best power law accounts for. That column is load-bearing: a floor is small either because the family fits or because the block barely varies, and those are opposite conclusions (§26/§36's trap recurring in a new reduction).
+
+| dataset | shipping | floor | flat | expl | class |
+|---|---|---|---|---|---|
+| `bouvet2002_oxide_silica_size_sweep` | 11.21 % | 10.57 % | 10.79 % | **0.02** | non-monotone |
+| `bouvet2002_w_silica_size_sweep` | 2.32 % | 2.20 % | 3.75 % | 0.41 | non-monotone |
+| `us20190127607a1_teos_ceriasilica_size_sweep` | 18.95 % | **16.07 %** | 35.42 % | 0.55 | non-monotone |
+| `su2011_sic_alumina_size_sweep` | 4.23 % | 3.14 % | 11.81 % | 0.73 | non-monotone |
+| `bouvet2002_ti_silica_size_sweep` | 30.65 % | 6.92 % | 33.78 % | 0.80 | monotone |
+| `lai2001_cu_alumina_size_sweep` | 8.65 % | 8.19 % | 43.73 % | 0.81 | monotone |
+| `son2021_oxide_ceria_size_sweep` | 25.54 % | 13.93 % | 354.22 % | 0.96 | monotone |
+| `us20190127607a1_hdpoxide_…` | 8.35 % | 8.33 % | 22.46 % | 0.63 | monotone |
+| `wei2026_sic_silica_size_sweep` | 3.12 % | 0.29 % | 4.77 % | 0.94 | monotone |
+
+All nine are held out (`used_for_calibration: false`), so no floor here grades the model on its own answer key.
+
+### The finding, and the fit-free bound that follows
+
+**Median family floor: non-monotone 6.86 %, monotone 8.19 %.** The blocks the monotone family supposedly cannot represent are fitted *no worse* than the ones it can. Non-monotonicity is therefore **not** where the size error lives — a second, independent reason the peaked-curve work §53 closed stays closed, and this one does not depend on reachability or on any pack's citation.
+
+The consequence that matters for completion is a bound. `us20190127607a1_teos_ceriasilica_size_sweep` is the **2nd cheapest crosser** on the held-out shortlist (18.9 % against the 15 % bar), and its family floor is **16.07 %** — *above* the bar, with `explained = 0.55` so the number is about the family and not about a flat baseline. **No size exponent, however chosen, can carry that block across.** Any crossing must come from outside the size term. That is a fit-free statement: the floor is in-sample by construction and can only flatter the family, so a floor that still exceeds the bar is a real obstruction.
+
+`bouvet2002_oxide_silica_size_sweep` is separated out rather than averaged in: at `explained = 0.02` its best exponent buys 0.22 pp over a single constant, so its floor is the flat baseline wearing an exponent and carries no verdict about the family at all. The section's reading survives dropping it (asserted).
+
+### What was rejected
+
+**Adopting `n_best` per block.** §33 already refused exactly that repair for this constant family (leave-one-out on the exponent), and the floor column exists to bound the family, not to supply constants — one exponent per dataset is fitting wearing a measurement's clothes. The probe is asserted to contain no file-writing call, so it cannot become a fitter by accident. **Reading "the family costs nothing" as "the pooled exponent is right".** What is established is that the *family* is not the binding constraint on these blocks; `bouvet2002_ti_silica` still misses by 30.65 % against a 6.92 % floor, i.e. a 23.73 pp **constant** error inside the family, which is a different purchase and not one this section makes. **Deriving a new size term.** The bound says the payoff on the block that matters is capped below the bar.
+
+### The generalisable rule
+
+*Before deriving a richer functional family, fit the incumbent family as well as it can possibly be fitted and see whether that is enough.* A block's error decomposes into what the family cannot represent and what the constant gets wrong, and only the first justifies new physics. Measuring the first costs one exponent scan and no data. Here it retired a plausible, well-motivated research direction — "the corpus is non-monotone and our term is monotone" — in one measurement, and converted the corpus's second-cheapest crosser from a target into a **bounded impossibility** for this axis. Pair the floor with `explained` always: a small floor on a flat block is the reduction agreeing with itself.
+
+**Enforced by** `tests/test_monotone_size_family_is_not_the_cost.py` (14 tests, every number re-measured at run time). Two synthetic **instrument controls** (§43) run the same reduction on answers known by construction — an exact power law, whose floor must collapse to ~0, and a sharp interior peak, whose floor must stay above 20 %; without the second, "the family costs little" would be indistinguishable from "the reduction cannot see family cost", and the control is additionally asserted to still *carry* its bar so it cannot pass by vacuity. Non-vacuity guards require both classes to be non-empty and every block to be held out. The floor is asserted ≤ the shipping error on every block (it is in-sample; a floor that exceeded it would mean the scan is broken and the bound an artefact). The reversal statistic is pinned to be exactly 0 on monotone series, below the bar for a rounding-level wobble (§40) and above it for the real TEOS reversal. The shape metric is pinned to the scorer's free-scale convention by its defining invariance. Calibrated against the bug: five mutations — freezing the exponent scan, neutering the peaked control's bar, dropping the reversal bar to noise level, replacing the free scale with 1.0, and moving the bound block's reversal so a monotone exponent *can* cross — each turn the file red.
+
+**What would resolve it.** The bound expires if that dataset's own rows change such that its family floor falls to ≤ 15 %; the test fails at that moment and demands the bound be **re-measured**, never edited. Separately, the *constant* error inside the family (up to 23.73 pp on `bouvet2002_ti_silica`) is untouched here and remains open — but §33 refused per-block exponents, so it needs a material-level derivation, not a fit. Deliberately **not** a gate on completion.

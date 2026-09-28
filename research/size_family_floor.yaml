@@ -1,0 +1,198 @@
+# Does the MONOTONE size family cost anything, and can the binding block cross inside it?
+#
+# Evidence file for docs/limits.md §54. Produced by
+# `tools/size_family_floor_probe.py`; every number here is re-measured at test
+# time by `tests/test_monotone_size_family_is_not_the_cost.py` rather than read
+# from this file, so the file is a record, never an authority.
+#
+# ⚠ NOTHING HERE IS A CONSTANT. `n_best` is the best single exponent fitted ON
+# each block itself and is reported, never adopted — docs/limits.md §33 already
+# refused a per-block exponent for this constant family. If a later session
+# finds itself copying an `n_best` into a pack, that is the refused repair.
+
+question: >
+  docs/limits.md §53 closed the packs' declared three-parameter peaked
+  particle-size curves (inert through the shipping solver, and refuted
+  fit-free by the corpus) and left one thing unmeasured: the shipping size
+  term is a SINGLE POWER LAW, monotone by construction, while several corpus
+  sweeps reverse direction. How much does that functional family cost, and
+  where?
+
+method: >
+  For every PURE size sweep (size is the only varying axis, so every other
+  factor divides out of the one free multiplicative scale the shipping scorer
+  fits), three shape errors on the scorer's own metric: the shipping pooled
+  exponent; the FLOOR, i.e. the best single exponent fitted on that same block
+  (in-sample by construction, so it can only flatter the family — a floor that
+  is still large is therefore a strong statement); and FLAT (n = 0, one
+  constant for the whole block). `explained = (flat - floor)/flat` is the
+  share of the block's own spread the best power law accounts for and is
+  reported with every floor, because a small floor on a nearly flat block is
+  the reduction agreeing with itself, not evidence about the family.
+
+controls:
+  # §43: a probe with no control decays into "nothing matters", which reads as
+  # a clean bill of health and which nothing else here contradicts.
+  - name: synthetic exact power law d^0.9
+    purpose: the family CONTAINS this block, so the scan must recover it
+    floor_pct: 0.00
+    explained: 1.00
+    passed: true
+  - name: synthetic sharp peak at 50 nm
+    purpose: >
+      no monotone power law can follow it, so the floor MUST stay large. This
+      is the control that makes a small difference on the corpus meaningful:
+      without it, "the family costs little" is indistinguishable from "the
+      reduction cannot see family cost".
+    floor_pct: 55.01
+    explained: 0.23
+    passed: true
+
+blocks:
+  # all held out (used_for_calibration: false)
+  - dataset: bouvet2002_oxide_silica_size_sweep
+    pack: oxide_silica
+    n_shipping: -0.05
+    shipping_pct: 11.21
+    floor_pct: 10.57
+    flat_pct: 10.79
+    explained: 0.02
+    n_best: 0.03
+    reversal_depth: 0.910
+    class: non-monotone
+    note: >
+      EXCLUDED FROM THE READING. explained = 0.02: the best exponent buys
+      0.22 pp over a single constant, so this floor is the flat baseline
+      wearing an exponent and carries no verdict about the family. The
+      section's conclusion is asserted to survive dropping it.
+  - dataset: bouvet2002_w_silica_size_sweep
+    pack: oxide_silica
+    n_shipping: -0.05
+    shipping_pct: 2.32
+    floor_pct: 2.20
+    flat_pct: 3.75
+    explained: 0.41
+    n_best: -0.06
+    reversal_depth: 0.424
+    class: non-monotone
+  - dataset: us20190127607a1_teos_ceriasilica_size_sweep
+    pack: sti_ceria
+    n_shipping: 0.87
+    shipping_pct: 18.95
+    floor_pct: 16.07
+    flat_pct: 35.42
+    explained: 0.55
+    n_best: 1.12
+    reversal_depth: 0.384
+    class: non-monotone
+    note: >
+      THE BOUND. 2nd cheapest crosser on the held-out shortlist (18.9% against
+      the 15% bar) and its family floor is 16.07% — ABOVE the bar, with
+      explained = 0.55 so the number is about the family rather than a flat
+      baseline. No size exponent, however chosen, can carry this block across.
+  - dataset: su2011_sic_alumina_size_sweep
+    pack: sic_ceria_h2o2
+    n_shipping: 0.17
+    shipping_pct: 4.23
+    floor_pct: 3.14
+    flat_pct: 11.81
+    explained: 0.73
+    n_best: 0.23
+    reversal_depth: 0.068
+    class: non-monotone
+  - dataset: bouvet2002_ti_silica_size_sweep
+    pack: oxide_silica
+    n_shipping: -0.05
+    shipping_pct: 30.65
+    floor_pct: 6.92
+    flat_pct: 33.78
+    explained: 0.80
+    n_best: -0.46
+    reversal_depth: 0.000
+    class: monotone
+    note: >
+      The largest CONSTANT error in the corpus's size sweeps: 23.73 pp sits
+      between the shipping exponent and the family floor, i.e. inside the
+      family. That is a different purchase from the family question §54 asks
+      and is NOT made here (§33 refused per-block exponents); it needs a
+      material-level derivation. ⚠ titanium is separately unsupported
+      (tests/test_titanium_is_unsupported.py).
+  - dataset: lai2001_cu_alumina_size_sweep
+    pack: cu_h2o2_bta
+    n_shipping: 0.33
+    shipping_pct: 8.65
+    floor_pct: 8.19
+    flat_pct: 43.73
+    explained: 0.81
+    n_best: 0.34
+    reversal_depth: 0.000
+    class: monotone
+  - dataset: son2021_oxide_ceria_size_sweep
+    pack: sti_ceria
+    n_shipping: 0.87
+    shipping_pct: 25.54
+    floor_pct: 13.93
+    flat_pct: 354.22
+    explained: 0.96
+    n_best: 1.03
+    reversal_depth: 0.000
+    class: monotone
+  - dataset: us20190127607a1_hdpoxide_ceriasilica_size_sweep
+    pack: sti_ceria
+    n_shipping: 0.87
+    shipping_pct: 8.35
+    floor_pct: 8.33
+    flat_pct: 22.46
+    explained: 0.63
+    n_best: 0.91
+    reversal_depth: 0.000
+    class: monotone
+  - dataset: wei2026_sic_silica_size_sweep
+    pack: sic_ceria_h2o2
+    n_shipping: 0.17
+    shipping_pct: 3.12
+    floor_pct: 0.29
+    flat_pct: 4.77
+    explained: 0.94
+    n_best: 0.10
+    reversal_depth: 0.000
+    class: monotone
+
+reading:
+  median_floor_non_monotone_pct: 6.86
+  median_floor_monotone_pct: 8.19
+  verdict: >
+    The blocks the monotone family supposedly cannot represent are fitted NO
+    WORSE than the ones it can. Non-monotonicity is not where the size error
+    lives — a second, independent reason the peaked-curve work §53 closed
+    stays closed, depending neither on reachability nor on any citation.
+
+decision:
+  wire_a_peaked_curve: rejected
+  adopt_n_best_per_block: >
+    rejected — §33 already refused this repair for this constant family; one
+    exponent per dataset is fitting wearing a measurement's clothes. The probe
+    is asserted to contain no file-writing call so it cannot become a fitter.
+  read_as_vindicating_the_pooled_exponent: >
+    rejected — what is established is that the FAMILY is not the binding
+    constraint, not that the shipping constants are right (ti_silica misses by
+    30.65% against a 6.92% floor).
+  constants_changed: 0
+  pack_values_changed: 0
+  predictions_changed: 0
+  median_effect: >
+    none, and that is the correct outcome. Nothing was wired; this is a
+    measurement that closes an axis.
+
+exit_condition: >
+  The bound expires if us20190127607a1_teos_ceriasilica_size_sweep's own rows
+  change such that its family floor falls to <= 15%. The enforcing test fails
+  at that moment and requires the bound to be RE-MEASURED, never edited.
+  Separately open, and untouched here: the CONSTANT error inside the family
+  (up to 23.73 pp), which needs a material-level derivation rather than a fit.
+
+sources:
+  probe: tools/size_family_floor_probe.py
+  test: tests/test_monotone_size_family_is_not_the_cost.py
+  doc: docs/limits.md §54
+  predecessor: docs/limits.md §53, research/size_peak_reachability.yaml

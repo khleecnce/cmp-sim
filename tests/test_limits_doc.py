@@ -38,6 +38,11 @@ LIMITS = DOCS / "limits.md"
 #: Tests that enforce a decided refusal to predict. A test added here MUST be
 #: cited by docs/limits.md — that is the point of the registry.
 LIMIT_ENFORCING_TESTS = {
+    # §54 — the monotone size FAMILY is not what costs (non-monotone blocks'
+    # family floor is no worse than the monotone ones'), and the corpus's
+    # 2nd cheapest crosser has a family floor ABOVE the completion bar, so no
+    # size exponent can carry it across. Added deliberately.
+    "test_monotone_size_family_is_not_the_cost.py",
     # limit 52: §51's rule applied once more. §49's "these packs sweep the
     # oxidizer at one level or not at all" is FALSE -- four >=3-level ladders
     # exist -- but every one is MONOTONE, so none can anchor a peak SHAPE
