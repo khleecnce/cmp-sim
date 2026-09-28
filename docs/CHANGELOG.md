@@ -4,6 +4,47 @@ All notable changes to CMP-Sim. Newest first.
 
 ## Unreleased
 
+### Measured — twelve cited, graded constants that reach nothing AND that the corpus refutes (2026-09-28)
+- Four pack families declare a three-parameter **peaked particle-size curve**
+  (`abrasive_size_peak_nm` / `_exp_below_peak` / `_exp_above_peak`): twelve
+  constants, every one `confidence: literature` with a primary citation. Measured
+  through the shipping solver, **none of the twelve moves any prediction
+  (0.000000 %)**. The piecewise curve is implemented in the inherited layer
+  (`legacy/sim/factors.py`) while the shipping size factor is one pooled exponent
+  per abrasive family (`cmp_sim/models/luo_dornfeld.py`), which never consults a
+  peak. §42 (does the engine name the key?) and a pack audit (does the pack
+  declare it?) both pass; only the (key, pack) measurement fails.
+- §49's probe could not have caught these: it perturbs from each pack's reference
+  composition, where `d == d_ref` makes every size factor exactly 1.0 for *every*
+  exponent. The base run is displaced to `1.7 x abrasive_ref_size_nm` first, and
+  §43's instrument control passes on all six packs (`abrasive_size_nm` itself
+  moves the rate 3.5 / 12.3 / 82.8 %).
+- **The corrective half inverts §49's.** There the declared value won when priced
+  and the entry protected it; here it loses twice. Priced on 8 pure size sweeps
+  the pooled exponent wins **8 of 8** (that column is partly in-sample, so it is
+  stated as an upper bound). Fit-free, **6 of 8 sweeps refute** the declared peak
+  — decisively `bouvet2002_oxide_silica_size_sweep`, the corpus's only genuine
+  colloidal-silica-on-thermal-oxide match, whose authors print the maximum at
+  **25 nm** (p. 1560) where the declared curve requires a rise to 80 nm. Two
+  primary sources disagree about the optimum's position by 3.2x in one system.
+- **Nothing was wired and no value moved**: the repair is that all twelve now
+  state their own inertness, per §49's rule that an unquotable number ages into
+  fact. Re-fitting the peak onto a refuting dataset's argmax was rejected (it
+  fits a dead term to its own refutation, and 210.7 nm is a *range endpoint*,
+  which §44 forbids reading as an optimum), as was deleting the constants (the
+  inherited branch survives, so a later session would re-wire them with no
+  record). Median **unchanged at 18.9 % / 19.5 %**, which is the correct outcome
+  for a change that touches zero constants.
+- A false claim fell out of it: `sic_ceria_h2o2`'s above-peak note asserted the
+  exponent "is only used when the size goes above 163 nm". It is false at every
+  size. **Never write "this term activates under condition X" from reading the
+  source; run the solver at X.**
+- `docs/limits.md` §53, `research/size_peak_reachability.yaml`,
+  `tools/size_peak_reachability_probe.py`,
+  `tests/test_declared_size_peak_is_inert_and_refuted.py` (20 tests; calibrated
+  against the bug — re-fitting the silica peak fails 2, deleting one INERT marker
+  from a folded note fails 1).
+
 ### Measured — a single-sourced refusal named a MECHANISM, and the mechanism is falsifiable outside the corpus (2026-09-28)
 - `sti_ceria` carries `ph_response_is_unimodal_but_this_system_is_not: true`,
   which stops a later session repairing `netzband2020` (49.2 %) by flattening

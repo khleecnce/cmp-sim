@@ -44,6 +44,9 @@ LIMIT_ENFORCING_TESTS = {
     # constant. The decision stands for a stronger, measured reason, and the
     # exit condition moves from a level count to interior bracketing.
     "test_absent_data_claim_expires_but_decision_stands.py",
+    # §53 — twelve cited, graded size-peak constants that reach nothing and
+    # that the corpus refutes fit-free. Added deliberately.
+    "test_declared_size_peak_is_inert_and_refuted.py",
     # limit 51: §50's rule has a third instance (a MAGNITUDE this time), and
     # the refusal's own exit condition ("no such sweep has been located") had
     # already fired INSIDE the corpus -- two alkaline Cu/BTA H2O2 ladders give

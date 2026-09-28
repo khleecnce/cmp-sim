@@ -107,10 +107,45 @@ params:
   # concentration-ph-K-additive-mrr-quantitative.md §4 2026-09-13 정정 참고).
   # 40→80nm(압입 지배, φ^(4/3)) → 80→130nm(표면적 지배, φ^(-1/3)) 정점형 곡선을
   # 배선한다. 이 팩(콜로이달 실리카·SiO2 막)이 원 논문과 동일 화학계라 직접 적용.
+  # ⚠⚠ INERT AND REFUTED (2026-09-28, limits §53). Read before using any of the
+  # three keys below. Measured, not read off the source:
+  #   (1) ALL THREE REACH NOTHING. tools/size_peak_reachability_probe.py
+  #       perturbs each x0.5..x2.0 through the SHIPPING solver, from a base run
+  #       displaced off abrasive_ref_size_nm (at d == d_ref every size factor is
+  #       1.0 for every exponent, so measuring there proves nothing):
+  #       max |d rate| = 0.000000% on all three. The instrument control passes —
+  #       abrasive_size_nm itself moves the rate 3.529% on this pack — so these
+  #       are wiring facts, not probe failures. Cause: the piecewise branch lives
+  #       in the inherited layer (legacy/sim/factors.py) but the shipping size
+  #       factor is computed in cmp_sim/models/luo_dornfeld.py, which applies one
+  #       pooled exponent per abrasive family (silica n_d = -0.05, from 5 sweeps)
+  #       and never consults a peak.
+  #   (2) THE CORPUS REFUTES THE CURVE, fit-free. bouvet2002_oxide_silica_size_
+  #       sweep is the corpus's only GENUINE silica-on-thermal-oxide match — the
+  #       same system Li 2021 measured — and it puts the maximum at 25 nm
+  #       (135.5 / 187.5 / 156.4 / 140.2 nm/min at 12/25/45/75 nm), with the
+  #       authors stating it in their own text (p.1560). The declared curve says
+  #       the rate must RISE to 80 nm; it falls from 25 nm on. Two sources
+  #       disagree on the optimum's POSITION by 3.2x in one system.
+  #   (3) WIRING IT WOULD MAKE PREDICTIONS WORSE: 8 of 8 pure size sweeps score
+  #       better under the pooled exponent (e.g. 11.21% vs 60.54% here).
+  # DECISION: values unchanged, curve NOT wired. Do not re-fit the peak to 25 nm
+  # — that fits a term that reaches nothing to the dataset that refuted it, and
+  # would convert a real source disagreement into a tuned number. Do not delete
+  # these keys either: the piecewise branch still exists in the inherited layer,
+  # and deleting the record is how a later session wires it again.
+  # What would reopen it: a silica/oxide sweep BRACKETING 80 nm (levels both
+  # below and above) with an interior maximum there; this corpus has no
+  # silica/oxide sweep above 75 nm.
+  # Full record: research/size_peak_reachability.yaml, docs/limits.md §53.
   abrasive_size_peak_nm:
     value: 80.0
     unit: nm
-    note: Li et al. 2021 Fig.4 실측 MRR 정점 위치(40/80/130nm 스윕 중 80nm 최대)
+    note: >
+      Li et al. 2021 Fig.4 실측 MRR 정점 위치(40/80/130nm 스윕 중 80nm 최대).
+      ⚠ INERT — 예측을 전혀 움직이지 않는다(0.000000%, 계측기 대조군 통과).
+      ⚠ REFUTED — 같은 계(콜로이달 실리카/열산화막)의 bouvet2002 스윕은 정점을
+      25 nm로 실측했다(원문 본문 p.1560 명시). 값은 옮기지 않는다(위 블록 주석).
     source: knowledge/cmp/abrasive-size-concentration-ph-K-additive-mrr-quantitative.md §4
     confidence: literature
   abrasive_size_exp_below_peak:
@@ -120,6 +155,8 @@ params:
       정점 이하(40→80nm) 구간 지수 = Eq.4(압입 지배) φ 지수 4/3.
       2026-09-13 pdfplumber 벡터좌표 재추출로 확정(이전 버전은 지수·부호 OCR
       혼선으로 미배선 상태였음).
+      ⚠ INERT — 0.000000%. 출하 솔버는 이 지수를 읽지 않는다(위 블록 주석).
+      ⚠ 이 지수가 주장하는 부호(상승)를 코퍼스의 실리카 스윕 3개가 전부 반증한다.
     source: knowledge/cmp/abrasive-size-concentration-ph-K-additive-mrr-quantitative.md §4
     confidence: literature
   abrasive_size_exp_above_peak:
@@ -128,6 +165,7 @@ params:
     note: >
       정점 이상(80→130nm) 구간 지수 = Eq.3(표면적 지배) φ 지수 -1/3.
       2026-09-13 pdfplumber 벡터좌표 재추출로 확정.
+      ⚠ INERT — 0.000000%. 출하 솔버는 이 지수를 읽지 않는다(위 블록 주석).
     source: knowledge/cmp/abrasive-size-concentration-ph-K-additive-mrr-quantitative.md §4
     confidence: literature
 

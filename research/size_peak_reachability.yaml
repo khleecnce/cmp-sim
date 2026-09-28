@@ -1,0 +1,211 @@
+# Are the declared peaked particle-size curves reachable, and do they predict?
+#
+# Measured by `tools/size_peak_reachability_probe.py` against the SHIPPING
+# solver. Nothing here is fitted; no pack value was changed as a result.
+# This file is the source of record for the numbers quoted in
+# `docs/limits.md` §53 and asserted by
+# `tests/test_declared_size_peak_is_inert_and_refuted.py`, so the test and the
+# claim cannot drift apart.
+
+claim_under_test: >
+  Four independent pack families declare a three-parameter PEAKED
+  particle-size curve (abrasive_size_peak_nm, abrasive_size_exp_below_peak,
+  abrasive_size_exp_above_peak), twelve constants in total, every one graded
+  `confidence: literature` with a primary citation. The shipping solver's size
+  factor is a SINGLE pooled power law per abrasive family
+  (cmp_sim/models/luo_dornfeld.py) and never consults a peak, so none of the
+  twelve reaches the rate. The question is not "is the curve better wired?"
+  but the two prior ones: does it reach anything, and does it predict?
+
+reachability:
+  method: >
+    Base run displaced to abrasive_size_nm = abrasive_ref_size_nm x 1.7 first,
+    because at d == d_ref every normalised size factor is exactly 1.0 for EVERY
+    exponent and measuring there would report the normalisation contract as
+    inertness (limits §42/§43). Each constant then perturbed small-first and in
+    both directions (x1.05, 0.95, 1.25, 0.8, 1.5, 0.67, 2.0, 0.5) against the
+    same 0.5% bar tools/inert_axis_scan.py uses.
+  packs_declaring_triple:
+    - oxide_silica
+    - oxide_silica_anionic            # inherits from oxide_silica
+    - oxide_silica_aminosilane        # inherits from oxide_silica
+    - oxide_silica_calibrated_pad     # inherits from oxide_silica
+    - sti_ceria
+    - sic_ceria_h2o2
+  constants_reached: 0
+  constants_inert: 18                 # 6 packs x 3 keys
+  max_response_percent: 0.000000
+  instrument_control:                  # limits §43: a zero is unquotable alone
+    key: abrasive_size_nm
+    note: >
+      The DRIVER the three constants are supposed to shape. It moves the rate on
+      every pack, so each zero above is a wiring fact about that pack and not a
+      probe failure.
+    oxide_silica_percent: 3.529
+    sti_ceria_percent: 82.767
+    sic_ceria_h2o2_percent: 12.287
+
+# ── The load-bearing half: would wiring them PREDICT better? ───────────────
+# Two independent readings, because the first is partly in-sample.
+
+priced_on_pure_size_sweeps:
+  method: >
+    A pure size sweep varies ONLY the particle size, so every other factor in
+    the product is identical across rows and divides out of the single free
+    scale the shape metric fits. Shape MAPE computed with the pooled exponent
+    the solver ships and with the pack's own declared piecewise curve, using
+    the same least-squares-in-the-ratio-sense scale as
+    cmp_sim/core/predictive_score.score_dataset.
+  scope_caveat: >
+    The pooled exponent was ESTIMATED from these same sweeps, so its column is
+    partly in-sample and the margin below is an UPPER BOUND on its advantage.
+    The fit-free reading is the section that follows and does not depend on any
+    exponent magnitude.
+  rows:
+    - dataset: bouvet2002_oxide_silica_size_sweep
+      pack: oxide_silica
+      pooled_percent: 11.21
+      piecewise_percent: 60.54
+    - dataset: bouvet2002_ti_silica_size_sweep
+      pack: oxide_silica
+      pooled_percent: 30.65
+      piecewise_percent: 68.00
+    - dataset: bouvet2002_w_silica_size_sweep
+      pack: oxide_silica
+      pooled_percent: 2.32
+      piecewise_percent: 55.51
+    - dataset: son2021_oxide_ceria_size_sweep
+      pack: sti_ceria
+      pooled_percent: 25.54
+      piecewise_percent: 33.00
+    - dataset: su2011_sic_alumina_size_sweep
+      pack: sic_ceria_h2o2
+      pooled_percent: 4.25
+      piecewise_percent: 25.59
+    - dataset: us20190127607a1_hdpoxide_ceriasilica_size_sweep
+      pack: sti_ceria
+      pooled_percent: 8.35
+      piecewise_percent: 8.77
+    - dataset: us20190127607a1_teos_ceriasilica_size_sweep
+      pack: sti_ceria
+      pooled_percent: 18.95
+      piecewise_percent: 23.87
+    - dataset: wei2026_sic_silica_size_sweep
+      pack: sic_ceria_h2o2
+      pooled_percent: 3.13
+      piecewise_percent: 34.33
+  verdict: pooled better on 8 of 8
+
+fit_free_reading:
+  method: >
+    A peak POSITION is falsifiable without fitting anything. Identifiability is
+    asked FIRST (the lesson of limits §52): a sweep that brackets the declared
+    peak tests the position itself; a sweep entirely BELOW it tests only that
+    the declared below-peak leg's SIGN (+4/3, rising) holds across the sweep; a
+    sweep entirely ABOVE it tests the above-peak sign (-1/3, falling). The
+    weaker claims are still refutable, and refuting a sign refutes the curve
+    without needing any exponent magnitude.
+  rows:
+    - dataset: bouvet2002_oxide_silica_size_sweep
+      declared_peak_nm: 80.0
+      levels_nm: [12.0, 25.0, 45.0, 75.0]
+      measured_nm_per_min: [135.5, 187.5, 156.4, 140.2]
+      argmax_nm: 25.0
+      testable: below-leg sign
+      verdict: REFUTES
+      why: >
+        THE DECISIVE ROW. This dataset is the corpus's only GENUINE match for
+        the declared value's own system -- colloidal silica on thermal oxide,
+        the same chemistry Li et al. 2021 measured -- and its own authors state
+        the maximum in the paper text ("the oxide removal rate is at its maximum
+        for 25 nm particles", p.1560), so this is not a digitisation artefact.
+        The declared curve says the rate must RISE all the way to 80 nm; the
+        rate falls from 25 nm onward. The two sources disagree about the
+        position of the optimum by a factor of 3.2 in the SAME system.
+    - dataset: bouvet2002_ti_silica_size_sweep
+      declared_peak_nm: 80.0
+      argmax_nm: 12.0
+      testable: below-leg sign
+      verdict: REFUTES
+    - dataset: bouvet2002_w_silica_size_sweep
+      declared_peak_nm: 80.0
+      argmax_nm: 12.0
+      testable: below-leg sign
+      verdict: REFUTES
+    - dataset: su2011_sic_alumina_size_sweep
+      declared_peak_nm: 163.0
+      argmax_nm: 2500.0
+      testable: above-leg sign
+      verdict: REFUTES
+    - dataset: us20190127607a1_hdpoxide_ceriasilica_size_sweep
+      declared_peak_nm: 163.0
+      levels_nm: [88.7, 117.2, 156.1, 210.7]
+      argmax_nm: 210.7
+      testable: position
+      verdict: REFUTES
+    - dataset: us20190127607a1_teos_ceriasilica_size_sweep
+      declared_peak_nm: 163.0
+      argmax_nm: 210.7
+      testable: position
+      verdict: REFUTES
+    - dataset: son2021_oxide_ceria_size_sweep
+      declared_peak_nm: 163.0
+      argmax_nm: 100.0
+      testable: below-leg sign
+      verdict: CONFIRMS
+    - dataset: wei2026_sic_silica_size_sweep
+      declared_peak_nm: 163.0
+      argmax_nm: 130.0
+      testable: below-leg sign
+      verdict: CONFIRMS
+  tally:
+    refutes: 6
+    confirms: 2
+
+decision: >
+  DO NOT wire the declared piecewise curve, and do not move the declared
+  values. The repair is to the NOTES, not to the numbers: each of the twelve
+  constants must state in its own note that it is inert and that the corpus
+  refutes it, so an unquotable number cannot age into fact (the rule limits §49
+  established for the oxidiser peaks).
+
+what_was_rejected:
+  - claim: wire the piecewise curve in cmp_sim/models/luo_dornfeld.py
+    why: >
+      It loses to the pooled exponent on 8 of 8 pure size sweeps and is refuted
+      fit-free on 6 of 8. Wiring a sourced constant is not progress unless it
+      predicts better than what it replaces; provenance is not performance.
+  - claim: move abrasive_size_peak_nm from 80 to 25 nm on oxide_silica
+    why: >
+      That is re-fitting a constant to the dataset that refuted it, on a term
+      that reaches nothing -- so it would change no prediction and would convert
+      a testable disagreement between two sources into a fitted number. The
+      disagreement is the finding: optima exist in this system but their
+      POSITION does not transfer between slurries, which is exactly what the
+      bouvet2002 dataset's own note already warns (25 nm here vs a ~60 nm glass
+      optimum in the repository's abrasives database).
+  - claim: delete the twelve constants
+    why: >
+      Deleting them returns the repository to the undetectable state: the
+      piecewise branch still exists in the inherited layer
+      (legacy/sim/factors.py) and a later session finding it unused would wire
+      it again with no record that the corpus refutes it. Keep the values,
+      state the refutation.
+  - claim: mark the pooled exponent vindicated
+    why: >
+      Its column in the pricing table is partly in-sample. What is established
+      is that the declared peaked curve is worse, not that the pooled exponent
+      is right. Two of eight sweeps confirm a peaked shape's sign, and
+      us20190127607a1_teos_ceriasilica_size_sweep is non-monotone (182.8 ->
+      131.1 -> 222.3) in a way NO single power law can represent.
+
+what_would_reopen_this: >
+  A size sweep on colloidal silica over thermal oxide that BRACKETS 80 nm (i.e.
+  runs levels both below and above it) and shows an interior maximum there. The
+  corpus currently has no silica/oxide sweep reaching above 75 nm, so the
+  declared position has never been tested on its own system by a bracketing
+  design -- the six refutations above are three below-leg signs, one above-leg
+  sign, and two positions on a DIFFERENT abrasive (ceria). Note the direction of
+  the ceria evidence: both bracketing sweeps put the ceria optimum ABOVE 163 nm,
+  which is what the sti_ceria note already flags as possible ("163 nm may be a
+  LOWER bound").

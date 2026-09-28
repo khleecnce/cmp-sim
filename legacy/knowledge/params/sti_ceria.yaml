@@ -375,6 +375,26 @@ params:
   #   어긋난다(세리아는 60~163 nm 구간에서 MRR이 계속 증가). 상속을 끊고 이 팩의
   #   재료계(세리아)에 맞는 값을 명시 선언한다.
   #   근거: knowledge/cmp/ceria-abrasive-size-mrr-peak-shift-vs-silica.md §2·§3
+  #   ⚠⚠ INERT AND REFUTED (2026-09-28, limits §53), measured not read off:
+  #   (1) all three keys below REACH NOTHING — 0.000000% through the shipping
+  #       solver over x0.5..x2.0, from a base displaced off abrasive_ref_size_nm.
+  #       Instrument control passes (abrasive_size_nm itself moves this pack
+  #       82.767%), so this is a wiring fact. Cause: the piecewise branch is in
+  #       legacy/sim/factors.py, but the shipping size factor is one pooled
+  #       exponent per abrasive in cmp_sim/models/luo_dornfeld.py (ceria +0.87).
+  #   (2) the only two sweeps that BRACKET 163 nm both refute the position —
+  #       us20190127607a1_{hdpoxide,teos}_ceriasilica_size_sweep run 88.7 /
+  #       117.2 / 156.1 / 210.7 nm and peak at 210.7 nm, i.e. still rising at
+  #       the top. That is the direction this note's own last ⚠ predicted
+  #       ("163 nm may be a LOWER bound") — the prediction was right and the
+  #       constant is therefore not the optimum.
+  #   (3) wiring the curve scores WORSE on all four ceria sweeps
+  #       (e.g. son2021: 25.54% pooled vs 33.00% piecewise).
+  #   DECISION: values unchanged, curve NOT wired, notes repaired. Do not move
+  #   the peak to 210.7 nm: that is the highest level those patents RAN, so it is
+  #   a range endpoint rather than a measured maximum (limits §44), and the term
+  #   reaches nothing so no prediction would change.
+  #   Full record: research/size_peak_reachability.yaml, docs/limits.md §53.
   abrasive_size_peak_nm:
     value: 163.0
     unit: nm
@@ -399,6 +419,10 @@ params:
       — 근거 노트 §2 표 D 행에만 남긴다.
       ⚠ B·C 문헌은 232~417 nm 까지도 증가를 보고하므로 163 nm 는 **하한**일 수
       있다(과소추정 방향). 배수는 확보 못 해 넣지 않았다.
+      ⚠⚠ 2026-09-28 실측: 위 "하한일 수 있다"는 경고가 **맞았다.** 163 nm를 감싸는
+      코퍼스 스윕 2개(us20190127607a1, 88.7~210.7 nm)가 둘 다 210.7 nm에서 최대다.
+      그리고 이 키는 **INERT** — 예측을 전혀 움직이지 않는다(0.000000%, 계측기
+      대조군 통과). 값·등급은 그대로 두고 사실만 적는다 — 위 블록 주석 참조.
     source: knowledge/cmp/ceria-abrasive-size-mrr-peak-shift-vs-silica.md §2
     confidence: literature
   abrasive_size_exp_below_peak:
@@ -412,6 +436,7 @@ params:
       (DOI 10.3390/nano15171366, MDPI OA, 전문 확보) §2.1 Eq.(1) — 재료 무관
       메커니즘 식이라 세리아에도 형식은 유효하다고 본다.
       ⚠ 세리아 실측으로 이 지수를 재추정한 적은 없다 — **형식 전용, 미검증.**
+      ⚠⚠ 2026-09-28: INERT — 0.000000%. 출하 솔버는 이 지수를 읽지 않는다.
     source: knowledge/cmp/ceria-abrasive-size-mrr-peak-shift-vs-silica.md §3
     confidence: literature
   abrasive_size_exp_above_peak:
@@ -420,6 +445,8 @@ params:
     note: >
       정점 이상 구간 지수. 근거·한계는 abrasive_size_exp_below_peak 와 동일
       (Bellahsene 2025 §2.1 표면적 지배 가지). 세리아 재추정 없음 — 미검증.
+      ⚠⚠ 2026-09-28: INERT — 0.000000%. 게다가 163 nm를 감싼 스윕 2개가 정점 위
+      구간에서도 **상승**을 보이므로 이 음수 지수는 그 구간에서 반증된다.
     source: knowledge/cmp/ceria-abrasive-size-mrr-peak-shift-vs-silica.md §3
     confidence: literature
 

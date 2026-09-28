@@ -331,6 +331,16 @@ params:
   #   콜로이달 **실리카** 슬러리 값이라, 이 팩의 본값 120 nm 가 **감소 가지** 위에
   #   놓여 "세리아 입자를 키우면 MRR이 떨어진다"는 문헌과 반대 방향 예측을 하고
   #   있었다. 근거: knowledge/cmp/ceria-abrasive-size-mrr-peak-shift-vs-silica.md §1·§3
+  # ⚠⚠ INERT (2026-09-28, limits §53), 실측: 아래 세 키 전부 예측을 움직이지 않는다
+  #   (0.000000%, x0.5~x2.0, abrasive_ref_size_nm 밖으로 변위한 기준점에서 측정).
+  #   계측기 대조군 통과 — 같은 팩에서 abrasive_size_nm 자체는 12.287% 움직인다.
+  #   원인: piecewise 가지는 legacy/sim/factors.py 에 있는데 출하 크기항은
+  #   cmp_sim/models/luo_dornfeld.py 의 연마재별 단일 pooled 지수라 정점을 안 본다.
+  #   ⇒ **위 "상속값이 반대 방향 예측을 하고 있었다"는 서술도 사실이 아니다**:
+  #   상속값이든 이 값이든 크기항 예측에 도달하지 않는다. 판단(연마재 일치가 낫다)은
+  #   유지하되 그 판단이 예측을 바꿨다고 읽지 마라.
+  #   su2011_sic_alumina_size_sweep(1.0~3.5 μm, 정점 2.5 μm)은 163 nm **위** 구간에서
+  #   상승을 보여 above 가지의 음수 부호를 반증한다. 전문: research/size_peak_reachability.yaml
   abrasive_size_peak_nm:
     value: 163.0
     unit: nm
@@ -344,6 +354,10 @@ params:
       못했다 — 미검증. 다만 상속값(실리카 연마입자 기준 80 nm)보다는 최소한
       **연마입자 종류가 일치**하므로 개선으로 판단해 채택한다. SiC+세리아 입경
       스윕이 나오면 즉시 교체한다.
+      ⚠⚠ 2026-09-28: **INERT** — 이 키는 예측을 전혀 움직이지 않는다(0.000000%,
+      x0.5~x2.0, 계측기 대조군 통과: 같은 팩에서 abrasive_size_nm은 12.287% 움직임).
+      게다가 163 nm를 감싸는 코퍼스 스윕 2개가 정점을 210.7 nm로 실측해 위치를
+      반증한다. 값은 옮기지 않는다 — 위 블록 주석·limits §53 참조.
     source: knowledge/cmp/ceria-abrasive-size-mrr-peak-shift-vs-silica.md §2 §5
     confidence: literature
   abrasive_size_exp_below_peak:
@@ -354,6 +368,7 @@ params:
       전문 확보) §2.1 Eq.(1) 메커니즘 폐형식. 상속을 끊고 명시 재선언
       (값은 부모와 동일하나 판단 주체를 이 팩으로 옮긴다).
       ⚠ 세리아·SiC 계 실측 재추정 없음 — 형식 전용, 미검증.
+      ⚠⚠ 2026-09-28: **INERT** — 0.000000%. 출하 솔버는 이 지수를 읽지 않는다.
     source: knowledge/cmp/ceria-abrasive-size-mrr-peak-shift-vs-silica.md §3
     confidence: literature
   abrasive_size_exp_above_peak:
@@ -362,8 +377,12 @@ params:
     note: >
       표면적 지배 d^(-1/3). 근거·한계는 abrasive_size_exp_below_peak 와 동일.
       ⚠ 이 팩의 본값 120 nm 는 정점 163 nm 아래이므로 이 지수는 현재 기준조건에서
-      발동하지 않는다(120 nm < 163 nm → below 가지). 입경 슬라이더를 163 nm 위로
-      올렸을 때만 쓰인다.
+      발동하지 않는다(120 nm < 163 nm → below 가지).
+      ⚠⚠ 2026-09-28 정정: 원래 여기에 "입경 슬라이더를 163 nm 위로 올렸을 때만
+      쓰인다"고 적혀 있었다 — **거짓이다.** 이 지수는 **INERT**: 입경을 204 nm
+      (=120×1.7)로 올린 상태에서 x0.5~x2.0 흔들어도 예측 변화가 0.000000%다.
+      "지금은 안 쓰이지만 조건을 바꾸면 쓰인다"는 식의 조건부 도달성 주장은
+      반드시 출하 솔버로 측정해서 쓸 것(limits §35·§49·§53).
     source: knowledge/cmp/ceria-abrasive-size-mrr-peak-shift-vs-silica.md §3
     confidence: literature
 

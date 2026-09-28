@@ -2419,3 +2419,54 @@ slurry or on a W/Fe system that **brackets its own maximum** — at least one
 level on each side, so the maximum is strictly interior — with pH held fixed
 across the ladder, and not already cited by one of that pack's constants. Level
 count is not the requirement and never was. Not a gate on completion.
+
+## 53. Twelve declared, graded, cited constants that reach nothing — and that the corpus refutes fit-free
+
+§49 asked reachability as a **(key, pack)** property of one key family and found two inert oxidiser peaks. Asked of the *other* peaked family in this repository, the same question returns a larger answer, and the second half of it is new.
+
+Four pack families declare a three-parameter **peaked particle-size curve**:
+
+    abrasive_size_peak_nm
+    abrasive_size_exp_below_peak
+    abrasive_size_exp_above_peak
+
+Twelve constants in total (`oxide_silica` and its three descendants, `sti_ceria`, `sic_ceria_h2o2`), every one graded `confidence: literature` with a primary citation — Li et al. 2021 Eq. 3–4 re-extracted from vector coordinates for the silica packs, Oh et al. 2010 via a secondary citation for the ceria packs. **Measured through the shipping solver, none of the twelve moves any prediction: 0.000000 %.**
+
+The cause is §49's cause with the layers swapped. The piecewise curve *is* implemented — in the inherited layer, `legacy/sim/factors.py`, anchored at `peak**exp_below` so the two legs join continuously. But the shipping size factor is computed in `cmp_sim/models/luo_dornfeld.py`, which applies **one pooled exponent per abrasive family** (ceria +0.87, alumina +0.29, silica −0.05) and never consults a peak. So the packs' curve is not overridden by a better number; it is never evaluated, while the model asserts a **monotone** size dependence of the opposite functional family.
+
+Both §42 (does the engine name this key?) and a pack audit (does the pack declare it?) pass. Only the (key, pack) measurement fails — and §49's own probe could not have caught these, because it perturbs from each pack's *reference* composition, where `d == d_ref` makes every size factor exactly 1.0 for **every** exponent. The base run here is displaced to `1.7 × abrasive_ref_size_nm` first, and the §43 instrument control passes on all six packs (`abrasive_size_nm` itself moves the rate 3.5 %, 12.3 %, 82.8 %), so each zero is a wiring fact rather than a probe failure.
+
+### The corrective half, which inverts §49's
+
+§49 ended by *forbidding* a move: the declared oxidiser peak, priced against the corpus, **won**, so the entry protected it. Here the declared curve **loses**, and the two readings must be kept apart because they are not equally strong.
+
+**Priced** (`tools/size_peak_reachability_probe.py`, Q4). On every *pure* size sweep — one varying only the particle size, so every other factor is identical across rows and divides out of the single free scale the shape metric fits — the pooled exponent beats the pack's own declared piecewise curve on **8 of 8**:
+
+| dataset | pack | pooled | piecewise |
+|---|---|---|---|
+| `bouvet2002_oxide_silica_size_sweep` | `oxide_silica` | **11.21 %** | 60.54 % |
+| `bouvet2002_w_silica_size_sweep` | `oxide_silica` | **2.32 %** | 55.51 % |
+| `bouvet2002_ti_silica_size_sweep` | `oxide_silica` | **30.65 %** | 68.00 % |
+| `son2021_oxide_ceria_size_sweep` | `sti_ceria` | **25.54 %** | 33.00 % |
+| `su2011_sic_alumina_size_sweep` | `sic_ceria_h2o2` | **4.25 %** | 25.59 % |
+| `wei2026_sic_silica_size_sweep` | `sic_ceria_h2o2` | **3.13 %** | 34.33 % |
+| `us20190127607a1_hdpoxide_…` | `sti_ceria` | **8.35 %** | 8.77 % |
+| `us20190127607a1_teos_…` | `sti_ceria` | **18.95 %** | 23.87 % |
+
+⚠ That column is **partly in-sample** — the pooled exponent was estimated from these same sweeps — so it is stated as an upper bound on its advantage and nothing rests on it alone.
+
+**Fit-free** (Q5), which is the load-bearing half. A peak *position* is refutable without fitting anything, provided identifiability is asked first (§52's lesson): a sweep that **brackets** the declared peak tests the position; a sweep lying wholly below it tests only that the declared below-leg **sign** (+4/3, rising) holds across it; wholly above, the above-leg sign (−1/3, falling). The weaker claims are still refutable, and refuting a sign refutes the curve without needing any exponent magnitude. **6 of 8 sweeps refute; 2 confirm.**
+
+The decisive one is `bouvet2002_oxide_silica_size_sweep`. It is the corpus's only **genuine** system match for the declared 80 nm — colloidal silica on thermal oxide, the same system Li 2021 measured — and it puts the maximum at **25 nm** (135.5 → 187.5 → 156.4 → 140.2 nm/min at 12/25/45/75 nm), with the authors stating it in their own text (p. 1560), so it is not a digitisation artefact. The declared curve requires the rate to *rise* all the way to 80 nm; it falls from 25 nm onward. **Two primary sources disagree about the optimum's position by a factor of 3.2 in the same system.** On the ceria side, both sweeps that bracket 163 nm peak at 210.7 nm — the direction `sti_ceria`'s own note already flagged as possible ("163 nm may be a **lower** bound"). The note's warning was right, which is why the *note* is the thing that was repaired.
+
+### What was rejected
+
+**Wiring the piecewise curve** — it loses on 8 of 8 priced sweeps and is refuted fit-free on 6 of 8. Wiring a sourced constant is not progress unless it predicts better than what it replaces: provenance is not performance. **Moving `oxide_silica`'s peak to 25 nm** (or the ceria peaks to 210.7 nm) — that re-fits a term *that reaches nothing* to the dataset that refuted it, changing no prediction while converting a real disagreement between two primary sources into a tuned number; and 210.7 nm is the highest level those patents **ran**, a range endpoint, which §44 forbids reading as an optimum. **Deleting the twelve constants** — the piecewise branch still exists in the inherited layer, so a later session finding it unused would wire it again with no record that the corpus refutes it; §49's rule is to keep the value and state the refutation. **Declaring the pooled exponent vindicated** — what is established is that the declared curve is worse, not that a single power law is right: two sweeps confirm a peaked sign, and `us20190127607a1_teos_ceriasilica_size_sweep` is non-monotone (182.8 → 131.1 → 222.3) in a way **no** single power law can represent.
+
+### The generalisable rule
+
+*A constant's citation, grade and unit say where it came from; only a measurement says whether it does anything, and only the corpus says whether it is right — and those are three independent questions.* This repository had been treating the first as evidence for the other two. Twelve constants carried primary citations into a state where they were simultaneously **unread** and **refuted**, and nothing in the audit stack could report either, because §42 asks whether the *engine* names a key and a pack audit asks whether the *pack* declares one. Worse, one of the twelve notes made an explicit **conditional reachability** claim — `sic_ceria_h2o2`'s above-peak exponent said it "is only used when the size slider goes above 163 nm" — which is false at every size. Never write "this term activates under condition X" from reading the source; run the solver at X.
+
+**Enforced by** `tests/test_declared_size_peak_is_inert_and_refuted.py` (20 tests, every number re-measured at run time): a non-vacuity guard fails if fewer than four packs declare the triple or if any of the twelve loses its source, so a deleted subject cannot read as a pass; all twelve are re-measured inert through the shipping solver and the test fails the moment one *reaches* the rate, because the pack notes written here would then be false; each pack carries §43's instrument control on the size axis itself; the **displacement** is separately asserted to matter, so a probe standing on the reference (where every exponent is unreachable by the normalisation contract) cannot manufacture this section; the corpus verdicts are recomputed from the datasets' own rows rather than restated, and **both** the refuting and confirming sets must be non-empty, so a collapsed reader cannot pass as a refutation; the decisive row is required to be a same-abrasive same-film match with an **interior** maximum, so the finding cannot quietly degrade into cross-pack laundering (§32/§34) or into a §44 endpoint reading; the declared values are asserted unmoved and specifically **not equal** to any refuting dataset's argmax; and every one of the twelve must say "INERT" in its own note — asserted through the **parameter loader**, not the YAML text, because a `note: >` folded block stores differently from its source lines and a disk-string check passes while the loaded note is untouched (§51's false negative). Calibrated against the bug: re-fitting the silica peak to 25 nm fails 2 tests, and deleting one INERT marker from a folded note fails 1.
+
+**What would resolve it.** A size sweep on colloidal silica over thermal oxide that **brackets** 80 nm — levels both below and above — showing an interior maximum there. This corpus has no silica/oxide sweep above 75 nm, so the declared position has never been tested on its own system by a bracketing design; the six refutations are three below-leg signs, one above-leg sign, and two positions on a *different* abrasive. Not a gate on completion.
