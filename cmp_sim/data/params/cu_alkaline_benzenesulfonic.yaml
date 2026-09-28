@@ -62,6 +62,23 @@ params:
 
       Inherited from cu_h2o2_bta at one confidence grade lower, as the legacy
       pack records.
+
+      ⚠ ITS EVIDENCE IS SCORED UNDER ANOTHER PACK (§56). Leg (1) is
+      tw202115224a_cu_abrasive_size_pressure, which carries `pack: cu_h2o2_bta`
+      -- so no scored block under THIS pack sweeps particle size, and nothing
+      in reach can refute this 0.0:
+      tools/departed_evidence_census.py classes it DEPARTED-AND-UNTESTABLE.
+      Measured, not argued, before deciding: re-assigning that dataset here
+      changes shape only 19.51% -> 19.10% while absolute scale collapses from
+      1.734 to 11.177 (a 6.4x error bought for 0.4 pp of trend -- the exact
+      trade docs/limits.md warns about). REFUSED. The dataset's own header
+      also names an acidic glycine/BTA chemistry, which is cu_h2o2_bta's
+      system and not this alkaline benzenesulfonic one, so the re-assignment
+      would be wrong on chemistry regardless of the score.
+      Leg (2), the force-partition argument, is independent of that dataset and
+      is why the value stands rather than being withdrawn.
+      TODO(owner): a size sweep in the benzenesulfonic chemistry itself would
+      make this number testable where it acts.
     source: >
       legacy/knowledge/params/cu_alkaline_benzenesulfonic.yaml (verbatim value
       and evidence); dataset

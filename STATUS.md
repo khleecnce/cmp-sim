@@ -1,6 +1,52 @@
 # CMP-Sim — STATUS
 
-## 📊 현재 median (57회차, 2026-09-28 실측)
+## 📊 현재 median (58회차, 2026-09-28 실측)
+- **공표 median (upper, 48/52 블록, 440점): 18.9%** — 불변(=정답: 정직성 수정)
+- **held-out median (33 블록): 19.5%** — 불변. must-cross 2개 유지
+- ✅ **58회차: §55가 남긴 일반화 규칙을 전 팩에 기계적으로 집행했다 — 고아 클래스에
+  **2개**가 더 있었고, §55의 수리법(적합 철회 → 유도식)은 이 축에서 **가격을 매긴 결과
+  기각**됐다(§56). 상수 0개 추가/삭제, median 불변.**
+  - 물은 것: §55는 한 팩에 한 번 물었다. **모든 팩에 물으면?** 그리고 그 방향은
+    `calibration_flag_audit`가 **구조적으로 볼 수 없는** 방향이다 — 그 감사는
+    교차팩 인용을 **정상적 증거 재사용으로 면제**한다(§46이 그 false positive를
+    겪었기 때문에 옳다). 그 면제가 바로 사각지대다: 면제받은 인용이 그 상수의
+    **유일한** 증거라면, 그 상수는 자기 reach 안에서 **반증 불가능**해진다.
+  - `tools/departed_evidence_census.py`: 살아있는 수치 상수 **361개** 전수.
+    testable 80 / reference-condition 69(정규화 계약상 1.0, 잔차 없음) /
+    축 매핑 없음 174 / reach 내 스윕 없음 35 / **선언된 교차계 1** /
+    **DEPARTED-AND-UNTESTABLE 2**:
+    `cu_alkaline_benzenesulfonic.abrasive_size_exponent`(0.0, 증거가 cu_h2o2_bta로),
+    `w_fe_oxidizer.abrasive_size_exponent`(-0.05, 증거가 oxide_silica로).
+  - ⚠ `cu_h2o2_bta.ph_mechanical_floor`는 **같은 구조인데 고아가 아니다** — 노트가
+    전이를 선언한다("CROSS-SYSTEM, and knowingly so"). **구조상 반증불가 ≠ 부식으로
+    반증불가.** 섞으면 §46의 false positive가 한 단계 위에서 재발한다.
+  - **핵심 결과: §55의 수리는 일반화되지 않는다.** `tools/size_exponent_derivation_price.py`로
+    출하 솔버 2회 실행(적합 지수 vs 엔진 유도 `n_d=-q(1-αχ)+β`):
+    **1개 개선 / 10개 악화 / 37개 불변, median shape 19.23% → 25.13%.**
+    악화는 **입경을 실제로 스윕하는 블록에 집중**(son2021 25.6→211.8%,
+    lai2001 8.7→69.9%, bouvet2002_w 2.3→44.0%) — 측정이 진짜라는 징표.
+    ⇒ §55의 채택 규칙을 **거울상으로** 적용: 유도값은 **유도됐기 때문에** 채택하되
+    **나쁘지 않을 때만**. 나쁘면 적합이 남고 불일치를 기록한다. 대칭을 위해
+    채택했다면 median에 **6점**을 얹을 뻔했다. (§54가 이미 닫은 입경축을
+    **두 번째 독립 이유로** 다시 닫는다.)
+  - **기각**: 떠난 데이터셋을 인용 팩으로 **되돌리기** — 논증이 아니라 가격으로.
+    W는 shape **정확히 중립**(2.32% 양방향), 공표·held-out median 둘 다 불변 ⇒
+    정확도로 정당화 불가, 게다가 `abrasive:` 키가 없어 swap 감지기가 **묻지도 않는**
+    파일에 알루미나 기준 팩을 씌우게 된다(§27). Cu는 shape 0.4pp(19.51→19.10%)를
+    사려고 절대 스케일이 1.734→**11.177**(6.4배 오차)로 무너진다. /
+    인용 삭제(§27: 감사는 통과하고 탐지불가 상태로 복귀) /
+    두 상수를 "결함"이라 부르기(프로브 자신이 **버그 목록이 아니라 질문 쇼트리스트**라고 출력한다).
+  - **일반화 규칙**: *같은 증거를 읽는 두 리더는 사각지대가 반대일 수 있고,
+    한쪽을 옳게 만드는 그 면제가 다른 쪽의 발견이 사는 곳이다.* 필터를 믿기 전에
+    **그것이 무시할 권리를 가진 것이 무엇인지**, 그리고 **다른 누가 거기를 보는지**
+    물어라. 그리고 **한 번 통한 수리는 다음 인스턴스에서 적용하지 말고 가격을 매겨라.**
+  - 전문: `docs/limits.md` §56, `tools/departed_evidence_census.py`,
+    `tools/size_exponent_derivation_price.py`,
+    `tests/test_departed_evidence_orphans_are_priced_and_refused.py`(11 pass).
+    **변이 5종 전부 물림**: 교차계 문구목록 삭제 / reference 면제를 넓혀 고아 삼키기 /
+    W 노트에서 숫자 제거 / 가격을 "동일"로 위조 / 고정된 고아 집합에서 1개 몰래 제거.
+    계측기 대조군 2개(떠난 인용을 실제로 복구하는가 / testable이 0이 아닌가)로
+    "고아 없음"이 깨진 프로브의 클린 리포트로 읽히지 않게 고정.
 - **공표 median (upper, 48/52 블록, 440점): 18.9%** — 중앙 블록이 안 움직여 헤드라인 불변
 - **leave-one-out: 21.3% → 20.9%** (§55 유도식 채택, 물리 변경이므로 핀 이동)
 - **held-out median (33 블록): 19.5%** — ⚠ 값은 같지만 **바 아래 블록이 14→15개**로 늘었고
@@ -1561,6 +1607,45 @@ https://cmp-sim.vercel.app --token …` 가 배포본을 상대로 전 항목 �
   cmp-sim.vercel.app (`CMPSIM_TOKEN`). History scrubbed before going public.
 
 ## NEXT
+
+### 🎯 OPEN 2026-09-28 (58회차): **§55의 고아 클래스를 전 팩에 집행했다 — 2개 더 있었고, §55의 수리법은 이 축에서 가격을 매긴 결과 기각(§56).** 상수 0개, median 18.9%/19.5% 불변(=정답)
+
+§56 전문은 이 파일 최상단 58회차 항목과 `docs/limits.md` §56을 읽어라.
+`tools/departed_evidence_census.py`, `tools/size_exponent_derivation_price.py`,
+`tests/test_departed_evidence_orphans_are_priced_and_refused.py`(11 pass).
+
+**다음 수 — 59회차:**
+1. **⭐ 최우선 — §56이 남긴 진짜 질문: `untestable-no-sweep-in-reach` 35개.**
+   이들은 고아가 아니다(집에 증거가 있다). 그러나 **reach 안에 그 축을 스윕하는
+   채점 가능·held-out 블록이 없다** ⇒ 값이 움직여도 아무도 모른다. 35개 중
+   **`sic_alumina_kmno4`가 13개**로 압도적이다(팩 전체가 단일 출처 위에 서 있다).
+   ⚠ 전부 결함은 아니다 — 코퍼스가 그 축을 안 스윕할 뿐일 수 있다.
+   물을 것: **그 상수가 움직일 때 출하 예측이 실제로 움직이는가**(§43의 섭동 규칙을
+   적용하라 — 작은 섭동부터, 양방향, validity window 밖으로 밀지 말 것).
+   움직이지 않으면 §53/§17 클래스(도달 불가)이고, 움직이는데 반증할 블록이 없으면
+   §56 클래스의 약한 형태다. **두 원인을 분리하는 것이 성과다.**
+2. **`oxide_silica.abrasive_size_exponent`는 유일한 "떠났지만 여전히 testable"이다**
+   (departed=3, testable=4). §32의 leave-one-out 수리가 이미 있고 §56이 그것을
+   건드리지 않았다 — 인용 3개가 전부 다른 팩으로 갔는데도 4개 블록이 반증할 수 있다면,
+   **그 4개에 대해 LOO 지수를 다시 가격 매길 수 있다**. ⚠ §33: 블록당 지수 금지.
+3. 46회차 잔여 후보 재측정은 계속 유효: `ph_softening_per_unit`(sic), `promoter_*`.
+   ⚠ `particle_contact_stress_pa`는 §25/regime.py가 **설계상 우회**한다
+   (`cmp_sim/core/regime.py:294-357` 주석 필독).
+4. **크로싱 목록(held-out, 58회차 불변, must-cross 2개):**
+   `us20190127607a1_teos_ceriasilica_size_sweep`(18.9%) ⚠ §54가 이 블록의
+   입경축 family floor 16.07% > 바를 증명했다 — **입경항 바깥에서만** 넘을 수 있다.
+   §56이 두 번째 이유를 더했다(유도식은 이 블록을 18.95%→50.66%로 악화).
+   `tw202115224a_cu_abrasive_size_pressure`(19.5%, 자체 재현산포 13.7% = 물리적 하한).
+5. ⛔ 하지 마라: (57~49회차 금지 목록 전부 유지) + **§56 금지 항목**
+   (`abrasive_size_exponent`를 유도식으로 교체 / `bouvet2002_w_silica_size_sweep`를
+   `w_fe_oxidizer`로 재배정 / `tw202115224a`를 `cu_alkaline_benzenesulfonic`으로 재배정 /
+   §56의 두 고아에서 인용을 삭제해 감사를 통과시키기).
+6. ⛔ **2차(시뮬레이터)는 4개 입력부 검증 통과 상태다** — 갈아엎지 마라. 손대려면
+   `tools/tool3d_e2e.py`로 먼저 현 상태를 재확인하고, 회귀가 없을 때만.
+
+---
+
+### (이전 NEXT, 완료) 57회차 — 위 §56 옆에 남겨 둔다
 
 ### 🎯 OPEN 2026-09-28 (57회차): **데이터셋 재배정이 고아로 만든 적합 상수를 철회했고, 그것이 가리던 유도식이 모든 블록에서 더 낫다(§55).** 상수 **-1개**, held-out must-cross **3 → 2**
 

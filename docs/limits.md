@@ -2573,3 +2573,46 @@ The pack's own note recorded that the two "agree in sign and order of magnitude"
 **Enforced by** `tests/test_orphaned_conc_constant_withdrawn_for_derivation.py` (11 tests, every number re-measured at run time). Non-vacuity guards fail if no dataset is predicted by the pack or if fewer than three are scorable. The withdrawal is checked not to have **silenced** the axis (§20: inert is acceptable, silently inert is not) — tripling the loading must still move the rate — and the applied exponent is measured by perturbing the *shipping* solver, not by reading the pack (§28), then asserted inside the structural bound [0, 1] that `p·(1−α·χ)` implies. The probe is asserted to contain no file-writing call, so a ladder enumeration cannot become a per-block fitter. Calibrated against the bug: restoring `value: 0.227` turns three tests red; deleting the superseded enumeration from the note (matched across the YAML line fold, per §52) turns a fourth red.
 
 **What would resolve it.** Three live exit conditions, each its own failing test: a falling loading ladder returning under this pack re-opens the original C_half reasoning; a **second** iso-condition ladder makes the saturation constant identifiable and demands it be re-priced; and any scanned `C_half` beating the derivation is a finding that must be re-measured rather than a bar to relax. Separately, a 4H-SiC ladder in the plastic/indentation branch — where the decomposition gives a different `p` — would make the derivation *testable* rather than merely unfalsified here. Deliberately **not** a gate on completion.
+
+## 56. §55's orphan class has more members — and this time the repair is REFUSED, on measurement
+
+§55 found one fitted constant whose evidence had been re-assigned to another pack, repaired it by withdrawal, and left an instruction: *when a defect is found by re-assignment, re-audit every constant that cited the re-assigned evidence.* That was done mechanically, and the answer is not a repetition of §55.
+
+### The reader that could not exist before
+
+`tools/calibration_flag_audit.py` has always read these same citations and asked *is this citation self-grading?* — and it deliberately **excuses** a cross-pack citation as ordinary evidence reuse (its `own_pack` filter, added because §46 got exactly that false positive and condemned a clean block). That excuse is correct, and it is precisely the blind spot: a citation waved through as harmless reuse may be a constant's **only** evidence, in which case the constant is unfalsifiable inside its own reach and nothing in the repository says so.
+
+`tools/departed_evidence_census.py` asks the opposite question of the same strings: **for every live numeric pack constant, is there still anything in the scored corpus that could contradict it?** For each constant it computes its *reach* (every pack whose effective parameter of that name is this very object, obtained by loading every pack, so inheritance and shadowing are exact rather than guessed), the datasets its `source:` names (`note:` is read separately — §46: a note may cite the dataset that *refuted* a constant, and counting that reports honesty as circularity), and the **testable** set: scored, held-out blocks inside the reach that sweep an axis the constant governs.
+
+Of 361 live numeric constants: 80 testable, 69 reference-condition (1.0 by the normalisation contract, so no residual to be wrong about), 174 with no axis mapping, 35 with home evidence but no sweep in reach, 1 declared cross-system — and **2 in the §55 class**:
+
+| constant | value | its evidence now sits under |
+|---|---|---|
+| `cu_alkaline_benzenesulfonic.abrasive_size_exponent` | 0.0 | `tw202115224a…` → `cu_h2o2_bta` |
+| `w_fe_oxidizer.abrasive_size_exponent` | −0.05 | `bouvet2002_w_silica_size_sweep` → `oxide_silica` |
+
+`cu_h2o2_bta.ph_mechanical_floor` is in the same structural position and is **not** counted: its note declares the transfer ("⚠ CROSS-SYSTEM, and knowingly so"). Untestable by construction is not untestable by decay, and conflating them would be §46's false positive one level up.
+
+### The finding: the repair does not generalise, and the asymmetry holds both ways
+
+§55 repaired its orphan by *withdrawing the fit so the engine's derivation acted* — 0 blocks worse, 3 better, one constant deleted. The obvious next move is the same operation on this axis, and it is refuted by measurement. `tools/size_exponent_derivation_price.py` runs the shipping solver twice on every block whose pack declares `abrasive_size_exponent`, once as shipped and once with the key overridden to null so `mechanical_factor` falls back to `n_d = −q(1−α·χ)+β`:
+
+**1 better, 10 worse, 37 unchanged; median shape 19.23 % → 25.13 %.** The damage is concentrated exactly where it should be if the measurement is real — on the blocks that actually sweep size (`son2021` 25.6 → 211.8 %, `lai2001` 8.7 → 69.9 %, `bouvet2002_w` 2.3 → 44.0 %) — and the unchanged 37 hold size fixed, where the exponent acts only through `(d/d_ref)^n`.
+
+So §55's adoption rule is applied in its mirror image: a derived value is adopted **because it is derived** and only if it is not worse; when it is worse the fit stays and the disagreement is recorded. Adopting it here for symmetry with §55 would have added ~6 points to the corpus median. This is also the *second independent reason* the size axis is closed to re-derivation — §54 already showed the monotone family is not what costs.
+
+### What was rejected
+
+**Re-assigning the departed datasets back to the citing packs.** Priced, not argued. On W it is **exactly neutral** (2.32 % either way) and moves neither the published (18.95 %) nor the held-out (19.51 %) median — so it cannot be justified by accuracy, and it would apply an alumina-referenced pack to a silica slurry on a file that declares no `abrasive:` key, so the swap detector would never ask (§27). On Cu it buys 0.4 pp of shape (19.51 → 19.10 %) while absolute scale collapses 1.734 → 11.177, a 6.4x rate error for a trend improvement — the exact trade this page warns about — and the dataset's own header names an acidic glycine/BTA chemistry, which is the *other* pack's system.
+
+**Deleting either citation.** It passes the census while restoring the undetectable state: the §27 error class.
+
+**Calling the two orphans defects.** The probe's own output says it is a *shortlist of questions, not a bug list*. Both constants survive; what changes is that their untestability is now written into their notes with the numbers behind both refused repairs and with the measurement that would end it.
+
+### The generalisable rule
+
+*Two readers of the same evidence can have opposite blind spots, and the excuse that makes one of them correct is where the other one's findings live.* `calibration_flag_audit` must excuse cross-pack citations or it condemns clean blocks; that excuse is exactly the set this census examines. Before trusting a filter, ask what it is entitled to ignore — and whether anything else looks there. And when a repair worked once, **price it on the next instance rather than applying it**: §55's withdrawal was right for one axis and costs 6 median points on the neighbouring one.
+
+**Enforced by** `tests/test_departed_evidence_orphans_are_priced_and_refused.py`, every number re-measured at run time. An instrument control requires the census to recover a known departed citation and to find at least one *testable* constant, so a broken reach or axis map cannot report a clean bill of health; a non-vacuity guard fails if the reference-condition exemption ever swallows an orphan; the declared-cross-system filter is asserted non-empty, so it cannot be inverted silently; and both packs' notes are checked on the string the **parameter loader** returns, not on the file text, because a `note: >` block wraps on disk (§52).
+
+**What would resolve it.** Per constant, and each its own failing assertion: for W, an `abrasive:` declaration on `bouvet2002_w_silica_size_sweep` *plus* an alumina W size sweep — this pack's declared reference abrasive; for Cu, a size sweep in the benzenesulfonic chemistry itself. More generally, the orphan set is pinned by name, so a constant joining or leaving it fails loudly: joining means a new instance needing its own pricing, leaving means a repair that must be recorded. Deliberately **not** a gate on completion.

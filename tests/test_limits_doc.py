@@ -38,6 +38,13 @@ LIMITS = DOCS / "limits.md"
 #: Tests that enforce a decided refusal to predict. A test added here MUST be
 #: cited by docs/limits.md — that is the point of the registry.
 LIMIT_ENFORCING_TESTS = {
+    # §56 — §55's orphan class re-enumerated over EVERY pack: 2 more constants
+    # whose cited evidence is scored under another pack and which nothing in
+    # reach can refute. §55's repair (withdraw the fit, let the derivation act)
+    # is PRICED on this axis and refused -- 10 worse / 1 better, median
+    # 19.23% -> 25.13% -- as is re-assigning the departed datasets back.
+    # Added deliberately.
+    "test_departed_evidence_orphans_are_priced_and_refused.py",
     # §55 — a fitted constant was ORPHANED by a dataset re-assignment (ruling
     # #49-B moved its decisive counter-example to another pack), and the
     # derivation it masked (n_C = p*(1-alpha*chi) = +1/3) is better on every

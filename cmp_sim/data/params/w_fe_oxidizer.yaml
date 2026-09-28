@@ -131,6 +131,28 @@ params:
       full-load-sharing cancellation in the Luo-Dornfeld relations, not from a
       measurement. The measured value happens to be near zero too, which is a
       coincidence of mechanism rather than a confirmation of that derivation.
+
+      ⚠ ITS EVIDENCE IS SCORED UNDER ANOTHER PACK, AND THAT IS DELIBERATE
+      (§56). bouvet2002_w_silica_size_sweep -- the rows this value was fitted
+      on -- carries `pack: oxide_silica`, chosen for the ABRASIVE (colloidal
+      silica) rather than for the film. So no scored block under this pack
+      sweeps particle size, and nothing here can refute this number:
+      tools/departed_evidence_census.py classes it DEPARTED-AND-UNTESTABLE.
+      That state is declared rather than repaired, and the two repairs were
+      priced and refused:
+        * re-assigning the dataset to this pack scores IDENTICALLY on shape
+          (2.32% both ways) and does not move either corpus median, so it buys
+          no accuracy -- and it would silently apply an alumina-referenced pack
+          to a silica slurry, because that file declares no `abrasive:` key and
+          the swap detector therefore never asks (§27). Declaring the abrasive
+          and re-assigning the file are SEPARATE decisions; doing both at once
+          makes the result unattributable.
+        * replacing this fit with the engine's derived n_d = -q(1-alpha*chi)+beta
+          is far worse wherever it can be tested (§56: 10 blocks worse, 1
+          better; on W's own sweep 2.32% -> 44.01%).
+      TODO(owner): the number that would make this testable in place is an
+      `abrasive:` declaration on bouvet2002_w_silica_size_sweep plus a W size
+      sweep with an ALUMINA slurry -- this pack's declared reference abrasive.
     source: >
       D. Bouvet, P.-A. Beaud, P. Fazan, R. Sanjines, "Impact of the colloidal
       silica particle size on physical vapor deposition tungsten chemical

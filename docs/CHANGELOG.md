@@ -4,6 +4,35 @@ All notable changes to CMP-Sim. Newest first.
 
 ## Unreleased
 
+### Added — the orphan class §55 opened is now enumerable, and its next two members are priced and refused (2026-09-28)
+- `tools/departed_evidence_census.py` asks, of every live numeric pack
+  constant, **whether anything in the scored corpus could still contradict
+  it**: it computes the constant's *reach* (packs whose effective parameter of
+  that name is this object, obtained by loading every pack so inheritance and
+  shadowing are exact), the datasets its `source:` names, and the held-out
+  scored blocks inside the reach that sweep an axis it governs. This is the
+  direction `tools/calibration_flag_audit.py` structurally cannot look: that
+  audit **excuses** a cross-pack citation as ordinary evidence reuse, and that
+  excuse is where these findings live.
+  361 constants: 80 testable, 69 reference-condition, 174 with no axis mapping,
+  35 with home evidence but no sweep in reach, 1 declared cross-system, and
+  **2 in the §55 orphan class** — `cu_alkaline_benzenesulfonic` and
+  `w_fe_oxidizer`'s `abrasive_size_exponent`.
+- `tools/size_exponent_derivation_price.py` prices §55's repair on this axis
+  before anyone applies it: replacing the declared exponent with the engine's
+  derived `n_d = -q(1-alpha*chi)+beta` scores **1 better / 10 worse**, median
+  shape **19.23% -> 25.13%**, with the damage concentrated on the blocks that
+  actually sweep size. **Refused** — §55's rule is asymmetric on purpose: a
+  derived value is adopted *because* it is derived, and only if it is not
+  worse. Re-assigning the departed datasets back was priced too (W: exactly
+  neutral, no median movement; Cu: 0.4 pp of shape for a 6.4x absolute-scale
+  error) and also refused. **Zero constants changed; both medians unchanged
+  (18.9% published, 19.5% held out) — the correct outcome for an honesty fix.**
+- Both packs' notes now carry their untestability, the numbers behind both
+  refused repairs, and the measurement that would end it. `docs/limits.md` §56;
+  `tests/test_departed_evidence_orphans_are_priced_and_refused.py` (11 tests,
+  every number re-measured at run time, 5 mutations verified to turn it red).
+
 ### Fixed — an orphaned fitted constant was withdrawn, and the derivation it masked is better everywhere (2026-09-28)
 - `sic_ceria_h2o2.abrasive_conc_exponent` (+0.227, a fit over 17 matched pairs)
   is now **null**, so the engine's own three-factor contact decomposition
