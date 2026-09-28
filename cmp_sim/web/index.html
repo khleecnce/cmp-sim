@@ -3,7 +3,18 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>CMP-Sim</title>
+<title>CMP-Sim — physics-based chemical mechanical planarization simulator</title>
+<!-- A public URL on a CV is read by recruiters and by link previews before it
+     is read by an engineer, so the page states what it is and who built it in
+     machine-readable form too. -->
+<meta name="description" content="Open-source physics-based CMP simulator: removal rate, uniformity, dishing and erosion, defect risk from slurry, pad and tool settings. Every constant carries a literature source; accuracy is scored against published datasets on every run."/>
+<meta name="author" content="Keehwan Lee"/>
+<meta property="og:type" content="website"/>
+<meta property="og:title" content="CMP-Sim — physics-based CMP simulator"/>
+<meta property="og:description" content="Predicts removal rate, uniformity, dishing/erosion and scratch risk from a slurry, pad and tool recipe. Literature-sourced constants, leave-one-out accuracy scored against published DOE datasets."/>
+<meta property="og:url" content="https://cmp-sim.vercel.app/"/>
+<meta name="twitter:card" content="summary"/>
+<link rel="canonical" href="https://cmp-sim.vercel.app/"/>
 <style>
   :root{
     --bg:#0f1115; --panel:#171a21; --panel2:#1d212a; --line:#2a2f3a;
@@ -17,6 +28,21 @@
          display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
   h1{margin:0;font-size:19px;letter-spacing:.2px}
   header .sub{color:var(--muted);font-size:12.5px}
+  header .grow{flex:1}
+  header nav{display:flex;gap:16px;align-items:baseline}
+  header nav a{color:var(--accent);font-size:12.5px;text-decoration:none;white-space:nowrap}
+  header nav a:hover{text-decoration:underline}
+  /* The landing pane is the first thing a visitor who did not clone the repo
+     sees, so it states what the model is, how wrong it is, and who wrote it —
+     before they have entered a single number. */
+  .about{max-width:760px}
+  .about h2:first-child{margin-top:0}
+  .about p{font-size:13px;color:var(--fg);margin:8px 0}
+  .about .lede{font-size:14px}
+  .about ul{margin:8px 0 0 18px;padding:0;font-size:12.5px;color:var(--muted)}
+  .about li{margin:5px 0}
+  .about .byline{margin-top:20px;padding-top:12px;border-top:1px solid var(--line);
+                 font-size:12px;color:var(--muted)}
   main{display:grid;grid-template-columns:400px 1fr;gap:0;min-height:calc(100vh - 61px)}
   #form{border-right:1px solid var(--line);padding:18px 20px 60px;overflow-y:auto;
         max-height:calc(100vh - 61px)}
@@ -81,6 +107,12 @@
   <span class="sub">physics-based chemical mechanical planarization simulator
     &mdash; Preston &times; Greenwood-Williamson contact &times; abrasive mechanics
     &times; slurry chemistry</span>
+  <span class="grow"></span>
+  <nav>
+    <a href="/tool">3D tool view</a>
+    <a href="https://github.com/khleecnce/cmp-sim">Source</a>
+    <a href="https://github.com/khleecnce/cmp-sim/blob/main/docs/limits.md">What it cannot do</a>
+  </nav>
 </header>
 
 <main>
@@ -188,7 +220,49 @@ run-2,4.0,60,4690,3.0"></textarea></label>
 </div>
 
 <div id="out">
-  <div class="placeholder">Set a recipe and press Simulate.</div>
+  <div class="about" id="about">
+    <h2>What this is</h2>
+    <p class="lede">A physics-based CMP simulator. Give it a slurry, a pad, a
+      conditioner and tool settings; it predicts removal rate, within-wafer
+      non-uniformity, the radial profile, dishing and erosion on patterned
+      wafers, pad-life drift and a scratch-risk index — the quantities a
+      supplier or a fab would otherwise have to polish a wafer to find out.</p>
+    <p>Every constant carries a literature source. A constant that cannot be
+      sourced is left <code>null</code> with an owner TODO rather than filled
+      with a plausible-looking number, and every result ships the warnings that
+      say where not to trust it.</p>
+
+    <h2>How wrong it is</h2>
+    <p id="aboutacc">Scoring the published datasets now&hellip;</p>
+    <p>It predicts <b>trend</b>, not absolute rate: how the rate moves when you
+      change pressure, pH, particle size or oxidiser. Absolute magnitude is a
+      separate and weaker claim, reported separately. The numbers above are
+      measured on every run of the test suite, not quoted from a good day.</p>
+    <ul>
+      <li>Any dataset used to fit a constant is quarantined from the score, so
+        the model cannot grade its own homework.</li>
+      <li>Leave-one-out means each point is predicted by a fit that never saw it.</li>
+      <li>Where the corpus cannot resolve a term, the model
+        <a href="https://github.com/khleecnce/cmp-sim/blob/main/docs/limits.md">declines
+        to predict</a> rather than fitting noise — each refusal is enforced by a test.</li>
+    </ul>
+
+    <h2>Use it</h2>
+    <ul>
+      <li>Fill the form on the left and press <b>Simulate</b>.</li>
+      <li>Paste your own polishing log into <b>Your measurements</b> — the model
+        re-fits itself, opens only the factors your data can identify, locks the
+        rest, and tells you which experiment to run next.</li>
+      <li><a href="/tool">3D tool view</a> — click a part of the polisher to
+        enter its data.</li>
+    </ul>
+
+    <p class="byline">Built by <b>Keehwan Lee</b>, CMP slurry development, as an
+      independent project from published literature — no employer data, and no
+      constant calibrated against internal results. Code, derivations and
+      validation sets: <a href="https://github.com/khleecnce/cmp-sim">github.com/khleecnce/cmp-sim</a>
+      (MIT). Contact: khleecnce@gmail.com</p>
+  </div>
 </div>
 </main>
 
@@ -197,6 +271,29 @@ const $ = id => document.getElementById(id);
 const num = id => { const v = $(id).value.trim(); return v === "" ? null : Number(v); };
 let META = null;
 let ACC = null;   // measured predictive accuracy, from GET /api/accuracy
+
+// The landing pane quotes the accuracy number LIVE from the same endpoint the
+// result panel uses, so a figure in the shop window can never drift from the
+// figure the model actually scores.
+function paintAboutAccuracy(){
+  const el = $("aboutacc");
+  if (!el || !ACC) return;
+  const axes = Object.entries(ACC.by_axis || {})
+    .sort((a,b) => a[1].median_shape_error_percent - b[1].median_shape_error_percent);
+  const best = axes[0], worst = axes[axes.length - 1];
+  let s = `Scored against <b>${ACC.datasets_scored} published datasets</b>`
+        + ` (${ACC.measured_points} measured points): median trend error`
+        + ` <b>${ACC.median_shape_error_percent}%</b>,`
+        + ` leave-one-out <b>${ACC.median_leave_one_out_percent}%</b>.`;
+  if (typeof ACC.beat_predicting_the_mean === "number")
+    s += ` It beats predicting the dataset mean on ${ACC.beat_predicting_the_mean}`
+       + ` of ${ACC.datasets_scored}.`;
+  if (best && worst && best[0] !== worst[0])
+    s += ` By axis it ranges from ${best[1].median_shape_error_percent}%`
+       + ` (${best[0].replace(/_/g," ")}) to ${worst[1].median_shape_error_percent}%`
+       + ` (${worst[0].replace(/_/g," ")}).`;
+  el.innerHTML = s;
+}
 
 function opts(sel, items, blank){
   const s = $(sel); s.innerHTML = "";
@@ -217,7 +314,11 @@ async function boot(){
   META = await (await fetch(api("/api/meta"))).json();
   // Scoring 330 points takes a moment, so it must not block the first paint:
   // fetch it alongside and let the result panel pick it up when it lands.
-  fetch(api("/api/accuracy")).then(r=>r.json()).then(a=>{ACC=a;}).catch(()=>{});
+  fetch(api("/api/accuracy")).then(r=>r.json()).then(a=>{ACC=a; paintAboutAccuracy();}).catch(()=>{
+    const el = $("aboutacc");
+    if (el) el.textContent = "The accuracy score could not be reached just now — "
+      + "run the suite locally with tools/score_report.py for the current number.";
+  });
   opts("film", META.films);
   $("film").value = META.films.includes("oxide") ? "oxide" : META.films[0];
   /* Abrasive choices are per-film: only the ones whose selection can move the

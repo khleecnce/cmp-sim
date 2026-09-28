@@ -38,6 +38,15 @@ LIMITS = DOCS / "limits.md"
 #: Tests that enforce a decided refusal to predict. A test added here MUST be
 #: cited by docs/limits.md — that is the point of the registry.
 LIMIT_ENFORCING_TESTS = {
+    # §59 — this repository has TWO absolute-rate readers and they disagree on
+    # 14 of 52 blocks (rank AUC 0.699), so neither is a re-reading of the other
+    # and neither REPORTS the other's finding. absolute_scale_audit reduces a
+    # block to the MEDIAN of measured/predicted, so 7 blocks whose rows STRADDLE
+    # the plausibility envelope pass it at ~1.1x; 3 blocks forbid absolute
+    # comparison entirely, leaving the envelope as the only reader; 4 are 3x+
+    # wrong while inside their envelope. Also closes STATUS 61-1: the failing
+    # population is centred (+0.063, 10 under vs 6 over). Median unchanged.
+    "test_two_absolute_readers_disagree.py",
     # §58 — §57's `scale-only` class HAS a reader: 12 of 14 are graded by
     # absolute_scale_audit (§34's only absolute-rate reader), which was written
     # down nowhere, so a wrong value looked exactly like a graded one. The 2

@@ -342,6 +342,85 @@ def _drive(tool_url: str, shot: str) -> int:
         else:
             failures.append("tool.pressure_psi input not reachable")
 
+        # (d) the model must be VIEWABLE and EDITABLE from the UI, and an edit
+        # must re-predict. This is the owner's structural requirement in its
+        # observable form: the physics lives in the packs, the browser only
+        # reads it, and an owner-supplied edit travels the ordinary override
+        # path (so it is reported as owner-supplied and can never pass for a
+        # sourced value). Checking that the sheet merely OPENS would be the
+        # §"conversion is not reach" error -- grade it by whether the rate
+        # moves.
+        #
+        # Use kp_m_per_pa as the control, because it has an ANALYTIC answer:
+        # the Preston coefficient multiplies every rate, so doubling it must
+        # exactly double the predicted rate. A threshold ("the number changed")
+        # would pass on any wiring that merely perturbs something; an exact
+        # factor cannot. Anything else moving means the edit reached more than
+        # the constant it named.
+        if page.locator("#showmodel").count():
+            page.click("#showmodel")
+            page.wait_for_selector("#sheetbody [data-param]", timeout=15_000)
+            nconst = page.evaluate(
+                "() => document.querySelectorAll('#sheetbody table tr').length - 1")
+            nsrc = page.evaluate(
+                "() => document.querySelectorAll('#sheetbody details').length")
+            print(f"OK    model sheet: {nconst} constants, {nsrc} with sources")
+            if nconst < 10:
+                failures.append(f"model sheet lists only {nconst} constants")
+            if nsrc < 1:
+                failures.append("model sheet shows no sources -- a constant "
+                                "without provenance is indistinguishable "
+                                "from an invented one")
+            kp = page.locator('#sheetbody input[data-param="kp_m_per_pa"]')
+            if kp.count():
+                base = float((page.text_content("#lrate") or "")
+                             .replace("\u00c5/min", "").strip() or "nan")
+                kp0 = float(kp.input_value())
+                kp.fill(repr(kp0 * 2))
+                kp.dispatch_event("change")
+                page.click("#reapply")
+                page.wait_for_selector("#sheetbody [data-param]", timeout=20_000)
+                page.wait_for_timeout(1500)
+                after = float((page.text_content("#lrate") or "")
+                              .replace("\u00c5/min", "").strip() or "nan")
+                ratio = after / base if base else float("nan")
+                edited = page.evaluate(
+                    "() => !!document.querySelector('#sheetbody .badge.rank')")
+                print(f"OK    Kp x2 -> rate {base:.1f} -> {after:.1f} "
+                      f"= {ratio:.4f}x (expected 2.0000), "
+                      f"marked edited={edited}")
+                # 0.5% tolerance: the readout is rounded to 0.1 A/min, which on
+                # a slow film is a real fraction of the number.
+                if not (1.99 <= ratio <= 2.01):
+                    failures.append(
+                        f"editing kp_m_per_pa x2 moved the rate {ratio:.4f}x, "
+                        f"not 2x -- Preston is multiplicative, so any other "
+                        f"factor means the edit did not reach the solver "
+                        f"cleanly")
+                if not edited:
+                    failures.append(
+                        "an owner-edited constant is not marked 'edited' in "
+                        "the sheet -- it would read as a sourced value")
+                page.click("#clearedits")
+                page.wait_for_selector("#sheetbody [data-param]", timeout=15_000)
+                page.click("#reapply")
+                page.wait_for_timeout(1500)
+                back = float((page.text_content("#lrate") or "")
+                             .replace("\u00c5/min", "").strip() or "nan")
+                print(f"OK    clear edits -> rate back to {back:.1f} "
+                      f"(was {base:.1f})")
+                if abs(back - base) > max(0.2, 0.005 * base):
+                    failures.append(
+                        f"clearing edits left the rate at {back}, not {base}")
+            else:
+                failures.append("kp_m_per_pa is not editable in the model sheet")
+            page.evaluate("() => document.getElementById('sheetclose')?.click()")
+            page.wait_for_timeout(300)
+        else:
+            failures.append("no 'model parameters & sources' button in the "
+                            "operation drawer -- the model is not inspectable "
+                            "from the UI")
+
         page.evaluate("() => document.getElementById('drawerclose')?.click()")
         page.wait_for_timeout(400)
         page.screenshot(path=shot)

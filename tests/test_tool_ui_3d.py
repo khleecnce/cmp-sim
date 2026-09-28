@@ -543,10 +543,39 @@ def test_the_model_inspector_shows_constants_with_sources_and_re_predicts(page):
              document.getElementById('reapply').click();}""")
     page.wait_for_timeout(3000)
     after = _rate(page)
-    assert after > before * 1.5, (
-        f"doubling the Preston coefficient in the model inspector did not "
-        f"double the prediction ({before} -> {after}); the edit loop is not "
-        f"reaching the engine")
+    # Grade this on the ANALYTIC answer, not on a threshold. Kp is a pure
+    # multiplier on the Preston rate, so doubling it must double the prediction
+    # EXACTLY. A ">1.5x" bar passes on any wiring that merely perturbs
+    # something adjacent -- e.g. an edit that also re-derived a factor from the
+    # changed value, or that was applied twice -- and those are precisely the
+    # failures a UI edit path can have. The tolerance below is the readout's
+    # own quantisation (the panel prints 0.1 A/min), nothing else.
+    assert after == pytest.approx(before * 2.0, rel=0.01), (
+        f"doubling the Preston coefficient in the model inspector moved the "
+        f"prediction {after / before:.4f}x ({before} -> {after}), not 2x. Kp "
+        f"multiplies the rate, so any other factor means the edit did not "
+        f"reach the solver cleanly -- or reached more than the constant it "
+        f"named")
+
+    # An owner edit must be VISIBLE as an edit. The whole point of routing it
+    # through recipe.params is that it is reported as owner-supplied and can
+    # never pass for a sourced value; if the sheet redraws it looking like the
+    # pack's own number, the UI has undone that guarantee.
+    assert page.evaluate(
+        "() => !!document.querySelector('#sheetbody .badge.rank')"), (
+        "an owner-edited constant is not marked 'edited' in the model sheet, "
+        "so it is indistinguishable from a value with a source")
+
+    # And the edit must be REVERSIBLE. A one-way override turns an exploratory
+    # 'what if' into a silent permanent change to every later run in the
+    # session -- the same class of defect as a constant with no provenance.
+    page.evaluate("() => document.getElementById('clearedits').click()")
+    page.wait_for_timeout(500)
+    page.evaluate("() => document.getElementById('reapply').click()")
+    page.wait_for_timeout(3000)
+    assert _rate(page) == pytest.approx(before, rel=0.01), (
+        f"clearing the edits did not restore the pack's own prediction "
+        f"({before} -> {_rate(page)})")
 
 
 # ── framing: the machine must actually be visible, at every window shape ──

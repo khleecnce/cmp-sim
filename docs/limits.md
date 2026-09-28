@@ -2857,3 +2857,58 @@ and it is recorded so it stops being invisible, **not** as a gate.
 answer, making the census blind to the measurement, widening the Si envelope,
 reporting a saturated alarm as an ordinary bound, and deleting the instrument
 control).
+
+## 59. The repository has TWO absolute-rate readers, they disagree on 14 of 52 blocks, and neither reports the other's finding
+
+§58 split the plausibility envelope's firing blocks and left STATUS proposing a
+hunt for a shared condition axis across the 19 `model-scale-failure` + `mixed`
+blocks. The ladder's cheaper question comes first, and it is the §45/§47
+question applied to the *other* reader: **is that class new information, or
+`absolute_scale_audit` wearing a different name?** Both look at absolute rate.
+
+**Measured** (`tools/envelope_jurisdiction_overlap_probe.py`): rank AUC
+**0.699** between the envelope's class and `|log10 scale_ratio|` — related but
+not recoverable. The two readers disagree on **14 of 52** blocks, by three
+distinct mechanisms:
+
+| class | blocks | mechanism |
+|---|---|---|
+| `hidden-by-median` | 7 | `absolute_scale_audit` reduces a block to the **median** of measured/predicted before comparing to `SCALE_BAR`. A block whose rows *straddle* the envelope therefore passes at 1.09x (`jani2025`) while individual predictions sit outside a published bound |
+| `forbidden` | 3 | the dataset's own notes forbid absolute comparison, so the scale audit correctly drops the block and the **envelope is the only absolute reader left** (`bae2022`, `sic2023`, `yang2023`) |
+| `scale-only` | 4 | flagged by the scale audit and never by the envelope: inside the published bound and still 3x+ wrong (`us8142675b2` at 0.11x) |
+
+**The deliverable is the declared division of labour, not a change to either
+reader.** Before this, a block failing one reader and passing the other looked
+in every report exactly like a block both readers had cleared.
+
+**Three repairs rejected.** (a) Widening an envelope — §58's mutation guard,
+every bound cites a measurement. (b) Re-scoring the headline on absolute
+scale — §34 measured that shape and scale fail independently. (c) Replacing the
+scale audit's median with a per-row statistic: the median is the **correct**,
+outlier-robust reduction for *its* question ("is this block's rate
+systematically wrong?"), and `hidden-by-median` is a minority (7 of 52), so this
+is a jurisdiction finding and not a defect in the reduction. All three carry
+mutation guards.
+
+**It also closes STATUS 61-1.** The failing population's signed misses are
+**centred** — median `+0.063` (1.16x), 10 under- vs 6 over-predicting — which is
+exactly the reading §34 used to close the "one universal correction" search
+before it starts. Hunting a shared condition axis across them would repeat §34
+and §47 on a relabelled population.
+
+**What would resolve it.** For `hidden-by-median`, nothing is broken, so
+nothing needs resolving; the exit condition is the opposite — if that class ever
+grows past half the corpus, the median really would be the wrong reduction and
+the enforcing test fails. For `forbidden`, a source publishing the
+carrier-to-platen centre distance alongside its rates would bring those three
+blocks into the scale audit's reach (the same datum §58 named for `si`). For the
+AUC itself: it is **deliberately *not* a gate** — it is re-measured, never
+pinned, and its band exists only so a future convergence or divergence of the
+two readers is announced rather than silent.
+
+**Enforced by** `tests/test_two_absolute_readers_disagree.py` (11 pass; 5/5
+mutations caught by `tools/_mutation_check_two_readers.py`, including collapsing
+the classifier to one class, silently filling a forbidden block's scale with
+0.0, deleting the refusals from the printed output, re-declaring `SCALE_BAR`
+locally, and giving the probe a write path). Median unchanged: 18.9 % published
+/ 19.5 % held-out / 21.3 % LOO.
