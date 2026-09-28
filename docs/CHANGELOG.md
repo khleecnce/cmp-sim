@@ -4,6 +4,34 @@ All notable changes to CMP-Sim. Newest first.
 
 ## Unreleased
 
+### Measured — a pack's coherence verdict represents ONE CONSTANT OFFSET, so a scale that TRENDS along a condition is filed as "the blocks disagree, so Kp is not the cause" (2026-09-28)
+- §46 asked what function family a reduction can represent, about the axis
+  oracle. The same question about `tools/absolute_scale_audit.py` has a sharper
+  answer: `median_log` and `spread` are functions of the **multiset** of
+  `log10(measured/predicted)` values, so permuting which block holds which value
+  leaves both bit-identical while every trend statistic moves freely. The
+  reduction spans `scale = const + noise` and cannot express `A*x**b` at all.
+  Arithmetic, so no corpus change retires it (§45's class).
+- **Measured** (`tools/scale_coherence_trend_probe.py`, new; 38 comparable
+  blocks, 4 packs with >= 4 blocks, every slope priced against a 2000-shuffle
+  permutation null because a large |r| on 4-8 points is cheap): `cu_h2o2_bta`'s
+  absolute scale trends with pressure, **slope -0.94, p_perm 0.009** (3.24x at
+  1.0 psi to 0.057x at 6.96 psi). The 59.3x spread the audit reports is that
+  trend with the ordering thrown away. The other three packs do not clear their
+  own nulls (0.085 / 0.223 / 0.301).
+- **Two controls refute it as physics**, both re-measured by the enforcing test
+  rather than quoted: within-block pressure slopes straddle zero
+  (`pressure_saturation_probe`, median -0.046, 6 of 10 negative), and the
+  cross-block **measured**-rate exponent is **-0.55** where Preston requires
+  **+1** — harder-pressed publications simply polished slower systems, so a
+  correction fitted to the slope would encode publication selection.
+- **Nothing wired, no constant added; median 18.9% / 19.5% held out UNCHANGED**,
+  the correct outcome for an instrument repair. What changed is the sentence:
+  `INCOHERENT` now means "no single constant fits these blocks", asserted in the
+  audit's own docstring and report text with a pointer to `docs/limits.md` §47.
+- Enforced by `tests/test_scale_coherence_cannot_see_a_trend.py` (9 tests); the
+  blindness is proved on synthetic scales, so it cannot expire with the corpus.
+
 ### Measured — the axis oracle spans the MONOTONE POWER LAWS only, so "the most any law could buy" was measured with a statistic that cannot bend (2026-09-28)
 - §45 asked what a reduction *throws away*; this asks what family it can
   **represent**. `tools/axis_error_census.py` prices an axis by granting one
