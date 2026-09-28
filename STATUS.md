@@ -1,5 +1,21 @@
 # CMP-Sim — STATUS
 
+## 🔁 텔레그램 → Mac 이관 (2026-09-28 22:00, 데스크톱 세션 실측)
+- 인수인계 원문: `~/TELEGRAM-TO-MAC-HANDOFF-20260928.md` (크론 14개 삭제 목록·백업 경로 포함)
+- 이 저장소의 정확도는 **재측정으로 확인**했다(자기보고 아님):
+  `.venv/bin/python tools/score_report.py` → **median shape 18.9% / LOO 21.3%, 48/52 블록 440점**.
+  즉 9/26 이후 커밋 77건이 median을 움직이지 않았다 — 그 기간 작업은 관할·정직성 수정이었다.
+- 데모 서버: `http://127.0.0.1:8765/tool?t=RRuOs704DQVjQmeR` **HTTP 200 생존 확인**.
+  cloudflared quick tunnel은 죽어 있다(외부 공개가 필요할 때 다시 띄운다).
+- newfabsim 프로필 크론 **재생성 완료**(전원 model·provider pin = claude-opus-5/anthropic):
+  `9b65cb881278` 자율 워치독 */15 (idle일 때만 착수, 무음 종료) ·
+  `c762c66f1f44` 아침 보고 08:00 (deliver=all) ·
+  `1968760e7203` 데모 서버 지킴이 */5 (no_agent, 정상 시 무음).
+  워치독/지킴이 스크립트는 프로필 scripts 디렉터리로 복사했다(크론이 절대경로·심볼릭링크를 거부한다).
+  둘 다 직접 실행해 동작 확인(`IDLE ... commit_age_min=12` / 무음 exit 0).
+- ⚠ 세션 간 동기화 크론(`d2aaa9019b7c`, 2분)은 default 프로필 소관이라 여기서 되살리지 않았다.
+  그것이 없으면 프로필 간 지시 단절이 재발한다 — default 세션에서 복원해야 한다.
+
 ## 📊 현재 median (60회차, 2026-09-28 실측)
 - **공표 median (upper, 48/52 블록, 440점): 18.9%** — 불변(=정답: 관할 선언 수정)
 - **held-out median (33 블록): 19.5%** — 불변. must-cross 2개 유지
