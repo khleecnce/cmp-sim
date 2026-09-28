@@ -10,6 +10,15 @@
 #                              ModuleNotFoundError: No module named 'sim'.
 #   legacy/knowledge/params/ — the inherited parameter packs that several
 #                              films still resolve against.
+#   legacy/validation/datasets/ — the inherited validation datasets. These are
+#                              NOT runtime-inert: `core/validation.py` reads
+#                              both this folder and `cmp_sim/data/validation/
+#                              datasets`, so excluding it made the hosted
+#                              `/api/accuracy` score 47 datasets / 435 points
+#                              while the repository scored 48 / 440. The page
+#                              now publishes those figures on a CV link, and a
+#                              number that disagrees with `tools/score_report.py`
+#                              is worse than no number. 296 KB of YAML.
 #
 # Everything else (research notes, validation trees, papers, tests) is never
 # read by a request and would only slow cold starts. Verified by importing the
@@ -19,7 +28,10 @@ legacy/knowledge/cmp/
 legacy/knowledge/materials/
 legacy/knowledge/process/
 legacy/knowledge/notes/
-legacy/validation/
+legacy/validation/*.md
+legacy/validation/*.py
+legacy/validation/*.json
+legacy/validation/*.jsonl
 legacy/papers/
 legacy/tests/
 legacy/tools/

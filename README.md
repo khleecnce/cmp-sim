@@ -1,8 +1,8 @@
 # CMP-Sim
 
-[![tests](https://img.shields.io/badge/tests-898%20passing-brightgreen)](#)
+[![tests](https://img.shields.io/badge/tests-1%2C428%20passing-brightgreen)](#)
 [![validation](https://img.shields.io/badge/literature%20gate-4%20datasets%20within%20%C2%B115%25-brightgreen)](#validation)
-[![accuracy](https://img.shields.io/badge/trend-18.9%25%20median%2C%20440%20points-blue)](#2-how-accurate-is-it-on-every-axis-cmp-sim-accuracy)
+[![accuracy](https://img.shields.io/badge/trend-18.9%25%20median%2C%20435%20points-blue)](#2-how-accurate-is-it-on-every-axis-cmp-sim-accuracy)
 [![scale](https://img.shields.io/badge/absolute%20rate-24%2F35%20within%203x-yellow)](#2-how-accurate-is-it-on-every-axis-cmp-sim-accuracy)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -33,7 +33,7 @@ silica cannot share a term.
 git clone https://github.com/khleecnce/cmp-sim && cd cmp-sim
 python3 -m venv .venv && .venv/bin/pip install --upgrade pip setuptools
 .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest -q          # 567 tests
+.venv/bin/python -m pytest -q          # 1,431 tests
 .venv/bin/python -m cmp_sim.api        # web UI at http://127.0.0.1:8765
 ```
 

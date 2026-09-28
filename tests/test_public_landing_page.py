@@ -128,6 +128,44 @@ def test_the_page_is_reachable_without_a_token_by_default():
             os.environ["CMPSIM_TOKEN"] = had
 
 
+def test_the_deploy_bundle_keeps_every_dataset_the_score_reads():
+    """The hosted score must equal the repository score, dataset for dataset.
+
+    Measured, not assumed: `.vercelignore` excluded `legacy/validation/`, and
+    because `core/validation.py` reads BOTH that folder and the package's own,
+    the deployed `/api/accuracy` reported 47 datasets / 435 points while
+    `tools/score_report.py` reported 48 / 440. Two different honest-looking
+    numbers for the same claim, one of them printed on a CV.
+
+    This checks the ignore rules the way Vercel applies them, so re-adding a
+    broad `legacy/validation/` line fails here rather than in production.
+    """
+    from cmp_sim.core.validation import dataset_paths
+
+    rules = [ln.strip() for ln in
+             (ROOT / ".vercelignore").read_text(encoding="utf-8").splitlines()
+             if ln.strip() and not ln.startswith("#")]
+
+    dropped = []
+    for path in dataset_paths():
+        rel = path.relative_to(ROOT).as_posix()
+        for rule in rules:
+            if rule.endswith("/") and rel.startswith(rule):
+                dropped.append((rel, rule))
+            elif "*" in rule:
+                from fnmatch import fnmatch
+                if fnmatch(rel, rule):
+                    dropped.append((rel, rule))
+            elif rel == rule:
+                dropped.append((rel, rule))
+
+    assert not dropped, (
+        "a validation dataset the scorer reads is excluded from the deploy "
+        "bundle, so the hosted /api/accuracy will report fewer datasets than "
+        "tools/score_report.py:\n  "
+        + "\n  ".join(f"{p}  (excluded by {r!r})" for p, r in dropped))
+
+
 def test_the_document_head_describes_the_project_for_link_previews():
     """Recruiters and chat clients see the meta description, not the page."""
     head = _html().split("</head>", 1)[0]
