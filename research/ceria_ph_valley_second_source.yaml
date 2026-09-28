@@ -1,0 +1,160 @@
+# CERIA-ON-OXIDE pH SHAPE — the second, independent source the sti_ceria
+# refusal was single-sourced on.
+#
+# WHAT WAS ASKED.  `data/params/sti_ceria.yaml` keeps a UNIMODAL `ph_response`
+# and records, in a long comment, that `netzband2020_thermal_oxide_ceria_ph`
+# misses by 49.2% for a STRUCTURAL reason: its measurement is a VALLEY
+# (pH 4/6/8/10 -> 198/113/200/213 A-units, high-dip-recover) and one bell can
+# rise-then-fall but never fall-then-rise.  The pack carries a marker key,
+# `ph_response_is_unimodal_but_this_system_is_not: true`, whose stated ground
+# is Netzband's own explanation: TWO isoelectric points, the oxide's (pH 2-3)
+# and ceria's (~8), with pH 6 optimal for neither.
+#
+# That marker rests on ONE publication, and the repository's rule for a
+# single-sourced claim is to go and look for a second one before it ages into
+# fact.  This file is that second look.
+#
+# WHAT WAS FOUND, AND IT IS NOT WHAT THE MARKER PREDICTS.
+# Dawkins 2019 is an independent ceria-on-silicon-dioxide pH sweep -- five
+# levels, two abrasive compositions, a different institution, tool, particle
+# size and decade -- and it measures the SAME two isoelectric points Netzband
+# invokes (ceria IEP pH 9.0-9.6, silica negative across pH 3-13) while
+# producing NO VALLEY.  One panel is a single peak; the other falls
+# monotonically and then flattens.
+#
+# ⚠ THIS FILE IS NOT A SCORED DATASET AND MUST NOT BECOME ONE.
+#   The slurry is a MIXED ABRASIVE (ceria nanoparticles attached to a silica
+#   core, declared ceria:silica weight ratios 0.1 and 0.2).  `sti_ceria` is a
+#   pure-ceria pack and this repository has no composite-abrasive term, so
+#   scoring these rows under it would attribute a composite-particle response
+#   to a ceria constant -- the abrasive-identity error already recorded in
+#   docs/limits.md §27.  The shape is transferable; the magnitude is not.
+
+axis: ph_response_shape
+film: oxide
+question: >
+  Is a ceria-on-oxide pH sweep NON-UNIMODAL (a valley), as
+  netzband2020_thermal_oxide_ceria_ph is, whenever the oxide's and the ceria's
+  isoelectric points straddle the swept range?
+
+source: >
+  K. A. Dawkins, "Mixed Abrasive Slurries of Ceria and Silica Nanoparticles
+  formed by Electrostatic Interaction and their use in CMP", PhD thesis,
+  University of Alberta (2019). doi:10.7939/r3-g3c2-xe63
+  Local PDF: ~/fab-sim/papers/dawkins2019-ualberta-phd-ceria-silica-electrostatic.pdf
+  Numbers: Figure 5-12 (a) and (b), thesis p.80 (pdf page 93), read from the
+  embedded raster (xref 486, 696x1411 px -- the page carries 0 vector paths, so
+  the figure is an image and cannot be digitised from path coordinates the way
+  netzband2020's Fig 3a was).
+
+independent_of_corpus: true
+why_independent: >
+  Different institution (University of Alberta, not SUNY Poly / Netzband &
+  Dunn), different ceria (5 nm, not 68 nm), different film preparation, a
+  different polisher, and a different abrasive system (mixed ceria/silica
+  composite rather than pure ceria).  It is in no sense a re-measurement of
+  netzband2020.  It is ALSO not in the scored corpus, so nothing here can be
+  circular with a fitted constant.
+
+# ── Self-verification: the reading is graded before it is used ─────────────
+# A raster digitisation nobody can check is inadmissible here.  The thesis
+# prints six numbers in prose (pp. 79 and 81) that the figure reading must
+# reproduce; it reproduces all six, worst disagreement 3.6 %.
+# Reproduce with: .venv/bin/python tools/ceria_ph_valley_second_source_probe.py
+self_verification:
+  method: >
+    Six quantities stated in the thesis text, compared against the values read
+    from Figure 5-12.  Three of them (the two selectivities and the nitride
+    maximum) are quantities the oxide reading does not contain, so they are an
+    independent check on the axis calibration rather than a restatement.
+  checks:
+    - claim: "oxide polish rates were as high as 381 nm/min at pH 4 (0.2 ratio, p.81)"
+      printed: 381.0
+      read: 381.0
+      disagreement_pct: 0.0
+    - claim: "maximum oxide polishing rate of 420 nm/min at pH 6 (0.2 ratio, p.79)"
+      printed: 420.0
+      read: 420.0
+      disagreement_pct: 0.0
+    - claim: "nitride polish rate was also at a maximum of 55 nm/min (0.2, pH 6, p.79)"
+      printed: 55.0
+      read: 57.0
+      disagreement_pct: 3.6
+    - claim: "SiO2 material removal was observed to be up to 200 nm/min at pH 10 (p.79)"
+      printed: 200.0
+      read: 202.0
+      disagreement_pct: 1.0
+    - claim: "selectivity was highest at pH 10 for both MAS weight ratios 0.1 and 0.2 at 15 and 28 (p.79)"
+      printed: [15.0, 28.0]
+      read: [14.7, 27.5]
+      disagreement_pct: 2.0
+  worst_disagreement_pct: 3.6
+
+# ── The measurement ────────────────────────────────────────────────────────
+conditions_fixed:
+  abrasive: "mixed abrasive slurry (MAS): 5 nm ceria attached to colloidal silica EB6080 (125 nm)"
+  silica_wt_pct: 5.0
+  ceria_wt_pct: 1.0
+  film: "silicon dioxide (with silicon nitride measured alongside)"
+  source_detail: "thesis Ch. 5, pp. 78-83"
+
+ph_levels: [3.5, 4.0, 6.0, 8.0, 10.0]
+
+series:
+  - label: "Fig 5-12(a), ceria:silica weight ratio 0.1"
+    oxide_nm_per_min: [365, 375, 305, 182, 183]
+    shape: monotone_decreasing_then_flat
+    note: >
+      The pH 8 and pH 10 points are 182 and 183 -- a 0.5 % step, which is SEVEN
+      TIMES INSIDE this reading's own demonstrated precision (worst
+      disagreement 3.6 % against the thesis's printed numbers).  It is
+      therefore flat, not a second extremum.  Bare arithmetic calls 182 < 183 a
+      minimum and the first version of the enforcing test did exactly that and
+      failed -- which is the point: the bar must be the reading's measured
+      precision, not zero (docs/limits.md §40, noise read as a finding).
+      Netzband's dip is 43 % deep and clears the same bar by more than an order
+      of magnitude, so the contrast survives being measured honestly.
+  - label: "Fig 5-12(b), ceria:silica weight ratio 0.2"
+    oxide_nm_per_min: [202, 381, 420, 315, 202]
+    nitride_nm_per_min: [8, 49, 57, 29, 5]
+    shape: single_peak
+    note: >
+      A clean single maximum at pH 6, symmetric to within the reading, spanning
+      2.08x.  This is precisely the shape `ph_response` exists to represent.
+
+# ── THE DIRECTION OF THE FINDING ──────────────────────────────────────────
+finding: >
+  NO VALLEY in either panel.  Neither series has an interior minimum.
+  The valley in netzband2020 is therefore NOT a general property of ceria on
+  oxide with two straddling isoelectric points -- because Dawkins measures
+  those same two isoelectric points and reports no valley.
+valley_present: false
+
+# ── What this does and does NOT change ────────────────────────────────────
+consequences:
+  the_pack_decision_is_unchanged: >
+    `sti_ceria` keeps its unimodal `ph_response` and its current constants.
+    Nothing here licenses a refit, and the median must not move.
+  the_stated_reason_is_narrowed: >
+    The marker's REASON was a mechanism claim -- "two isoelectric points, so
+    the system is not unimodal".  That claim is now refuted as a general one:
+    the mechanism is present in Dawkins and the consequence is absent.  What
+    survives is the narrower and better-evidenced statement: THIS DATASET's
+    measured series is non-unimodal, for a reason that is not yet identified,
+    and one bell cannot represent it.
+  and_the_evidence_for_keeping_one_bell_gets_stronger: >
+    Two of the three independent ceria-on-oxide pH series in hand are
+    single-extremum and are fitted by one bell to 1.7 % and 10.4 %
+    (scale-free, full grid).  Netzband is the dissenting member, not the
+    representative one.
+
+exit_condition: >
+  A ceria-on-oxide pH sweep of >= 4 levels, on a PURE ceria slurry (so it can be
+  scored under this pack without a composite-abrasive term), that reproduces an
+  interior minimum.  Two such sources would make the valley a property of the
+  system rather than of one benchtop experiment, and would reopen the case for
+  a second pH channel keyed to the abrasive isoelectric point.  One more
+  single-peak series instead would justify withdrawing the marker's mechanism
+  sentence entirely.
+
+magnitude: null   # shape evidence only -- see the composite-abrasive note above

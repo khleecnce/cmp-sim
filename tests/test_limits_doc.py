@@ -38,6 +38,13 @@ LIMITS = DOCS / "limits.md"
 #: Tests that enforce a decided refusal to predict. A test added here MUST be
 #: cited by docs/limits.md — that is the point of the registry.
 LIMIT_ENFORCING_TESTS = {
+    # limit 50: a single-sourced structural refusal justified itself with a
+    # MECHANISM (two straddling isoelectric points make a pH valley), which is
+    # transferable and therefore falsifiable OUTSIDE the scored corpus. The
+    # independent Dawkins 2019 sweep has the same two IEPs and no valley in
+    # either panel; one bell fits it to 1.7%/10.4% against netzband's best
+    # possible 14.9%. Decision unchanged, reason narrowed, median unchanged.
+    "test_ceria_ph_valley_is_not_a_general_two_iep_effect.py",
     # limit 48: the two readers that answer "did the model predict this axis?"
     # are BINARY and neither takes the measurement as an argument, so a token
     # response (1.2x the 0.5% inert bar) against an 80x measured span is graded

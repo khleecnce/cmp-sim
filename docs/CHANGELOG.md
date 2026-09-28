@@ -4,6 +4,56 @@ All notable changes to CMP-Sim. Newest first.
 
 ## Unreleased
 
+### Measured — a single-sourced refusal named a MECHANISM, and the mechanism is falsifiable outside the corpus (2026-09-28)
+- `sti_ceria` carries `ph_response_is_unimodal_but_this_system_is_not: true`,
+  which stops a later session repairing `netzband2020` (49.2 %) by flattening
+  `ph_peak` at a 15x cost to `dandu2009`. Its stated ground was Netzband's own
+  explanation of the valley: **two isoelectric points** (oxide pH 2-3, ceria
+  ~8), pH 6 optimal for neither. That is a claim about the world, not about the
+  model's function, so it predicts a valley in *any* ceria-on-oxide pH sweep
+  with those two IEPs — and had never been tested outside the dataset that
+  produced it.
+- Dawkins 2019 (UAlberta PhD, doi:10.7939/r3-g3c2-xe63) is that test: five pH
+  levels, two abrasive compositions, independent institution, tool, ceria size
+  (5 nm vs 68 nm) and decade. It measures the **same two IEPs** in its own
+  conclusions (ceria 9.0-9.6; silica negative across pH 3-13) and shows **no
+  valley in either panel**:
+
+  | series | 3.5 | 4 | 6 | 8 | 10 | shape | best ONE bell |
+  |---|---|---|---|---|---|---|---|
+  | Fig 5-12(a) ceria:silica 0.1 | 365 | 375 | 305 | 182 | 183 | falls, then flat | **1.7 %** |
+  | Fig 5-12(b) ceria:silica 0.2 | 202 | 381 | 420 | 315 | 202 | single peak, pH 6 | **10.4 %** |
+  | `netzband2020` (incumbent) | — | 198 | 113 | 200 | 213 | **valley** | 14.9 % |
+
+  Mechanism present, consequence absent. Two of three independent ceria pH
+  series are single-extremum and the shipping `ph_response` represents them, so
+  netzband is the **dissenting member**, not the representative one — the case
+  for keeping one bell gets stronger, not weaker.
+- The figure is a raster (0 vector paths), so the reading was graded against
+  **six quantities the thesis prints in prose**; all six reproduce, worst
+  disagreement **3.6 %**. That precision then became the bar and **caught this
+  entry's own first draft**: the test originally asked for interior minima
+  arithmetically and failed on panel (a), where 182 then 183 is literally a
+  minimum — a 0.5 % step, 1/7 of the reading precision, i.e. §40's
+  noise-as-finding error recurring inside a tool built after §40. The bar is
+  now read from the evidence file and paired with a control (netzband's 43 %
+  dip must still register at the same bar).
+- **Scope narrowed, decision unchanged**: from "this system is not unimodal
+  *because* two IEPs straddle the range" to "*this dataset's* series is
+  non-unimodal, for a reason not yet identified". The superseded sentence is
+  kept in place beside its refutation.
+- **No constant added or changed, no exponent fitted, no dataset entered or
+  left the corpus; median unchanged at 18.9 % / 19.5 % held out** — the correct
+  outcome for an honesty fix, asserted rather than hoped for.
+- Rejected: refitting `ph_peak` (a refuted *reason* is not a licence to refit);
+  withdrawing the marker (the structural failure is still real); promoting
+  Dawkins into the scored corpus (ceria/silica **composite** abrasive under a
+  pure-ceria pack = §27); deleting the old mechanism sentence (restores the
+  undetectable state).
+- Added `docs/limits.md` §50, `research/ceria_ph_valley_second_source.yaml`,
+  `tools/ceria_ph_valley_second_source_probe.py`,
+  `tests/test_ceria_ph_valley_is_not_a_general_two_iep_effect.py` (16 tests).
+
 ### Measured — §42's wiring audit is per KEY, and reachability is a property of the (key, PACK) pair (2026-09-28)
 - §42 asked "a pack key that is DECLARED and reads nothing" per **key**: does
   any engine path read this name? `oxidizer_peak_wt_pct` passes — three packs

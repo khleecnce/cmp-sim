@@ -634,11 +634,35 @@ params:
   #     measured  198   113   200   213     (normalised 0.93/0.53/0.94/1.00)
   #     model    2032   792   362   362     (normalised 1.00/0.39/0.18/0.18)
   #
-  # High at pH 4, dipping at pH 6, recovering at pH 8-10. Netzband attributes
-  # this to TWO isoelectric points — the oxide's (pH 2-3) and ceria's (~8) —
-  # with pH 6 optimal for neither. `ph_response` is unimodal, so between its ends
-  # it can rise-then-fall but never fall-then-rise: no parameter choice produces
-  # a valley.
+  # High at pH 4, dipping at pH 6, recovering at pH 8-10. `ph_response` is
+  # unimodal, so between its ends it can rise-then-fall but never
+  # fall-then-rise: no parameter choice produces a valley.
+  #
+  # ⚠ THE MECHANISM THIS COMMENT USED TO ASSERT HAS BEEN REFUTED, AND THE
+  #   REFUTATION IS KEPT HERE RATHER THAN DELETED.
+  #   It read: "Netzband attributes this to TWO isoelectric points — the
+  #   oxide's (pH 2-3) and ceria's (~8) — with pH 6 optimal for neither." That
+  #   is Netzband's own explanation and it is a TRANSFERABLE claim: if two
+  #   straddling isoelectric points make a valley, another ceria-on-oxide pH
+  #   sweep with the same two must show one too.
+  #   Dawkins 2019 (UAlberta PhD, doi:10.7939/r3-g3c2-xe63) is that sweep —
+  #   five pH levels, two abrasive compositions, independent institution, tool,
+  #   particle size and decade — and it measures the SAME two isoelectric
+  #   points (ceria IEP pH 9.0-9.6; silica negative across pH 3-13) with NO
+  #   valley in either panel: 0.1 ratio falls monotonically then flattens
+  #   (365/375/305/182/183 nm/min), 0.2 ratio is a clean single peak at pH 6
+  #   (202/381/420/315/202). One bell fits those to 1.7 % and 10.4 % scale-free
+  #   against netzband's best-possible 14.9 %.
+  #   So the mechanism is present and the consequence is absent. What survives
+  #   is narrower and better evidenced: THIS dataset's series is non-unimodal
+  #   for a reason not yet identified, and netzband is the dissenting member of
+  #   three independent ceria pH series rather than the representative one.
+  #   Evidence + self-verification against the thesis's own printed numbers:
+  #   research/ceria_ph_valley_second_source.yaml;
+  #   tools/ceria_ph_valley_second_source_probe.py;
+  #   tests/test_ceria_ph_valley_is_not_a_general_two_iep_effect.py
+  #   The DECISION below is unchanged by this — a refuted reason is not a
+  #   licence to refit, and flattening ph_peak still costs dandu2009 15x.
   #
   # TWO EASIER EXPLANATIONS WERE RULED OUT FIRST.
   #   1. Not a scale offset from the benchtop tool. The experiment is a 2.25 cm2
@@ -664,9 +688,13 @@ params:
   #
   # WHAT WOULD RESOLVE IT: a second pH channel keyed to the abrasive's
   # isoelectric point. Note a UNIVERSAL second channel was already tested and
-  # falsified (the three ceria/silica residuals have three different shapes), and
-  # one benchtop dataset is not grounds for inventing a per-pack one.
-  # Recorded in tests/test_two_ceria_datasets_demand_opposite_ph_terms.py.
+  # falsified (the three ceria/silica residuals have three different shapes),
+  # one benchtop dataset is not grounds for inventing a per-pack one, AND the
+  # independent Dawkins 2019 sweep above now shows the two-IEP mechanism
+  # producing no valley at all — so an IEP-keyed channel would have to explain
+  # why it fires here and not there before it is worth deriving.
+  # Recorded in tests/test_two_ceria_datasets_demand_opposite_ph_terms.py and
+  # tests/test_ceria_ph_valley_is_not_a_general_two_iep_effect.py.
   ph_response_is_unimodal_but_this_system_is_not:
     value: true
     unit: boolean
@@ -675,8 +703,18 @@ params:
       "fixing" netzband2020 by flattening or moving ph_peak, which would cost
       dandu2009 a factor of 15 in error. The deficiency is the functional form,
       and it is named rather than absorbed into the constants.
+      SCOPE NARROWED (2026-09-28): this marker asserts only that NETZBAND2020's
+      measured series is non-unimodal. It no longer asserts the general
+      mechanism ("two straddling isoelectric points make a valley"), which the
+      independent Dawkins 2019 sweep refutes by exhibiting those same two
+      isoelectric points with a single peak. The decision is unchanged; the
+      claim behind it is smaller and better evidenced.
     source: >
       netzband2020_thermal_oxide_ceria_ph.yaml (pH 4/6/8/10 valley);
       dandu2009_sio2_ceria_ph_sweep.yaml (9 points, 81x swing);
-      Netzband & Dunn, ECS J. Solid State Sci. Technol. 9, 044001 (2020)
+      Netzband & Dunn, ECS J. Solid State Sci. Technol. 9, 044001 (2020);
+      Dawkins, PhD thesis, University of Alberta (2019),
+      doi:10.7939/r3-g3c2-xe63, Fig. 5-12 (no valley, same two IEPs) —
+      transcribed and self-verified in
+      research/ceria_ph_valley_second_source.yaml
     confidence: literature
