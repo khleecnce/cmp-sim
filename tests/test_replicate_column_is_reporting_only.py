@@ -39,7 +39,13 @@ from cmp_sim.core.validation import dataset_paths
 MEDIAN_SHAPE = 18.9  # 18.2 -> 18.9: 2026-09-27, us20230081442a1 DLC ladder entered
                      # (counting-position shift, not a regression — see §31 and
                      # the matching note in test_scale_column_is_reporting_only)
-MEDIAN_LOO = 21.3  # moved by the W passivation threshold (physics), 2026-09-26
+MEDIAN_LOO = 20.9  # 21.3 (W passivation threshold, physics, 2026-09-26)
+                   # 21.3 -> 20.9: 2026-09-28 (§55), withdrawing the ORPHANED
+                   # fitted `abrasive_conc_exponent` from `sic_ceria_h2o2` so the
+                   # engine's derived n_C = p*(1-alpha*chi) acts. A CONSTANT WAS
+                   # DELETED, not refitted, and 0 blocks got worse. Physics, so
+                   # the pin moves; the shape median is unchanged at 18.9 because
+                   # no middle dataset moved (§26: it is a counting statistic).
 #: 36 since 2026-09-28, up from 34, and the two additions are a REAL gain, not
 #: a relabelling: withdrawing `abrasive_conc_half_wt_pct` from every pack that
 #: carried a value moved `jani2025_cu_rsm_composition_heldout` (49.6% -> 47.9%)

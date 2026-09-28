@@ -2520,3 +2520,56 @@ The consequence that matters for completion is a bound. `us20190127607a1_teos_ce
 **Enforced by** `tests/test_monotone_size_family_is_not_the_cost.py` (14 tests, every number re-measured at run time). Two synthetic **instrument controls** (§43) run the same reduction on answers known by construction — an exact power law, whose floor must collapse to ~0, and a sharp interior peak, whose floor must stay above 20 %; without the second, "the family costs little" would be indistinguishable from "the reduction cannot see family cost", and the control is additionally asserted to still *carry* its bar so it cannot pass by vacuity. Non-vacuity guards require both classes to be non-empty and every block to be held out. The floor is asserted ≤ the shipping error on every block (it is in-sample; a floor that exceeded it would mean the scan is broken and the bound an artefact). The reversal statistic is pinned to be exactly 0 on monotone series, below the bar for a rounding-level wobble (§40) and above it for the real TEOS reversal. The shape metric is pinned to the scorer's free-scale convention by its defining invariance. Calibrated against the bug: five mutations — freezing the exponent scan, neutering the peaked control's bar, dropping the reversal bar to noise level, replacing the free scale with 1.0, and moving the bound block's reversal so a monotone exponent *can* cross — each turn the file red.
 
 **What would resolve it.** The bound expires if that dataset's own rows change such that its family floor falls to ≤ 15 %; the test fails at that moment and demands the bound be **re-measured**, never edited. Separately, the *constant* error inside the family (up to 23.73 pp on `bouvet2002_ti_silica`) is untouched here and remains open — but §33 refused per-block exponents, so it needs a material-level derivation, not a fit. Deliberately **not** a gate on completion.
+
+## 55. A fitted constant was orphaned by a dataset re-assignment — and the derivation it was masking is better on every block
+
+§52 established that an **absence-of-data claim is a measurement and it expires**: re-RUN its enumeration, never re-read it. That rule was applied to claims about the *literature*. This section applies it to an enumeration of the **corpus itself**, where the expiry mechanism is different and sharper: a dataset can stay in the repository and simply change which pack predicts it, leaving every constant that cited it behind as an orphan — still sourced, still graded, and now justified by evidence that is no longer its own.
+
+### What was measured
+
+`sic_ceria_h2o2` declared `abrasive_conc_half_wt_pct: null` and justified it by enumerating six iso-condition loading ladders, of which the decisive one was Entegris US 2022/0315802 A1 ("966.7 → 200 A/min as alumina goes 0.1 → 5 wt%, a 5x DROP for 50x more abrasive"). Ruling #49-B had already moved that dataset to the `sic_alumina_kmno4` pack — an *acid* KMnO₄/alumina system, a different chemistry entirely. Re-running the enumeration today (`tools/sic_conc_half_refusal_reaudit.py`, which reads the abrasive the **dataset** declares, not the pack's — §27):
+
+| ladder | pack that predicts it now | log-log slope |
+|---|---|---|
+| `entegris2022_us20220315802a1_sic_alumina_conc` | **`sic_alumina_kmno4`** | −0.406 |
+| `su2011_procengr_6hsic_alumina_abrasive_conc` | `sic_ceria_h2o2` | **+0.486** |
+
+**Zero falling ladders remain under this pack.** The contradiction that justified the null has dissolved.
+
+There was a specific reason to look: the *sibling* constant on the same axis of the same pack, `abrasive_conc_exponent`, had been corrected by ruling #52 for **exactly this cause** — its −0.406 came from the same departed rows and the sign was flipped to +0.227. The repair fixed the instance and not the class, so the neighbouring constant, citing the same departed evidence, was never re-read.
+
+### The finding: the fit was masking a derivation
+
+The replacement +0.227 is itself a fit — the median log-log slope of 17 matched pairs in Wang et al. figshare:31056549. The engine's three-factor contact decomposition already computes, for every run and from no data at all, the surface-area limit
+
+```
+n_C = p * (1 − α·χ) = +1/3
+```
+
+The pack's own note recorded that the two "agree in sign and order of magnitude" and read the gap as high-loading saturation. **Nobody had ever priced them against each other.** Measured through the shipping solver (shape MAPE, one free scale per block — the scorer's own convention), withdrawing the fitted constant so the derivation acts:
+
+| block | fitted +0.227 | derived +1/3 | held out |
+|---|---|---|---|
+| `liang2026_4hsic_ceria_composite_h2o2_conc` | 18.17 % | **11.21 %** | yes |
+| `su2011_procengr_6hsic_alumina_abrasive_conc` | 14.36 % | 13.98 % | yes |
+| `sic2026_ceria_h2o2_ph_DOE50` | 33.96 % | 33.47 % | no |
+| `su2011_sic_alumina_size_sweep` | 4.38 % | 4.38 % | yes |
+| `wei2026_sic_silica_size_sweep` | 3.18 % | 3.18 % | yes |
+
+**0 worse, 3 better, 2 unchanged**, and both meaningfully improved loading blocks are held out. `liang2026` was the cheapest crosser on the held-out shortlist and now sits under the 15 % bar; the held-out must-cross count falls **3 → 2**. One fitted constant left the repository and the fit got better — which is the project's stated definition of progress (*"상수를 줄이면서 오차를 낮춰야 진짜다"*), and the first time it has been achieved by **deletion** rather than by derivation of a new term.
+
+### What was rejected
+
+**Filling `C_half` now that its counter-example has departed.** This is the moment a project starts fitting: the stated obstacle is gone, so the constant "may" be filled. It is refused for a new and **measured** reason rather than the old argued one. (a) *Identifiability*: exactly one loading ladder remains under this pack, and one ladder cannot anchor a saturation constant — the §41 rule (ask whether the quantity can vary while everything the model already reads stays fixed) applied to a count. (b) *Price*: every scanned `C_half` from 1 to 8 wt% leaves `liang2026` **worse** than the derivation (11.21 % → 30.79 / 26.47 / 23.58 / 21.49 / 20.09 / 17.76 / 15.61 / 14.12 %), and no other block improves at any value. The saturating form is competing with a derivation that already fits.
+
+**Deleting the superseded enumeration.** §51: keep it, marked superseded in place — how a wrong scope failed is the lesson, and a note rewritten to match the new answer erases the evidence that the class exists.
+
+**Reading "0 worse" as the justification.** The derived exponent is adopted **because it is derived**. Had it scored worse, the fitted value would have stayed and the disagreement would have been recorded — that ordering is asserted in the pack note so a future session cannot re-read this as licence to scan exponents (§33 forbids per-block exponents).
+
+### The generalisable rule
+
+*A constant's evidence can leave without the constant noticing.* When a dataset is re-assigned to another pack, every constant that cited it is orphaned — and unlike a deleted file, nothing in the repository breaks: the citation still resolves, the grade still reads `literature`, and the value still acts. The trigger to look is a **repair already made in the neighbourhood**: ruling #52 corrected one orphan on this axis and stopped there. *When a defect is found by re-assignment, re-audit every constant that cited the re-assigned evidence, not only the one that prompted the fix.* And when the obstacle behind a refusal dissolves, expect the refusal to **survive for a different reason** (§51) — then measure that reason rather than arguing it.
+
+**Enforced by** `tests/test_orphaned_conc_constant_withdrawn_for_derivation.py` (11 tests, every number re-measured at run time). Non-vacuity guards fail if no dataset is predicted by the pack or if fewer than three are scorable. The withdrawal is checked not to have **silenced** the axis (§20: inert is acceptable, silently inert is not) — tripling the loading must still move the rate — and the applied exponent is measured by perturbing the *shipping* solver, not by reading the pack (§28), then asserted inside the structural bound [0, 1] that `p·(1−α·χ)` implies. The probe is asserted to contain no file-writing call, so a ladder enumeration cannot become a per-block fitter. Calibrated against the bug: restoring `value: 0.227` turns three tests red; deleting the superseded enumeration from the note (matched across the YAML line fold, per §52) turns a fourth red.
+
+**What would resolve it.** Three live exit conditions, each its own failing test: a falling loading ladder returning under this pack re-opens the original C_half reasoning; a **second** iso-condition ladder makes the saturation constant identifiable and demands it be re-priced; and any scanned `C_half` beating the derivation is a finding that must be re-measured rather than a bar to relax. Separately, a 4H-SiC ladder in the plastic/indentation branch — where the decomposition gives a different `p` — would make the derivation *testable* rather than merely unfalsified here. Deliberately **not** a gate on completion.

@@ -39,7 +39,11 @@ MEDIAN_SHAPE = 18.9  # 18.2 -> 18.9: 2026-09-27, us20230081442a1 DLC ladder ente
                      # the old median, so it shifts the COUNTING POSITION (§26/§31).
                      # This is the upper-median convention, sorted(e)[n//2]; the
                      # corpus is now even, so statistics.median reads 18.6%.
-MEDIAN_LOO = 21.3  # moved by the W passivation threshold (physics), 2026-09-26
+MEDIAN_LOO = 20.9  # 21.3 (W passivation threshold, physics, 2026-09-26)
+                   # 21.3 -> 20.9: 2026-09-28 (§55), the orphaned fitted
+                   # `abrasive_conc_exponent` was WITHDRAWN from `sic_ceria_h2o2`
+                   # so the engine's derived n_C = p*(1-alpha*chi) acts. A
+                   # constant deleted, 0 blocks worse. Physics, so the pin moves.
 SCORED = 48  # 47 -> 48: us20230081442a1_dlc_zirconia_dilute_loading added 2026-09-27
 POINTS = 440  # 435 -> 440: the 5-point DLC zirconia loading ladder, 2026-09-27
 

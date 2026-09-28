@@ -49,6 +49,57 @@ params:
     source: "Wang et al. ACS SI Table S3 point S3-27 (this pack's Kp anchor)"
     confidence: literature
 
+  abrasive_conc_exponent:
+    value: null
+    unit: dimensionless
+    note: >
+      WITHDRAWN 2026-09-28 (§55). Deliberately null so the DERIVED exponent
+      acts instead. This is a constant REMOVED, not a constant refitted.
+
+      The inherited value was +0.227, the median log-log slope of 17 matched
+      pairs in Wang et al. figshare:31056549. It is a fit, and the same
+      three-factor decomposition this engine already resolves for every run
+      gives the surface-area limit
+
+          n_C = p * (1 - alpha*chi) = +1/3
+
+      from the contact branch alone -- no data, no free parameter. The pack's
+      own inherited note already recorded that the two agree in sign and order
+      of magnitude, and read the gap as high-loading saturation. It never
+      priced them against each other.
+
+      MEASURED through the shipping solver (shape MAPE, one free scale per
+      block, exactly as the scorer fits it). Every block under this pack
+      improves or is untouched when the fitted constant is withdrawn:
+
+        liang2026_4hsic_ceria_composite_h2o2_conc   18.17% -> 11.21%
+        sic2026_ceria_h2o2_ph_DOE50                 33.96% -> 33.47%
+        su2011_procengr_6hsic_alumina_abrasive_conc 14.36% -> 13.98%
+        su2011_sic_alumina_size_sweep                4.38% ->  4.38%
+        wei2026_sic_silica_size_sweep                3.18% ->  3.18%
+
+      0 worse, 3 better, 2 unchanged -- and the two improved loading blocks
+      are BOTH held out (used_for_calibration: false), so this is not the
+      model scoring itself. The liang2026 block is the corpus's cheapest
+      remaining crosser on the held-out ladder.
+
+      ⚠ NOT a licence to tune: the derived +1/3 is what the model computes,
+      and it is adopted BECAUSE it is derived, not because it scores better.
+      Had it scored worse the fitted value would have stayed and the
+      disagreement would have been recorded. An exponent scanned per block is
+      forbidden (docs/limits.md §33).
+
+      EXIT CONDITION: a 4H-SiC loading ladder at fixed pH and oxidiser, in
+      the plastic/indentation branch where the decomposition gives a
+      different p, would make the derivation testable rather than merely
+      unfalsified here.
+    source: >
+      derived in cmp_sim/models/luo_dornfeld.py (n_C = p*(1-alpha*chi), the
+      surface-area limit of the three-factor contact decomposition); the
+      withdrawn fit was Wang et al. figshare:31056549 ACS SI Table S3,
+      17 matched pairs (median +0.227, bootstrap 95% CI -0.136..+0.598)
+    confidence: literature
+
   abrasive_conc_half_wt_pct:
     value: null
     unit: wt%
@@ -57,10 +108,34 @@ params:
       response to abrasive loading, so fitting one would be curve-fitting
       through a contradiction.
 
-      Six iso-condition series give exponents of -0.40, -0.28, +0.01, +0.44,
-      +0.49 and +1.43. Two of them fall with loading, which no saturating
-      form can produce: Entegris US 2022/0315802 A1 measures 966.7 -> 200
-      A/min as alumina goes 0.1 -> 5 wt%, a 5x DROP for 50x more abrasive.
+      ⚠ 2026-09-28 RE-AUDIT (§55, tools/sic_conc_half_refusal_reaudit.py).
+      The enumeration below EXPIRED and is kept only as the superseded
+      reasoning. Two of its six series are no longer this pack's: ruling
+      #49-B moved entegris2022_us20220315802a1_sic_alumina_conc (the -0.40
+      "decisive" fall, and an ACID KMnO4/alumina system) to the
+      sic_alumina_kmno4 pack. Re-running the enumeration today finds exactly
+      ONE iso-condition loading ladder under this pack --
+      su2011_procengr_6hsic_alumina_abrasive_conc at +0.486 -- and ZERO
+      falling ones. The contradiction that justified the null has dissolved.
+
+      THE NULL SURVIVES ANYWAY, for a different and measured reason. One
+      ladder cannot anchor a saturation constant: priced through the shipping
+      solver, every C_half from 1 to 8 wt% makes liang2026 WORSE than the
+      withdrawn-exponent baseline (11.21% -> 30.79/26.47/23.58/21.49/20.09/
+      17.76/15.61/14.12%) and none of the other four blocks improves. The
+      saturating form is competing with a derivation that already fits.
+
+      EXIT CONDITION: a second iso-condition 4H-SiC loading ladder reaching
+      above ~7 wt% at fixed pH and oxidiser. Until then this is "one ladder,
+      cannot identify a saturation constant", NOT "the data contradict
+      saturation".
+
+      Superseded enumeration, left in place per docs/limits.md §51 (how a
+      wrong scope failed is the lesson): six iso-condition series give
+      exponents of -0.40, -0.28, +0.01, +0.44, +0.49 and +1.43. Two of them
+      fall with loading, which no saturating form can produce: Entegris
+      US 2022/0315802 A1 measures 966.7 -> 200 A/min as alumina goes
+      0.1 -> 5 wt%, a 5x DROP for 50x more abrasive.
       The best single C_half still leaves 36.7% error against 5.8-9.5% for
       the other packs.
 

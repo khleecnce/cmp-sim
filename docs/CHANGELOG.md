@@ -4,6 +4,39 @@ All notable changes to CMP-Sim. Newest first.
 
 ## Unreleased
 
+### Fixed — an orphaned fitted constant was withdrawn, and the derivation it masked is better everywhere (2026-09-28)
+- `sic_ceria_h2o2.abrasive_conc_exponent` (+0.227, a fit over 17 matched pairs)
+  is now **null**, so the engine's own three-factor contact decomposition
+  supplies the surface-area limit `n_C = p*(1-alpha*chi) = +1/3` — derived from
+  no data and no free parameter. **A constant was deleted, not refitted.**
+  Measured through the shipping solver: **0 blocks worse, 3 better**
+  (`liang2026_4hsic_ceria_composite_h2o2_conc` 18.17 % → **11.21 %**,
+  `su2011_procengr_6hsic_alumina_abrasive_conc` 14.36 % → 13.98 %,
+  `sic2026_ceria_h2o2_ph_DOE50` 33.96 % → 33.47 %), and both meaningfully
+  improved blocks are **held out**. Headline median unchanged at 18.9 % (no
+  middle dataset moved — it is a counting statistic); leave-one-out
+  21.3 % → 20.9 %; the held-out must-cross count falls **3 → 2**.
+- How it was found: the neighbouring `abrasive_conc_half_wt_pct: null` was
+  justified by an **enumeration** of six loading ladders whose decisive falling
+  member, Entegris US 2022/0315802 A1, had been **moved to another pack** by
+  ruling #49-B. The citation still resolved, the grade still read `literature`,
+  and nothing broke — so the constant aged into fact. Re-running the enumeration
+  finds **zero** falling ladders under this pack. The sibling constant on the
+  same axis had already been corrected for exactly this cause by ruling #52,
+  which fixed the instance and not the class.
+- The `C_half` null **survives**, for a new and measured reason rather than the
+  dissolved one: only one loading ladder remains under this pack (a saturation
+  constant is not identifiable from it), and every scanned value from 1 to
+  8 wt% leaves the binding block worse than the derivation.
+- New: `tools/sic_conc_half_refusal_reaudit.py` (never writes — asserted),
+  `tests/test_orphaned_conc_constant_withdrawn_for_derivation.py` (11 tests,
+  every number re-measured at run time), `docs/limits.md` §55.
+- Also corrected: `test_load_sharing_onset_is_refuted_by_the_data.py` priced its
+  counterfactual with a **ratio** bar (`after < before/3`), which encodes the
+  incumbent model's error as a property of the counterfactual and tightens on
+  its own whenever the shipping model improves for an unrelated reason. Re-pinned
+  as an absolute gain in percentage points plus a direction.
+
 ### Measured — twelve cited, graded constants that reach nothing AND that the corpus refutes (2026-09-28)
 - Four pack families declare a three-parameter **peaked particle-size curve**
   (`abrasive_size_peak_nm` / `_exp_below_peak` / `_exp_above_peak`): twelve

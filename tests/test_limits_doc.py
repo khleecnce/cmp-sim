@@ -38,6 +38,13 @@ LIMITS = DOCS / "limits.md"
 #: Tests that enforce a decided refusal to predict. A test added here MUST be
 #: cited by docs/limits.md — that is the point of the registry.
 LIMIT_ENFORCING_TESTS = {
+    # §55 — a fitted constant was ORPHANED by a dataset re-assignment (ruling
+    # #49-B moved its decisive counter-example to another pack), and the
+    # derivation it masked (n_C = p*(1-alpha*chi) = +1/3) is better on every
+    # block: 0 worse, 3 better, both improved blocks held out. The C_half
+    # refusal survives for a new, MEASURED reason (one ladder cannot identify
+    # a saturation constant; every scanned value is worse). Added deliberately.
+    "test_orphaned_conc_constant_withdrawn_for_derivation.py",
     # §54 — the monotone size FAMILY is not what costs (non-monotone blocks'
     # family floor is no worse than the monotone ones'), and the corpus's
     # 2nd cheapest crosser has a family floor ABOVE the completion bar, so no

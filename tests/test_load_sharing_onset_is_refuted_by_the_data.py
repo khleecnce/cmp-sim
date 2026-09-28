@@ -102,6 +102,22 @@ def test_the_median_verdict_alone_still_must_not_settle_it(priced):
     physical claim and does not move when unrelated datasets enter, while the
     corpus median does. If the term is ever wired, it must be on the
     dilute-band slope evidence measured below, and the record must say so.
+
+    2026-09-28 (§55) -- THE RATIO BAR WAS WRONG IN KIND, and a change in the
+    SHIPPING model exposed it. §55 withdrew the orphaned fitted
+    `abrasive_conc_exponent` from `sic_ceria_h2o2`, so the binding block's
+    shipping error fell 18.17% -> 11.21% for reasons that have nothing to do
+    with load sharing. The counterfactual still repairs it (11.2% -> 6.3%) but
+    no longer by a factor of 3, because the headroom a RATIO measures was
+    partly consumed by an unrelated, independently justified improvement.
+
+    A bar of the form `after < before / 3` therefore encodes the incumbent
+    model's error as though it were a property of the counterfactual: improve
+    the shipping model anywhere and the bar tightens on its own. The claim §29
+    actually needs is that the repair is LARGE AND POSITIVE on the binding
+    block while the corpus median is not -- i.e. a direction plus a floor on
+    the absolute gain, both immune to the baseline shifting underneath. Pinned
+    that way instead.
     """
     rows, summary = priced
     by_name = {r["dataset"]: r for r in rows}
@@ -109,9 +125,16 @@ def test_the_median_verdict_alone_still_must_not_settle_it(priced):
     assert binding is not None, (
         "the binding dataset dropped out of the pricing set; §29 must be "
         "re-measured rather than inherited")
-    assert binding["shape_after"] < binding["shape_before"] / 3.0, (
-        "§29 records that the load-sharing onset repairs the binding dataset "
-        f"(got {binding['shape_before']:.1f}% -> {binding['shape_after']:.1f}%)")
+    gain_pp = binding["shape_before"] - binding["shape_after"]
+    assert gain_pp > 3.0, (
+        "§29 records that the load-sharing onset repairs the binding dataset; "
+        f"got {binding['shape_before']:.1f}% -> {binding['shape_after']:.1f}% "
+        f"= {gain_pp:+.1f} pp. Expressed as an ABSOLUTE gain, not a ratio: a "
+        "ratio bar silently tightens whenever the shipping model improves for "
+        "an unrelated reason (§55 made exactly that happen).")
+    assert binding["shape_after"] < binding["shape_before"], (
+        "the counterfactual no longer improves the binding dataset at all; "
+        "§29's pricing must be re-measured")
     # The median moves on corpus membership; the per-dataset physics does not.
     # Asserting THAT is the honest form of "do not read the verdict off the
     # headline" -- an earlier version asserted the two median readings differ
