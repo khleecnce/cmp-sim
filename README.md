@@ -334,16 +334,18 @@ measured 2%.
 ### What "done" means here, and why the bar is 15%
 
 Completion is defined as **median shape error ≤ 15%**, and the project is not
-there yet: the corpus sits at **18.2%**, so a check in
+there yet: the corpus sits at **18.9%**, so a check in
 `tests/test_definition_of_done.py` is deliberately red. It is not marked xfail,
 because a green tick would hide a measured shortfall.
 
 The bar is not a round number. Grant every scored dataset a free exponent on its
 own best axis, fitted on the very rows being scored, with no requirement that
 datasets agree — something no physical model can do, since a model *shares* its
-constants. That oracle reaches only **11.9%**, and lifts datasets at or below 10%
-from 15 to 20 of 46. So **≤10% sits above the ceiling of the entire "add another
-law" programme**, and 15% is the narrow band a shared-constant model can occupy.
+constants. That oracle reaches only **12.4%** (from 16.9%). So **≤10% sits above
+the ceiling of the entire "add another law" programme**, and 15% is the narrow
+band a shared-constant model can occupy. The bound moves as the corpus grows —
+it was 11.9% at 46 datasets, 12.4% at 52 — so a test re-derives it rather than
+trusting a recorded number.
 
 This is a *modelling* ceiling, not a noise floor. Published reproducibility in
 this corpus spans 1.5% to 37%, which makes 15% lenient against jani2025 and

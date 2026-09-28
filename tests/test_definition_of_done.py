@@ -145,7 +145,10 @@ COMPLETION_MEDIAN_PCT = 15.0
 
 #: The measured ceiling that justifies the bar. A shared-constant model cannot
 #: go below this, because the oracle that produces it fits each dataset alone.
-ORACLE_CEILING_PCT = 11.9
+#: Re-measured 2026-09-27 after the corpus grew to 52 datasets: 11.9% -> 12.4%.
+#: The bound moves with the corpus, which is why a test re-derives it rather
+#: than trusting this constant.
+ORACLE_CEILING_PCT = 12.4
 
 
 def test_the_completion_bar_is_met():
