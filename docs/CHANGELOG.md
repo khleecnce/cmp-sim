@@ -769,3 +769,35 @@ All notable changes to CMP-Sim. Newest first.
 - **Bad input surfaced as an untranslated Korean bracket error.** Impossible
   recipes are now rejected by field and value; a load beyond the contact model
   explains that every summit is already engaged.
+
+## [P4] §51 — a mechanism-based refusal's third instance, and an exit condition that had already fired
+
+- `docs/limits.md` §51: the oxidiser gate `cu_h2o2_bta.oxidizer_ph_window`
+  justified itself with a MECHANISM ("alkaline H2O2 grows a hard CuO film the
+  abrasive cannot cut"), which transfers and is therefore falsifiable outside
+  the single 2x2 that produced it. Measured against the two alkaline Cu/BTA
+  H2O2 ladders already in this corpus: log-log slopes -0.01 (pH 11.1 fixed,
+  4 levels, 1.04x span) and -0.27 (confounded, pH falls as H2O2 rises) against
+  the mechanism's own -2.33. The SIGN transfers; the MAGNITUDE does not.
+- The same note's exit condition read "no sweep has been located". Both
+  ladders were already scored members of this corpus when that was written,
+  under another pack. A refusal that asserts the absence of data must be
+  RE-RUN, never re-read.
+- The gate's VALUE, unit, source and confidence are unchanged: its decision
+  rests on the two pH legs having opposite signs, not on the magnitude. The
+  note is corrected and the superseded sentences are kept, marked refuted in
+  place. Neither ladder can anchor the pack (foreign pack; one is
+  `used_for_calibration` and flat; the other's pH is confounded).
+- New: `tools/alkaline_oxidizer_sign_transfer_probe.py`,
+  `research/alkaline_oxidizer_sign_transfer.yaml`,
+  `tests/test_alkaline_oxidizer_mechanism_does_not_transfer.py` (8 tests,
+  including an expiry test that fires when an admissible alkaline anchor
+  appears, and a mutation-guard note about YAML folded blocks).
+- **Zero constants, zero pack values, zero predictions changed; median
+  unchanged at 18.9% published / 19.5% held out — the correct outcome for an
+  honesty fix, and asserted rather than hoped for.**
+- Stage-2 simulator re-verified end to end with the real browser harness
+  (`tools/tool3d_e2e.py --serve`): all four input stations (wafer cart,
+  operation, slurry supply, polishing unit) open their intended drawer and
+  drive the model (3 psi 1559.6 -> 6 psi 3119.1 A/min; WIWNU 0.0% at matched
+  rpm, 23.7% at 120/30).

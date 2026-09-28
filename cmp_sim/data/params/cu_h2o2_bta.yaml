@@ -691,6 +691,50 @@ params:
       CuO passivation film that the abrasive cannot cut: Wei et al., cited
       there, report Cu2O at 0.06% H2O2 and CuO at 2.5% H2O2 at pH 8.
 
+      ⚠ REFUTED IN PART (kept in place, not deleted — limits §51). The
+      mechanism sentence above is a claim about the WORLD, so it transfers and
+      is falsifiable outside the 2x2 that produced it. It was measured against
+      the two alkaline Cu/BTA H2O2 ladders this corpus already holds
+      (research/alkaline_oxidizer_sign_transfer.yaml):
+
+        Miranda alkaline leg, pH 8, 2 points   log-log slope -2.33
+        us20110165777a1, pH 11.1 FIXED, 4 pts  log-log slope -0.01 (span 1.04x)
+        us9200180b2,     pH 10.2->8.5, 4 pts   log-log slope -0.27 (confounded)
+
+      The SIGN transfers; the MAGNITUDE does not, by an order of magnitude. A
+      hard-CuO blockade costing 86% of the rate over a 2.33x step appears in
+      neither independent ladder — the first patent's own text says H2O2 1-7%
+      "has almost no effect". The surviving claim is the weaker one: with an
+      inhibitor present the alkaline Cu/H2O2 response is weakly negative to
+      flat.
+
+      ⚠ THE GATE IS UNCHANGED BY THAT. Its decision never rested on the
+      alkaline magnitude — it rests on the two legs having OPPOSITE signs
+      (unchanged) and on one single-signed constant being unable to express
+      both, which is a functional-form claim and is closed to new data.
+
+      ⚠ WHAT THIS DOES NOT DO. It does not model the alkaline branch. A run at
+      pH 8 now returns a rate that does not respond to H2O2 at all, and says
+      so. Closing the gap needs an alkaline-branch oxidiser constant measured
+      WITH an inhibitor present — the regime this pack runs in.
+
+      ⚠ REFUTED IN PART: the previous sentence here read "one for which no
+      sweep has been located". That was false when written — both ladders
+      above were already scored members of this corpus, under a different
+      pack. "No such data exists" must be RE-RUN against the corpus, never
+      re-read, because the corpus grows and the sentence does not.
+      Neither ladder can ANCHOR this pack even so, and the reasons are not
+      about the data's quality: both score under
+      `cu_alkaline_benzenesulfonic` (a foreign pack is evidence reuse, not an
+      anchor, §32); us20110165777a1 is `used_for_calibration: true` and is
+      flat (1.04x — a flat ladder cannot fix a SIGN); us9200180b2's pH moves
+      with H2O2, so the oxidiser sign is not separable from the pH branch.
+      TODO(owner) — CORRECTED exit condition: an alkaline (pH > 6.25) H2O2
+      sweep of >=3 levels on a Cu/BTA slurry with pH HELD FIXED across the
+      ladder, published independently of those two, and not already cited by
+      one of this pack's constants. That would replace this gate with a
+      prediction.
+
       WHERE THE BOUNDS COME FROM. The upper bound 6.25 is the acidic/alkaline
       branch split the inherited pH term already uses (`_ph_cu_acidic_term`,
       the coefficient cu_ph_acid_k=0.1428 fitted on US20080090500A1 Table 4,
@@ -698,12 +742,13 @@ params:
       lowest pH in that same fitting set. Both are read off the provenance of
       the constants being gated, not chosen to make a dataset score well.
 
-      ⚠ WHAT THIS DOES NOT DO. It does not model the alkaline branch. A run at
-      pH 8 now returns a rate that does not respond to H2O2 at all, and says
-      so. Closing the gap needs an alkaline-branch oxidiser constant measured
-      WITH an inhibitor present — the regime this pack runs in, and one for
-      which no sweep has been located. TODO(owner): an alkaline Cu/H2O2/BTA
-      H2O2 sweep (3+ points) would replace this gate with a prediction.
+      ⚠ SUPERSEDED (kept for the lesson — the refutation is above). This
+      paragraph previously read: "It does not model the alkaline branch ... the
+      regime this pack runs in, and one for which no sweep has been located.
+      TODO(owner): an alkaline Cu/H2O2/BTA H2O2 sweep (3+ points) would replace
+      this gate with a prediction." The first half stands and is restated
+      above; the "no sweep has been located" half was false when written, and
+      the corrected exit condition is the one above, not this one.
     source: >
       P. A. Miranda, J. A. Imonigie, A. J. Moll, "Interaction Effects of Slurry
       Chemistry on Chemical Mechanical Planarization of Electroplated Copper",

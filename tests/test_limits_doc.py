@@ -38,6 +38,12 @@ LIMITS = DOCS / "limits.md"
 #: Tests that enforce a decided refusal to predict. A test added here MUST be
 #: cited by docs/limits.md — that is the point of the registry.
 LIMIT_ENFORCING_TESTS = {
+    # limit 51: §50's rule has a third instance (a MAGNITUDE this time), and
+    # the refusal's own exit condition ("no such sweep has been located") had
+    # already fired INSIDE the corpus -- two alkaline Cu/BTA H2O2 ladders give
+    # -0.01 and -0.27 against the mechanism's -2.33. Gate unchanged (the two
+    # legs still have opposite signs), note corrected, median unchanged.
+    "test_alkaline_oxidizer_mechanism_does_not_transfer.py",
     # limit 50: a single-sourced structural refusal justified itself with a
     # MECHANISM (two straddling isoelectric points make a pH valley), which is
     # transferable and therefore falsifiable OUTSIDE the scored corpus. The

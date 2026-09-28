@@ -2221,3 +2221,120 @@ Refitting `ph_peak` now that the stated reason is weaker: a refuted *reason* is 
 **Enforced by** `tests/test_ceria_ph_valley_is_not_a_general_two_iep_effect.py` (16 tests, all re-measured at run time): the evidence is **parsed** from `research/ceria_ph_valley_second_source.yaml` rather than restated, so claim and numbers cannot drift apart; the reading must carry ≥5 independently printed checks all under 5 %; `magnitude` must stay `null` (the failure mode of a shape-evidence file is a shape growing into a constant); the file must **not** have been promoted into `cmp_sim/data/validation/datasets/`; both panels must lack an interior minimum deeper than the file's own precision **while netzband's valley still registers at that same bar** and the bar itself is asserted non-vacuous; one bell must fit both panels better than it can ever fit netzband, computed over the full (peak, width, floor, acid_floor) grid on the shipping `ph_response`; the marker and `ph_peak` are asserted unmoved; `ph_response` is asserted structurally unable to produce an interior minimum at any parameter choice, so the whole diagnosis fails loudly if a second channel is ever wired; and `sti_ceria.yaml` must itself mention Dawkins, so a session reading only the pack cannot inherit the withdrawn over-claim.
 
 **What would resolve it.** Stated as an exit condition in the evidence file and re-measured by the test, not as a TODO: a ceria-on-oxide pH sweep of ≥4 levels on a **pure** ceria slurry (so it can be scored under this pack without a composite-abrasive term) that reproduces an interior minimum. Two such sources would make the valley a property of the system rather than of one benchtop experiment and would reopen the case for a second pH channel keyed to the abrasive isoelectric point. One more single-peak series instead would justify withdrawing the mechanism sentence entirely rather than merely narrowing it. Neither is a gate on completion.
+
+---
+
+## 51. §50's rule has a third instance, and the refusal's own exit condition had already fired inside the corpus
+
+**Where this came from.** §50 ended with a question rather than a result: *is
+there a third single-sourced refusal whose stated reason is a claim about the
+world rather than a property of the model's function family?* §38/§40 was a
+**sign** (PSD width), §50 was a **shape** (ceria pH). This one is a
+**magnitude**, and it is the oxidiser gate of §4.
+
+**The claim under test.** `cu_h2o2_bta.oxidizer_ph_window = [2.0, 6.25]`
+switches the oxidiser term off above pH 6.25. The **decision** is a
+function-family argument — Miranda 2004's 2×2 has the two pH legs moving in
+opposite directions (pH 4: +49 %, pH 8: −86 %, interaction p = 0.0207), and one
+single-signed constant is monotonic in that constant for every value of it, so
+no refit reaches both legs. That is closed to new data and is not in question
+here. But the note justifying it also asserted a **mechanism**:
+
+> "Alkaline H₂O₂ grows a hard CuO passivation film that the abrasive cannot cut"
+
+which is a statement about every alkaline Cu/H₂O₂ system, not about this one —
+so it transfers, and it can be refuted outside the 2×2 that produced it.
+
+**Measured.** `tools/alkaline_oxidizer_sign_transfer_probe.py` enumerates the
+scored corpus for Cu ladders of ≥3 oxidiser levels lying entirely above the
+gate's upper bound, and finds **two**, both with an inhibitor declared — that
+is, both inside the regime the note said had never been observed:
+
+| ladder | pH | levels (wt %) | log-log slope | measured span |
+|---|---|---|---|---|
+| Miranda 2004 alkaline leg (the mechanism's own) | 8, 2 points | 1.5, 3.5 | **−2.33** | 7.2× |
+| `us20110165777a1_cu_h2o2_series` | **11.1, held fixed** | 1, 3, 5, 7 | **−0.01** | 1.04× |
+| `us9200180b2_cu_h2o2_series` | 10.2 → 8.5 | 0, 1, 2.5, 5 | **−0.27** | 2.70× |
+
+The **sign** transfers; the **magnitude** does not, by an order of magnitude. A
+CuO blockade costing 86 % of the rate over a 2.33× concentration step appears in
+neither independent ladder — the first patent's own text states that H₂O₂ from
+1 to 7 % "has almost no effect", 146–160 Å/min. And the second is confounded:
+its pH falls as H₂O₂ rises, so part of even that −0.27 is the pH branch. What
+survives is the weaker claim: **with an inhibitor present, the alkaline Cu/H₂O₂
+response is weakly negative to flat.**
+
+**The sharper finding is the exit condition.** The same note said the gate
+needed "an alkaline Cu/H₂O₂/BTA H₂O₂ sweep (3+ points) … one for which **no
+sweep has been located**". Both ladders above were already **scored members of
+this corpus** when that was written — under a different pack. A refusal phrased
+as *no such data exists* must be **re-run** against the corpus, never re-read:
+the corpus grows and the sentence does not. This is the same failure as §40
+("the second source §38 asked for existed outside the corpus all along"), except
+that here the data were not merely outside the search space — they were inside
+the repository.
+
+**Why the gate still cannot be closed.** *A sweep exists* is not *the gate can
+be closed* (§32, §34). Neither ladder can anchor an alkaline oxidiser constant
+for this pack, and the reasons are not about data quality: both score under
+`cu_alkaline_benzenesulfonic`, and a foreign pack's data is ordinary evidence
+reuse rather than an anchor; `us20110165777a1` declares
+`used_for_calibration: true` and is in any case **flat** (1.04×), and a flat
+ladder cannot fix a **sign**; `us9200180b2`'s pH moves with its oxidiser, so the
+two are not separable. The repair therefore lands on the **note**, not the
+value.
+
+### What changed, and what did not
+
+A **scope and an exit condition**, not a number. **No constant was added or
+changed, no exponent fitted, no dataset entered or left the corpus, and the
+median is unchanged at 18.9 % / 19.5 % held out** — the correct outcome for an
+honesty fix, asserted rather than hoped for. The superseded sentences are kept
+in place beside their refutation, marked, because how they over-reached is the
+lesson.
+
+### What was rejected
+
+Relaxing or moving `oxidizer_ph_window` because its mechanism sentence fell: a
+refuted *reason* is not a licence to refit, and the decision never rested on the
+alkaline magnitude. Deleting the gate: the two legs still have opposite signs,
+which is the argument that actually carries it. Promoting either ladder into an
+anchor for `cu_h2o2_bta`: both fail admissibility for reasons named above, and
+using them anyway would be self-scoring or cross-pack laundering. Deleting the
+false "no sweep has been located" sentence rather than marking it: that restores
+the undetectable state.
+
+### The generalisable rule
+
+**An exit condition that asserts the absence of data is a measurement, and it
+expires.** §50 taught that a refusal justified by a mechanism can be falsified
+outside the corpus. This adds the cheaper half: a refusal justified by *"no such
+dataset exists"* can be falsified **inside** it, for free, by re-running the
+enumeration the sentence was once based on. Every refusal here should be asked
+two questions, in this order: is its reason a property of the function or a
+claim about the world, and if the latter, **when was its enumeration last
+executed rather than quoted?**
+
+**Enforced by** `tests/test_alkaline_oxidizer_mechanism_does_not_transfer.py`
+(8 tests, all re-measured at run time): the slopes are recomputed from the
+measured rows in `research/alkaline_oxidizer_sign_transfer.yaml`, so a recorded
+slope that disagrees with its own data fails rather than drifting; the gate's
+value, unit, source and confidence are asserted unmoved; the sign-transfer
+control requires both ladders to stay negative, so the refutation can never be
+read as licence to delete the gate; a non-vacuity guard re-enumerates the corpus
+and fails if either ladder stops being found; an **expiry** test fails the moment
+any alkaline ladder becomes admissible (independent pack, held out, pH fixed,
+responsive), at which point the gate should be replaced with a prediction rather
+than the prose relaxed; and the refuted sentences must remain present under
+their markers. A **mutation-guard false negative** found while validating that
+last test is recorded in the test's own docstring: a YAML folded block wraps its
+lines, so a literal substring deletion on disk removes only the unwrapped copy
+and the test appears not to bite — assertions therefore run on the note as the
+parameter loader returns it, never on the file text.
+
+**What would resolve it.** Stated in the evidence file and re-measured by the
+expiry test, not as a TODO: an alkaline (pH > 6.25) H₂O₂ sweep of ≥3 levels on a
+Cu/BTA slurry with **pH held fixed across the ladder**, published independently
+of those two and not already cited by one of this pack's constants. That would
+supply an alkaline-branch oxidiser constant and replace the gate with a
+prediction. It is deliberately **not** a gate on completion.

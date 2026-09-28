@@ -1,0 +1,111 @@
+# The alkaline Cu oxidiser SIGN: what transfers from Miranda 2004 and what does not
+#
+# WHY THIS FILE EXISTS
+# --------------------
+# `cu_h2o2_bta.oxidizer_ph_window = [2.0, 6.25]` gates the oxidiser term off
+# above pH 6.25.  The DECISION rests on a function-family argument (one
+# single-signed constant cannot reach both legs of Miranda 2004's 2x2) and is
+# not in question here.  The note justifying it ALSO made a claim about the
+# world -- a mechanism, therefore transferable, therefore falsifiable outside
+# the 2x2 that produced it (docs/limits.md sec.50):
+#
+#     "Alkaline H2O2 grows a hard CuO passivation film that the abrasive
+#      cannot cut"
+#
+# and it stated an exit condition that it believed was unmet:
+#
+#     "an alkaline Cu/H2O2/BTA H2O2 sweep (3+ points) ... one for which no
+#      sweep has been located"
+#
+# Both of those are wrong, and the corpus already held the refutation.
+#
+# Measured by tools/alkaline_oxidizer_sign_transfer_probe.py.
+
+claim_under_test: >
+  The alkaline branch of the Cu/H2O2 response is strongly NEGATIVE in
+  concentration because H2O2 above ~2.5 wt% grows a hard CuO passivation film.
+
+mechanism_source:
+  citation: >
+    P. A. Miranda, J. A. Imonigie, A. J. Moll, "Interaction Effects of Slurry
+    Chemistry on Chemical Mechanical Planarization of Electroplated Copper",
+    2004 IEEE WMED, doi:10.1109/WMED.2004.1297359, TABLE 3.
+  alkaline_leg:
+    ph: 8.0
+    points_wt_pct: [1.5, 3.5]
+    rate_A_per_min: [1743, 243]
+    loglog_slope: -2.33
+  note: >
+    Two points.  A two-point leg has a slope but no shape and no residual
+    degrees of freedom (docs/limits.md sec.40: a sign read off too few points
+    is not a measurement).
+
+transfer_test:
+  # Both ladders are ALKALINE Cu with a declared inhibitor -- exactly the
+  # regime the pack note said had never been located.
+  - dataset: us20110165777a1_cu_h2o2_series
+    pack_scored_under: cu_alkaline_benzenesulfonic
+    ph: 11.1                 # held FIXED across the ladder
+    levels_wt_pct: [1, 3, 5, 7]
+    measured_nm_per_min: [16.0, 15.8, 15.4, 15.7]
+    loglog_slope: -0.01
+    measured_span_ratio: 1.04
+    inhibitor_declared: true   # BTA 100 ppm, patent text
+    used_for_calibration: true
+  - dataset: us9200180b2_cu_h2o2_series
+    pack_scored_under: cu_alkaline_benzenesulfonic
+    ph: [8.5, 10.2]          # MOVES with H2O2 -- confounded, see below
+    levels_wt_pct: [0, 1, 2.5, 5]
+    measured_nm_per_min: [20.8, 11.8, 9.2, 7.7]
+    loglog_slope: -0.27      # zero-oxidiser row excluded: ln(0) undefined, and
+                             # a no-oxidiser row is a different chemistry
+    measured_span_ratio: 2.70
+    inhibitor_declared: true
+    used_for_calibration: false
+
+verdict: >
+  The SIGN transfers; the MAGNITUDE does not, by an order of magnitude.  The
+  mechanism's own leg is -2.33.  Two independent alkaline Cu ladders WITH an
+  inhibitor give -0.01 (pH held fixed across four levels, 1.04x total span --
+  the patent itself states H2O2 1-7% "has almost no effect", 146-160 A/min)
+  and -0.27 (and that one is confounded: its pH falls 10.2 -> 8.5 as H2O2
+  rises, so part of the decline is the pH branch, not the oxidiser).
+  A hard-CuO blockade that costs 86% of the rate over a 2.33x step does not
+  appear in either.  The most that survives is: alkaline Cu/H2O2 response is
+  weakly negative to flat once an inhibitor is present.
+
+what_this_does_NOT_change: >
+  The gate stays.  Its decision never depended on the magnitude of the
+  alkaline slope -- it depends on the two legs having OPPOSITE signs, which is
+  unchanged (acidic +0.86 from Miranda's own pH 4 leg vs alkaline negative
+  everywhere here), and on one single-signed constant being unable to express
+  both.  That is a function-family claim and is closed to new data.
+
+why_the_exit_condition_still_cannot_be_honoured: >
+  "A sweep exists" is NOT "the gate can be closed" (docs/limits.md sec.32 and
+  sec.34).  Neither ladder can anchor an alkaline oxidiser constant for
+  `cu_h2o2_bta`:
+    - both score under `cu_alkaline_benzenesulfonic`, a DIFFERENT pack; a
+      foreign pack's data is ordinary evidence reuse, not an anchor;
+    - us20110165777a1 declares `used_for_calibration: true` (it was fitted to
+      `oxidizer_passivation_K`), so using it would be self-scoring, AND its
+      response is flat (1.04x), and a flat ladder cannot fix a SIGN;
+    - us9200180b2's pH moves with H2O2, so the oxidiser sign is not separable
+      from the pH branch it sits on.
+  The correct repair is therefore to the pack's NOTE, not to its value.
+
+corrected_exit_condition: >
+  An alkaline (pH > 6.25) H2O2 sweep of >= 3 levels on a Cu/BTA slurry, with
+  pH HELD FIXED across the ladder, published independently of the two above,
+  and admissible for `cu_h2o2_bta` (i.e. not already cited by one of its
+  constants).  That would supply an alkaline-branch oxidiser constant and
+  replace the gate with a prediction.
+
+superseded_but_kept: >
+  The pack note's sentence "one for which no sweep has been located" was
+  false when written -- both ladders were already in this corpus, scored,
+  under another pack.  It is marked refuted in place rather than deleted
+  (docs/limits.md sec.50): the failure mode is the lesson.  The general rule
+  it illustrates: an exit condition phrased as "no such data exists" must be
+  RE-RUN against the corpus, not re-read, because the corpus grows and the
+  sentence does not.
