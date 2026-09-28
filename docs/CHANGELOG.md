@@ -4,6 +4,48 @@ All notable changes to CMP-Sim. Newest first.
 
 ## Unreleased
 
+### Added — a named reader for every `scale-only` constant, and the plausibility envelope measured across the corpus (2026-09-28)
+- **§57 left 14 constants classified `scale-only`**: perturbing them moves the
+  predicted rate (up to 929%) and leaves every block's `shape_mape` *exactly*
+  unchanged, because the headline score fits one free multiplicative scale per
+  dataset. No corpus growth repairs that. `tools/scale_only_jurisdiction_probe.py`
+  asks the question that *is* answerable — does **any** reader see it? —
+  and finds **12 of 14 graded by `absolute_scale_audit`** (the only reader here
+  that looks at absolute rate), three of them crossing that audit's own 3× bar.
+  The deliverable is a **declaration of jurisdiction**: "the median cannot test
+  this constant" was true and written down nowhere, so a wrong value looked, in
+  every report, exactly like a graded one. No constant, prediction or median
+  changed.
+- The probe is checkable rather than trusted: `kp_m_per_pa` multiplies every
+  predicted rate, so it must move `log10(scale)` by exactly `|log10 f|`. The
+  three recovered controls come back at **2.8e-17 / 2.2e-16 / 2.2e-16**.
+- **The by-product is larger than the question, and it is a negative result about
+  this repository's own guard.** For the 2 constants with no scored reader the
+  probe falls back to `core/sanity.py`'s per-film plausibility envelope, and both
+  come back **NO READER, by different mechanisms**: `dlc` has no published
+  envelope at all (correctly — no source publishes an amorphous-carbon CMP rate
+  at a stated pressure and velocity), and `si`'s envelope is **already firing on
+  the unperturbed run** (8,830 Å/min against 100–3,000), so every perturbation
+  looks identical to it. "First complains at ×1" is a saturated alarm, not a
+  bound.
+- `tools/envelope_saturation_census.py` measures how general that is — nothing
+  had, because `check_rate` is a per-run annotation no probe read across the
+  corpus, so "the envelope would catch a 10× error" had aged into fact. It fires
+  on **30 of 52** scored blocks, and splits them by something the envelope itself
+  cannot see, the **measurement** at the same row: 11 `model-scale-failure`
+  (measured inside, predicted outside — what the guard is for; `gong2024` on
+  25/25 rows), 8 `mixed`, 11 `envelope-too-narrow` (measured outside *too*, so
+  the warning is about the envelope and is not a model defect), 4 `no-envelope`.
+- **Rejected:** widening any envelope to lower that count — every bound cites a
+  measurement and `core/sanity.py`'s own header records the `snag` entry being
+  *deleted* for citing nothing ("a guard that cannot fire is worse than no
+  guard"); and scoring the headline on absolute scale, which §34 already measured
+  as trading one failure for another. Both have mutation guards.
+- `docs/limits.md` §58;
+  `tests/test_scale_only_constants_have_a_named_reader.py` (14 pass, 6/6
+  mutations caught). Median unchanged: 18.9% published, 19.5% held-out, 21.3%
+  leave-one-out.
+
 ### Fixed — the published median was computed on a DISPLAY rounding (2026-09-28)
 - **Every error number this repository has ever published was computed on a
   removal rate quantised to 0.1 Å/min.** `StateResult.summary()` publishes

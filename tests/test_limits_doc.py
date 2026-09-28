@@ -38,6 +38,14 @@ LIMITS = DOCS / "limits.md"
 #: Tests that enforce a decided refusal to predict. A test added here MUST be
 #: cited by docs/limits.md — that is the point of the registry.
 LIMIT_ENFORCING_TESTS = {
+    # §58 — §57's `scale-only` class HAS a reader: 12 of 14 are graded by
+    # absolute_scale_audit (§34's only absolute-rate reader), which was written
+    # down nowhere, so a wrong value looked exactly like a graded one. The 2
+    # with no scored reader have no reader AT ALL, by two different mechanisms —
+    # and the fallback (core/sanity.py's envelope) turns out to be already
+    # firing on 30 of 52 blocks, so "it would catch a 10x error" was false.
+    # Median unchanged. Added deliberately.
+    "test_scale_only_constants_have_a_named_reader.py",
     # §57 — the published median was computed on `round(rate, 1)`, a DISPLAY
     # rounding in StateResult.summary() that predictive_score read. Invisible
     # on Cu (~3000 A/min), up to 1.45% per row on 4H-SiC (a few A/min), and it

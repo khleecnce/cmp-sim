@@ -2764,3 +2764,96 @@ scorer's own construction*, since one free scale per block is what makes the
 score a trend measure. That second class cannot be fixed by adding data. It
 would take a held-out block whose **absolute** rate is comparable (§34's scale
 audit, not the shape median) for a Kp to be gradeable at all.
+
+---
+
+## 58. §57's `scale-only` class has a reader after all — and the LAST reader was already spent on 30 of 52 blocks
+
+**The question §57 left, and why it is not answerable with data.** §57 ended
+with 14 constants classified `scale-only`: perturbing them moves the predicted
+rate (up to 929 %) and leaves every block's `shape_mape` **exactly** unchanged,
+because the headline score fits one free multiplicative scale per dataset (§34).
+No corpus growth repairs that — it is a property of the reader, and `kp_m_per_pa`
+is the pure case, since it multiplies every rate. §57 itself pointed at the
+answer: §34 established that `absolute_scale_audit` is the **only** reader here
+that looks at the rate itself, so the real question is not *can the median see
+this* (no, provably) but **does any reader see it at all?**
+
+**The measurement** (`tools/scale_only_jurisdiction_probe.py`). For each
+`scale-only` constant, take the held-out blocks in its reach, drop the ones whose
+absolute scale is not comparable (fitted on it per §46, or their own source
+declares `절대값 비교 금지`), and perturb the constant through the shipping
+`params:` override path, reading `predictive_score._scale_ratio` — the exact
+statistic `absolute_scale_audit` publishes, not a second definition of it.
+**12 of the 14 are graded**, three of them moving far enough to cross the audit's
+own 3× bar; **2 are not.** The probe is checkable rather than trusted:
+`kp_m_per_pa` must move `log10(scale)` by exactly `|log10 f|`, and the three
+recovered controls come back with residuals of **2.8e-17 / 2.2e-16 / 2.2e-16**.
+
+**What is actually delivered is a DECLARATION OF JURISDICTION, not a score.**
+Before this, "the median cannot test this constant" was true and written down
+nowhere, so a wrong `scale-only` value looked — in every report this repository
+produces — exactly like a graded one. Now each is assigned to the reader that can
+refute it. ⚠ This is **not** a proposal to score on absolute scale: §34 measured
+that the two failures are independent and that re-anchoring trades one for the
+other (4 of 5 failing packs are INCOHERENT, so no single Kp satisfies them).
+`test_the_headline_median_is_not_computed_on_absolute_scale` guards that.
+
+**The by-product is worth more than the question, and it is a negative result
+about this repository's own guard.** For the 2 ungraded constants the probe falls
+back to the last reader that needs no dataset — `core/sanity.py`'s per-film
+plausibility envelope — and it reports **NO READER for both, by two different
+mechanisms**:
+
+- `dlc_zirconia_permanganate.kp_m_per_pa` — the film has **no envelope at all**.
+  `core/sanity.py` declines to invent one, correctly: no primary source publishes
+  an amorphous-carbon CMP rate at a stated pressure and velocity.
+- `si_substrate_alkaline.kp_m_per_pa` — the envelope is **already firing on the
+  UNPERTURBED run** (8,830 Å/min predicted against 100–3,000 Å/min), so every
+  perturbation looks identical to it and it carries **zero** information about
+  the constant. "First complains at ×1" is not a bound; it is a saturated alarm.
+
+That second finding is general, and nothing here had ever measured it because
+`check_rate` is a per-run annotation that no probe read across the corpus, so
+"the envelope would catch a 10× error" aged into fact.
+`tools/envelope_saturation_census.py`: the envelope fires on **30 of 52** scored
+blocks. It also splits them, which the envelope itself cannot do — an
+out-of-envelope prediction means two different things depending on the
+**measurement** at the same row:
+
+| class | blocks | reading |
+|---|---|---|
+| `model-scale-failure` | 11 | measured is INSIDE, predicted is not — exactly what the guard is for (`gong2024` outside on 25/25 rows, absolute scale 0.07×, §34's worst) |
+| `mixed` | 8 | both kinds of row in one block |
+| `envelope-too-narrow` | 11 | measured is outside **too** — the warning is about the envelope, not the model (`us9200180b2` Cu measures 86–542 Å/min against a 1,000–12,000 production-damascene envelope) |
+| `no-envelope` | 4 | no published bound for the film; the module says so rather than inventing one |
+
+**The refit rejected.** Widening any envelope so the saturation count falls.
+Every bound in `PLAUSIBLE_RATE_A_PER_MIN` cites a measurement, and that module's
+own header records the `snag` entry being **deleted** for citing nothing — "a
+guard that cannot fire is worse than no guard, because it reads as having checked
+something". Widening to silence a block recreates precisely that defect, one
+level up. `test_no_envelope_was_widened_to_silence_a_block` pins the current
+bounds and fails if a `dlc` or `snag` entry appears. Also rejected: deriving the
+envelopes from the corpus's own measured rates, which would make the guard
+circular — it could then no longer report that a corpus block is itself unusual.
+
+**Median unchanged, and that is the correct outcome.** 18.9 % published / 19.5 %
+held-out, zero constants touched. §58 changes no prediction; it changes what a
+future session may *claim* about falsifiability.
+
+**What would resolve it.** For the `dlc` constant, any second amorphous-carbon
+CMP rate published with its down force and platen speed — that is the same exit
+condition the pack's own note already carries, now with a measured reason. For
+the `si` constant, a Si-substrate source that publishes the carrier-to-platen
+centre distance, so a relative velocity and therefore an absolute Preston rate
+can be formed (bae2022 does not, which is why it forbids absolute comparison).
+For the saturation generally: **nothing**, deliberately. The count is a fact
+about how far this model's absolute rates sit from review-literature envelopes,
+and it is recorded so it stops being invisible, **not** as a gate.
+
+**Enforced by** `tests/test_scale_only_constants_have_a_named_reader.py`
+(14 pass; 6/6 mutations caught, including collapsing the classifier to one
+answer, making the census blind to the measurement, widening the Si envelope,
+reporting a saturated alarm as an ordinary bound, and deleting the instrument
+control).
