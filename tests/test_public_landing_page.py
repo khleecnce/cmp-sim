@@ -166,6 +166,47 @@ def test_the_deploy_bundle_keeps_every_dataset_the_score_reads():
         + "\n  ".join(f"{p}  (excluded by {r!r})" for p, r in dropped))
 
 
+def test_the_text_report_reconciles_with_the_published_beat_count():
+    """Two counts of one fact must add up, or a reader distrusts both.
+
+    `/api/accuracy` publishes `beat_predicting_the_mean` over every scored
+    dataset (36 of 48). The text report's "does NOT beat predicting the mean"
+    line excludes datasets already at their measured noise floor, where beating
+    the mean would mean fitting noise — so it printed 11, and 36 + 11 = 47, one
+    short of 48. Both numbers were correct and the pair was not checkable. The
+    report now states the exclusion and the resulting total in the same
+    sentence; this pins that to the real scores.
+    """
+    import re
+
+    from cmp_sim.core.predictive_score import report, score_all
+
+    scores = [s for s in score_all() if s.shape_mape is not None]
+    beat = sum(1 for s in scores if s.beats_flat)
+    text = report(score_all())
+
+    line = next((ln for ln in text.splitlines()
+                 if "does NOT beat predicting the mean" in ln), None)
+    assert line, "the report no longer states which datasets lose to the mean"
+
+    lost_m = re.search(r"mean on (\d+)", line)
+    assert lost_m, f"cannot read the lost count from: {line!r}"
+    lost = int(lost_m.group(1))
+    floored = sum(1 for s in scores if not s.beats_flat and s.at_noise_floor)
+    assert beat + lost + floored == len(scores), (
+        f"the report's counts do not partition the scored datasets: "
+        f"{beat} beat + {lost} lost + {floored} at floor != {len(scores)}")
+
+    m = re.search(r"so (\d+)/(\d+) beat it", line)
+    if floored:
+        assert m, (
+            "datasets are excluded from the lost-count but the line does not "
+            "say so, so the published beat count cannot be reconciled with it")
+        assert (int(m.group(1)), int(m.group(2))) == (beat, len(scores)), (
+            f"the report says {m.group(1)}/{m.group(2)} beat the mean but the "
+            f"scores say {beat}/{len(scores)}")
+
+
 def test_the_document_head_describes_the_project_for_link_previews():
     """Recruiters and chat clients see the meta description, not the page."""
     head = _html().split("</head>", 1)[0]

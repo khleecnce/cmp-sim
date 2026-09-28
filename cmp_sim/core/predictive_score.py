@@ -652,9 +652,23 @@ def report(scores: List[Score]) -> str:
                     f"absolute rate off by >3x on {len(off)}: "
                     + ", ".join(f"{s.dataset} ({s.scale_ratio:.1f}x)"
                                 for s in worst))
+        # Two counts of the same fact disagree unless the exclusion is stated:
+        # `/api/accuracy` publishes `beat_predicting_the_mean` over EVERY scored
+        # dataset, while this line drops the ones already at their measured
+        # reproducibility floor — beating the mean there would mean fitting the
+        # dataset's own noise. Printing a bare "does NOT beat ... on 11" beside
+        # a published "36 of 48" invites the reader to find 47 and stop
+        # trusting both, so the sentence carries its own arithmetic.
+        at_floor = [s.dataset for s in ran
+                    if not s.beats_flat and s.at_noise_floor]
         lost = [s.dataset for s in ran
                 if not s.beats_flat and not s.at_noise_floor]
         if lost:
+            tail = ""
+            if at_floor:
+                tail = (f" ({len(at_floor)} more is excluded as already at its "
+                        f"measured noise floor: {', '.join(at_floor)}), so "
+                        f"{len(ran) - len(lost) - len(at_floor)}/{len(ran)} beat it")
             lines.append(f"does NOT beat predicting the mean on {len(lost)}: "
-                         + ", ".join(lost[:6]))
+                         + ", ".join(lost[:6]) + tail)
     return "\n".join(lines)
