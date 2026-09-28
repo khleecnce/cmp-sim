@@ -4,6 +4,65 @@ All notable changes to CMP-Sim. Newest first.
 
 ## Unreleased
 
+### Measured — §42's wiring audit is per KEY, and reachability is a property of the (key, PACK) pair (2026-09-28)
+- §42 asked "a pack key that is DECLARED and reads nothing" per **key**: does
+  any engine path read this name? `oxidizer_peak_wt_pct` passes — three packs
+  declare it with a unit, a source and a confidence grade, and
+  `chemical_rate.py::peaked_oxidizer_response` consumes it. Measured per
+  **(key, pack)** through the shipping solver, two of the three invert:
+
+  | pack | declared | grade | max response |
+  |---|---|---|---|
+  | `cu_h2o2_bta` | 3.0 wt% | `literature` | **13.889 %** reached |
+  | `cu_alkaline_benzenesulfonic` | 1.0 wt% | `estimated` | **0.000 %** unreachable |
+  | `w_fe_oxidizer` | 6.0 wt% | `estimated` | **0.000 %** unreachable |
+
+  The branch consuming the peak is selected by a *different* key,
+  `oxidizer_peak_shape_K`, which only `cu_h2o2_bta` declares; the other two
+  return from the Langmuir branch first. Both zeros pass §43's control (their
+  own `slurry_ph` / `abrasive_wt_pct` did move), so they are wiring facts.
+  Neither the key-level audit nor the pack-level audit can see this: neither
+  asks whether a key a pack declares moves **that pack's** rate.
+- **The two inert packs' notes disagreed, and that is the sharper finding.**
+  `w_fe_oxidizer` says `(비활성 — Langmuir 경로로 대체됨, 판정#19)` — inactive,
+  superseded — and is graded `estimated`, so it was honest.
+  `cu_alkaline_benzenesulfonic` said the opposite: that the peak is placed at
+  the operating point "so the whole observed band falls on the post-peak side",
+  a claim that the value **acts**. It does not; the band falls because of the
+  Langmuir passivation term, and the stated design intent never executes. That
+  note is corrected in place (value and grade unchanged) because it is the kind
+  of prose a later session reasons from. Reading the notes cannot separate the
+  two cases — both read as deliberate — only measurement per (key, pack) can.
+- The live peak's POSITION was priced against the corpus and the declared value
+  **won**. The argument this entry was drafted to make — every scored H2O2 level
+  sits past every candidate maximum, so the position is unfalsifiable (§35) —
+  was re-scored and found **false**: 3 of 10 Cu blocks respond, one by 58 pp,
+  and the declared 3.0 wt% is best on all three with the error monotone in
+  distance (`jani2025` 5.6 → 26.7 %, held-out RSM 47.9 → 62.1 %, `us8501625b2`
+  20.2 → 78.3 % as the peak moves to Lin & Du 2009's measured positions). The
+  refuted draft is kept beside the refutation; how it failed is the lesson.
+  Physically the transplant fails on the source's own data: that maximum
+  marches 0.90 → 0.74 → 0.66 wt% under **dilution alone**, i.e. it is set by
+  inhibitor and complexant concentrations the paper withholds.
+- The species gate's stated REASON was corrected, and its decision was not.
+  It rested on a sign claim ("oxalate rises, glycine decreases monotonically")
+  read from one patent figure whose three points all start at 0.5 wt% H2O2.
+  Two independent sources below that find the rate rising — Lin & Du resolve
+  the maximum at 0.66-0.90 wt%, and `ihnfeldt2008_cu_alumina_ph_oxidizer_chelator`,
+  **already a scored dataset here**, rises 0.1 → 2.0 wt% at pH 3.0 with 0.1 M
+  glycine. The response is peaked, so the justification becomes structural: a
+  saturating Langmuir promoter and a Langmuir passivation term are monotone for
+  every K and cannot represent a peak at all. The contradicting evidence was in
+  the corpus the whole time; nothing compared it to the note, so nothing failed.
+- **No constant added, no pack value changed, no exponent fitted, gate
+  unchanged, median unchanged at 18.9 % / 19.5 % held out** — the correct
+  outcome for a priced-and-refused change plus an honesty fix.
+- `docs/limits.md` §49 + `tests/test_declared_peak_reaches_nothing_on_two_packs.py`
+  (12 pass / 1 skip, all re-measured at run time),
+  `research/cu_oxidizer_peak_position_evidence.yaml`,
+  `tools/oxidizer_peak_reachability_probe.py`,
+  `tools/oxidizer_peak_position_price_probe.py`.
+
 ### Measured — the two readers that answer "did the model predict this axis?" are BINARY, and a token response clears both (2026-09-28)
 - §43-§47 audited who chooses the perturbation, who chooses the evaluation
   points, what the reduction throws away, what family it represents, and whether

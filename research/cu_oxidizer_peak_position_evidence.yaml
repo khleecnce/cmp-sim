@@ -1,0 +1,215 @@
+# Cu OXIDIZER PEAK POSITION — priced against the corpus, and REFUSED.
+#
+# THE OPEN QUESTION (STATUS.md 51회차, next-move #1)
+#   `jani2025_cu_h2o2_acidic_chelator` is the corpus's only acidic x oxalate
+#   H2O2 sweep, classified `token-substituted` (limits.md §48): the applied
+#   slope (-0.029) is not a test of the measured one (+0.167), because the
+#   species gate in legacy/sim/chemistry.py correctly refuses to transfer an
+#   OXALATE-fitted constant to a GLYCINE pack. The move recorded was: find a
+#   SECOND independent source before touching the constant.
+#
+# WHAT THE SEARCH ACTUALLY FOUND — three things, none of them the expected one.
+#
+# (1) THE REASON WRITTEN ON THE SPECIES GATE IS WRONG.
+#     legacy/knowledge/cmp/chi-cu-h2o2-glycine-acidic-sweep.md §5 justifies the
+#     gate with a SIGN claim: oxalate rises, glycine "단조 감소" (monotonically
+#     decreases). That reading comes from ONE patent figure whose three points
+#     start at 0.5 wt% H2O2. Two independent sources sampling BELOW that find
+#     the rate RISING, and one of them resolves a maximum at 0.66-0.90 wt%.
+#     The glycine response is PEAKED, not decreasing.
+#     ⚠ The gate's DECISION still stands — see (3). Only its stated reason is
+#       corrected, and it is corrected to a STRONGER one: a saturating Langmuir
+#       promoter and a Langmuir passivation term are both monotone for every K,
+#       so neither can represent this shape at all. That is a statement about
+#       the function FAMILY and cannot be retired by a better constant.
+#
+# (2) A PEAKED FORM IS ALREADY WIRED, AND IS REACHABLE ON EXACTLY ONE PACK.
+#     `cmp_sim/models/chemical_rate.py::peaked_oxidizer_response` implements
+#     the promotion-then-passivation curve, and three packs declare
+#     `oxidizer_peak_wt_pct`. Measured with the shipping solver
+#     (tools/oxidizer_peak_reachability_probe.py), the same key has opposite
+#     fates and nothing here had reported it:
+#         cu_h2o2_bta                  3.0 wt% [literature]  -> 13.889% REACHED
+#         cu_alkaline_benzenesulfonic  1.0 wt% [estimated]   ->  0.000% UNREACHABLE
+#         w_fe_oxidizer                6.0 wt% [estimated]   ->  0.000% UNREACHABLE
+#     The two unreachable ones also declare a Langmuir K, which returns first.
+#     Only cu_h2o2_bta declares `oxidizer_peak_shape_K`, which selects the
+#     peaked branch. Both zeros carry an instrument control that DID move
+#     (slurry_ph / abrasive_wt_pct at x1.25), so they are wiring facts about
+#     those packs, not failures of the probe.
+#
+#     ⚠ AND THE TWO NOTES DISAGREED, which is the sharper half of (2).
+#     w_fe_oxidizer's note ends "(비활성 — Langmuir 경로로 대체됨, 판정#19)":
+#     inactive, superseded by the Langmuir path. Honest, and graded `estimated`.
+#     cu_alkaline_benzenesulfonic's said the OPPOSITE — that the peak is placed
+#     at the operating point "so that the whole observed band falls on the
+#     post-peak (decreasing) side", which is a claim that the value ACTS. It
+#     does not. The band is a falling one because of the Langmuir passivation
+#     term; the stated design intent never executes. Corrected in place, value
+#     and grade unchanged, because that is prose a later session reasons from.
+#     Reading the notes cannot separate the two cases — both read as deliberate
+#     — only measuring per (key, pack) can.
+#
+# (3) THE CORPUS CAN TEST THE PEAK POSITION, AND IT REFUTES THE TRANSPLANT.
+#     This is the load-bearing result, and it REVERSES the conclusion this file
+#     was drafted to record. Before measuring, the intended argument was that
+#     every scored H2O2 level sits above both candidate peaks, so the declared
+#     position is unfalsifiable by the corpus. That argument is FALSE.
+#     tools/oxidizer_peak_position_price_probe.py moves the peak to each
+#     source's measured position and re-scores every Cu block through the
+#     scorer's own recipe builder. Three of ten blocks respond, one by 58 pp:
+#
+#       block                                  H2O2 levels     3.0   0.90  0.74  0.66
+#       jani2025_cu_h2o2_acidic_chelator       3,4,6           5.6   17.1  22.7  26.7
+#       jani2025_cu_rsm_composition_heldout    3,4,4.1,5,5.5,7 47.9  58.7  61.2  62.1
+#       us8501625b2_cu_h2o2_pressure_series    3,9,15          20.2  65.3  74.9  78.3
+#
+#     The DECLARED 3.0 wt% is best on all three, and every block degrades
+#     MONOTONICALLY with distance from it. So the position is measurable here,
+#     it has now been measured, and the measurement says the transplant is
+#     wrong. Recording the refuted argument next to the refutation, rather than
+#     deleting it, is deliberate: the reasoning that produced it was sound and
+#     how it failed is the lesson.
+#
+# ⚠ THIS FILE IS NOT A SCORED DATASET AND MUST NOT BECOME ONE.
+
+axis: oxidizer_peak_wt_pct
+pack: cu_h2o2_bta
+question: >
+  Should the Cu oxidizer peak position be moved from the declared 3.0 wt% to a
+  directly measured value from another publication?
+verdict: refused
+verdict_basis: measured        # not argued — see (3) above
+
+# ── THE NEW SOURCES ────────────────────────────────────────────────────────
+sources:
+  - id: lin2009
+    citation: >
+      J. Lin and T. Du (Fujimi Corporation), "Effect of H2O2 Concentration and
+      Slurry Dilution on Removal Rate and Surface Quality for a Cu Slurry",
+      ECS Transactions 18(1) 485-490 (2009), doi:10.1149/1.3096490.
+      Abstract and Results section (text, not figure).
+    local: "~/fab-sim/papers/lin2009-ecs-h2o2-cu-slurry.pdf"
+    read_method: text
+    why_it_matters: >
+      The only source held here that RESOLVES a Cu removal-rate maximum by
+      direct measurement, and the only one that measures the peak MOVING.
+    slurry: >
+      FCC1024M colloidal silica, "contains a Cu complexing agent, a Cu
+      corrosion inhibitor, and uses H2O2 as an oxidizer" (p.485). The
+      complexant and inhibitor species are NOT disclosed.
+    conditions_fixed:
+      pressure_psi: 3.5
+      rpm_platen: 95
+      rpm_head: 90
+      flow_ml_min: 260
+      time_s: 45
+      pad: "IC1000 K-groove / Suba IV"
+      tool: "Ebara EPO222, 200 mm Cu blanket"
+    peak_wt_pct_h2o2_by_dilution: {"1:6": 0.90, "1:8": 0.74, "1:10": 0.66}
+    authors_own_words: >
+      "the Cu removal rate increased with increasing H2O2 concentration,
+      reaching a maximum at 0.90 wt% (H2O2 threshold concentration), and then
+      decreasing and leveling off at higher H2O2 concentrations."
+    mechanism_quoted: >
+      "The Cu removal rate is controlled by relative rates of the formation and
+      removal of the protective film. ... Below the H2O2 threshold, the Cu
+      removal rate is limited by the Cu oxidation rate and increases with H2O2
+      concentration. ... At the H2O2 threshold, a maximum Cu removal rate is
+      achieved when the protective film formation rate is equal to its
+      polishing rate."
+    why_not_a_dataset: >
+      No removal-rate table is printed — the rate-vs-H2O2 curves are Figures 1
+      and 2 only, and the complexant and inhibitor identities and
+      concentrations are trade secret, so no peak position it reports can be
+      mapped onto a quantity any pack declares.
+
+  - id: ihnfeldt2008
+    citation: >
+      R. Ihnfeldt, Ph.D. dissertation, UC San Diego (2008), TABLE 6.2 read with
+      TABLE 6.1. ALREADY IN THE CORPUS as
+      cmp_sim/data/validation/datasets/ihnfeldt2008_cu_alumina_ph_oxidizer_chelator.yaml
+    read_method: table
+    why_it_matters: >
+      Its solutions c and d differ ONLY in H2O2 (0.1 -> 2.0 wt%) at fixed
+      pH 3.0 and 0.1 M glycine, and the rate RISES 8 -> 113 nm/min. That is a
+      glycine system rising across the decade below where the patent figure
+      behind the species gate begins, and it was already sitting in the corpus
+      while the note two directories away called glycine monotonically
+      decreasing. Nothing compared them, so nothing failed.
+    authors_own_words: >
+      "Increasing the H2O2 concentration, solution d, caused the experimental
+      MRR to increase at pH 3.0" (p.170).
+    why_it_does_not_settle_the_position: >
+      Its own dataset file excludes the 8 nm/min point, correctly, as
+      indistinguishable from zero against the paper's stated +/-14 nm/min. One
+      surviving acidic point cannot locate a maximum.
+
+# ── WHAT IS CLAIMED, AND AT WHAT STRENGTH ─────────────────────────────────
+shape: peaked
+shape_confidence: high
+shape_evidence_count: 3        # lin2009 (peak), ihnfeldt2008 (rise), us5575885 (fall)
+peak_position_is_transplantable: false
+peak_position_transplant_refuted_by: >
+  Direct measurement on the shipping scorer, not argument. Moving
+  cu_h2o2_bta's peak to each of Lin & Du's three measured positions makes
+  every responding block worse, monotonically with distance: jani2025
+  5.6 -> 26.7%, the held-out RSM 47.9 -> 62.1%, us8501625b2 20.2 -> 78.3%.
+  Reproduce with tools/oxidizer_peak_position_price_probe.py.
+why_the_transplant_fails_physically: >
+  Lin & Du's own data say the peak position is not a property of the film. It
+  marches 0.90 -> 0.74 -> 0.66 wt% under DILUTION ALONE, i.e. it is set by the
+  competing inhibitor and complexant concentrations — which that paper
+  withholds. Transplanting it onto a pack with a different and disclosed
+  BTA/glycine loading would assert a composition-independent maximum that the
+  source itself refutes.
+magnitude: null
+magnitude_blocked_by: >
+  A peak position that is a FUNCTION of the inhibitor/complexant loading needs
+  a sweep that varies those at known concentrations. Lin & Du vary them (by
+  dilution) but disclose neither; Ihnfeldt fixes them but has one usable
+  acidic point; the patent fixes them at a tenth of the pack's glycine and
+  never crosses the maximum. No source here supplies the function.
+
+# ── WHAT CHANGES ──────────────────────────────────────────────────────────
+changes: >
+  Two RECORDS, no numbers. (i) The reason written on the species gate: glycine
+  is not monotonically decreasing, it is peaked, so the justification becomes a
+  statement about the function family rather than a sign read off one limb.
+  (ii) The fact that the declared peak is REACHABLE on cu_h2o2_bta and INERT
+  on the two other packs that declare it — which no audit here reported,
+  because the wiring audit asks whether a key the engine reads exists in a
+  pack, not whether a key a pack declares reaches the rate on THAT pack.
+does_not_change: >
+  Any constant, any pack value, any prediction. `oxidizer_peak_wt_pct` stays
+  3.0 wt%, `oxidizer_acid_chelator_K` stays 0.7935 / `estimated`, the species
+  gate stays closed, and the published median stays 18.9% (held-out 19.5%) —
+  the correct outcome for a priced-and-refused change plus an honesty fix.
+  Zero median movement here is the RESULT, not a failure to find one.
+
+# ── EXIT CONDITION ────────────────────────────────────────────────────────
+# What would reopen the peak POSITION: a published Cu H2O2 sweep with >= 3
+# levels that brackets its own maximum (at least one level below 0.5 wt% and
+# one above 2 wt%) AND discloses the chelator and inhibitor species and
+# concentrations. Then the position becomes a function of declared quantities
+# and the competing-rates form becomes derivable rather than transplanted.
+#
+# What would reopen the two INERT declarations: either pack declaring an
+# `oxidizer_peak_shape_K`, which selects the peaked branch. Until then their
+# peak positions are §35 numbers — sourced, graded and unfalsifiable — and
+# deleting them would restore the undetectable state rather than fix anything.
+exit_condition:
+  requires_levels_below_wt_pct: 0.5
+  requires_levels_above_wt_pct: 2.0
+  requires_min_levels: 3
+  requires_disclosed: [chelator_species, chelator_concentration,
+                       inhibitor_species, inhibitor_concentration]
+  inert_packs_reopen_if_they_declare: oxidizer_peak_shape_K
+  searched_and_absent_in: >
+    All 247 publications indexed in ~/fab-sim/papers/INDEX.json, filtered to
+    those mentioning Cu, H2O2 and a chelator with >= 3 distinct H2O2 levels and
+    at least one acidic pH. Six candidates survived; five are cited here or in
+    the knowledge note behind the gate, and the sixth (gopal-talbot-2007) is a
+    MODELLING paper whose experimental numbers are Seal et al.'s — which is
+    also where the declared 3.0 wt% itself comes from, so it cannot serve as
+    independent confirmation of it.

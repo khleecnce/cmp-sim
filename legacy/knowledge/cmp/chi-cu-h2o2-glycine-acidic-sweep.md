@@ -73,6 +73,22 @@ Hariharaputhiran(2000)이 보고한 동종 조성(H2O2+글리신 수용액)의 �
 **방향: 단조 감소.** H2O2가 늘수록 Cu 폴리싱 중 제거율이 줄어든다 — Jani 2025 옥살산계
 (판정#41, 증가 방향)와 **정반대**다.
 
+> ⚠ **CORRECTION (see `research/cu_oxidizer_peak_position_evidence.yaml`, docs/limits.md §49).**
+> "단조 감소" is a reading of ONE limb. All three points above start at
+> 0.5 wt% H2O2, and two independent sources sampling BELOW that find the rate
+> RISING: Lin & Du 2009 (doi:10.1149/1.3096490) resolve a MAXIMUM at
+> 0.66–0.90 wt%, and Ihnfeldt 2008 Table 6.2 (already a scored dataset here)
+> rises 0.1 → 2.0 wt% H2O2 at pH 3.0 with 0.1 M glycine. The glycine response
+> is **peaked**, not monotonically decreasing.
+>
+> **The species gate's DECISION is unaffected, and its reason becomes stronger.**
+> It no longer rests on "the two systems have opposite signs" (a claim about one
+> limb) but on the function family: a saturating Langmuir promoter and a
+> Langmuir passivation term are both monotone for every K, so neither can
+> represent a peak at all. That is structural and cannot be retired by a better
+> constant. No number in this note changes; the digitised points above are
+> correct, only the sentence generalising them was not.
+
 참고로 같은 그래프의 좌축(딥핑 중 정적 에칭률, filled circle)은 0→28(0.5wt%, 피크)→19
 (1.5wt%)→0(5wt%)로 **비단조**(피크형)다. 이건 조건#1(정적 식각율 제외)에 해당해 주 데이터로
 쓰지 않는다 — 우축(폴리싱 중, 실제 패드 마모 동반) 값만 채택했다.

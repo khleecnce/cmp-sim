@@ -44,6 +44,13 @@ LIMIT_ENFORCING_TESTS = {
     # as an ordinary prediction. 3 token blocks, all with reasons already true
     # and none machine-readable; 0 silent after classification; median unchanged.
     "test_trend_share_is_not_a_binary_bar.py",
+    # limit 49: §42's wiring audit is per KEY, so reachability was never asked
+    # per (key, PACK). `oxidizer_peak_wt_pct` reaches the rate on the one pack
+    # declaring the shape selector and NOTHING on the two others that declare
+    # it — one of them graded `literature`. The live peak's position was then
+    # priced against the corpus and the DECLARED value won on all 3 responding
+    # blocks, refuting the transplant. No constant moved; median unchanged.
+    "test_declared_peak_reaches_nothing_on_two_packs.py",
     # limit 47: a pack's coherence verdict spans ONE CONSTANT OFFSET —
     # median/spread are functions of the MULTISET of scale values, so a scale
     # that TRENDS along a condition is filed as "the blocks disagree, so Kp is
