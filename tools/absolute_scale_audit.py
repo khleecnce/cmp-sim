@@ -101,8 +101,15 @@ class PackVerdict:
         """True when every block under this pack misses the SAME way.
 
         Coherent -> one mis-anchored constant, fixable and traceable.
-        Incoherent -> the Kp is not the problem; the blocks disagree about
-        what the pack should be, and moving it trades one miss for another.
+        Incoherent -> **no single constant fits these blocks.** It does NOT
+        establish that Kp is innocent, and this docstring used to say that it
+        did: `median` and `spread` are functions of the MULTISET of scale
+        values, so permuting which block holds which value leaves both exactly
+        unchanged. The reduction therefore spans `scale = const + noise` and
+        cannot tell scatter from a systematic trend along a condition
+        (docs/limits.md §47, `tools/scale_coherence_trend_probe.py`). On
+        `cu_h2o2_bta` the scale trends with pressure at p_perm = 0.009 while
+        being reported here only as a 59x spread.
         Needs at least two blocks to mean anything.
         """
         if len(self.blocks) < 2:
@@ -197,8 +204,10 @@ def report() -> str:
                         10 ** verdict.median_log,
                         "COHERENT (one mis-anchored Kp)"
                         if verdict.coherent
-                        else ("INCOHERENT (blocks disagree -> Kp is not the "
-                              "cause)" if verdict.coherent is False
+                        else ("INCOHERENT (no single constant fits these "
+                              "blocks; this statistic cannot tell scatter "
+                              "from a trend - limits 47)"
+                              if verdict.coherent is False
                               else "single block, coherence untestable")))
         for b in verdict.blocks:
             lines.append("        %-50s %s  n=%2d  %6.2fx  shape %s  "

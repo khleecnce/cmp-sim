@@ -38,6 +38,12 @@ LIMITS = DOCS / "limits.md"
 #: Tests that enforce a decided refusal to predict. A test added here MUST be
 #: cited by docs/limits.md — that is the point of the registry.
 LIMIT_ENFORCING_TESTS = {
+    # limit 47: a pack's coherence verdict spans ONE CONSTANT OFFSET —
+    # median/spread are functions of the MULTISET of scale values, so a scale
+    # that TRENDS along a condition is filed as "the blocks disagree, so Kp is
+    # not the cause". cu_h2o2_bta trends with pressure (slope -0.94,
+    # p_perm 0.009); both controls refute it as physics, median unchanged.
+    "test_scale_coherence_cannot_see_a_trend.py",
     # limit 45: a span RATIO cannot see DIRECTION — §37's veto statistic scores
     # a prediction that moves BACKWARDS as agreement (reverse the series and
     # max/min is unchanged while r_log flips +1 -> -1). 2 anti blocks, both

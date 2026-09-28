@@ -2014,3 +2014,61 @@ Replacing the linear oracle inside `axis_error_census.py` with the quadratic was
 **What would resolve it.** Nothing external for the reader. For `abrasive_wt_pct`, a *derived* saturation scale with no new free constant, which §28's amendment already tried and refused — so the axis stays closed, on that evidence rather than on this one.
 
 **Enforced by** `tests/test_oracle_cannot_see_a_law_that_bends.py` (8 tests, all re-measured at run time — pinning today's 12-of-34 or the +10.16 pp would go stale the moment a pack constant is re-sourced, and a stale literal invites editing the claim instead of re-running the probe, which is how §40's correlation string happened): the blindness is **proved as arithmetic** on a symmetric log ladder with a planted pure bend (`b_linear = 0` to 1e-9, `b2` recovered exactly, linear MAPE ≫ 0 while curved MAPE ≈ 0), so no corpus change can retire the motivation; a second, **asymmetric** ladder plants *both* constants and requires both back, so a fit that silently dropped the linear column could not pass the first test on a triviality; `MIN_LEVELS_CURVE > MIN_LEVELS` is pinned; the permutation null must be **non-vacuous** (max > 0.5 pp) or it is decoration, and at least one pair must clear its own null by > 1 pp, with the failure text naming "§14/§16 stand as written — record that instead of deleting the test" as the honest alternative outcome; at least one pair must cross the ownership bar **only** with curvature, and every flipping dataset must appear in the printed report, since a finding absent from the report is unauditable; the shared-constant bound is computed on the axis with the **most members**, chosen by count and not by prettiness; §28's flattening sign is **re-derived through this independent route** and must still be the majority, with the failure text pointing at re-reading §28 rather than at this assertion; and the shipping median is read from the CLI (not a second copy of the scorer) to prove no pack was written to. Calibrated against the bug: forcing `b2 = 0` in `_oracle_curved` — i.e. reverting the probe to the shipping oracle — fails **4 of the 8**.
+
+## 47. A pack's coherence verdict spans ONE CONSTANT OFFSET — a scale that TRENDS along a condition is filed as "the blocks disagree, so Kp is not the cause"
+
+§46 asked what function family a reduction can *represent*, and applied that to the axis oracle. The same question, asked about the reduction behind this repository's entire absolute-scale story, has a sharper answer — because that reduction's blindness is a **symmetry**, not a narrow shape restriction.
+
+`tools/absolute_scale_audit.py` collapses each pack's blocks to
+
+    median_log = median over blocks of log10(measured/predicted)
+    spread     = max(log10 scale) - min(log10 scale)
+
+and grades the pack `coherent` when `spread < log10(3)`. Its published reading (§22, §23 and STATUS) was:
+
+* **COHERENT** → one mis-anchored Kp; the fix is one traceable constant.
+* **INCOHERENT** → *"the Kp is not the problem; the blocks disagree about what the pack should be."*
+
+The second sentence is the over-claim. Both statistics are functions of the **multiset** of scale values: permute which block holds which value and `median` and `spread` are unchanged to the last bit, while every statistic of scale *against a condition* moves freely. So the reduction spans exactly
+
+    scale(block) = const + noise
+
+and can say nothing about `scale(block) = A·x^b`. A pack whose miss rises or falls **systematically** with a condition is mapped onto a large spread — i.e. onto "the blocks disagree" — and the Kp question is then retired with an answer the statistic was structurally unable to earn. This is arithmetic, like §45's direction blindness, so no corpus change retires it.
+
+### Measured
+
+`tools/scale_coherence_trend_probe.py`, 38 comparable blocks, 4 packs with ≥ 4 blocks; every slope priced against a 2000-shuffle permutation null, because 4–8 points make a large |r| cheap (at n = 4 the smallest attainable p-value is 1/24 = 0.042, so |r| = 0.95 is *not* significant there — a correlation-size bar would have called it one).
+
+| pack | blocks | median | spread | incumbent verdict | steepest axis | slope | p_perm |
+|---|---|---|---|---|---|---|---|
+| `cu_h2o2_bta` | 8 | 0.73x | 59.3x | INCOHERENT | `pressure_psi` | **−0.94** | **0.009** |
+| `oxide_silica` | 7 | 0.60x | 18.0x | INCOHERENT | `rpm_platen` | −0.37 | 0.223 |
+| `sti_ceria` | 6 | 0.74x | 8.0x | INCOHERENT | `abrasive_size_nm` | −0.70 | 0.085 |
+| `sic_ceria_h2o2` | 5 | 2.13x | 8.7x | INCOHERENT | `pressure_psi` | +0.43 | 0.301 |
+
+One pack's "incoherence" hides a trend: `cu_h2o2_bta`'s absolute scale falls by roughly a decade per decade of pressure (3.24x at 1.0 psi → 0.057x at 7.0 psi), and the 59x spread the audit reports is what that trend looks like after the ordering is discarded.
+
+### The finding is about the READER, not about pressure — and the controls say so
+
+A cross-block slope is not a law, because blocks differ by publication: pressure covaries with pad, polisher, film variant, slurry vendor and rpm. Two controls, both re-measured by the enforcing test rather than quoted:
+
+1. **Within-block** (`tools/pressure_saturation_probe.py`, where all of those are held fixed by construction): median `d ln(measured/scaled prediction)/d ln P = −0.046`, 6 of 10 negative — straddling zero, which is why the two-resistance saturation law was rejected in the first place.
+2. **The data alone**, no model and no scale: `d ln(median measured rate)/d ln P` **across** `cu_h2o2_bta`'s blocks is **−0.55**. Preston requires **+1**. A negative cross-block exponent cannot be a property of pressure; it says harder-pressed publications happened to polish slower systems (1.0 psi @ 2420 Å/min vs 6.96 psi @ 1120 Å/min). Fitting a correction to it would encode **publication selection** as physics.
+
+So nothing is wired, no constant is introduced, and **the corpus median is unchanged at 18.9% / 19.5% held out** — the correct outcome for an instrument repair (§36, §44, §45, §46).
+
+### What changes
+
+The *sentence*. `INCOHERENT` now means "no single constant fits these blocks", and the audit's own docstring and report text say so, pointing here. It may no longer be quoted as "therefore Kp is innocent" — on `cu_h2o2_bta` the scale is *structured*, and a structured miss is compatible with a mis-anchored Kp combined with a missing condition dependence, which is the hypothesis the incumbent verdict had been read as excluding.
+
+### What was rejected
+
+Fitting the −0.94 slope as a per-pack pressure correction: it is a per-publication offset (both controls above), it is exactly §14's forbidden move on a residual with a known sign, and it is the global steepening term §37 vetoed. Replacing `median`/`spread` inside `absolute_scale_audit.py` with the trend statistic: §22/§23 quote that tool's output and silently changing what it prints makes the quoted numbers unattributable — a separate reader keeps the audit trail, the same decision §45 and §46 took. Lowering `MIN_BLOCKS` below 4: with 3 blocks the permutation null has 6 orderings and cannot reach any usable bar, so the "trend" would be interpolation. Calling a pack's trend significant on |r| alone: rejected by the same arithmetic.
+
+### The generalisable rule
+
+A reduction that consumes only an **unordered** collection of values can never report structure, and its silence about structure reads as evidence against it. Before quoting "the blocks disagree", ask whether the statistic could have distinguished disagreement from a trend — and if the answer is no, the honest verdict is "no single constant fits", never "the constant is not the cause".
+
+**What would resolve it** — i.e. what would make the cross-block slope quotable as physics: two blocks of the same pack differing in one condition and nothing else (same pad, polisher, film variant and vendor), a between-publication replicate. This corpus has none, and that is deliberately *not* a gate on completion: the finding is a reading correction, and the axis it points at is already closed by the within-block control.
+
+**Enforced by** `tests/test_scale_coherence_cannot_see_a_trend.py` (9 tests, all re-measured at run time): the blindness is **proved as arithmetic** on synthetic scales — a permuted assignment leaves `coherence_pair` bit-identical, and a perfect trend and a scrambled series with the *same value multiset* reduce identically while the trend statistic separates them decisively; the permutation null's necessity is pinned by deriving `1/MIN_BLOCKS! < P_BAR < 2/MIN_BLOCKS` and requiring a 4-point |r| > 0.9 to be **refused**; non-vacuity is asserted (a probe whose population empties passes everything); the incumbent `spread_log` is required to agree with `absolute_scale_audit`'s to 1e-6, so the two cannot drift apart; both controls are **re-measured** and the verdict fails if the cross-block trend ever survives them, with the failure text demanding a rewrite of this entry rather than a relaxed assertion; the audit's own docstring is checked for the removed over-claim and for a pointer here; and the shipping median and scale population are asserted unmoved, since an honesty fix that changes a prediction is a bug.
