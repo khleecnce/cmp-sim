@@ -2072,3 +2072,60 @@ A reduction that consumes only an **unordered** collection of values can never r
 **What would resolve it** — i.e. what would make the cross-block slope quotable as physics: two blocks of the same pack differing in one condition and nothing else (same pad, polisher, film variant and vendor), a between-publication replicate. This corpus has none, and that is deliberately *not* a gate on completion: the finding is a reading correction, and the axis it points at is already closed by the within-block control.
 
 **Enforced by** `tests/test_scale_coherence_cannot_see_a_trend.py` (9 tests, all re-measured at run time): the blindness is **proved as arithmetic** on synthetic scales — a permuted assignment leaves `coherence_pair` bit-identical, and a perfect trend and a scrambled series with the *same value multiset* reduce identically while the trend statistic separates them decisively; the permutation null's necessity is pinned by deriving `1/MIN_BLOCKS! < P_BAR < 2/MIN_BLOCKS` and requiring a 4-point |r| > 0.9 to be **refused**; non-vacuity is asserted (a probe whose population empties passes everything); the incumbent `spread_log` is required to agree with `absolute_scale_audit`'s to 1e-6, so the two cannot drift apart; both controls are **re-measured** and the verdict fails if the cross-block trend ever survives them, with the failure text demanding a rewrite of this entry rather than a relaxed assertion; the audit's own docstring is checked for the removed over-claim and for a pointer here; and the shipping median and scale population are asserted unmoved, since an honesty fix that changes a prediction is a bug.
+
+## 48. The two readers that answer "did the model predict this axis?" are BINARY, and a token response clears both
+
+The reader audit has asked who chooses the perturbation (§43), who chooses the evaluation points (§44), what the reduction throws away (§45), what family it can represent (§46), and whether it can represent anything but a constant (§47). The same question asked of the two readers that decide *whether an axis was predicted at all* has a blunter answer: **neither takes the measurement as an argument.**
+
+    tools/inert_axis_scan.py       response < INERT_TOLERANCE (0.5 %)  => inert
+    tools/flat_prediction_census.py |shape_mape - flat_mape| < 0.05 pp => no trend
+
+The first bar is computed on the predicted series alone. The second is a bar on the *score*, and the shape score's one free scale means any non-zero tilt moves it off the flat baseline by something. So a prediction that moves a token amount against a measurement that moves a great deal is reported by **both** readers as an ordinary prediction of that axis, and the block then contributes to the headline median as though the physics had been tested there.
+
+This is arithmetic, not a corpus property, so no corpus change retires it — the same status as §45's direction blindness and §47's multiset blindness. Measured on synthetic input at a response of exactly 1.2x the inert bar:
+
+| measured span | `inert_axis_scan` | `flat_prediction_census` | share of trend explained |
+|---|---|---|---|
+| 2.0x | responsive | predicting | 0.0086 |
+| 10.0x | responsive | predicting | 0.0026 |
+| 80.0x | responsive | predicting | 0.0014 |
+
+The continuous statistic that could see this band nearly existed: `tools/ladder_span_probe.py`'s span ratio. It was built for a different question (is the model collectively too steep?), so it admits only blocks with exactly ONE varying axis — excluding every Taguchi array and every aliased size sweep here — and it has no bar at all, reporting a population geometric mean in which a block explaining 10 % of its own trend is one more point below 1.0x rather than a named case.
+
+### Measured
+
+`tools/trend_share_census.py` reports, per scored block and in log space so the free scale cancels exactly,
+
+    trend_share = ln(max/min predicted) / ln(max/min measured)
+
+Over 48 blocks: 13 `declined` (§36 refusals), 1 `span-too-small` (the measurement itself moved 1.04x), 31 `predicting`, and **3 in the token band** (share < 0.20) that cleared both binary bars. Each one turned out to have a reason that was already true and already written down, and in no case machine-readable from the score:
+
+| block | axis | measured | applied | share | classification |
+|---|---|---|---|---|---|
+| `jani2025_cu_h2o2_acidic_chelator` | `oxidizer_wt_pct` | **+0.167** | **−0.029** | 0.162 | `token-substituted` |
+| `bouvet2002_ti_silica_size_sweep` | `abrasive_d50_nm` | **−0.454** | **−0.050** | 0.118 | `token-shared` |
+| `us9200180b2_cu_benzenesulfonic_series` | `slurry_ph` | −24.97 | −3.91 | 0.103 | `token-declared` |
+
+Three different mechanisms, and the distinction matters more than the count:
+
+1. **`token-substituted` — a new state between declined and predicted.** The Jani block sweeps H2O2 in the acidic + oxalate regime, where the measured slope is **positive**; the pack's fitted chelator constant belongs to a different species whose sign is **opposite**, so `chemical_rate` correctly refuses to transfer it and the legacy path applies −0.029. The rate *does* move, so `[DECLINES_AXIS]` would be false; but the response is not a test of this system. `core/declined_axes.py` gains `[SUBSTITUTED_AXIS: ...]` as a deliberately **separate** set from the declined one.
+2. **`token-shared` — the price of fewer constants, and not a defect.** The silica size exponent is deliberately one number across k=3 sweeps on five films, published with its spread (−0.45..+0.10). Titanium *is* the −0.45 member. The honest report is the spread the table already prints, not a per-block exponent — fitting one would undo the re-attribution that removed five per-pack constants.
+3. **`token-declared` — the §36 failure one level out.** The dataset's own `excluded_axes:` says its real variable is benzenesulfonic acid, which this pack has no term for; `slurry_ph` merely drifts 8.5→8.7 across the same rows and is therefore what `_varying_axes` enumerates. The header said so in prose; `Score.unmodelled_quantities` now carries it.
+
+After classification the silent count is **0**, which is the target state: inert is acceptable, silently inert is not.
+
+### What changed, and what did not
+
+One field on `Score` (`unmodelled_quantities`, read from the dataset), one marker constant plus one reader in `core/declined_axes.py`, and one warning string that gains a prefix. **No constant was added, no pack value changed, no exponent was fitted, and the median is unchanged at 18.9 % / 19.5 % held out** — the correct outcome for an instrument repair, asserted rather than merely stated.
+
+### What was rejected
+
+Fitting a per-block oxidizer exponent for the acidic + oxalate regime: it is one dataset, and the constant would be fitted on the three rows it is then scored on (§13's rule at exponent scale). Widening the silica group's spread or splitting titanium out of it: the table's whole value is that one exponent covers five sweeps; splitting on the member that disagrees is selection. Making `token-*` a gate: gating on it would drop blocks to move a median, which is forbidden — the classification is reported and the blocks keep scoring. Treating a substitution as a declined axis: the rate moves, so that claim is false, and merging the two would either excuse a real miss or hide a real refusal. Lowering `TOKEN_SHARE` until the band emptied: the report prints the whole distribution so the reading does not depend on the cut (§34).
+
+### The generalisable rule
+
+**A binary bar on a response cannot see a response that is present but token**, and its "yes" is then indistinguishable from a tested prediction. Whenever a reader answers "did the model predict this?" with a threshold, ask what the threshold is computed *on* — if the measurement is not one of its arguments, the reader can only tell you the model said *something*, never that it said something about the data.
+
+**What would resolve it** — i.e. what would move these three blocks out of the band as physics rather than as bookkeeping: for `token-substituted`, a second independent acidic + oxalate H2O2 sweep, which would make the regime-specific constant fittable without self-scoring; for `token-shared`, a fourth silica size sweep, which would either tighten the published spread or split the group on evidence; for `token-declared`, a benzenesulfonic-acid/Cu pair constant. None of the three is a gate on completion, and the token band is deliberately **not** a gate either.
+
+**Enforced by** `tests/test_trend_share_is_not_a_binary_bar.py` (18 tests, all re-measured at run time): the blindness is **proved as arithmetic** on synthetic input (both bars clear at three measured spans while the share falls monotonically, and a token and a full prediction are shown indistinguishable to both readers on one input set); `trend_share` is asserted invariant to the scorer's free scale over six decades; the local reimplementation of the scorer's two numbers must agree with the shipping scorer to 1e-6 on at least three real blocks, so the proofs cannot be about a statistic nothing uses; the two bars are **imported** from their owners rather than restated; the silent count must be **0**, paired with a non-vacuity guard that fails if the token band ever empties (which would make that check pass for free); every classification must be backed by the artefact it names, with `token-shared` additionally required to sit inside **its own group's** published spread at the precision the table prints; a substituted axis must never also be declined and must still move the rate; the marker must not replace its prose; and the median and the rate are asserted unmoved, since a warning string that changes a prediction is a bug.

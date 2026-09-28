@@ -114,6 +114,22 @@ class Score:
     #: a prediction.
     declined_axes: List[str] = field(default_factory=list)
     declined_axes_swept: List[str] = field(default_factory=list)
+    #: Quantities the dataset's OWN header declares the experiment varied while
+    #: the model has no term for them (``excluded_axes:`` in the YAML). These
+    #: are NOT the axes above: `declined_axes` is what the RUN says, this is
+    #: what the DATASET says, and the two can name different things. The
+    #: standing case is a table whose real variable is unmodelled (benzene-
+    #: sulfonic acid, ADS surfactant, oxalic acid) while a *different* quantity
+    #: drifts incidentally across its rows (pH 8.5-8.7) and is therefore what
+    #: ``_varying_axes`` enumerates. The block is then scored as a test of the
+    #: incidental axis, and its prediction can only span a token fraction of a
+    #: trend that the dataset already said belongs elsewhere.
+    #:
+    #: Reported, never acted on. Gating on it would be the forbidden selection,
+    #: and it is not a licence to excuse a miss either -- the header prose is a
+    #: claim, and ``tools/trend_share_census.py`` measures whether the block
+    #: actually behaves that way.
+    unmodelled_quantities: List[str] = field(default_factory=list)
     #: Mean |deviation from group mean| / group mean over rows that are
     #: IDENTICAL in every condition, as a percentage — the dataset's own
     #: reproducibility, and therefore a FLOOR on the error any model can
@@ -189,6 +205,8 @@ class Score:
             "gated_reason": self.gated_reason,
             "declined_axes": self.declined_axes,
             "declined_axes_this_dataset_sweeps": self.declined_axes_swept,
+            "unmodelled_quantities_declared_by_dataset":
+                self.unmodelled_quantities,
             "error": self.error,
         }
 
@@ -460,6 +478,8 @@ def score_dataset(path: Path) -> Score:
     film = doc.get("film") or PACK_FILM.get(str(doc.get("pack") or "")) or "?"
     score = Score(dataset=path.stem, film=str(film),
                   n=len(rows), axes=_varying_axes(rows),
+                  unmodelled_quantities=sorted(
+                      str(k) for k in (doc.get("excluded_axes") or {})),
                   replicate_scatter=_replicate_scatter(rows),
                   scale_ratio=_scale_ratio(doc, rows))
     if len(rows) < 3:

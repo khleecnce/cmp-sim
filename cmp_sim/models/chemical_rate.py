@@ -299,7 +299,7 @@ _PHRASE_MAP = (
     ("세리아 chemical tooth", "ceria chemical tooth: Ce3+ active-site fraction drives Si-O-Ce chemisorption, decomposed into a chemical and a residual mechanical path, since ceria remains a hard oxide even with no active sites"),
     ("pH 연화", "pH softening: linear, unverified mapping from pH to effective surface hardness"),
     ("기준=현재 농도로 폴백", "no reference concentration in the pack, so the reference fell back to the current value: changing this additive will NOT change the result. Add the reference concentration to the pack"),
-    ("전이하지 않는다", "chelator-specific oxidizer constant NOT transferred: the fitted constant belongs to a different chelator than this pack uses, and the two were measured to move the rate in OPPOSITE directions (oxalic acid up, glycine down), so the legacy oxidizer path is used instead"),
+    ("전이하지 않는다", "[SUBSTITUTED_AXIS: oxidizer_wt_pct, h2o2_vol_pct, oxidizer_vol_pct] chelator-specific oxidizer constant NOT transferred: the fitted constant belongs to a different chelator than this pack uses, and the two were measured to move the rate in OPPOSITE directions (oxalic acid up, glycine down), so the legacy oxidizer path is used instead"),
     ("적용 범위를 벗어났다", "outside the validity range of this term"),
     ("건너뜀", "term skipped: a required constant is missing"),
     # The chelator/promoter terms were never called from this wrapper before

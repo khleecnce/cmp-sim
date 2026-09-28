@@ -38,6 +38,12 @@ LIMITS = DOCS / "limits.md"
 #: Tests that enforce a decided refusal to predict. A test added here MUST be
 #: cited by docs/limits.md — that is the point of the registry.
 LIMIT_ENFORCING_TESTS = {
+    # limit 48: the two readers that answer "did the model predict this axis?"
+    # are BINARY and neither takes the measurement as an argument, so a token
+    # response (1.2x the 0.5% inert bar) against an 80x measured span is graded
+    # as an ordinary prediction. 3 token blocks, all with reasons already true
+    # and none machine-readable; 0 silent after classification; median unchanged.
+    "test_trend_share_is_not_a_binary_bar.py",
     # limit 47: a pack's coherence verdict spans ONE CONSTANT OFFSET —
     # median/spread are functions of the MULTISET of scale values, so a scale
     # that TRENDS along a condition is filed as "the blocks disagree, so Kp is

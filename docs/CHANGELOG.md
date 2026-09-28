@@ -4,6 +4,61 @@ All notable changes to CMP-Sim. Newest first.
 
 ## Unreleased
 
+### Measured — the two readers that answer "did the model predict this axis?" are BINARY, and a token response clears both (2026-09-28)
+- §43-§47 audited who chooses the perturbation, who chooses the evaluation
+  points, what the reduction throws away, what family it represents, and whether
+  it represents anything but a constant. The same question asked of the two
+  readers that decide whether an axis was predicted **at all** has a blunter
+  answer: neither takes the measurement as an argument.
+  `inert_axis_scan` tests `predicted response < 0.5%`; `flat_prediction_census`
+  tests `|shape_mape - flat_mape| < 0.05 pp`, a bar on the *score*, which the
+  shape score's one free scale moves for any non-zero tilt.
+- **Proved as arithmetic**, so no corpus change retires it (§45's class): fix a
+  response at 1.2x the inert bar and grow only the measured span — both readers
+  say "predicting" at 2x, 10x and 80x while the share of trend explained falls
+  0.0086 -> 0.0026 -> **0.0014**.
+- **Measured** (`tools/trend_share_census.py`, new; 48 blocks,
+  `share = ln(predicted span)/ln(measured span)` in log space so the free scale
+  cancels exactly): declined 13, span-too-small 1, predicting 31, and **3 in the
+  token band** (share < 0.20) that cleared both bars. Every one had a reason that
+  was already true and already written down, and none was machine-readable from
+  the score — three *different* mechanisms, which matters more than the count:
+
+  | block | axis | measured | applied | share | class |
+  |---|---|---|---|---|---|
+  | `jani2025_cu_h2o2_acidic_chelator` | `oxidizer_wt_pct` | **+0.167** | **-0.029** | 0.162 | `token-substituted` |
+  | `bouvet2002_ti_silica_size_sweep` | `abrasive_d50_nm` | **-0.454** | **-0.050** | 0.118 | `token-shared` |
+  | `us9200180b2_cu_benzenesulfonic_series` | `slurry_ph` | -24.97 | -3.91 | 0.103 | `token-declared` |
+
+- **A new state between declined and predicted.** The Jani block sweeps H2O2 in
+  the acidic + oxalate regime where the measured slope is POSITIVE; the pack's
+  fitted chelator constant belongs to a species of the opposite sign, so
+  `chemical_rate` correctly refuses to transfer it. The rate still moves, so
+  `[DECLINES_AXIS]` would be false — but the response is not a test of this
+  system. `core/declined_axes.py` gains `[SUBSTITUTED_AXIS: ...]` and
+  `substituted_axes()` as a deliberately separate set.
+- `Score.unmodelled_quantities` publishes each dataset's own `excluded_axes:`,
+  which is what makes the third case legible: US9200180B2's real variable is
+  benzenesulfonic acid (no term in this pack) while `slurry_ph` merely drifts
+  8.5 -> 8.7 across the same rows and is therefore what `_varying_axes` counts.
+- `token-shared` is recorded as **not a defect**: the silica size exponent is one
+  number across k=3 sweeps on five films with its spread published (-0.45..+0.10)
+  and titanium *is* the -0.45 member. Splitting it out would undo the
+  re-attribution that removed five per-pack constants.
+- After classification the **silent count is 0** — inert is acceptable, silently
+  inert is not.
+- **No constant added, no pack value changed, no exponent fitted; median
+  unchanged at 18.9% / 19.5% held out**, which is the correct outcome for an
+  instrument repair and is asserted rather than merely stated.
+- Rejected: fitting a regime-specific oxidizer exponent on the three rows it
+  would then be scored on; widening the silica spread or splitting titanium out;
+  making `token-*` a gate (dropping blocks to move a median is forbidden);
+  merging substitution into declined; lowering `TOKEN_SHARE` until the band
+  emptied (the whole distribution is printed instead, §34).
+- `docs/limits.md` §48 + `tests/test_trend_share_is_not_a_binary_bar.py`
+  (18 tests, all re-measured at run time). Verified by reversion: removing the
+  marker alone fails 5 of the 18.
+
 ### Measured — a pack's coherence verdict represents ONE CONSTANT OFFSET, so a scale that TRENDS along a condition is filed as "the blocks disagree, so Kp is not the cause" (2026-09-28)
 - §46 asked what function family a reduction can represent, about the axis
   oracle. The same question about `tools/absolute_scale_audit.py` has a sharper
